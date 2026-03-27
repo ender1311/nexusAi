@@ -30,9 +30,8 @@ yarn-debug.log*
 yarn-error.log*
 .pnpm-debug.log*
 
-# env files — ignore all except the example template
+# env files (can opt-in for committing if needed)
 .env*
-!.env.example
 
 # vercel
 .vercel
@@ -42,9 +41,3 @@ yarn-error.log*
 next-env.d.ts
 
 /src/generated/prisma
-
-# SQLite database
-prisma/*.db
-prisma/*.db-journal
-prisma/*.db-wal
-prisma/*.db-shm

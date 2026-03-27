@@ -4,16 +4,16 @@
 
 **After significant code changes, always run:**
 ```bash
-bun run check    # lint + typecheck (run this before considering a task done)
+npm run check    # lint + typecheck (run this before considering a task done)
 ```
 
 ```bash
-bun run dev        # Start dev server (Next.js on port 3000)
-bun run build      # Production build
-bun run start      # Start production server
-bun run lint       # ESLint only
-bun run typecheck  # tsc --noEmit only
-bun run check      # lint + typecheck together
+npm run dev        # Start dev server (Next.js on port 3000)
+npm run build      # Production build
+npm run start      # Start production server
+npm run lint       # ESLint only
+npm run typecheck  # tsc --noEmit only
+npm run check      # lint + typecheck together
 
 # Database
 npx prisma migrate dev   # Run migrations (uses prisma.config.ts)

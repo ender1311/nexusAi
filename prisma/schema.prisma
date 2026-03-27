@@ -1,0 +1,191 @@
+generator client {
+  provider = "prisma-client"
+  output   = "../src/generated/prisma"
+}
+
+datasource db {
+  provider = "sqlite"
+}
+
+model Agent {
+  id          String   @id @default(cuid())
+  name        String
+  description String?
+  status      String   @default("draft")
+  algorithm   String   @default("thompson")
+  epsilon     Float    @default(0.1)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  goals          Goal[]
+  messages       Message[]
+  schedulingRule SchedulingRule?
+  decisions      UserDecision[]
+  metrics        ModelMetric[]
+  personaTargets AgentPersonaTarget[]
+}
+
+model Goal {
+  id             String  @id @default(cuid())
+  agentId        String
+  eventName      String
+  tier           String
+  valueWeight    Float   @default(1.0)
+  weightMode     String  @default("fixed")   // "fixed" | "property"
+  weightProperty String?
+  weightDefault  Float   @default(1.0)
+  description    String?
+
+  agent Agent @relation(fields: [agentId], references: [id], onDelete: Cascade)
+}
+
+model Message {
+  id              String   @id @default(cuid())
+  agentId         String
+  name            String
+  channel         String
+  brazeCampaignId String?
+  testedVariables String   @default("[]")
+  createdAt       DateTime @default(now())
+
+  agent    Agent            @relation(fields: [agentId], references: [id], onDelete: Cascade)
+  variants MessageVariant[]
+}
+
+model MessageVariant {
+  id                   String   @id @default(cuid())
+  messageId            String
+  name                 String
+  subject              String?
+  body                 String
+  cta                  String?
+  status               String   @default("active")
+  brazeVariantId       String?
+  title                String?
+  iconImageUrl         String?
+  deeplink             String?
+  preferredHour        Int?
+  preferredDayOfWeek   Int?
+  frequencyCapOverride String?
+  createdAt            DateTime @default(now())
+
+  message   Message        @relation(fields: [messageId], references: [id], onDelete: Cascade)
+  decisions UserDecision[]
+}
+
+model UserDecision {
+  id               String    @id @default(cuid())
+  agentId          String
+  userId           String
+  messageVariantId String?
+  channel          String
+  sentAt           DateTime  @default(now())
+  brazeSendId      String?
+  conversionEvent  String?
+  conversionAt     DateTime?
+  reward           Float?
+
+  agent   Agent           @relation(fields: [agentId], references: [id], onDelete: Cascade)
+  variant MessageVariant? @relation(fields: [messageVariantId], references: [id])
+}
+
+model User {
+  id                String    @id @default(cuid())
+  externalId        String    @unique
+  attributes        String    @default("{}")     // JSON from Hightouch
+
+  // Accumulated behavioral stats
+  totalDecisions    Int       @default(0)
+  totalConversions  Int       @default(0)
+  totalReward       Float     @default(0.0)
+  channelStats      String    @default("{}")     // {"push":{sent:N,converted:N},...}
+  hourlyStats       String    @default("[]")     // 24-element array [N, N, ...]
+  dailyStats        String    @default("[]")     // 7-element array [N, N, ...]
+
+  // Feature vector (computed periodically from stats)
+  featureVector     String?
+  featureVectorAt   DateTime?
+
+  // Persona assignment
+  personaId         String?
+  personaConfidence Float?
+  personaAssignedAt DateTime?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  persona Persona? @relation(fields: [personaId], references: [id])
+}
+
+model Persona {
+  id              String    @id @default(cuid())
+  name            String
+  description     String?
+  icon            String    @default("Users2")
+  color           String    @default("blue")
+  source          String    @default("manual")  // "manual" | "discovered"
+  centroid        String?                        // JSON feature vector
+  clusterSize     Int       @default(0)
+  silhouetteScore Float?
+  traits          String    @default("{}")       // JSON: discovered/extra fields
+  label           String?
+  tags            String    @default("[]")
+  isActive        Boolean   @default(true)
+  discoveredAt    DateTime?
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+
+  users        User[]
+  agentTargets AgentPersonaTarget[]
+}
+
+model AgentPersonaTarget {
+  id        String @id @default(cuid())
+  agentId   String
+  personaId String
+
+  agent   Agent   @relation(fields: [agentId], references: [id], onDelete: Cascade)
+  persona Persona @relation(fields: [personaId], references: [id], onDelete: Cascade)
+
+  @@unique([agentId, personaId])
+}
+
+model PersonaArmStats {
+  id        String @id @default(cuid())
+  personaId String
+  agentId   String
+  variantId String
+  alpha     Float  @default(1.0)
+  beta      Float  @default(1.0)
+  tries     Int    @default(0)
+  wins      Int    @default(0)
+
+  @@unique([personaId, agentId, variantId])
+}
+
+model SchedulingRule {
+  id             String  @id @default(cuid())
+  agentId        String  @unique
+  frequencyCap   String  @default("{\"maxSends\":3,\"period\":\"week\"}")
+  quietHours     String  @default("{\"start\":\"22:00\",\"end\":\"08:00\",\"timezone\":\"America/New_York\"}")
+  blackoutDates  String  @default("[]")
+  smartSuppress  Boolean @default(false)
+  suppressThresh Float   @default(0.5)
+
+  agent Agent @relation(fields: [agentId], references: [id], onDelete: Cascade)
+}
+
+model ModelMetric {
+  id        String   @id @default(cuid())
+  agentId   String
+  timestamp DateTime @default(now())
+  metrics   String
+
+  agent Agent @relation(fields: [agentId], references: [id], onDelete: Cascade)
+}
+
+model AppSetting {
+  id    String @id @default(cuid())
+  key   String @unique
+  value String
+}
