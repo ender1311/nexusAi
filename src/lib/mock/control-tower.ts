@@ -168,8 +168,10 @@ export function computePredictions(
     const maxImpact = controlAgents.length;
     const normalizedImpact = Math.min(totalImpact / maxImpact, 1);
 
-    // Scale by slider weight (0-100 → 0-1)
-    const sliderWeight = (sliderWeights[param.id] ?? 50) / 100;
+    // Scale by slider weight (0-100 → 0-1), clamped for display/prediction consistency
+    const raw = sliderWeights[param.id];
+    const pct = typeof raw === "number" && Number.isFinite(raw) ? Math.round(raw) : 50;
+    const sliderWeight = Math.min(100, Math.max(0, pct)) / 100;
     const effectiveImpact = normalizedImpact * sliderWeight;
 
     // Interpolate between baseline and best case

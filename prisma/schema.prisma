@@ -4,7 +4,7 @@ generator client {
 }
 
 datasource db {
-  provider = "sqlite"
+  provider = "postgresql"
 }
 
 model Agent {
@@ -45,7 +45,7 @@ model Message {
   name            String
   channel         String
   brazeCampaignId String?
-  testedVariables String   @default("[]")
+  testedVariables Json     @default("[]")
   createdAt       DateTime @default(now())
 
   agent    Agent            @relation(fields: [agentId], references: [id], onDelete: Cascade)
@@ -66,7 +66,7 @@ model MessageVariant {
   deeplink             String?
   preferredHour        Int?
   preferredDayOfWeek   Int?
-  frequencyCapOverride String?
+  frequencyCapOverride Json?
   createdAt            DateTime @default(now())
 
   message   Message        @relation(fields: [messageId], references: [id], onDelete: Cascade)
@@ -92,18 +92,18 @@ model UserDecision {
 model User {
   id                String    @id @default(cuid())
   externalId        String    @unique
-  attributes        String    @default("{}")     // JSON from Hightouch
+  attributes        Json      @default("{}")     // JSON from Hightouch
 
   // Accumulated behavioral stats
   totalDecisions    Int       @default(0)
   totalConversions  Int       @default(0)
   totalReward       Float     @default(0.0)
-  channelStats      String    @default("{}")     // {"push":{sent:N,converted:N},...}
-  hourlyStats       String    @default("[]")     // 24-element array [N, N, ...]
-  dailyStats        String    @default("[]")     // 7-element array [N, N, ...]
+  channelStats      Json      @default("{}")     // {"push":{sent:N,converted:N},...}
+  hourlyStats       Json      @default("[]")     // 24-element array [N, N, ...]
+  dailyStats        Json      @default("[]")     // 7-element array [N, N, ...]
 
   // Feature vector (computed periodically from stats)
-  featureVector     String?
+  featureVector     Json?
   featureVectorAt   DateTime?
 
   // Persona assignment
@@ -124,12 +124,12 @@ model Persona {
   icon            String    @default("Users2")
   color           String    @default("blue")
   source          String    @default("manual")  // "manual" | "discovered"
-  centroid        String?                        // JSON feature vector
+  centroid        Json?                          // JSON feature vector
   clusterSize     Int       @default(0)
   silhouetteScore Float?
-  traits          String    @default("{}")       // JSON: discovered/extra fields
+  traits          Json      @default("{}")       // JSON: discovered/extra fields
   label           String?
-  tags            String    @default("[]")
+  tags            Json      @default("[]")
   isActive        Boolean   @default(true)
   discoveredAt    DateTime?
   createdAt       DateTime  @default(now())
@@ -166,9 +166,9 @@ model PersonaArmStats {
 model SchedulingRule {
   id             String  @id @default(cuid())
   agentId        String  @unique
-  frequencyCap   String  @default("{\"maxSends\":3,\"period\":\"week\"}")
-  quietHours     String  @default("{\"start\":\"22:00\",\"end\":\"08:00\",\"timezone\":\"America/New_York\"}")
-  blackoutDates  String  @default("[]")
+  frequencyCap   Json    @default("{\"maxSends\":3,\"period\":\"week\"}")
+  quietHours     Json    @default("{\"start\":\"22:00\",\"end\":\"08:00\",\"timezone\":\"America/New_York\"}")
+  blackoutDates  Json    @default("[]")
   smartSuppress  Boolean @default(false)
   suppressThresh Float   @default(0.5)
 
@@ -179,7 +179,7 @@ model ModelMetric {
   id        String   @id @default(cuid())
   agentId   String
   timestamp DateTime @default(now())
-  metrics   String
+  metrics   Json
 
   agent Agent @relation(fields: [agentId], references: [id], onDelete: Cascade)
 }

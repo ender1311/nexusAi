@@ -17,9 +17,9 @@ export interface UserStatsInput {
   totalDecisions: number;
   totalConversions: number;
   totalReward: number;
-  channelStats: string; // JSON: {push:{sent,converted}, email:..., sms:...}
-  hourlyStats: string;  // JSON: number[24]
-  dailyStats: string;   // JSON: number[7]
+  channelStats: unknown;
+  hourlyStats: unknown;
+  dailyStats: unknown;
 }
 
 function normalize(arr: number[]): number[] {
@@ -32,9 +32,7 @@ export function computeFeatureVector(stats: UserStatsInput): number[] {
   const vec = new Array<number>(FEATURE_DIM).fill(0);
 
   // [0-2] Channel conversion rates
-  const channelStats: Record<string, { sent: number; converted: number }> = JSON.parse(
-    stats.channelStats || "{}"
-  );
+  const channelStats = (stats.channelStats as Record<string, { sent: number; converted: number }>) ?? {};
   CHANNELS.forEach((ch, i) => {
     const cs = channelStats[ch];
     if (cs && cs.sent > 0) {
@@ -43,14 +41,14 @@ export function computeFeatureVector(stats: UserStatsInput): number[] {
   });
 
   // [3-26] Hourly curve (normalized)
-  const rawHourly: number[] = JSON.parse(stats.hourlyStats || "[]");
+  const rawHourly = (stats.hourlyStats as number[]) ?? [];
   const hourly = Array(24).fill(0);
   for (let h = 0; h < 24; h++) hourly[h] = rawHourly[h] ?? 0;
   const normHourly = normalize(hourly);
   for (let h = 0; h < 24; h++) vec[3 + h] = normHourly[h];
 
   // [27-33] Daily curve (normalized)
-  const rawDaily: number[] = JSON.parse(stats.dailyStats || "[]");
+  const rawDaily = (stats.dailyStats as number[]) ?? [];
   const daily = Array(7).fill(0);
   for (let d = 0; d < 7; d++) daily[d] = rawDaily[d] ?? 0;
   const normDaily = normalize(daily);

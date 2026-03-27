@@ -226,12 +226,12 @@ export async function discoverPersonas(config: DiscoveryConfig = {}): Promise<{
     const traits = deriveTrait(centroid);
     const clusterSize = clusterSizes[j];
 
-    const traitsJson = JSON.stringify({
+    const traitsObj = {
       dominantChannel: traits.dominantChannel,
       peakHour: traits.peakHour,
       engagementLevel: traits.engagementLevel,
       conversionRate: traits.conversionRate,
-    });
+    };
 
     const COLORS = ["blue", "green", "purple", "orange", "teal", "indigo", "amber", "pink"];
     const color = COLORS[j % COLORS.length];
@@ -241,10 +241,10 @@ export async function discoverPersonas(config: DiscoveryConfig = {}): Promise<{
       await prisma.persona.update({
         where: { id: existing.id },
         data: {
-          centroid: JSON.stringify(centroid),
+          centroid,
           clusterSize,
           silhouetteScore: bestResult.silhouetteScore,
-          traits: traitsJson,
+          traits: traitsObj,
           color,
           discoveredAt: new Date(),
         },
@@ -259,10 +259,10 @@ export async function discoverPersonas(config: DiscoveryConfig = {}): Promise<{
           source: "discovered",
           icon: "Users2",
           color,
-          centroid: JSON.stringify(centroid),
+          centroid,
           clusterSize,
           silhouetteScore: bestResult.silhouetteScore,
-          traits: traitsJson,
+          traits: traitsObj,
           discoveredAt: new Date(),
         },
       });

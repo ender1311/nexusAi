@@ -9,19 +9,19 @@ function toApiPersona(p: {
   icon: string;
   color: string;
   source: string;
-  centroid: string | null;
+  centroid: unknown;
   clusterSize: number;
   silhouetteScore: number | null;
-  traits: string;
+  traits: unknown;
   label: string | null;
-  tags: string;
+  tags: unknown;
   isActive: boolean;
   discoveredAt: Date | null;
   createdAt: Date;
   updatedAt: Date;
   _count?: { users: number };
 }): Persona {
-  const traits = JSON.parse(p.traits || "{}");
+  const traits = (p.traits as Record<string, unknown>) ?? {};
 
   return {
     id: p.id,
@@ -31,7 +31,7 @@ function toApiPersona(p: {
     color: p.color,
     source: p.source as "manual" | "discovered",
     isActive: p.isActive,
-    tags: JSON.parse(p.tags || "[]"),
+    tags: (p.tags as string[]) ?? [],
     clusterSize: p.clusterSize,
     silhouetteScore: p.silhouetteScore,
     discoveredAt: p.discoveredAt?.toISOString() ?? null,
@@ -40,20 +40,20 @@ function toApiPersona(p: {
     label: p.label,
     _count: p._count,
     // Spread rich fields from traits JSON
-    ...(traits.lifeContext !== undefined && { lifeContext: traits.lifeContext }),
-    ...(traits.demographics !== undefined && { demographics: traits.demographics }),
-    ...(traits.engagement !== undefined && { engagement: traits.engagement }),
-    ...(traits.contentModes !== undefined && { contentModes: traits.contentModes }),
-    ...(traits.features !== undefined && { features: traits.features }),
-    ...(traits.channels !== undefined && { channels: traits.channels }),
-    ...(traits.metrics !== undefined && { metrics: traits.metrics }),
+    ...(traits.lifeContext !== undefined && { lifeContext: traits.lifeContext as string }),
+    ...(traits.demographics !== undefined && { demographics: traits.demographics as Persona["demographics"] }),
+    ...(traits.engagement !== undefined && { engagement: traits.engagement as Persona["engagement"] }),
+    ...(traits.contentModes !== undefined && { contentModes: traits.contentModes as Persona["contentModes"] }),
+    ...(traits.features !== undefined && { features: traits.features as string[] }),
+    ...(traits.channels !== undefined && { channels: traits.channels as Persona["channels"] }),
+    ...(traits.metrics !== undefined && { metrics: traits.metrics as Persona["metrics"] }),
     // Discovered persona traits
     ...(p.source === "discovered" && {
       discoveredTraits: {
-        dominantChannel: traits.dominantChannel,
-        peakHour: traits.peakHour,
-        engagementLevel: traits.engagementLevel,
-        conversionRate: traits.conversionRate,
+        dominantChannel: traits.dominantChannel as string | undefined,
+        peakHour: traits.peakHour as number | undefined,
+        engagementLevel: traits.engagementLevel as string | undefined,
+        conversionRate: traits.conversionRate as number | undefined,
       },
     }),
   };
@@ -78,7 +78,7 @@ export async function POST(req: NextRequest) {
 
   // Rich fields go into traits JSON
   const { lifeContext, demographics, engagement, contentModes, features, channels, metrics, ...coreFields } = body;
-  const traits = JSON.stringify({ lifeContext, demographics, engagement, contentModes, features, channels, metrics });
+  const traits = { lifeContext, demographics, engagement, contentModes, features, channels, metrics };
 
   const persona = await prisma.persona.create({
     data: {
@@ -88,7 +88,7 @@ export async function POST(req: NextRequest) {
       color: coreFields.color ?? "blue",
       source: "manual",
       label: coreFields.label ?? null,
-      tags: JSON.stringify(coreFields.tags ?? []),
+      tags: coreFields.tags ?? [],
       traits,
     },
     include: { _count: { select: { users: true } } },

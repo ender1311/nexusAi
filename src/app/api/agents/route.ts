@@ -67,7 +67,7 @@ export async function POST(req: NextRequest) {
             return {
               name: m.name,
               channel: m.channel,
-              testedVariables: JSON.stringify(detectTestedVariables(variantList as MessageVariant[])),
+              testedVariables: detectTestedVariables(variantList as MessageVariant[]),
               variants: {
                 create: variantList.map((v) => ({
                   name: v.name ?? "V1",
@@ -87,12 +87,12 @@ export async function POST(req: NextRequest) {
         },
         schedulingRule: {
           create: {
-            frequencyCap: JSON.stringify(frequencyCap ?? { maxSends: 3, period: "week" }),
-            quietHours: JSON.stringify({
+            frequencyCap: frequencyCap ?? { maxSends: 3, period: "week" },
+            quietHours: {
               start: quietStart ?? "22:00",
               end: quietEnd ?? "08:00",
               timezone: timezone ?? "America/New_York",
-            }),
+            },
             smartSuppress: smartSuppress ?? false,
             suppressThresh: suppressThresh ?? 0.5,
           },

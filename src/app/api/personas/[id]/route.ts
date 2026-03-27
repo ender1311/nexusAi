@@ -9,19 +9,19 @@ function toApiPersona(p: {
   icon: string;
   color: string;
   source: string;
-  centroid: string | null;
+  centroid: unknown;
   clusterSize: number;
   silhouetteScore: number | null;
-  traits: string;
+  traits: unknown;
   label: string | null;
-  tags: string;
+  tags: unknown;
   isActive: boolean;
   discoveredAt: Date | null;
   createdAt: Date;
   updatedAt: Date;
   _count?: { users: number };
 }): Persona {
-  const traits = JSON.parse(p.traits || "{}");
+  const traits = (p.traits as Record<string, unknown>) ?? {};
 
   return {
     id: p.id,
@@ -31,7 +31,7 @@ function toApiPersona(p: {
     color: p.color,
     source: p.source as "manual" | "discovered",
     isActive: p.isActive,
-    tags: JSON.parse(p.tags || "[]"),
+    tags: (p.tags as string[]) ?? [],
     clusterSize: p.clusterSize,
     silhouetteScore: p.silhouetteScore,
     discoveredAt: p.discoveredAt?.toISOString() ?? null,
@@ -39,19 +39,19 @@ function toApiPersona(p: {
     updatedAt: p.updatedAt.toISOString(),
     label: p.label,
     _count: p._count,
-    ...(traits.lifeContext !== undefined && { lifeContext: traits.lifeContext }),
-    ...(traits.demographics !== undefined && { demographics: traits.demographics }),
-    ...(traits.engagement !== undefined && { engagement: traits.engagement }),
-    ...(traits.contentModes !== undefined && { contentModes: traits.contentModes }),
-    ...(traits.features !== undefined && { features: traits.features }),
-    ...(traits.channels !== undefined && { channels: traits.channels }),
-    ...(traits.metrics !== undefined && { metrics: traits.metrics }),
+    ...(traits.lifeContext !== undefined && { lifeContext: traits.lifeContext as string }),
+    ...(traits.demographics !== undefined && { demographics: traits.demographics as Persona["demographics"] }),
+    ...(traits.engagement !== undefined && { engagement: traits.engagement as Persona["engagement"] }),
+    ...(traits.contentModes !== undefined && { contentModes: traits.contentModes as Persona["contentModes"] }),
+    ...(traits.features !== undefined && { features: traits.features as string[] }),
+    ...(traits.channels !== undefined && { channels: traits.channels as Persona["channels"] }),
+    ...(traits.metrics !== undefined && { metrics: traits.metrics as Persona["metrics"] }),
     ...(p.source === "discovered" && {
       discoveredTraits: {
-        dominantChannel: traits.dominantChannel,
-        peakHour: traits.peakHour,
-        engagementLevel: traits.engagementLevel,
-        conversionRate: traits.conversionRate,
+        dominantChannel: traits.dominantChannel as string | undefined,
+        peakHour: traits.peakHour as number | undefined,
+        engagementLevel: traits.engagementLevel as string | undefined,
+        conversionRate: traits.conversionRate as number | undefined,
       },
     }),
   };
@@ -76,8 +76,8 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
   const existing = await prisma.persona.findUnique({ where: { id } });
   if (!existing) return NextResponse.json({ error: "Not found" }, { status: 404 });
 
-  const existingTraits = JSON.parse(existing.traits || "{}");
-  const updatedTraits = JSON.stringify({
+  const existingTraits = (existing.traits as unknown as Record<string, unknown>) ?? {};
+  const updatedTraits = {
     ...existingTraits,
     ...(lifeContext !== undefined && { lifeContext }),
     ...(demographics !== undefined && { demographics }),
@@ -86,7 +86,7 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
     ...(features !== undefined && { features }),
     ...(channels !== undefined && { channels }),
     ...(metrics !== undefined && { metrics }),
-  });
+  };
 
   const persona = await prisma.persona.update({
     where: { id },
@@ -96,7 +96,7 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
       ...(coreFields.icon && { icon: coreFields.icon }),
       ...(coreFields.color && { color: coreFields.color }),
       ...(coreFields.label !== undefined && { label: coreFields.label }),
-      ...(coreFields.tags && { tags: JSON.stringify(coreFields.tags) }),
+      ...(coreFields.tags && { tags: coreFields.tags }),
       ...(coreFields.isActive !== undefined && { isActive: coreFields.isActive }),
       traits: updatedTraits,
     },

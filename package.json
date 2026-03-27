@@ -12,8 +12,8 @@
   },
   "dependencies": {
     "@base-ui/react": "^1.2.0",
-    "@libsql/client": "^0.17.0",
-    "@prisma/adapter-libsql": "^7.4.2",
+    "@neondatabase/serverless": "^1.0.2",
+    "@prisma/adapter-neon": "^7.5.0",
     "@prisma/client": "^7.4.2",
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",

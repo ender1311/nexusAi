@@ -1,4 +1,5 @@
 import { computeFeatureVector, cosineSimilarity } from "./feature-vector";
+import { Prisma } from "@/generated/prisma/client";
 import { prisma } from "@/lib/db";
 
 export interface AssignmentConfig {
@@ -21,7 +22,7 @@ export async function assignUserToPersona(
   if (!user) return { personaId: null, confidence: 0 };
 
   const discoveredPersonas = await prisma.persona.findMany({
-    where: { source: "discovered", isActive: true, centroid: { not: null } },
+    where: { source: "discovered", isActive: true, centroid: { not: Prisma.DbNull } },
   });
 
   if (discoveredPersonas.length === 0) return { personaId: null, confidence: 0 };
@@ -40,7 +41,7 @@ export async function assignUserToPersona(
 
   for (const persona of discoveredPersonas) {
     if (!persona.centroid) continue;
-    const centroid: number[] = JSON.parse(persona.centroid);
+    const centroid = persona.centroid as number[];
     const similarity = cosineSimilarity(userVec, centroid);
     if (similarity > bestSimilarity) {
       bestSimilarity = similarity;

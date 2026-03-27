@@ -1,12 +1,8 @@
 import { PrismaClient } from "@/generated/prisma/client";
-import { PrismaLibSql } from "@prisma/adapter-libsql";
+import { PrismaNeon } from "@prisma/adapter-neon";
 
 function createPrismaClient() {
-  const rawUrl = process.env.DATABASE_URL ?? "file:./prisma/dev.db";
-  // libsql expects file: URLs (same as SQLite)
-  const url = rawUrl.startsWith("file:") ? rawUrl : `file:${rawUrl}`;
-
-  const adapter = new PrismaLibSql({ url });
+  const adapter = new PrismaNeon({ connectionString: process.env.DATABASE_URL });
   return new PrismaClient({ adapter } as ConstructorParameters<typeof PrismaClient>[0]);
 }
 

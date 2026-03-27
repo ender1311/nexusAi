@@ -70,7 +70,7 @@ export async function POST(req: NextRequest) {
   let upserted = 0;
   for (const user of deduped) {
     const externalId = user.external_user_id!;
-    const attributes = JSON.stringify(user.attributes ?? {});
+    const attributes = (user.attributes ?? {}) as unknown as object;
     await prisma.user.upsert({
       where: { externalId },
       create: { externalId, attributes },

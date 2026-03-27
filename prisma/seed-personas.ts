@@ -4,11 +4,9 @@
  */
 
 import { PrismaClient } from "../src/generated/prisma/client";
-import { PrismaLibSql } from "@prisma/adapter-libsql";
+import { PrismaNeon } from "@prisma/adapter-neon";
 
-const rawUrl = process.env.DATABASE_URL ?? "file:./dev.db";
-const url = rawUrl.startsWith("file:") ? rawUrl : `file:${rawUrl}`;
-const adapter = new PrismaLibSql({ url });
+const adapter = new PrismaNeon({ connectionString: process.env.DATABASE_URL });
 const prisma = new PrismaClient({ adapter } as ConstructorParameters<typeof PrismaClient>[0]);
 
 const mockPersonas = [
@@ -232,8 +230,8 @@ async function main() {
           icon: p.icon,
           color: p.color,
           description: p.description,
-          tags: JSON.stringify(p.tags),
-          traits: JSON.stringify(p.traits),
+          tags: p.tags,
+          traits: p.traits,
           isActive: true,
         },
       });
@@ -247,8 +245,8 @@ async function main() {
           color: p.color,
           description: p.description,
           source: "manual",
-          tags: JSON.stringify(p.tags),
-          traits: JSON.stringify(p.traits),
+          tags: p.tags,
+          traits: p.traits,
           isActive: true,
         },
       });

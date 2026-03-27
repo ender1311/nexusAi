@@ -20,38 +20,9 @@ function buildDefaultWeights(): Record<string, number> {
   return Object.fromEntries(optimizationParams.map((p) => [p.id, 25]));
 }
 
-/** Proportionally redistribute remaining budget among other sliders so total stays at 100. */
-function redistributeWeights(
-  prev: Record<string, number>,
-  changedId: string,
-  newValue: number
-): Record<string, number> {
-  const allIds = optimizationParams.map((p) => p.id);
-  const otherIds = allIds.filter((id) => id !== changedId);
-  const remaining = 100 - newValue;
-  const otherTotal = otherIds.reduce((sum, id) => sum + (prev[id] ?? 0), 0);
-
-  let newOtherWeights: Record<string, number>;
-  if (otherTotal === 0) {
-    // All others are at 0 — distribute evenly
-    const each = Math.floor(remaining / otherIds.length);
-    newOtherWeights = Object.fromEntries(otherIds.map((id) => [id, each]));
-  } else {
-    // Scale proportionally
-    newOtherWeights = Object.fromEntries(
-      otherIds.map((id) => [id, Math.round(((prev[id] ?? 0) / otherTotal) * remaining)])
-    );
-  }
-
-  // Fix off-by-one rounding errors so sum is exactly 100
-  const computedTotal =
-    newValue + otherIds.reduce((s, id) => s + (newOtherWeights[id] ?? 0), 0);
-  const diff = 100 - computedTotal;
-  if (diff !== 0 && otherIds.length > 0) {
-    newOtherWeights[otherIds[0]] = (newOtherWeights[otherIds[0]] ?? 0) + diff;
-  }
-
-  return { ...newOtherWeights, [changedId]: newValue };
+function clampWeight(v: number): number {
+  const n = Math.round(Number.isFinite(v) ? v : 0);
+  return Math.min(100, Math.max(0, n));
 }
 
 function buildDefaultEnabled(): Record<string, boolean> {
@@ -188,7 +159,7 @@ export default function ControlTowerPage() {
             <OptimizationSliders
               weights={sliderWeights}
               onChange={(id, val) =>
-                setSliderWeights((prev) => redistributeWeights(prev, id, val))
+                setSliderWeights((prev) => ({ ...prev, [id]: clampWeight(val) }))
               }
               disabled={isScanning}
             />

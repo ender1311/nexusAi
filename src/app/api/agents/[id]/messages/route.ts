@@ -29,7 +29,7 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
         agentId: id,
         name,
         channel,
-        testedVariables: JSON.stringify(detectTestedVariables(variants as MessageVariant[])),
+        testedVariables: detectTestedVariables(variants as MessageVariant[]),
         variants: {
           create: variants.map((v: {
             name?: string;
@@ -77,7 +77,7 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
       data: {
         ...(name && { name }),
         ...(channel && { channel }),
-        ...(variants && { testedVariables: JSON.stringify(detectTestedVariables(variants as MessageVariant[])) }),
+        ...(variants && { testedVariables: detectTestedVariables(variants as MessageVariant[]) }),
       },
       include: { variants: true },
     });

@@ -1,3 +1,4 @@
+import { Prisma } from "@/generated/prisma/client";
 import { prisma } from "@/lib/db";
 
 interface ChannelStat {
@@ -40,21 +41,21 @@ export async function accumulateUserStats(params: {
         totalDecisions: 1,
         totalConversions: 1,
         totalReward: reward,
-        channelStats: JSON.stringify(channelStats),
-        hourlyStats: JSON.stringify(hourlyStats),
-        dailyStats: JSON.stringify(dailyStats),
+        channelStats: channelStats as unknown as Prisma.InputJsonValue,
+        hourlyStats,
+        dailyStats,
       },
     });
     return;
   }
 
-  const channelStats: ChannelStats = JSON.parse(existing.channelStats || "{}");
+  const channelStats: ChannelStats = (existing.channelStats as unknown as ChannelStats) ?? {};
   if (!channelStats[channel]) channelStats[channel] = { sent: 0, converted: 0 };
   channelStats[channel].converted += 1;
   channelStats[channel].sent += 1;
 
-  const hourlyStats: number[] = JSON.parse(existing.hourlyStats || "[]");
-  const dailyStats: number[] = JSON.parse(existing.dailyStats || "[]");
+  const hourlyStats: number[] = (existing.hourlyStats as number[]) ?? [];
+  const dailyStats: number[] = (existing.dailyStats as number[]) ?? [];
 
   // Ensure arrays are 24 and 7 elements
   while (hourlyStats.length < 24) hourlyStats.push(0);
@@ -69,9 +70,9 @@ export async function accumulateUserStats(params: {
       totalDecisions: { increment: 1 },
       totalConversions: { increment: 1 },
       totalReward: { increment: reward },
-      channelStats: JSON.stringify(channelStats),
-      hourlyStats: JSON.stringify(hourlyStats),
-      dailyStats: JSON.stringify(dailyStats),
+      channelStats: channelStats as unknown as Prisma.InputJsonValue,
+      hourlyStats,
+      dailyStats,
     },
   });
 }
@@ -93,15 +94,15 @@ export async function recordUserSend(params: {
       data: {
         externalId,
         totalDecisions: 1,
-        channelStats: JSON.stringify(channelStats),
-        hourlyStats: JSON.stringify(Array(24).fill(0)),
-        dailyStats: JSON.stringify(Array(7).fill(0)),
+        channelStats: channelStats as unknown as Prisma.InputJsonValue,
+        hourlyStats: Array(24).fill(0),
+        dailyStats: Array(7).fill(0),
       },
     });
     return;
   }
 
-  const channelStats: ChannelStats = JSON.parse(existing.channelStats || "{}");
+  const channelStats: ChannelStats = (existing.channelStats as unknown as ChannelStats) ?? {};
   if (!channelStats[channel]) channelStats[channel] = { sent: 0, converted: 0 };
   channelStats[channel].sent += 1;
 
@@ -109,7 +110,7 @@ export async function recordUserSend(params: {
     where: { externalId },
     data: {
       totalDecisions: { increment: 1 },
-      channelStats: JSON.stringify(channelStats),
+      channelStats: channelStats as unknown as Prisma.InputJsonValue,
     },
   });
 }

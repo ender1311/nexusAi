@@ -9,11 +9,7 @@ export function resolveFrequencyCap(
   selectedVariant: MessageVariant | null | undefined
 ): FrequencyCap | null {
   if (selectedVariant?.frequencyCapOverride) {
-    try {
-      return JSON.parse(selectedVariant.frequencyCapOverride) as FrequencyCap;
-    } catch {
-      // fall through to agent rule
-    }
+    return selectedVariant.frequencyCapOverride as unknown as FrequencyCap;
   }
   return agentRule?.frequencyCap ?? null;
 }
