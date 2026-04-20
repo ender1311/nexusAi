@@ -8,7 +8,12 @@
     "start": "next start",
     "lint": "eslint",
     "typecheck": "tsc --noEmit",
-    "check": "npm run lint && npm run typecheck"
+    "test": "bun test --bail=1 tests/unit & bun test --bail=1 tests/contracts & wait && bun test --max-concurrency=1 --bail=1 tests/integration && bun test --max-concurrency=1 --bail=1 tests/regression",
+    "test:quick": "bun test --bail=1 tests/unit tests/contracts",
+    "test:watch": "bun test --watch tests/unit",
+    "check": "bun run typecheck && bun run lint && bun run test",
+    "check:quick": "bun run typecheck && bun run lint && bun run test:quick",
+    "prepare": "husky"
   },
   "dependencies": {
     "@base-ui/react": "^1.2.0",
