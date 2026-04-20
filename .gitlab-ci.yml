@@ -1,0 +1,68 @@
+# Nexus CI — prepare → verify (parallel) → build (main only)
+
+default:
+  image: oven/bun:1-alpine
+  interruptible: true
+
+variables:
+  BUN_INSTALL_CACHE_DIR: .bun/install/cache
+
+cache:
+  key: bun-$CI_COMMIT_REF_SLUG
+  paths:
+    - .bun/install/cache
+
+stages:
+  - prepare
+  - verify
+  - build
+
+prepare:install:
+  stage: prepare
+  script:
+    - bun install --frozen-lockfile
+  cache:
+    policy: push
+
+verify:typecheck:
+  stage: verify
+  needs: [prepare:install]
+  script:
+    - bun run typecheck
+  cache:
+    policy: pull
+
+verify:lint:
+  stage: verify
+  needs: [prepare:install]
+  script:
+    - bun run lint
+  cache:
+    policy: pull
+
+verify:test:
+  stage: verify
+  needs: [prepare:install]
+  timeout: 15 minutes
+  variables:
+    DATABASE_URL: $TEST_DATABASE_URL
+    INGEST_API_KEY: test_ingest_key
+    CRON_SECRET: test_cron_secret
+    BRAZE_API_KEY: test_braze_key
+    BRAZE_REST_URL: https://rest.test.braze.com
+  script:
+    - bun run test
+  cache:
+    policy: pull
+
+build:
+  stage: build
+  needs: [verify:typecheck, verify:lint, verify:test]
+  only:
+    - main
+  variables:
+    NODE_OPTIONS: --max-old-space-size=1536
+  script:
+    - bun run build
+  cache:
+    policy: pull
