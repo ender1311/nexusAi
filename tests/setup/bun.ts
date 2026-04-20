@@ -1,6 +1,5 @@
-import { afterEach, mock } from "bun:test";
+import { afterEach, expect, mock } from "bun:test";
 import * as matchers from "@testing-library/jest-dom/matchers";
-import { expect } from "bun:test";
 
 // Extend expect with jest-dom matchers
 expect.extend(matchers);
@@ -28,7 +27,6 @@ const _globalStubs = new Map<string, unknown>();
 const vi = {
   hoisted: <T>(fn: () => T): T => fn(),
   fn: <T extends (...args: unknown[]) => unknown>(impl?: T) => mock(impl ?? (() => undefined)),
-  spyOn: mock.module ? undefined : undefined, // use mock.module for module-level mocking
   stubEnv: (key: string, value: string) => {
     if (!_envStubs.has(key)) _envStubs.set(key, process.env[key]);
     process.env[key] = value;
