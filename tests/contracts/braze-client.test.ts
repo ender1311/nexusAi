@@ -29,8 +29,7 @@ describe("BrazeClient", () => {
     const client = new BrazeClient("my_key", "https://rest.test.braze.com");
     fake.queueResponse({});
     await client.post("/messages/send", { foo: "bar" });
-    expect(fake.requests[0].url).toContain("rest.test.braze.com/messages/send");
-    // The header is inspected via init — FakeFetch records raw init
+    expect(fake.requests[0].headers["authorization"]).toBe("Bearer my_key");
   });
 
   it("post hits the correct URL", async () => {
@@ -101,6 +100,7 @@ describe("PayloadFactory", () => {
       subject: "Hi",
       body: "<p>Hello</p>",
     });
+    expect(payload.external_user_ids).toEqual(["usr_1"]);
   });
 
   it("buildSmsPayload includes sms message", () => {
@@ -110,6 +110,7 @@ describe("PayloadFactory", () => {
     );
     expect(payload).toHaveProperty("messages.sms");
     expect((payload.messages as Record<string, unknown>).sms).toMatchObject({ body: "Your code is 1234" });
+    expect(payload.external_user_ids).toEqual(["usr_1"]);
   });
 
   it("omits campaign_id/send_id when not provided", () => {
