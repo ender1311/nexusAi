@@ -135,3 +135,13 @@ Detailed Mermaid diagrams in `docs/`:
 - `docs/api-routes.md` — all endpoints + request/response shapes
 - `docs/persona-discovery.md` — k-means + feature vector details
 - `docs/braze-integration.md` — Braze client + payload factory
+
+## Testing
+
+- Unit tests → `tests/unit/` (pure functions, no DB)
+- Contract tests → `tests/contracts/` (external service boundaries)
+- Integration tests → `tests/integration/` (routes + real Neon test DB)
+- Regression tests → `tests/regression/` (named bug-prevention tests)
+- Quick check: `bun run test:quick` (unit + contracts, fast, no DB required)
+- Full check: `bun run check` (typecheck + lint + all tests — run before MR)
+- New feature = new test. New bug fix = new regression test.
