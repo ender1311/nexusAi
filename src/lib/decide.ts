@@ -3,10 +3,27 @@ import { EpsilonGreedy } from "@/lib/engine/epsilon-greedy";
 import { assignUserToPersona } from "@/lib/engine/persona-assignment";
 import { prisma } from "@/lib/db";
 import type { BanditArm } from "@/lib/engine/types";
+import type { Prisma } from "@/generated/prisma/client";
+
+// The shape of agent as fetched by decideForUser — with messages+variants and schedulingRule
+type AgentWithVariants = Prisma.AgentGetPayload<{
+  include: {
+    messages: { include: { variants: { where: { status: string } } } };
+    schedulingRule: true;
+  };
+}>;
 
 export type DecideInput = {
   agentId: string;
   externalUserId: string;
+  /** Optional: pre-fetched agent data. When provided, skips the DB fetch for the agent. */
+  preloadedAgent?: AgentWithVariants;
+  /**
+   * Optional: set to true to skip scheduling rule checks (quiet hours, frequency cap,
+   * smart suppression). Used by the cron route which performs bulk scheduling checks
+   * before calling decideForUser, eliminating per-user DB queries for those checks.
+   */
+  skipSchedulingChecks?: boolean;
 };
 
 export type DecideResult =
@@ -26,10 +43,10 @@ export type DecideResult =
  * Returns DecideResult otherwise (may be suppressed if scheduling rules block the send).
  */
 export async function decideForUser(input: DecideInput): Promise<DecideResult | null> {
-  const { agentId, externalUserId } = input;
+  const { agentId, externalUserId, preloadedAgent, skipSchedulingChecks } = input;
 
-  // 1. Fetch agent with all active variants and scheduling rule
-  const agent = await prisma.agent.findFirst({
+  // 1. Fetch agent with all active variants and scheduling rule (skip if preloaded)
+  const agent = preloadedAgent ?? await prisma.agent.findFirst({
     where: { id: agentId, status: "active" },
     include: {
       messages: {
@@ -48,12 +65,16 @@ export async function decideForUser(input: DecideInput): Promise<DecideResult | 
   );
   if (variants.length === 0) return null;
 
-  // 2. Upsert user (create on first decision, no-op on update)
-  const user = await prisma.user.upsert({
-    where: { externalId: externalUserId },
-    create: { externalId: externalUserId },
-    update: {},
-  });
+  // 2. Fetch or create user (upsert for /api/decide; findUnique when called from cron
+  // where user is guaranteed to exist, avoiding an unnecessary write round-trip)
+  const user = skipSchedulingChecks
+    ? await prisma.user.findUnique({ where: { externalId: externalUserId } }) ??
+      await prisma.user.create({ data: { externalId: externalUserId } })
+    : await prisma.user.upsert({
+        where: { externalId: externalUserId },
+        create: { externalId: externalUserId },
+        update: {},
+      });
 
   // 3. Resolve personaId — try cached, then assignment, then fallback to largest persona
   let personaId: string | null = user.personaId ?? null;
@@ -70,11 +91,11 @@ export async function decideForUser(input: DecideInput): Promise<DecideResult | 
   }
   if (!personaId) return null; // no personas configured
 
-  // 4. Scheduling rule checks
+  // 4. Scheduling rule checks (skipped when caller has already performed them)
   const rule = agent.schedulingRule;
   const now = new Date();
 
-  if (rule) {
+  if (rule && !skipSchedulingChecks) {
     // 4a. Quiet hours
     const quietHours = rule.quietHours as unknown as { start?: string; end?: string; timezone?: string };
     if (quietHours?.start && quietHours?.end) {
@@ -95,7 +116,7 @@ export async function decideForUser(input: DecideInput): Promise<DecideResult | 
 
     // 4b. Frequency cap — count recent decisions in the configured window
     const freqCap = rule.frequencyCap as unknown as { maxSends?: number; period?: string } | null;
-    if (freqCap?.maxSends) {
+    if (typeof freqCap?.maxSends === "number") {
       const periodMs: Record<string, number> = {
         day:    86_400_000,
         week:   7  * 86_400_000,
@@ -120,11 +141,23 @@ export async function decideForUser(input: DecideInput): Promise<DecideResult | 
     }
   }
 
-  // 5. Load/seed PersonaArmStats for every active variant
+  // 5. Load/seed PersonaArmStats for every active variant.
+  // When skipSchedulingChecks is set, the cron route has pre-seeded arm stats so we use
+  // findFirst (a pure read — no write lock) to avoid concurrent upsert races.
+  const initialAlpha = agent.algorithm === "thompson" ? 1 : 0;
+  const initialBeta  = agent.algorithm === "thompson" ? 1 : 0;
   const armStats: BanditArm[] = await Promise.all(
     variants.map(async (v) => {
-      const initialAlpha = agent.algorithm === "thompson" ? 1 : 0;
-      const initialBeta  = agent.algorithm === "thompson" ? 1 : 0;
+      if (skipSchedulingChecks) {
+        // Arm stats guaranteed to exist (pre-seeded by cron); use findFirst to avoid write contention.
+        const existing = await prisma.personaArmStats.findFirst({
+          where: { personaId: personaId!, agentId, variantId: v.id },
+        });
+        const stats = existing ?? await prisma.personaArmStats.create({
+          data: { personaId: personaId!, agentId, variantId: v.id, alpha: initialAlpha, beta: initialBeta, tries: 0, wins: 0 },
+        });
+        return { id: v.id, stats };
+      }
       const stats = await prisma.personaArmStats.upsert({
         where: {
           personaId_agentId_variantId: {
