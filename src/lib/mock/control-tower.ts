@@ -39,6 +39,14 @@ export interface PredictionResult {
   confidenceLow: number;
   confidenceHigh: number;
   format: (v: number) => string;
+  isPrimary: boolean;
+  guardrailThreshold?: number;
+  guardrailSafe?: boolean;
+}
+
+export interface OptimizationConfig {
+  primaryObjective: string;
+  guardrails: Record<string, number>;
 }
 
 export const controlAgents: ControlAgent[] = [
@@ -151,13 +159,26 @@ export const scanningPhases: ScanningPhase[] = [
   { label: "Assembling prediction matrix...", durationMs: 800 },
 ];
 
+export function buildDefaultConfig(): OptimizationConfig {
+  return {
+    primaryObjective: "responseRate",
+    guardrails: {
+      revenue: 0.35,
+      churnReduction: 10.0,
+      funnelProgression: 2.0,
+    },
+  };
+}
+
 export function computePredictions(
   enabledAgentIds: string[],
-  sliderWeights: Record<string, number>
+  config: OptimizationConfig
 ): PredictionResult[] {
   const enabledAgents = controlAgents.filter((a) => enabledAgentIds.includes(a.id));
 
   return optimizationParams.map((param) => {
+    const isPrimary = param.id === config.primaryObjective;
+
     // Sum impact weights of all enabled agents for this parameter
     const totalImpact = enabledAgents.reduce(
       (sum, agent) => sum + agent.impactWeights[param.id as keyof typeof agent.impactWeights],
@@ -165,14 +186,10 @@ export function computePredictions(
     );
 
     // Normalize impact (max possible is 6 agents × 1.0 = 6.0)
-    const maxImpact = controlAgents.length;
-    const normalizedImpact = Math.min(totalImpact / maxImpact, 1);
+    const normalizedImpact = Math.min(totalImpact / controlAgents.length, 1);
 
-    // Scale by slider weight (0-100 → 0-1), clamped for display/prediction consistency
-    const raw = sliderWeights[param.id];
-    const pct = typeof raw === "number" && Number.isFinite(raw) ? Math.round(raw) : 50;
-    const sliderWeight = Math.min(100, Math.max(0, pct)) / 100;
-    const effectiveImpact = normalizedImpact * sliderWeight;
+    // Primary gets full optimization weight; non-primary metrics get passive spillover (0.2)
+    const effectiveImpact = normalizedImpact * (isPrimary ? 1.0 : 0.2);
 
     // Interpolate between baseline and best case
     const range = param.bestCase - param.baseline;
@@ -180,6 +197,14 @@ export function computePredictions(
 
     // Confidence band: ±(5-15)% of predicted value
     const confBand = Math.abs(predicted) * (0.05 + (1 - effectiveImpact) * 0.1);
+
+    // Check guardrail
+    const threshold = config.guardrails[param.id];
+    let guardrailSafe: boolean | undefined;
+    if (!isPrimary && threshold !== undefined) {
+      guardrailSafe =
+        param.direction === "minimize" ? predicted <= threshold : predicted >= threshold;
+    }
 
     return {
       paramId: param.id,
@@ -191,6 +216,9 @@ export function computePredictions(
       confidenceLow: predicted - confBand,
       confidenceHigh: predicted + confBand,
       format: param.format,
+      isPrimary,
+      guardrailThreshold: threshold,
+      guardrailSafe,
     };
   });
 }

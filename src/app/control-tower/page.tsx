@@ -3,27 +3,19 @@
 import { useEffect, useRef, useState } from "react";
 import { Radar, RotateCcw, Zap } from "lucide-react";
 import { AgentToggleCard } from "@/components/control-tower/agent-toggle-card";
-import { OptimizationSliders } from "@/components/control-tower/optimization-sliders";
+import { OptimizationObjective } from "@/components/control-tower/optimization-objective";
 import { ScanningAnimation } from "@/components/control-tower/scanning-animation";
 import { PredictionResults } from "@/components/control-tower/prediction-results";
 import {
   controlAgents,
-  optimizationParams,
   scanningPhases,
   computePredictions,
+  buildDefaultConfig,
   type PredictionResult,
+  type OptimizationConfig,
 } from "@/lib/mock/control-tower";
 
 type PageState = "configure" | "scanning" | "results";
-
-function buildDefaultWeights(): Record<string, number> {
-  return Object.fromEntries(optimizationParams.map((p) => [p.id, 25]));
-}
-
-function clampWeight(v: number): number {
-  const n = Math.round(Number.isFinite(v) ? v : 0);
-  return Math.min(100, Math.max(0, n));
-}
 
 function buildDefaultEnabled(): Record<string, boolean> {
   return Object.fromEntries(controlAgents.map((a) => [a.id, a.defaultEnabled]));
@@ -32,7 +24,7 @@ function buildDefaultEnabled(): Record<string, boolean> {
 export default function ControlTowerPage() {
   const [pageState, setPageState] = useState<PageState>("configure");
   const [enabledAgents, setEnabledAgents] = useState<Record<string, boolean>>(buildDefaultEnabled);
-  const [sliderWeights, setSliderWeights] = useState<Record<string, number>>(buildDefaultWeights);
+  const [config, setConfig] = useState<OptimizationConfig>(buildDefaultConfig);
   const [scanProgress, setScanProgress] = useState(0);
   const [scanPhase, setScanPhase] = useState("");
   const [predictions, setPredictions] = useState<PredictionResult[]>([]);
@@ -75,7 +67,7 @@ export default function ControlTowerPage() {
           const enabledIds = Object.entries(enabledAgents)
             .filter(([, on]) => on)
             .map(([id]) => id);
-          setPredictions(computePredictions(enabledIds, sliderWeights));
+          setPredictions(computePredictions(enabledIds, config));
           setPageState("results");
         }, elapsed);
         timeoutsRef.current.push(t3);
@@ -156,11 +148,9 @@ export default function ControlTowerPage() {
 
           {/* Sliders + activate button */}
           <div className="space-y-4">
-            <OptimizationSliders
-              weights={sliderWeights}
-              onChange={(id, val) =>
-                setSliderWeights((prev) => ({ ...prev, [id]: clampWeight(val) }))
-              }
+            <OptimizationObjective
+              config={config}
+              onChange={setConfig}
               disabled={isScanning}
             />
 
