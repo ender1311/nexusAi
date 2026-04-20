@@ -34,8 +34,7 @@ describe("POST /api/agents", () => {
 
 describe("GET /api/agents", () => {
   it("returns empty array when no agents", async () => {
-    const req = buildRequest("GET");
-    const res = await getAgents(req as NextRequest);
+    const res = await getAgents();
     const body = await res.json();
     expect(Array.isArray(body)).toBe(true);
     expect(body).toHaveLength(0);
@@ -44,7 +43,7 @@ describe("GET /api/agents", () => {
   it("returns created agents", async () => {
     await prisma.agent.create({ data: { name: "Agent A", algorithm: "thompson", epsilon: 0.1 } });
     await prisma.agent.create({ data: { name: "Agent B", algorithm: "epsilon_greedy", epsilon: 0.2 } });
-    const res = await getAgents(buildRequest("GET") as NextRequest);
+    const res = await getAgents();
     const body = await res.json();
     expect(body).toHaveLength(2);
   });
