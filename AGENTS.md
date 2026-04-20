@@ -4,7 +4,7 @@ Multi-armed bandit optimization platform for personalizing Braze messages across
 
 ## Stack
 
-Next.js 16 App Router · React 19 · TypeScript · Tailwind CSS v4 · Prisma v7 + SQLite · shadcn/ui · Recharts
+Next.js 16 App Router · React 19 · TypeScript · Tailwind CSS v4 · Prisma v7 + PostgreSQL (Neon) · shadcn/ui · Recharts
 
 ## Commands
 
@@ -53,7 +53,7 @@ src/
 - **Path alias:** `@/` → `src/`
 - **Components:** Default to Server Components. Add `"use client"` only for interactivity.
 - **Mock vs real:** Most dashboard pages use `src/lib/mock/` static data. API routes use real Prisma. To wire a page to real data, replace mock imports with `fetch('/api/...')` calls.
-- **JSON fields:** `User.attributes`, `User.featureVector`, `User.channelStats`, `Persona.traits`, scheduling rule fields — all stored as serialized JSON strings in SQLite.
+- **JSON fields:** `User.attributes`, `User.featureVector`, `User.channelStats`, `Persona.traits`, scheduling rule fields — all stored as serialized JSON strings in PostgreSQL text columns.
 - **shadcn/ui:** Add components via `npx shadcn add <component>`. Use `cn()` from `@/lib/utils`.
 - **Braze:** `createBrazeClient()` returns `null` if env vars are missing — always null-check before calling.
 
@@ -88,7 +88,7 @@ Event flow: event arrives → match UserDecision (48h window) → calculate rewa
 ## Environment Variables
 
 ```bash
-DATABASE_URL=file:./prisma/dev.db
+DATABASE_URL=postgresql://user:password@host/dbname   # PostgreSQL (Neon in prod)
 INGEST_API_KEY=          # shared secret for Hightouch auth
 BRAZE_API_KEY=
 BRAZE_REST_URL=rest.iad-01.braze.com
@@ -97,6 +97,33 @@ BRAZE_IOS_APP_ID=
 BRAZE_WEB_APP_ID=
 BRAZE_APP_GROUP_ID=
 ```
+
+## Engineering Standards
+
+**TypeScript**
+- No `any` — use `unknown` + type guards, or explicit unions. `as any` is a bug.
+- JSON DB fields (`User.attributes`, `Persona.traits`, etc.) must be parsed and validated on read, never spread as raw strings into typed objects.
+- API routes must type their return as `NextResponse<{ data: T } | { error: string }>`.
+
+**API contracts**
+- All routes return `{ data: T }` on success or `{ error: string }` on failure.
+- Validate input at the route boundary before any DB access — reject bad payloads with 400.
+- Never surface Prisma errors, stack traces, or internal IDs in HTTP responses.
+
+**React / Next.js**
+- No business logic in components — components orchestrate, `lib/` computes.
+- Fetch in Server Components and pass data as props; avoid `useEffect` for data fetching.
+- Keep `"use client"` at leaf nodes; minimize client/server boundary surface.
+
+**Correctness**
+- Explicit over clever — a clear 3-line `if` beats a terse one-liner needing a comment.
+- Delete dead code; don't comment it out.
+- No error handling for impossible paths — trust the type system and internal invariants.
+
+**Engine / algorithmic code**
+- Bandit engine functions must stay **pure** (no DB, no side effects) to remain unit-testable.
+- Side effects (DB writes, Braze calls) belong in route handlers, not engine logic or render paths.
+- Leave a formula/reference comment on any non-trivial statistical operation.
 
 ## Architecture Docs
 

@@ -4,16 +4,16 @@
 
 **After significant code changes, always run:**
 ```bash
-npm run check    # lint + typecheck (run this before considering a task done)
+bun run check    # lint + typecheck (run this before considering a task done)
 ```
 
 ```bash
-npm run dev        # Start dev server (Next.js on port 3000)
-npm run build      # Production build
-npm run start      # Start production server
-npm run lint       # ESLint only
-npm run typecheck  # tsc --noEmit only
-npm run check      # lint + typecheck together
+bun run dev        # Start dev server (Next.js on port 3000)
+bun run build      # Production build
+bun run start      # Start production server
+bun run lint       # ESLint only
+bun run typecheck  # tsc --noEmit only
+bun run check      # lint + typecheck together
 
 # Database
 npx prisma migrate dev   # Run migrations (uses prisma.config.ts)
@@ -23,7 +23,7 @@ npx prisma studio        # Browse DB in browser
 
 ## Architecture
 
-**Stack:** Next.js 16 App Router, React 19, TypeScript, Tailwind CSS v4, Prisma v7 + SQLite (via libsql), Recharts, shadcn/ui components.
+**Stack:** Next.js 16 App Router, React 19, TypeScript, Tailwind CSS v4, Prisma v7 + PostgreSQL (Neon), Recharts, shadcn/ui components.
 
 **Directory structure:**
 ```
@@ -35,6 +35,13 @@ src/
       ingest/            # /events and /users ingestion endpoints
       settings/          # App settings (Braze keys, etc.)
     agents/              # Agent management pages
+      [id]/goals/        # Goal management for an agent
+      [id]/messages/     # Message variant management
+      [id]/performance/  # Per-agent performance analytics
+      [id]/scheduling/   # Scheduling rule UI
+      new/               # Agent creation wizard
+    control-tower/       # AI optimization command center
+    demo/                # Educational demo (feature vector + persona clustering, mock data)
     messages/            # Message & variant pages
     personas/            # Persona pages
     performance/         # Performance analytics page
@@ -42,14 +49,21 @@ src/
   components/
     agents/              # Agent-specific components
     charts/              # Recharts wrappers (MetricCard, TimeSeriesChart, etc.)
+    control-tower/       # Control tower UI components
+    goals/               # Goal management components
     layout/              # Header, sidebar, shell
+    messages/            # Message & variant form components
+    performance/         # Performance chart components
     personas/            # Persona-specific components
+    scheduling/          # Scheduling rule UI components
+    settings/            # Settings page components
     ui/                  # shadcn/ui primitives (badge, card, dialog, etc.)
   lib/
     braze/               # Braze REST client, payload factory, analytics
     engine/              # Bandit engine: thompson-sampling, epsilon-greedy,
                          # reward-calculator, feature-vector, persona-assignment,
-                         # persona-discovery, user-stats, types
+                         # persona-discovery, user-stats, variant-diff,
+                         # frequency-resolver, types
     mock/                # Static mock data (agents, personas, metrics)
     db.ts                # Prisma client singleton
     utils.ts             # cn(), formatNumber(), formatDate()
@@ -80,7 +94,7 @@ src/
 
 **Server vs client components:** Default to Server Components. Add `"use client"` only for interactivity (state, effects, event handlers). API routes are in `src/app/api/`.
 
-**Database models:** Agent -> Goal[], Message -> MessageVariant[], UserDecision, User, Persona, PersonaArmStats, SchedulingRule, ModelMetric, AppSetting. JSON fields (attributes, featureVector, channelStats, etc.) are stored as serialized strings in SQLite.
+**Database models:** Agent -> Goal[], Message -> MessageVariant[], UserDecision, User, Persona, AgentPersonaTarget, PersonaArmStats, SchedulingRule, ModelMetric, AppSetting. JSON fields (attributes, featureVector, channelStats, etc.) are stored as serialized JSON strings in PostgreSQL text columns.
 
 ## Database Setup
 
@@ -88,25 +102,59 @@ src/
 # First time setup
 npx prisma migrate dev --name init
 
-# The DB file is created at ./prisma/dev.db (or path from DATABASE_URL)
+# DATABASE_URL must point to a PostgreSQL instance (Neon in prod/preview)
 # prisma.config.ts reads DATABASE_URL env var for migrations
 ```
 
 ## Environment Variables
 
 ```bash
-# Required for Braze integration (optional — app runs without them)
+# Database — PostgreSQL (Neon in prod/preview; local Postgres for dev)
+DATABASE_URL=postgresql://user:password@host/dbname
+
+# Ingest API auth (required for Hightouch → Nexus event/user sync)
+INGEST_API_KEY=...
+
+# Braze integration (optional — app runs without them)
 BRAZE_API_KEY=...
 BRAZE_REST_URL=rest.iad-01.braze.com   # or your cluster's REST endpoint
 
-# Optional — Braze app IDs (stored in AppSetting table via Settings UI)
+# Braze app IDs (stored in AppSetting table via Settings UI)
 BRAZE_ANDROID_APP_ID=...
 BRAZE_IOS_APP_ID=...
 BRAZE_WEB_APP_ID=...
 BRAZE_APP_GROUP_ID=...
-
-# Database (defaults to file:./prisma/dev.db if not set)
-DATABASE_URL=file:./prisma/dev.db
 ```
 
 Braze credentials can also be configured through the Settings UI (`/settings`), which persists them to the `AppSetting` table. The `createBrazeClient()` function reads from `process.env` at runtime; the settings UI saves to DB and the `/api/settings` route syncs them.
+
+## Engineering Standards
+
+### TypeScript discipline
+- **No `any`** — use `unknown` and narrow with type guards, or define an explicit union/interface. `as any` is a bug waiting to happen.
+- All API route handlers must type their request params and return `NextResponse<T>` with an explicit type argument.
+- JSON fields from the DB (`User.attributes`, `Persona.traits`, etc.) must be parsed and validated immediately on read — never spread raw strings into typed objects. Use a helper or Zod schema.
+- Prefer `type` over `interface` for pure data shapes; use `interface` only when extension/augmentation is needed.
+
+### API design contracts
+- Every route returns `{ data: T }` on success or `{ error: string }` on failure with the correct HTTP status code.
+- Validate all input at the route boundary before any DB access — reject bad payloads with 400, not a 500 from a Prisma constraint error.
+- Never surface Prisma error messages, stack traces, or internal IDs in HTTP responses. Log server-side, return a generic error string to the client.
+- Use explicit HTTP status codes: 200/201 for success, 400 for bad input, 401/403 for auth, 404 for missing resources, 500 for unexpected errors.
+
+### React / Next.js component design
+- **No business logic in components** — components orchestrate UI; `lib/` computes. Move calculations, data transforms, and algorithm calls into `lib/`.
+- Fetch data in the nearest Server Component and pass it as props. Don't reach for `useEffect` + `useState` for data fetching that could be server-side.
+- Use `loading.tsx` / `Suspense` for async segments instead of client-side loading spinners where possible.
+- Keep `"use client"` boundaries as leaf nodes. A parent Server Component passing data to a small client child is the correct pattern.
+
+### Correctness over cleverness
+- Prefer explicit over terse — a clear 3-line `if/else` beats a clever one-liner that requires a comment to understand.
+- Delete dead code rather than commenting it out. Git history is the undo button.
+- Name things for what they represent, not how they're implemented (`getEligibleVariants` not `filterLoop`).
+- Don't add error handling, fallbacks, or validation for impossible paths. Trust the type system and internal invariants.
+
+### Engine / algorithmic code
+- Bandit engine functions (`reward-calculator`, `thompson-sampling`, `epsilon-greedy`, `persona-discovery`) must remain **pure** — no DB calls, no side effects, no global state — so they stay unit-testable in isolation.
+- Side effects (DB writes, API calls, logging) belong in API route handlers and service layer functions, never in component render paths or engine logic.
+- When touching statistical logic, leave a comment with the formula/reference so reviewers can verify correctness without re-deriving it.
