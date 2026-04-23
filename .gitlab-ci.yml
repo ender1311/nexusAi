@@ -44,6 +44,7 @@ verify:test:
   script:
     - bun install --frozen-lockfile
     - bunx prisma generate
+    - bunx prisma migrate deploy
     - bun run test
 
 build:

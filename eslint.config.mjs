@@ -12,6 +12,9 @@ const eslintConfig = defineConfig([
     "out/**",
     "build/**",
     "next-env.d.ts",
+    // Bun package cache — not project code
+    ".bun/**",
+    "node_modules/**",
   ]),
 ]);
 
