@@ -11,6 +11,7 @@ cache:
   key: bun-$CI_COMMIT_REF_SLUG
   paths:
     - .bun/install/cache
+    - node_modules/
 
 stages:
   - prepare
