@@ -154,30 +154,38 @@ Auth: `Authorization: Bearer <CRON_SECRET>`
 { "path": "/api/cron/select-and-send", "schedule": "0 9 * * *" }
 ```
 
-### Scale concern (2.5M users)
+### Architecture (Research Complete — see `docs/research/send-cron-scale.md`)
 
-A naive single-pass loop over all users will time out in Vercel serverless. Research is underway on the right fan-out architecture. Options under consideration:
+**Decision: Vercel Workflows dispatcher + `/campaigns/trigger/send` at 50 users/request.**
 
-1. **Cursor-based pagination with self-triggering** — cron triggers page 1 (`?cursor=0`), each page triggers the next, route config sets `maxDuration=300`
-2. **Vercel Queues** (public beta) — enqueue one job per agent, each job processes its user batch
-3. **Braze API-triggered campaigns** — Nexus calls Braze `/campaigns/trigger/send` with `trigger_properties: { variantId }`, Braze handles the fan-out; Nexus never pushes user lists
+- Cron fires a lightweight dispatcher (`/api/cron/select-and-send`) that publishes one job per active agent to Vercel Queues/Workflows in <5s
+- Each agent-consumer Workflow: cursor-paginates `User` by `personaId` (500/page), runs bandit, calls `/campaigns/trigger/send` with `trigger_properties: { variantId }`
+- Each Workflow step: 800s max (Vercel Pro); up to 10,000 steps per run → covers 2.5M users at 500/batch = 5,000 steps ✓
+- Rate limit: 250,000 req/hour for `/campaigns/trigger/send` → 50,000 requests takes ~12 min ✓
 
-See `docs/research/` for findings when research completes.
+**Key constraints confirmed:**
+- Braze: max 50 users/request, 250k req/hour shared rate limit
+- Neon: use PgBouncer pooler; disable auto-suspend on production; add indexes (see below)
+- Hightouch: Lightning Sync Engine required (>100K rows); minimum interval ~15 min
 
-### Logic (regardless of fan-out pattern)
+**DB indexes needed (add migration before prod):**
+```sql
+CREATE INDEX idx_users_persona_id ON "User"("personaId");
+CREATE INDEX idx_decisions_agent_user_sent ON "UserDecision"("agentId", "userId", "sentAt");
+CREATE INDEX idx_arm_stats_agent_persona ON "PersonaArmStats"("agentId", "personaId");
+```
 
-1. Verify `CRON_SECRET` header → 401
-2. Instantiate `BrazeClient` → 500 if not configured
-3. Fetch active agents with `AgentPersonaTarget` + `SchedulingRule`
-4. For each agent, page through users assigned to target personas
-5. For each user, inline the decide logic (no HTTP round-trip):
-   - Check scheduling rules (quiet hours, frequency cap, smart suppression)
+### Logic (per agent-consumer workflow)
+
+1. Cursor-paginate `User` where `personaId IN (agent.targetPersonaIds)`, 500/batch
+2. For each user in batch, run `decideForUser()` (inline — no HTTP round-trip):
+   - Check scheduling rules (quiet hours, frequency cap, smart suppression) via `src/lib/decide.ts`
    - Skip if suppressed
    - Run bandit selection → `variantId`
-6. Bucket non-suppressed users by `variantId`, batch 50/call
-7. `BrazeClient.post('/messages/send', payload)` per batch
-8. Update `UserDecision.brazeSendId` on success
-9. Return `{ ok: true, sent, suppressed, errors }`
+3. Batch-insert `UserDecision` records (all non-suppressed in batch)
+4. Bucket non-suppressed users by `variantId`, call `/campaigns/trigger/send` at 50/request
+5. On success: record `brazeSendId` on each `UserDecision`
+6. Advance cursor to next page
 
 ---
 

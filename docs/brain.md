@@ -55,8 +55,9 @@ After the 2026-04-24 algorithm upgrade session, the core bandit loop is producti
 - **Are `plan_read_day_3` events available from Hightouch?** If yes, add as a goal to agents with +0.8 weight. Currently supported in the attribution logic with 30-day window.
 - **What is the actual Hightouch → Nexus event delay?** Affects whether push_disabled events are timely enough to prevent another send cycle. If delay > 24h, the suppression is late.
 - **How stable are user feature vectors?** If Hightouch only syncs user attributes weekly, `recency_days` features become stale. Know the sync cadence before adding contextual features.
-- **Send cron architecture at 2.5M users?** Vercel Queues (public beta), cursor-based self-triggering, or Braze API-triggered campaigns? Research in progress.
-- **Should `/api/decide` be callable by Braze Connected Content?** An alternative to the push model — Braze calls Nexus at send time per user instead of Nexus pushing lists to Braze. Lower complexity but adds latency to every send.
+- **What is the actual YouVersion Braze contract tier?** The default 250,000 req/hour rate limit for `/campaigns/trigger/send` means 50,000 requests (2.5M users / 50) takes ~12 minutes. Enterprise contracts can negotiate higher. Confirm with Braze account team.
+- **Do all 2.5M targeted users exist in Braze already?** `/campaigns/trigger/send` silently drops sends for users not yet in Braze. Verify before first send wave.
+- **Hightouch minimum sync interval on current plan?** Standard Reverse ETL minimum is ~15 minutes. Sub-5-minute is Hightouch Real-Time (separate product). Confirm with sales.
 - **Scheduling rules gap** — `/api/agents/[id]/decide` does not currently check `SchedulingRule` (quiet hours, frequency cap, smart suppression). Must be fixed before production.
 
 ---
@@ -70,6 +71,10 @@ After the 2026-04-24 algorithm upgrade session, the core bandit loop is producti
 | Hightouch → ingest/events → reward update | Closes the learning loop; the 48h attribution window handles delayed conversions | Design 2026-04 |
 | Prisma + Neon PostgreSQL | Relational model needed for the many-to-many agent/persona/variant relationships | Architecture 2026-04 |
 | Braze as send layer | Existing YouVersion relationship; API supports batched sends with send IDs for attribution | Architecture 2026-04 |
+| `/campaigns/trigger/send` over `/messages/send` | Gives per-user personalization via `trigger_properties`, campaign metrics in Braze dashboard, marketers edit copy without deployment | Research confirmed 2026-04 |
+| Connected Content (pull model) rejected for mass sends | 2.5M synchronous calls to Nexus during send window; 2s timeout too tight for cold Vercel functions; no atomic decision recording | Research confirmed 2026-04 |
+| Vercel Workflows for send fan-out | Dispatcher cron publishes per-agent jobs; each workflow cursor-paginates users; no total execution time limit; 10,000 steps/run fits 2.5M/500-batch pattern | Research confirmed 2026-04 |
+| Keyset pagination for user scans | `OFFSET` is O(n) at 2.5M rows; cursor-based `WHERE id > $cursor LIMIT 500` stays O(log n) | Research confirmed 2026-04 |
 | Beta(1,30) pessimistic prior | Calibrated to ~3% push CTR; Beta(1,1) was implying 50% — caused noisy exploration | Implemented 2026-04 |
 | 0.99 temporal decay on arm updates | Prevents inflated-alpha incumbents from crowding out newer variants; industry-standard rate | Implemented 2026-04 |
 | 30-day attribution window for plan events | Plan completion takes days-weeks; 48h window was missing most conversions | Implemented 2026-04 |
@@ -84,7 +89,7 @@ After the 2026-04-24 algorithm upgrade session, the core bandit loop is producti
 | Date | Topic | Key Finding | File |
 |---|---|---|---|
 | 2026-04-24 | AI decisioning for engagement/conversion | Beta init, temporal decay, contextual features, multi-signal rewards are top gaps | [research/ai-decisioning.md](research/ai-decisioning.md) |
-| 2026-04-24 | Send cron scale + Hightouch + Braze at 2.5M users | Research in progress | [research/send-cron-scale.md](research/send-cron-scale.md) *(pending)* |
+| 2026-04-24 | Send cron scale + Hightouch + Braze at 2.5M users | Vercel Workflows dispatcher + `/campaigns/trigger/send` 50/req; Hightouch Lightning Sync at 15min; Neon needs indexes + pooler | [research/send-cron-scale.md](research/send-cron-scale.md) |
 
 ---
 
