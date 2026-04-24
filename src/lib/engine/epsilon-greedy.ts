@@ -52,6 +52,8 @@ export class EpsilonGreedy {
   }
 
   initialStats(): ArmStats {
-    return { alpha: 0, beta: 0, tries: 0, wins: 0 };
+    // Pessimistic initialization per Deezer finding — Beta(1,1) implies 50% expected reward;
+    // real push CTR ~3% → Beta(1,30). Reduces noisy exploration during warm-up.
+    return { alpha: 1, beta: 30, tries: 0, wins: 0 };
   }
 }

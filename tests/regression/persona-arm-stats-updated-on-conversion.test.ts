@@ -41,8 +41,8 @@ describe("PersonaArmStats updated on conversion (regression)", () => {
     expect(stats).not.toBeNull();
     expect(stats!.tries).toBe(1);
     expect(stats!.wins).toBe(1);
-    expect(stats!.alpha).toBeGreaterThan(1); // 1 + reward (0.1)
-    expect(stats!.beta).toBe(1);             // unchanged
+    expect(stats!.alpha).toBeGreaterThan(1); // 1 + reward (> 1)
+    expect(stats!.beta).toBe(30);            // pessimistic Beta(1,30) prior, unchanged by positive reward
   });
 
   it("negative reward increments beta but not alpha", async () => {

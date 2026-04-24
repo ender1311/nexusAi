@@ -88,7 +88,83 @@ export async function POST(req: NextRequest) {
 
   for (const event of deduped) {
     const occurredAt = new Date(event.occurred_at);
-    const windowStart = new Date(occurredAt.getTime() - 48 * 60 * 60 * 1000);
+
+    // push_disabled is a permanent opt-out signal — no attribution window needed.
+    // Apply a hard penalty to arm stats for all agents this user recently received
+    // decisions from, then move on. Do not try to match a specific UserDecision.
+    if (event.event_name === "push_disabled") {
+      const user = await prisma.user.findFirst({
+        where: { externalId: event.external_user_id },
+        select: { personaId: true },
+      });
+      if (user?.personaId) {
+        const recentCutoff = new Date(occurredAt.getTime() - 90 * 24 * 60 * 60 * 1000);
+        const recentDecisions = await prisma.userDecision.findMany({
+          where: {
+            userId: event.external_user_id,
+            sentAt: { gte: recentCutoff },
+            messageVariantId: { not: null },
+          },
+          distinct: ["agentId", "messageVariantId"],
+          select: { agentId: true, messageVariantId: true },
+        });
+        // Hard negative reward: -1.0 (the max negative in the normalized [-1, 1] range)
+        const pushOptOutReward = -1.0;
+        for (const d of recentDecisions) {
+          if (!d.messageVariantId) continue;
+          const existing = await prisma.personaArmStats.findUnique({
+            where: {
+              personaId_agentId_variantId: {
+                personaId: user.personaId,
+                agentId: d.agentId,
+                variantId: d.messageVariantId,
+              },
+            },
+          });
+          const decayedAlpha = existing ? 1 + (existing.alpha - 1) * 0.99 : 1;
+          const decayedBeta = existing ? 1 + (existing.beta - 1) * 0.99 : 30;
+          await prisma.personaArmStats.upsert({
+            where: {
+              personaId_agentId_variantId: {
+                personaId: user.personaId,
+                agentId: d.agentId,
+                variantId: d.messageVariantId,
+              },
+            },
+            update: {
+              alpha: decayedAlpha,
+              beta: decayedBeta + 1,
+              tries: { increment: 1 },
+            },
+            create: {
+              personaId: user.personaId,
+              agentId: d.agentId,
+              variantId: d.messageVariantId,
+              alpha: 1,
+              beta: 31,
+              tries: 1,
+              wins: 0,
+            },
+          });
+        }
+        await accumulateUserStats({
+          externalId: event.external_user_id,
+          channel: "push",
+          reward: pushOptOutReward,
+          occurredAt,
+        }).catch((err) => {
+          console.error("[ingest/events] Failed to accumulate user stats for push_disabled:", err);
+        });
+      }
+      matched.push(event.event_id);
+      continue;
+    }
+
+    // For plan_completed and other long-horizon events, extend the attribution window to 30 days.
+    // Standard short-horizon events use the default 48h window.
+    const LONG_HORIZON_EVENTS = new Set(["plan_completed", "plan_read_day_3", "plan_read_day_7"]);
+    const attributionHours = LONG_HORIZON_EVENTS.has(event.event_name) ? 30 * 24 : 48;
+    const windowStart = new Date(occurredAt.getTime() - attributionHours * 60 * 60 * 1000);
 
     const decision = await prisma.userDecision.findFirst({
       where: {
@@ -133,13 +209,28 @@ export async function POST(req: NextRequest) {
       });
     }
 
-    // Update PersonaArmStats so the bandit can learn from this conversion.
-    // We update even when reward=0 (neutral event still counts as a "try").
+    // Update PersonaArmStats to close the learning loop.
+    // Apply temporal decay before adding reward to prevent old data locking in winners.
+    // Decay formula: alpha = 1 + (alpha - 1) * 0.99, same for beta. (Industry practice: ~0.99/update)
+    // We update even when reward=0 — neutral events still count as a "try" (tightens variance).
     if (decision.messageVariantId) {
-      const user = await prisma.user.findUnique({
+      const user = await prisma.user.findFirst({
         where: { externalId: event.external_user_id },
+        select: { personaId: true },
       });
       if (user?.personaId) {
+        const existing = await prisma.personaArmStats.findUnique({
+          where: {
+            personaId_agentId_variantId: {
+              personaId: user.personaId,
+              agentId: decision.agentId,
+              variantId: decision.messageVariantId,
+            },
+          },
+        });
+        // Apply temporal decay then update
+        const decayedAlpha = existing ? 1 + (existing.alpha - 1) * 0.99 : 1;
+        const decayedBeta = existing ? 1 + (existing.beta - 1) * 0.99 : 30;
         await prisma.personaArmStats.upsert({
           where: {
             personaId_agentId_variantId: {
@@ -148,20 +239,20 @@ export async function POST(req: NextRequest) {
               variantId: decision.messageVariantId,
             },
           },
+          update: {
+            alpha: decayedAlpha + (reward > 0 ? reward : 0),
+            beta: decayedBeta + (reward <= 0 ? 1 : 0),
+            tries: { increment: 1 },
+            wins: { increment: reward > 0 ? 1 : 0 },
+          },
           create: {
             personaId: user.personaId,
             agentId: decision.agentId,
             variantId: decision.messageVariantId,
-            alpha: reward > 0 ? 1 + reward : 1,
-            beta:  reward < 0 ? 2           : 1,
+            alpha: 1 + (reward > 0 ? reward : 0),
+            beta: 30 + (reward <= 0 ? 1 : 0),
             tries: 1,
-            wins:  reward > 0 ? 1           : 0,
-          },
-          update: {
-            alpha: reward > 0 ? { increment: reward } : undefined,
-            beta:  reward < 0 ? { increment: 1 }      : undefined,
-            tries: { increment: 1 },
-            wins:  reward > 0 ? { increment: 1 }      : undefined,
+            wins: reward > 0 ? 1 : 0,
           },
         }).catch((err) => {
           console.error("[ingest/events] Failed to update PersonaArmStats:", err);

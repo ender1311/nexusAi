@@ -4,8 +4,8 @@ import { ThompsonSampling } from "@/lib/engine/thompson-sampling";
 describe("ThompsonSampling", () => {
   const ts = new ThompsonSampling();
 
-  it("initialStats returns alpha=1, beta=1, tries=0, wins=0", () => {
-    expect(ts.initialStats()).toEqual({ alpha: 1, beta: 1, tries: 0, wins: 0 });
+  it("initialStats returns pessimistic Beta(1,30) prior — calibrated to ~3% push CTR", () => {
+    expect(ts.initialStats()).toEqual({ alpha: 1, beta: 30, tries: 0, wins: 0 });
   });
 
   it("throws when arms array is empty", () => {

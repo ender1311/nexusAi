@@ -142,10 +142,13 @@ export async function decideForUser(input: DecideInput): Promise<DecideResult | 
   }
 
   // 5. Load/seed PersonaArmStats for every active variant.
+  // Pessimistic Beta(1,30) prior — calibrated to ~3% push CTR (Deezer research).
+  // Applied uniformly to both Thompson and Epsilon-Greedy so the DB reflects the
+  // same prior as the in-memory initialStats() methods.
   // When skipSchedulingChecks is set, the cron route has pre-seeded arm stats so we use
   // findFirst (a pure read — no write lock) to avoid concurrent upsert races.
-  const initialAlpha = agent.algorithm === "thompson" ? 1 : 0;
-  const initialBeta  = agent.algorithm === "thompson" ? 1 : 0;
+  const INITIAL_ALPHA = 1;
+  const INITIAL_BETA  = 30;
   const armStats: BanditArm[] = await Promise.all(
     variants.map(async (v) => {
       if (skipSchedulingChecks) {
@@ -154,7 +157,7 @@ export async function decideForUser(input: DecideInput): Promise<DecideResult | 
           where: { personaId: personaId!, agentId, variantId: v.id },
         });
         const stats = existing ?? await prisma.personaArmStats.create({
-          data: { personaId: personaId!, agentId, variantId: v.id, alpha: initialAlpha, beta: initialBeta, tries: 0, wins: 0 },
+          data: { personaId: personaId!, agentId, variantId: v.id, alpha: INITIAL_ALPHA, beta: INITIAL_BETA, tries: 0, wins: 0 },
         });
         return { id: v.id, stats };
       }
@@ -170,8 +173,8 @@ export async function decideForUser(input: DecideInput): Promise<DecideResult | 
           personaId: personaId!,
           agentId,
           variantId: v.id,
-          alpha: initialAlpha,
-          beta:  initialBeta,
+          alpha: INITIAL_ALPHA,
+          beta:  INITIAL_BETA,
           tries: 0,
           wins:  0,
         },

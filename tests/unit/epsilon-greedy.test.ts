@@ -2,9 +2,9 @@ import { describe, expect, it } from "bun:test";
 import { EpsilonGreedy } from "@/lib/engine/epsilon-greedy";
 
 describe("EpsilonGreedy", () => {
-  it("initialStats returns alpha=0, beta=0, tries=0, wins=0", () => {
+  it("initialStats returns pessimistic Beta(1,30) prior — calibrated to ~3% push CTR", () => {
     const eg = new EpsilonGreedy();
-    expect(eg.initialStats()).toEqual({ alpha: 0, beta: 0, tries: 0, wins: 0 });
+    expect(eg.initialStats()).toEqual({ alpha: 1, beta: 30, tries: 0, wins: 0 });
   });
 
   it("throws when arms array is empty", () => {
