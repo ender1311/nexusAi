@@ -70,7 +70,7 @@ describe("POST /api/decide", () => {
     expect(decisions).toHaveLength(1);
   });
 
-  it("seeds PersonaArmStats at alpha=1, beta=1 on first decision (Thompson)", async () => {
+  it("seeds PersonaArmStats at alpha=1, beta=30 on first decision (pessimistic Beta(1,30) prior)", async () => {
     const persona = await createPersona();
     const agent = await createAgent({ algorithm: "thompson" });
     const msg = await createMessage(agent.id);
@@ -86,7 +86,7 @@ describe("POST /api/decide", () => {
     });
     expect(stats).not.toBeNull();
     expect(stats!.alpha).toBe(1);
-    expect(stats!.beta).toBe(1);
+    expect(stats!.beta).toBe(30);
   });
 
   it("returns suppressed=true when frequency cap is exceeded", async () => {

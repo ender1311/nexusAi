@@ -23,7 +23,7 @@ afterEach(async () => {
 });
 
 describe("Bandit seeds missing arms (regression)", () => {
-  it("seeds a brand new arm at alpha=1, beta=1 (Thompson defaults)", async () => {
+  it("seeds a brand new arm at alpha=1, beta=30 (pessimistic Beta(1,30) prior)", async () => {
     const persona = await createPersona();
     const agent = await createAgent({ algorithm: "thompson" });
     const msg = await createMessage(agent.id);
@@ -42,7 +42,7 @@ describe("Bandit seeds missing arms (regression)", () => {
     });
     expect(stats).not.toBeNull();
     expect(stats!.alpha).toBe(1);
-    expect(stats!.beta).toBe(1);
+    expect(stats!.beta).toBe(30);
     expect(stats!.tries).toBe(0);
     expect(stats!.wins).toBe(0);
   });
