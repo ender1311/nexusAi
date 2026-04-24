@@ -133,6 +133,42 @@ export async function POST(req: NextRequest) {
       });
     }
 
+    // Update PersonaArmStats so the bandit can learn from this conversion.
+    // We update even when reward=0 (neutral event still counts as a "try").
+    if (decision.messageVariantId) {
+      const user = await prisma.user.findUnique({
+        where: { externalId: event.external_user_id },
+      });
+      if (user?.personaId) {
+        await prisma.personaArmStats.upsert({
+          where: {
+            personaId_agentId_variantId: {
+              personaId: user.personaId,
+              agentId: decision.agentId,
+              variantId: decision.messageVariantId,
+            },
+          },
+          create: {
+            personaId: user.personaId,
+            agentId: decision.agentId,
+            variantId: decision.messageVariantId,
+            alpha: reward > 0 ? 1 + reward : 1,
+            beta:  reward < 0 ? 2           : 1,
+            tries: 1,
+            wins:  reward > 0 ? 1           : 0,
+          },
+          update: {
+            alpha: reward > 0 ? { increment: reward } : undefined,
+            beta:  reward < 0 ? { increment: 1 }      : undefined,
+            tries: { increment: 1 },
+            wins:  reward > 0 ? { increment: 1 }      : undefined,
+          },
+        }).catch((err) => {
+          console.error("[ingest/events] Failed to update PersonaArmStats:", err);
+        });
+      }
+    }
+
     matched.push(event.event_id);
   }
 

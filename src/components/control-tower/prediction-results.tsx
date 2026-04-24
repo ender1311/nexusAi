@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { TrendingUp, TrendingDown } from "lucide-react";
+import { TrendingUp, TrendingDown, Target, ShieldCheck, ShieldAlert } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
 import { cn } from "@/lib/utils";
 import type { PredictionResult } from "@/lib/mock/control-tower";
@@ -68,10 +68,22 @@ function ResultCard({ result, index }: ResultCardProps) {
     >
       <CardContent className="space-y-4 py-4">
         <div className="flex items-start justify-between gap-2">
-          <p className="text-sm font-medium">{result.label}</p>
+          <div className="flex items-center gap-1.5 min-w-0">
+            {result.isPrimary ? (
+              <Target className="h-3.5 w-3.5 text-primary shrink-0" />
+            ) : result.guardrailSafe === false ? (
+              <ShieldAlert className="h-3.5 w-3.5 text-amber-500 shrink-0" />
+            ) : (
+              <ShieldCheck className="h-3.5 w-3.5 text-emerald-500 shrink-0" />
+            )}
+            <p className="text-sm font-medium truncate">{result.label}</p>
+            {result.isPrimary && (
+              <span className="text-xs text-primary font-medium shrink-0">primary</span>
+            )}
+          </div>
           <span
             className={cn(
-              "inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-xs font-medium",
+              "inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-xs font-medium shrink-0",
               isImprovement
                 ? "bg-emerald-500/10 text-emerald-600 dark:text-emerald-400"
                 : "bg-red-500/10 text-red-600 dark:text-red-400"
@@ -97,6 +109,16 @@ function ResultCard({ result, index }: ResultCardProps) {
           <p className="text-xs text-muted-foreground">
             CI: {result.format(result.confidenceLow)} – {result.format(result.confidenceHigh)}
           </p>
+          {result.guardrailThreshold !== undefined && (
+            <p className={cn(
+              "text-xs font-medium",
+              result.guardrailSafe === false ? "text-amber-500" : "text-emerald-600 dark:text-emerald-400"
+            )}>
+              {result.guardrailSafe === false ? "⚠ " : "✓ "}
+              Guardrail: {result.direction === "minimize" ? "below" : "above"}{" "}
+              {result.format(result.guardrailThreshold)}
+            </p>
+          )}
         </div>
 
         {/* Comparison bars */}
@@ -144,7 +166,7 @@ export function PredictionResults({ results }: PredictionResultsProps) {
       <div className="flex items-center justify-between">
         <h3 className="text-base font-semibold">Predicted Impact</h3>
         <span className="text-xs font-mono text-muted-foreground">
-          Based on enabled agents + weights
+          Based on enabled agents + objective
         </span>
       </div>
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">

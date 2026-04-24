@@ -4,13 +4,15 @@ import { PersonaCard } from "@/components/personas/persona-card";
 import { Persona } from "@/types/persona";
 import { Users2, TrendingUp, Star, Sparkles } from "lucide-react";
 import { formatNumber } from "@/lib/utils";
+import { prisma } from "@/lib/db";
 
 async function getPersonas(): Promise<Persona[]> {
-  const baseUrl = process.env.NEXT_PUBLIC_BASE_URL ?? "http://localhost:3000";
   try {
-    const res = await fetch(`${baseUrl}/api/personas`, { cache: "no-store" });
-    if (!res.ok) return [];
-    return res.json();
+    const rows = await prisma.persona.findMany({
+      orderBy: { createdAt: "asc" },
+      include: { _count: { select: { users: true } } },
+    });
+    return rows as unknown as Persona[];
   } catch {
     return [];
   }

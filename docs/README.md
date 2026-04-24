@@ -13,6 +13,7 @@ Mermaid diagrams for AI agents and developers to understand how the system works
 | [api-routes.md](./api-routes.md) | All REST endpoints, HTTP methods, request/response shapes, auth |
 | [persona-discovery.md](./persona-discovery.md) | K-Means++ clustering, 37-dim feature vector, cosine similarity, engagement buckets |
 | [braze-integration.md](./braze-integration.md) | Braze client, payload factory, analytics fetch, graceful degradation |
+| [production-readiness.md](./production-readiness.md) | Deployment checklist, gap analysis, and steps to go live |
 
 ## Quick Reference
 
@@ -31,7 +32,7 @@ continuously improves via conversion event feedback.
 
 ### Stack
 - **Framework:** Next.js 16 App Router, React 19, TypeScript
-- **Database:** Prisma v7 + libsql (SQLite), file: `prisma/dev.db`
+- **Database:** Prisma v7 + PostgreSQL (Neon in prod/preview)
 - **Styling:** Tailwind CSS v4 + shadcn/ui
 - **Charts:** Recharts
 - **ML:** Pure TypeScript (Thompson Sampling, K-Means++, Cosine Similarity)
