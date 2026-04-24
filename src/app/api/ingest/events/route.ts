@@ -133,6 +133,54 @@ export async function POST(req: NextRequest) {
       });
     }
 
+    // Update PersonaArmStats to close the learning loop.
+    // Apply temporal decay before adding reward to prevent old data locking in winners.
+    // Decay formula: alpha = 1 + (alpha - 1) * 0.99, same for beta. (Industry practice: ~0.99/update)
+    if (decision.messageVariantId) {
+      const user = await prisma.user.findFirst({
+        where: { externalId: event.external_user_id },
+        select: { personaId: true },
+      });
+      if (user?.personaId) {
+        const existing = await prisma.personaArmStats.findUnique({
+          where: {
+            personaId_agentId_variantId: {
+              personaId: user.personaId,
+              agentId: decision.agentId,
+              variantId: decision.messageVariantId,
+            },
+          },
+        });
+        // Apply temporal decay then update
+        const decayedAlpha = existing ? 1 + (existing.alpha - 1) * 0.99 : 1;
+        const decayedBeta = existing ? 1 + (existing.beta - 1) * 0.99 : 30;
+        await prisma.personaArmStats.upsert({
+          where: {
+            personaId_agentId_variantId: {
+              personaId: user.personaId,
+              agentId: decision.agentId,
+              variantId: decision.messageVariantId,
+            },
+          },
+          update: {
+            alpha: decayedAlpha + (reward > 0 ? reward : 0),
+            beta: decayedBeta + (reward <= 0 ? 1 : 0),
+            tries: { increment: 1 },
+            wins: { increment: reward > 0 ? 1 : 0 },
+          },
+          create: {
+            personaId: user.personaId,
+            agentId: decision.agentId,
+            variantId: decision.messageVariantId,
+            alpha: 1 + (reward > 0 ? reward : 0),
+            beta: 30 + (reward <= 0 ? 1 : 0),
+            tries: 1,
+            wins: reward > 0 ? 1 : 0,
+          },
+        });
+      }
+    }
+
     matched.push(event.event_id);
   }
 
