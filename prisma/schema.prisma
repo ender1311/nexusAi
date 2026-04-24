@@ -53,13 +53,13 @@ model Message {
 }
 
 model MessageVariant {
-  id                   String   @id @default(cuid())
+  id                   String    @id @default(cuid())
   messageId            String
   name                 String
   subject              String?
   body                 String
   cta                  String?
-  status               String   @default("active")
+  status               String    @default("active")
   brazeVariantId       String?
   title                String?
   iconImageUrl         String?
@@ -67,7 +67,8 @@ model MessageVariant {
   preferredHour        Int?
   preferredDayOfWeek   Int?
   frequencyCapOverride Json?
-  createdAt            DateTime @default(now())
+  warmupUntil          DateTime?
+  createdAt            DateTime  @default(now())
 
   message   Message        @relation(fields: [messageId], references: [id], onDelete: Cascade)
   decisions UserDecision[]
