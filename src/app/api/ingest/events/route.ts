@@ -212,6 +212,7 @@ export async function POST(req: NextRequest) {
     // Update PersonaArmStats to close the learning loop.
     // Apply temporal decay before adding reward to prevent old data locking in winners.
     // Decay formula: alpha = 1 + (alpha - 1) * 0.99, same for beta. (Industry practice: ~0.99/update)
+    // We update even when reward=0 — neutral events still count as a "try" (tightens variance).
     if (decision.messageVariantId) {
       const user = await prisma.user.findFirst({
         where: { externalId: event.external_user_id },
@@ -253,6 +254,8 @@ export async function POST(req: NextRequest) {
             tries: 1,
             wins: reward > 0 ? 1 : 0,
           },
+        }).catch((err) => {
+          console.error("[ingest/events] Failed to update PersonaArmStats:", err);
         });
       }
     }

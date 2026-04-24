@@ -1,0 +1,60 @@
+# Nexus CI — verify (parallel) → build (main only)
+
+default:
+  image: oven/bun:1-alpine
+  interruptible: true
+
+variables:
+  BUN_INSTALL_CACHE_DIR: .bun/install/cache
+  HUSKY: "0"
+
+cache:
+  key: bun-$CI_COMMIT_REF_SLUG
+  paths:
+    - .bun/install/cache
+
+stages:
+  - verify
+  - build
+
+verify:typecheck:
+  stage: verify
+  script:
+    - bun install --frozen-lockfile
+    - bunx prisma generate
+    - bun run typecheck
+
+verify:lint:
+  stage: verify
+  variables:
+    NODE_OPTIONS: --max-old-space-size=512
+  script:
+    - bun install --frozen-lockfile
+    - bun run lint
+
+verify:test:
+  stage: verify
+  timeout: 15 minutes
+  variables:
+    DATABASE_URL: $TEST_DATABASE_URL
+    INGEST_API_KEY: test_ingest_key
+    CRON_SECRET: test_cron_secret
+    BRAZE_API_KEY: test_braze_key
+    BRAZE_REST_URL: https://rest.test.braze.com
+  script:
+    - bun install --frozen-lockfile
+    - bunx prisma generate
+    - bunx prisma migrate deploy
+    - bun run test
+
+build:
+  stage: build
+  needs: [verify:typecheck, verify:lint, verify:test]
+  only:
+    - main
+  variables:
+    NODE_OPTIONS: --max-old-space-size=1536
+  script:
+    - bun install --frozen-lockfile
+    - bunx prisma generate
+    - bun run build

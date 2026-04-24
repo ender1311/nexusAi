@@ -158,3 +158,13 @@ Braze credentials can also be configured through the Settings UI (`/settings`), 
 - Bandit engine functions (`reward-calculator`, `thompson-sampling`, `epsilon-greedy`, `persona-discovery`) must remain **pure** — no DB calls, no side effects, no global state — so they stay unit-testable in isolation.
 - Side effects (DB writes, API calls, logging) belong in API route handlers and service layer functions, never in component render paths or engine logic.
 - When touching statistical logic, leave a comment with the formula/reference so reviewers can verify correctness without re-deriving it.
+
+## Testing
+
+- Every new API endpoint → integration test in `tests/integration/`
+- Every new engine function → unit test in `tests/unit/`
+- Every bug fix → regression test in `tests/regression/` with a comment linking to the bug
+- Run `bun run test:quick` during development (unit + contract, no DB)
+- Run `bun run check` before opening an MR (typecheck + lint + full test suite)
+- CI enforces all checks — MRs with failing pipelines are not merged
+- `tests/helpers/builders.ts` contains DB factory functions; use them instead of raw `prisma.create` calls in tests
