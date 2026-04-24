@@ -2,6 +2,8 @@
 
 Living document. Synthesized learnings, architectural conclusions, open questions, and research-backed decisions. Updated as we research and build.
 
+**Last updated:** 2026-04-24
+
 ---
 
 ## What We've Concluded
@@ -12,23 +14,22 @@ Persona-clustered non-contextual Thompson Sampling is validated by industry (Dee
 ### Thompson Sampling is the right algorithm for our environment
 Hightouch delivers reward events in batches (hours-to-days of delay). UCB fails in this environment — it's deterministic, so without fresh feedback it repeatedly picks the same arm and stops exploring. Thompson Sampling samples stochastically so it keeps exploring even when arm stats haven't updated. Yahoo's experiments quantified this: UCB degraded significantly beyond 30-minute feedback delays. TS stayed competitive at all timeframes.
 
-### The biggest near-term gaps
-Ranked by estimated impact:
+### The fundamentals are now correct
+After the 2026-04-24 algorithm upgrade session, the core bandit loop is production-quality:
+- **Beta(1,30) pessimistic init** — calibrated to ~3% real push CTR per Deezer research. `Beta(1,1)` was implying 50% expected conversion.
+- **Temporal decay (0.99/update)** — prevents old winning variants from permanently crowding out new ones. Applied to both alpha and beta before each reward update.
+- **Learning loop closed** — `PersonaArmStats` now updates after every reward in `/api/ingest/events`. Previously the bandit never learned from conversions.
+- **Multi-signal reward** — `push_disabled` bypasses attribution window and directly penalizes all arms from agents with sends in last 90 days. Long-horizon events (plan_completed, plan_read_day_3) use 30-day attribution window.
+- **Forced exploration** — new `MessageVariant.warmupUntil` field; 10% of sends forced to warmup variants for 7 days after creation. Prevents new variants being starved by incumbent arms.
 
-1. **Beta initialization is wrong** — `Beta(1,1)` implies 50% expected reward rate. Realistic push conversion rates are 2–5%. Pessimistic initialization (Deezer: `Beta(1, ~20–30)`) significantly reduces the noisy warm-up period and reaches exploitation faster. *1-line fix.*
+### What we should NOT build yet
+- **Scheduling rules in `/api/decide`** — the decide endpoint doesn't check quiet hours or frequency caps yet. Add before production launch.
+- **Fully per-user bandits** — too sparse, too slow to learn. Persona-level is right.
+- **LinUCB or neural bandits** — the non-contextual system is now learning correctly. Fix fundamentals first, upgrade algorithm later.
+- **LTV prediction models** — start with tiered multi-signal and see what moves metrics.
 
-2. **No temporal decay** — PersonaArmStats accumulates forever. Old winning variants crowd out new ones. A variant that was dominant 18 months ago still carries inflated alpha. Sliding window or exponential decay (~0.99/update) is the fix.
-
-3. **Single reward signal is fragile** — Optimizing only for `plan_started` is Goodhart's Law waiting to happen. The system will find message copy that drives clicks but not sustained engagement. Need: `plan_started` + delayed reads + push opt-outs as negative signals + long-term retention signal.
-
-4. **No arm health monitoring** — If Hightouch stops sending events, PersonaArmStats silently stops updating. The bandit keeps making decisions but never learns. Need: alert if no arm stat updates in >24h per agent.
-
-5. **Contextual features are missing at decision time** — The current bandit is non-contextual within a persona. A lapsed user and an active user in the same persona get the same variant selection logic. Adding 3–5 contextual features (recency bucket, time of day, channel preference) is the next major lift — Yahoo's contextual LinUCB showed 12.5% click lift over context-free bandit.
-
-### What we should not over-engineer
-- Fully per-user bandits — too sparse, too slow to learn. Persona-level is right.
-- LinUCB or neural bandits right now — the non-contextual system isn't yet learning correctly (bad init, no decay). Fix the fundamentals first.
-- Complex reward attribution — start with tiered multi-signal and see what moves metrics before building LTV prediction models.
+### The next critical gap is the send cron
+`/api/cron/select-and-send` does not exist. Nothing fires Braze messages today. The decide logic and arm update logic are built; they just have no caller for outbound sends. Research is underway on fan-out architecture at 2.5M users (Vercel Queues vs. cursor pagination vs. Braze API-triggered campaigns).
 
 ---
 
@@ -41,18 +42,22 @@ Ranked by estimated impact:
 | UCB degradation at 30+ min feedback delay | Significant | Yahoo experiments |
 | Optimal cluster count for semi-personalization | 50–150 | Deezer, Yahoo |
 | Push notification frequency at which opt-outs spike | 5–7/week (+15–25%), daily+ (3x) | Industry data |
-| Pessimistic init improvement | Significant | Deezer |
+| Pessimistic init improvement | Significant vs Beta(1,1) | Deezer |
 | Features vs algorithms | Historical user features dominate | Meta (2014) |
+| Temporal decay rate | 0.99/update (90% weight on last 100 updates) | Industry practice |
 
 ---
 
 ## Open Questions
 
-- **What is the actual conversion rate for YouVersion push notifications?** This determines the correct pessimistic Beta prior. If it's 3%, init to `Beta(1, 32)`.
-- **How many personas are currently running?** Research says 50–100 is optimal. If we're at 5–10, we're likely leaving signal on the table.
-- **Are we getting plan_read_day_3 events from Hightouch?** These should be added to the reward function.
-- **What's the delay between send and Hightouch reward events arriving?** This affects whether UCB would have been a problem (it would — TS was the right choice).
-- **How stable are user feature vectors?** If Hightouch only syncs user attributes weekly, recency-based features are stale and less useful.
+- **What is the actual YouVersion push notification conversion rate?** Our Beta(1,30) prior assumes ~3%. If it's 2%, init to `Beta(1,49)`. If it's 5%, init to `Beta(1,19)`. Get this from Braze analytics before launch.
+- **How many active personas are running?** 50–100 is optimal. More than ~200 = sparse feedback per model. Fewer than 20 = losing granularity.
+- **Are `plan_read_day_3` events available from Hightouch?** If yes, add as a goal to agents with +0.8 weight. Currently supported in the attribution logic with 30-day window.
+- **What is the actual Hightouch → Nexus event delay?** Affects whether push_disabled events are timely enough to prevent another send cycle. If delay > 24h, the suppression is late.
+- **How stable are user feature vectors?** If Hightouch only syncs user attributes weekly, `recency_days` features become stale. Know the sync cadence before adding contextual features.
+- **Send cron architecture at 2.5M users?** Vercel Queues (public beta), cursor-based self-triggering, or Braze API-triggered campaigns? Research in progress.
+- **Should `/api/decide` be callable by Braze Connected Content?** An alternative to the push model — Braze calls Nexus at send time per user instead of Nexus pushing lists to Braze. Lower complexity but adds latency to every send.
+- **Scheduling rules gap** — `/api/agents/[id]/decide` does not currently check `SchedulingRule` (quiet hours, frequency cap, smart suppression). Must be fixed before production.
 
 ---
 
@@ -65,6 +70,12 @@ Ranked by estimated impact:
 | Hightouch → ingest/events → reward update | Closes the learning loop; the 48h attribution window handles delayed conversions | Design 2026-04 |
 | Prisma + Neon PostgreSQL | Relational model needed for the many-to-many agent/persona/variant relationships | Architecture 2026-04 |
 | Braze as send layer | Existing YouVersion relationship; API supports batched sends with send IDs for attribution | Architecture 2026-04 |
+| Beta(1,30) pessimistic prior | Calibrated to ~3% push CTR; Beta(1,1) was implying 50% — caused noisy exploration | Implemented 2026-04 |
+| 0.99 temporal decay on arm updates | Prevents inflated-alpha incumbents from crowding out newer variants; industry-standard rate | Implemented 2026-04 |
+| 30-day attribution window for plan events | Plan completion takes days-weeks; 48h window was missing most conversions | Implemented 2026-04 |
+| push_disabled bypasses attribution window | Opt-out is a user-level permanent signal, not attributable to a single decision | Implemented 2026-04 |
+| warmupUntil forced exploration | New variants at Beta(1,30) would rarely beat incumbents at Beta(500,100); forced 10% traffic for 7 days equalizes opportunity | Implemented 2026-04 |
+| Persona migration endpoint (atomic tx) | Deactivating a persona without nulling User.personaId left users pointing at inactive personas; migration must be a single transaction | Implemented 2026-04 |
 
 ---
 
@@ -73,3 +84,29 @@ Ranked by estimated impact:
 | Date | Topic | Key Finding | File |
 |---|---|---|---|
 | 2026-04-24 | AI decisioning for engagement/conversion | Beta init, temporal decay, contextual features, multi-signal rewards are top gaps | [research/ai-decisioning.md](research/ai-decisioning.md) |
+| 2026-04-24 | Send cron scale + Hightouch + Braze at 2.5M users | Research in progress | [research/send-cron-scale.md](research/send-cron-scale.md) *(pending)* |
+
+---
+
+## What's Been Built (as of 2026-04-24)
+
+### Core bandit loop
+- ✅ Thompson Sampling + Epsilon-Greedy engines (pure functions, unit-testable)
+- ✅ PersonaArmStats learning loop closed (temporal decay, pessimistic init)
+- ✅ Multi-signal reward (push_disabled, long-horizon attribution)
+- ✅ Forced exploration (warmupUntil field + 10% warmup traffic)
+
+### API endpoints
+- ✅ `POST /api/ingest/users` — Hightouch user sync target
+- ✅ `POST /api/ingest/events` — reward ingestion with full learning loop
+- ✅ `POST /api/agents/[id]/decide` — bandit variant selection
+- ✅ `GET /api/agents/[id]/arm-health` — arm stats freshness monitoring
+- ✅ `POST /api/personas/migrate` — safe persona list changes
+- ✅ `POST /api/personas/discover` — k-means persona clustering
+- ✅ CRUD: agents, messages, variants, goals, personas, settings
+
+### Still missing for production
+- ❌ `POST /api/cron/select-and-send` — Braze send trigger (critical path)
+- ❌ Scheduling rules wired into decide (quiet hours, frequency cap)
+- ❌ Test suite (MR !4 pending merge)
+- ❌ `.gitlab-ci.yml` (MR !4 pending merge)
