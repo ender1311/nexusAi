@@ -1,5 +1,5 @@
 /**
- * Computes a 37-float feature vector from User behavioral stats.
+ * Computes a 44-float feature vector from User behavioral stats and semantic attributes.
  *
  * Layout:
  *  [0-2]   Channel affinity: push/email/sms conversion rates (3 dims)
@@ -8,10 +8,19 @@
  *  [34]    Overall conversion rate
  *  [35]    Engagement frequency (log-scaled decisions/week estimate)
  *  [36]    Avg reward magnitude
+ *
+ * Semantic signals from User.attributes (Hightouch-synced YouVersion properties):
+ *  [37]    Giver tier (0=none, 0.5=giver, 1.0=sower)
+ *  [38]    Streak depth — plan_day_current_month_count / 31
+ *  [39]    Recency score — 1 - min(1, days_since_last_open / 90)
+ *  [40]    Plan depth — log(1 + plan_finish_lifetime_count) / log(501)
+ *  [41]    Prayer depth — gp_current_month_count / 30
+ *  [42]    Scripture depth — gs_current_month_count / 30
+ *  [43]    Badge depth — log(1 + badge_lifetime_count) / log(201)
  */
 
 const CHANNELS = ["push", "email", "sms"] as const;
-const FEATURE_DIM = 37;
+const FEATURE_DIM = 44;
 
 export interface UserStatsInput {
   totalDecisions: number;
@@ -20,6 +29,8 @@ export interface UserStatsInput {
   channelStats: unknown;
   hourlyStats: unknown;
   dailyStats: unknown;
+  /** Semantic attributes synced from YouVersion via Hightouch (User.attributes JSON blob) */
+  attributes?: Record<string, unknown>;
 }
 
 function normalize(arr: number[]): number[] {
@@ -66,6 +77,42 @@ export function computeFeatureVector(stats: UserStatsInput): number[] {
   const avgReward =
     stats.totalConversions > 0 ? Math.abs(stats.totalReward / stats.totalConversions) : 0;
   vec[36] = Math.min(1, avgReward);
+
+  // --- Semantic signals from User.attributes (Hightouch-synced YouVersion properties) ---
+  const attrs = stats.attributes ?? {};
+  const num = (key: string): number => {
+    const v = attrs[key];
+    return typeof v === "number" ? v : typeof v === "string" ? parseFloat(v) || 0 : 0;
+  };
+  const str = (key: string): string => {
+    const v = attrs[key];
+    return typeof v === "string" ? v : "";
+  };
+
+  // [37] Giver tier — 0=none, 0.5=giver, 1.0=sower
+  const giverTier = str("giving_tier").toLowerCase();
+  vec[37] = giverTier === "sower" ? 1.0 : giverTier === "giver" ? 0.5 : 0.0;
+
+  // [38] Streak depth — how far into this month's daily reading plan the user is
+  vec[38] = Math.min(1, num("plan_day_current_month_count") / 31);
+
+  // [39] Recency score — inverted days-since-last-open; 0 = unknown or 90+ days ago, 1 = today
+  // Only set if the attribute is present; absent = no signal (leave as 0).
+  if (attrs["days_since_last_open"] !== undefined && attrs["days_since_last_open"] !== null) {
+    vec[39] = 1 - Math.min(1, num("days_since_last_open") / 90);
+  }
+
+  // [40] Plan depth — lifetime plans finished (log-scaled; 500 finishes ≈ power user)
+  vec[40] = Math.log(1 + num("plan_finish_lifetime_count")) / Math.log(501);
+
+  // [41] Prayer depth — guided-prayer sessions this month
+  vec[41] = Math.min(1, num("gp_current_month_count") / 30);
+
+  // [42] Scripture depth — guided-scripture sessions this month
+  vec[42] = Math.min(1, num("gs_current_month_count") / 30);
+
+  // [43] Badge depth — lifetime badge count (log-scaled; 200 badges ≈ power user)
+  vec[43] = Math.log(1 + num("badge_lifetime_count")) / Math.log(201);
 
   return vec;
 }

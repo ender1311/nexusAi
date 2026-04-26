@@ -37,7 +37,7 @@ verify:test:
   timeout: 15 minutes
   variables:
     DATABASE_URL: $TEST_DATABASE_URL
-    INGEST_API_KEY: test_ingest_key
+    HIGHTOUCH_API_KEY: test_ingest_key
     CRON_SECRET: test_cron_secret
     BRAZE_API_KEY: test_braze_key
     BRAZE_REST_URL: https://rest.test.braze.com

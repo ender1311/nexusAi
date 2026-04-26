@@ -4,8 +4,7 @@ import { truncateAll, prisma } from "../helpers/db";
 import { buildRequest } from "../helpers/request";
 import {
   createAgent, createPersona, createMessage, createVariant,
-  createUser, createGoal, createSchedulingRule, createUserDecision,
-  linkAgentToPersona,
+  createUser, createSchedulingRule, createUserDecision,
 } from "../helpers/builders";
 
 // This import will FAIL until src/app/api/decide/route.ts is created.

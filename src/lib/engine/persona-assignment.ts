@@ -34,6 +34,7 @@ export async function assignUserToPersona(
     channelStats: user.channelStats,
     hourlyStats: user.hourlyStats,
     dailyStats: user.dailyStats,
+    attributes: (user.attributes as Record<string, unknown>) ?? {},
   });
 
   let bestPersonaId: string | null = null;

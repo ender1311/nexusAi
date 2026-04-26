@@ -14,6 +14,7 @@ import {
   Users2,
   PlayCircle,
   Radar,
+  Sprout,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useState } from "react";
@@ -26,6 +27,7 @@ const navItems = [
   { href: "/performance", label: "Performance", icon: BarChart3 },
   { href: "/control-tower", label: "Control Tower", icon: Radar },
   { href: "/demo", label: "Demo", icon: PlayCircle },
+  { href: "/about", label: "About", icon: Sprout },
   { href: "/settings", label: "Settings", icon: Settings },
 ];
 

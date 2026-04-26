@@ -2,7 +2,31 @@
 
 This document describes every step required to move Nexus from its current state (mock/static UI data) to a fully operational bandit optimization system running on real users with Hightouch feeding signals in and out.
 
-**Last updated:** 2026-04-24
+**Last updated:** 2026-04-24 (refreshed against repo)
+
+**Variable template:** see [`.env.example`](../.env.example) for local and Vercel naming.
+
+---
+
+## Go-live checklist (engineering + ops)
+
+Work through in order before turning on Hightouch sync and the send cron against production users.
+
+| # | Task | Owner | Status |
+|---|------|-------|--------|
+| 1 | Neon production branch created; `DATABASE_URL` set in Vercel (Preview/Production as needed) | Ops | ⏳ |
+| 2 | `npx prisma migrate deploy` run against that database (CI does this for `TEST_DATABASE_URL`; prod is manual or release job) | Ops / Eng | ⏳ |
+| 3 | `HIGHTOUCH_API_KEY`, `CRON_SECRET`, `BRAZE_*` set in Vercel; keys rotated if pre-shared | Ops | ⏳ |
+| 4 | GitLab: `TEST_DATABASE_URL` + green pipeline on `main` | Eng | ⏳ |
+| 5 | Production deploy succeeds (`bun run build`); smoke: `GET /api/agents` (dashboard) | Eng | ⏳ |
+| 6 | Hightouch → `POST /api/ingest/users` (hourly/daily) with Bearer `HIGHTOUCH_API_KEY` | Ops | ⏳ |
+| 7 | Hightouch or warehouse → `POST /api/ingest/events` for conversion events | Ops | ⏳ |
+| 8 | Agent(s) **active** in DB; messages have real `brazeCampaignId` / variant IDs where required | Eng / PM | ⏳ |
+| 9 | First `POST /api/cron/select-and-send` with `Authorization: Bearer <CRON_SECRET>` in dry window; confirm Braze sends + `UserDecision.brazeSendId` | Eng | ⏳ |
+| 10 | Vercel Cron enabled; watch logs at scheduled time ([`vercel.json`](../vercel.json) — `0 9 * * *` UTC) | Ops | ⏳ |
+| 11 | Post-launch: persona / winner attributes back to Braze via Hightouch (Step 7 below) | Ops | Post-launch |
+
+**Local / CI database:** `prisma.config.ts` loads `.env` then `.env.local` (override), matching Next.js. Run `npx prisma migrate deploy` against the same `DATABASE_URL` you use for `bun run test` so integration tests do not drift from the schema.
 
 ---
 
@@ -12,7 +36,9 @@ This document describes every step required to move Nexus from its current state
 Hightouch (data warehouse)
     → [sync users]       → Nexus /api/ingest/users
                          → Nexus assigns user to persona
-                         → Nexus selects variant (bandit) [/api/agents/:id/decide]
+                         → Nexus selects variant (bandit)
+                            • POST /api/decide { agentId, externalUserId } (Hightouch-friendly)
+                            • POST /api/agents/:id/decide { userId, channel? } (dashboard / internal)
                          → Braze sends message to user [/api/cron/select-and-send]
                          → User converts (app event)
                          → Event warehouse / Braze Currents
@@ -36,11 +62,13 @@ Hightouch (data warehouse)
 | `/api/agents/[id]/arm-health` | ✅ Built: health status + per-variant stats freshness |
 | `/api/personas/migrate` | ✅ Built: atomic deactivation/activation with user reassignment |
 | Beta initialization | ✅ Fixed: `Beta(1,30)` pessimistic prior (was `Beta(1,1)`) |
-| `/api/cron/select-and-send` | ❌ **Does not exist** — next critical code gap |
-| Test suite + CI pipeline | ⚠️ Designed in MR !4 — **not yet merged to main** |
+| `POST /api/decide` | ✅ Built: wraps `decideForUser()` — scheduling + bandit + `UserDecision` |
+| `/api/cron/select-and-send` | ✅ Built: pages users (500), `decideForUser` + Braze `/messages/send`, batches of 50, `maxDuration` 300s |
+| Vercel cron config | ✅ [vercel.json](../vercel.json) — `0 9 * * *` → `/api/cron/select-and-send` |
+| Test suite + CI pipeline | ✅ `.gitlab-ci.yml`, `tests/` (unit, contracts, integration, regression), Husky `pre-push` → `check:quick` |
 | Hightouch user sync | ❌ Ops task — not configured |
 | Hightouch event streaming | ❌ Ops task — not configured |
-| Braze firing | ❌ Client exists, nothing calls it — blocked on send cron |
+| Braze firing | ⏳ **Code path exists** (cron) — needs prod `BRAZE_*`, `CRON_SECRET`, deployed app |
 | UI wired to real data | ❌ Mock everywhere except `/personas` — post-launch |
 
 ---
@@ -49,28 +77,27 @@ Hightouch (data warehouse)
 
 | Step | Status | Notes |
 |---|---|---|
-| 0. Test infrastructure + CI | ⚠️ MR !4 pending merge | Must merge before Step 2 |
-| 1. Deploy DB (ops) | ⏳ Ops — schema ready | Neon prod branch + Vercel env vars |
-| 2. `/api/decide` + arm update | ✅ Done | At `/api/agents/[id]/decide`; arm stats now update |
+| 0. Test infrastructure + CI | ✅ In repo | `.gitlab-ci.yml`, `bunfig.toml`, `tests/`, Husky pre-push |
+| 1. Deploy DB (ops) | ⏳ Ops — schema ready | Neon prod branch + Vercel `DATABASE_URL` + `prisma migrate deploy` |
+| 2. Decide + arm update | ✅ Done | `/api/decide`, `/api/agents/[id]/decide`, `decideForUser`; ingest updates arms |
 | 3. Hightouch user sync (ops) | ⏳ Ops | HTTP destination → `/api/ingest/users` |
 | 4. Hightouch event streaming (ops) | ⏳ Ops | Event sync → `/api/ingest/events` |
-| 5. Build send cron | ❌ Not built | **Current code priority** |
-| 6. Wire Vercel Cron | ❌ Not done | Depends on Step 5 |
+| 5. Send cron + Braze sends | ✅ Code done | `/api/cron/select-and-send`; prod needs secrets + monitoring |
+| 6. Wire Vercel Cron | ✅ Done | [vercel.json](../vercel.json) |
 | 7. Hightouch signals out | ❌ Post-launch | persona/winner attrs → Braze |
 
 ---
 
-## Step 0 — Merge Test Infrastructure (MR !4)
+## Step 0 — Test Infrastructure + CI ✅
 
-**Status: ⚠️ MR !4 exists, pipeline passed, not yet merged.**
+Present in the repository:
 
-MR !4 (`feature/ci-tests-production-readiness`) adds:
-- `.gitlab-ci.yml` with typecheck / lint / test / build stages
-- `tests/` directory with unit, integration, contract, regression suites
-- `bunfig.toml`, test helpers (db, braze fake transport, builders)
-- `tests/integration/decide.test.ts`, `cron-send.test.ts`, `ingest-events.test.ts`
+- **CI:** [`.gitlab-ci.yml`](../.gitlab-ci.yml) — stages `verify` → `build` (only on `main`). Each verify job runs `bun install --frozen-lockfile`. `verify:test` sets `DATABASE_URL: $TEST_DATABASE_URL` and inline test values for `HIGHTOUCH_API_KEY`, `CRON_SECRET`, `BRAZE_*`, then `prisma migrate deploy` + `bun run test`.
+- **Tests:** `tests/unit`, `tests/contracts`, `tests/integration`, `tests/regression`; helpers under `tests/helpers/`
+- **Config:** `bunfig.toml`, `package.json` scripts `test`, `test:quick`, `check`, `check:quick`
+- **Hooks:** `.husky/pre-push` runs `bun run check:quick`
 
-**Merge this before proceeding.** CI gates every future MR.
+**GitLab CI/CD variables:** set `TEST_DATABASE_URL` (Neon branch used only for CI). Keep pipelines green on MRs and `main`.
 
 ---
 
@@ -87,22 +114,25 @@ npx prisma generate
 
 Set `DATABASE_URL` in Vercel environment variables for all environments.
 
-**Note:** New migration required — `warmupUntil` field added to `MessageVariant`. Run `prisma migrate deploy` against prod DB before deploying.
+**Note:** Apply all migrations in `prisma/migrations/` (including `MessageVariant.warmupUntil` and any newer) with `prisma migrate deploy` before or as part of each production deploy.
 
 ---
 
-## Step 2 — `/api/decide` ✅ Done
+## Step 2 — Decide endpoints ✅ Done
 
-`POST /api/agents/[id]/decide` is implemented. Takes `{ userId, channel? }`, returns `{ variantId, channel, explore, warmupForced, predictedReward }`.
+**`POST /api/agents/[id]/decide`** — dashboard / agent-scoped API. Takes `{ userId, channel? }`, returns variant selection metadata (Thompson/Epsilon-Greedy, warmup exploration, arm health context).
 
-Key behaviors:
-- Thompson Sampling or Epsilon-Greedy per agent config
-- Pessimistic `Beta(1,30)` prior for unseeded arms
-- Forced exploration: 10% probability selects warmup variants (`warmupUntil > now`)
-- Falls back to `"global"` persona key when user has no persona assignment
-- Records `UserDecision` on every call
+**`POST /api/decide`** — Hightouch-friendly entry: `{ agentId, externalUserId }`, Bearer `HIGHTOUCH_API_KEY`. Delegates to **`decideForUser()`** in `src/lib/decide.ts`.
 
-**Gap vs original spec:** The original spec called for a top-level `/api/decide` with scheduling rules (quiet hours, frequency cap) inline. The current implementation does not yet check scheduling rules inside `decide` — that logic lives in `SchedulingRule` but isn't wired to the decide endpoint. Add before production.
+Shared **`decideForUser()`** behavior:
+
+- Loads agent, messages, active variants, and `schedulingRule`
+- Resolves persona (assignment, then largest active persona fallback)
+- **Scheduling:** quiet hours, frequency cap, smart suppression (unless `skipSchedulingChecks` — used by cron after bulk checks)
+- Seeds / upserts `PersonaArmStats`, runs bandit algorithm, writes `UserDecision`
+- Returns `{ suppressed: true, reason }` or variant ids + channel + `userDecisionId`
+
+Cron path: `src/app/api/cron/select-and-send/route.ts` pre-checks quiet hours per agent, bulk frequency cap and smart suppression per user page, then calls `decideForUser(..., skipSchedulingChecks: true)`.
 
 ---
 
@@ -122,7 +152,7 @@ Key behaviors:
 In Hightouch:
 1. **Model** — SQL query: `external_user_id` + behavioral attributes flat per user
 2. **Destination** — HTTP Request → `POST https://nexus.vercel.app/api/ingest/users`
-3. **Auth** — `Authorization: Bearer <INGEST_API_KEY>`
+3. **Auth** — `Authorization: Bearer <HIGHTOUCH_API_KEY>`
 4. **Column mapping** — primary key → `external_user_id`; all attributes → `attributes` object
 5. **Schedule** — Hourly (or daily; persona assignment runs on next ingest cycle)
 
@@ -133,7 +163,7 @@ In Hightouch:
 **Option A — Hightouch Event Sync** (warehouse-based, ~15-min batch):
 - Point at `POST /api/ingest/events`
 - Map: `event_id`, `event_name`, `external_user_id`, `occurred_at`, `properties`
-- Auth: same `INGEST_API_KEY` header
+- Auth: same `HIGHTOUCH_API_KEY` header
 
 **Option B — Braze Currents adapter** (near-real-time):
 - Build `POST /api/ingest/braze-currents` that translates Currents format → Nexus event format
@@ -141,51 +171,44 @@ In Hightouch:
 
 ---
 
-## Step 6 — Build the Send Cron ❌ Not built
+## Step 6 — Send Cron ✅ Implemented
 
-**This is the next critical code gap.**
+**Route:** `POST /api/cron/select-and-send` (`src/app/api/cron/select-and-send/route.ts`)
 
-**New route: `POST /api/cron/select-and-send`**
+**Auth:** `Authorization: Bearer <CRON_SECRET>` (required in production — no fallback if unset)
 
-Auth: `Authorization: Bearer <CRON_SECRET>`
+**Vercel:** `export const maxDuration = 300`; cron schedule in [vercel.json](../vercel.json): `0 9 * * *`
 
-```typescript
-// vercel.json cron entry
-{ "path": "/api/cron/select-and-send", "schedule": "0 9 * * *" }
-```
+**Current implementation (single invocation):**
 
-### Architecture (Research Complete — see `docs/research/send-cron-scale.md`)
+1. Loads active agents with persona targets, scheduling rules, messages, and active variants
+2. Per agent: skip entirely if quiet hours apply (agent-level check)
+3. Pre-seeds `PersonaArmStats` for each target persona × variant (reduces races)
+4. Cursor-paginates users with `personaId IN (target personas)`, **500 per page**
+5. Bulk frequency-cap and smart-suppression filtering; then concurrent `decideForUser(..., preloadedAgent, skipSchedulingChecks: true)` (concurrency 10 within each page)
+6. Groups recipients by variant; calls Braze **`/messages/send`** via `BrazeClient` + `PayloadFactory` in batches of **50**
+7. On success, sets `UserDecision.brazeSendId` from `createSendId`
+8. Response: `{ ok, sent, suppressed, errors }`
 
-**Decision: Vercel Workflows dispatcher + `/campaigns/trigger/send` at 50 users/request.**
+**Production checklist:** Set `CRON_SECRET`, `BRAZE_API_KEY`, `BRAZE_REST_URL`, and campaign/variant IDs on messages so sends succeed. Watch Vercel logs and Braze dashboards for first runs.
 
-- Cron fires a lightweight dispatcher (`/api/cron/select-and-send`) that publishes one job per active agent to Vercel Queues/Workflows in <5s
-- Each agent-consumer Workflow: cursor-paginates `User` by `personaId` (500/page), runs bandit, calls `/campaigns/trigger/send` with `trigger_properties: { variantId }`
-- Each Workflow step: 800s max (Vercel Pro); up to 10,000 steps per run → covers 2.5M users at 500/batch = 5,000 steps ✓
-- Rate limit: 250,000 req/hour for `/campaigns/trigger/send` → 50,000 requests takes ~12 min ✓
+### Scale / future architecture
 
-**Key constraints confirmed:**
-- Braze: max 50 users/request, 250k req/hour shared rate limit
-- Neon: use PgBouncer pooler; disable auto-suspend on production; add indexes (see below)
-- Hightouch: Lightning Sync Engine required (>100K rows); minimum interval ~15 min
+For very large audiences (multi-million users per run), a dispatcher + **Vercel Queues / Workflows** (or chunked cron invocations) may be needed so a single function stays within time limits. Research notes: `docs/research/send-cron-scale.md`.
 
-**DB indexes needed (add migration before prod):**
+**DB indexes (recommended before high volume — add via Prisma migration if profiling shows need):**
+
 ```sql
 CREATE INDEX idx_users_persona_id ON "User"("personaId");
 CREATE INDEX idx_decisions_agent_user_sent ON "UserDecision"("agentId", "userId", "sentAt");
 CREATE INDEX idx_arm_stats_agent_persona ON "PersonaArmStats"("agentId", "personaId");
 ```
 
-### Logic (per agent-consumer workflow)
+**Operational constraints (unchanged):**
 
-1. Cursor-paginate `User` where `personaId IN (agent.targetPersonaIds)`, 500/batch
-2. For each user in batch, run `decideForUser()` (inline — no HTTP round-trip):
-   - Check scheduling rules (quiet hours, frequency cap, smart suppression) via `src/lib/decide.ts`
-   - Skip if suppressed
-   - Run bandit selection → `variantId`
-3. Batch-insert `UserDecision` records (all non-suppressed in batch)
-4. Bucket non-suppressed users by `variantId`, call `/campaigns/trigger/send` at 50/request
-5. On success: record `brazeSendId` on each `UserDecision`
-6. Advance cursor to next page
+- Braze: max 50 recipients per `/messages/send` request; shared REST rate limits
+- Neon: pooler, avoid auto-suspend surprises on prod
+- Hightouch: Lightning Sync Engine for very large models; ~15 min minimum batch interval typical
 
 ---
 
@@ -210,6 +233,8 @@ Once arm stats accumulate:
 
 ## Environment Variables Checklist
 
+Copy from [`.env.example`](../.env.example) into Vercel (and local `.env.local`). Required for the full loop:
+
 ```bash
 # Database
 DATABASE_URL=postgresql://...
@@ -222,7 +247,7 @@ BRAZE_IOS_APP_ID=...
 BRAZE_WEB_APP_ID=...
 
 # Ingest security (Hightouch uses this as Bearer token)
-INGEST_API_KEY=...
+HIGHTOUCH_API_KEY=...
 
 # Cron security
 CRON_SECRET=...
@@ -247,4 +272,4 @@ These were identified in `docs/research/ai-decisioning.md` and affect production
 | Per-user preferred send hour | MEDIUM | ❌ Tier 2 — post-launch |
 | Recency-weighted frequency suppression | MEDIUM | ❌ Tier 2 — post-launch |
 | Contextual features (recency × persona) | MEDIUM | ❌ Tier 3 — post-launch |
-| Scheduling rules wired into decide | MEDIUM | ❌ Gap — needs fix before prod |
+| Scheduling rules wired into decide | MEDIUM | ✅ Done (`decideForUser` + cron bulk checks) |

@@ -68,6 +68,10 @@ model MessageVariant {
   preferredDayOfWeek   Int?
   frequencyCapOverride Json?
   warmupUntil          DateTime?
+  // Semantic descriptor of the message — enables oracle generalization across variants
+  // { tone: "empathy"|"urgency"|"question"|"milestone", hasPersonalization: bool,
+  //   ctaType: "button"|"link"|"deeplink", messageLengthBucket: "short"|"medium"|"long" }
+  actionFeatures       Json?
   createdAt            DateTime  @default(now())
 
   message   Message        @relation(fields: [messageId], references: [id], onDelete: Cascade)
@@ -85,9 +89,14 @@ model UserDecision {
   conversionEvent  String?
   conversionAt     DateTime?
   reward           Float?
+  // Context snapshot at decide-time — used for offline analysis and oracle training
+  // { giver_tier?, streak_status?, streak_days?, recency_days?, trigger_event? }
+  decisionContext  Json?
 
   agent   Agent           @relation(fields: [agentId], references: [id], onDelete: Cascade)
   variant MessageVariant? @relation(fields: [messageVariantId], references: [id])
+
+  @@index([agentId, userId, sentAt])
 }
 
 model User {
@@ -116,6 +125,8 @@ model User {
   updatedAt DateTime @updatedAt
 
   persona Persona? @relation(fields: [personaId], references: [id])
+
+  @@index([personaId])
 }
 
 model Persona {
@@ -162,6 +173,22 @@ model PersonaArmStats {
   wins      Int    @default(0)
 
   @@unique([personaId, agentId, variantId])
+  @@index([agentId, personaId])
+}
+
+model LinUCBArm {
+  id        String @id @default(cuid())
+  personaId String
+  agentId   String
+  variantId String
+  // A_inv: flattened FEATURE_DIM×FEATURE_DIM matrix (row-major), maintained via Sherman-Morrison
+  aInv      Json
+  // b vector: FEATURE_DIM floats (sum of reward * feature_vector across observations)
+  b         Json
+  tries     Int    @default(0)
+
+  @@unique([personaId, agentId, variantId])
+  @@index([agentId, personaId])
 }
 
 model SchedulingRule {

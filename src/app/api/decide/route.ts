@@ -1,9 +1,9 @@
 import { NextRequest, NextResponse } from "next/server";
-import { decideForUser } from "@/lib/decide";
+import { decideForUser, type DecideContext } from "@/lib/decide";
 
 function verifyAuth(req: NextRequest): boolean {
   const token = req.headers.get("authorization")?.replace("Bearer ", "");
-  const expected = process.env.INGEST_API_KEY;
+  const expected = process.env.HIGHTOUCH_API_KEY ?? process.env.INGEST_API_KEY;
   if (!expected) return true;
   return token === expected;
 }
@@ -20,7 +20,7 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "Invalid JSON" }, { status: 400 });
   }
 
-  const { agentId, externalUserId } = (body ?? {}) as Record<string, unknown>;
+  const { agentId, externalUserId, context } = (body ?? {}) as Record<string, unknown>;
   if (typeof agentId !== "string" || typeof externalUserId !== "string") {
     return NextResponse.json(
       { error: "agentId and externalUserId are required strings" },
@@ -28,7 +28,12 @@ export async function POST(req: NextRequest) {
     );
   }
 
-  const result = await decideForUser({ agentId, externalUserId });
+  // context is optional; pass through as-is if it's a plain object
+  const decideContext = context !== null && typeof context === "object" && !Array.isArray(context)
+    ? (context as DecideContext)
+    : undefined;
+
+  const result = await decideForUser({ agentId, externalUserId, context: decideContext });
   if (!result) {
     return NextResponse.json(
       { error: "Agent not found, inactive, or has no active variants" },
