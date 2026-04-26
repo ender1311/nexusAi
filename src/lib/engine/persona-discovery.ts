@@ -136,7 +136,15 @@ function runKMeans(vectors: number[][], k: number, runs: number): ClusterResult 
   };
 }
 
-function deriveTrait(centroid: number[]): { dominantChannel: string; peakHour: number; engagementLevel: string; conversionRate: number } {
+function deriveTrait(centroid: number[]): {
+  dominantChannel: string;
+  peakHour: number;
+  engagementLevel: string;
+  conversionRate: number;
+  giverProfile: string;
+  streakDepth: number;
+  planDepth: number;
+} {
   const CHANNELS = ["push", "email", "sms"];
   const channelRates = centroid.slice(0, 3);
   const dominantChannelIdx = channelRates.indexOf(Math.max(...channelRates));
@@ -145,8 +153,8 @@ function deriveTrait(centroid: number[]): { dominantChannel: string; peakHour: n
   const hourlyRates = centroid.slice(3, 27);
   const peakHour = hourlyRates.indexOf(Math.max(...hourlyRates));
 
-  const conversionRate = centroid[34];
-  const freq = centroid[35];
+  const conversionRate = centroid[34] ?? 0;
+  const freq = centroid[35] ?? 0;
 
   let engagementLevel = "sporadic";
   if (freq > 0.7) engagementLevel = "daily";
@@ -154,7 +162,13 @@ function deriveTrait(centroid: number[]): { dominantChannel: string; peakHour: n
   else if (freq > 0.3) engagementLevel = "moderate";
   else if (freq > 0.15) engagementLevel = "weekly";
 
-  return { dominantChannel, peakHour, engagementLevel, conversionRate };
+  // Semantic dims [37-43]
+  const giverScore = centroid[37] ?? 0;
+  const giverProfile = giverScore >= 0.9 ? "sower" : giverScore >= 0.4 ? "giver" : "non-giver";
+  const streakDepth = centroid[38] ?? 0;
+  const planDepth = centroid[40] ?? 0;
+
+  return { dominantChannel, peakHour, engagementLevel, conversionRate, giverProfile, streakDepth, planDepth };
 }
 
 /**
@@ -182,7 +196,7 @@ export async function discoverPersonas(config: DiscoveryConfig = {}): Promise<{
     return { personasCreated: 0, personasUpdated: 0, usersAssigned: 0, silhouetteScore: 0, k: 0 };
   }
 
-  // Compute feature vectors
+  // Compute feature vectors (including semantic attributes from Hightouch)
   const vectors = eligibleUsers.map((u) =>
     computeFeatureVector({
       totalDecisions: u.totalDecisions,
@@ -191,6 +205,7 @@ export async function discoverPersonas(config: DiscoveryConfig = {}): Promise<{
       channelStats: u.channelStats,
       hourlyStats: u.hourlyStats,
       dailyStats: u.dailyStats,
+      attributes: (u.attributes as Record<string, unknown>) ?? {},
     })
   );
 
@@ -231,6 +246,9 @@ export async function discoverPersonas(config: DiscoveryConfig = {}): Promise<{
       peakHour: traits.peakHour,
       engagementLevel: traits.engagementLevel,
       conversionRate: traits.conversionRate,
+      giverProfile: traits.giverProfile,
+      streakDepth: traits.streakDepth,
+      planDepth: traits.planDepth,
     };
 
     const COLORS = ["blue", "green", "purple", "orange", "teal", "indigo", "amber", "pink"];

@@ -123,7 +123,7 @@ export async function createSchedulingRule(
     data: {
       agentId,
       frequencyCap: { maxSends: 100, period: "week" } as object,
-      quietHours: { start: "02:00", end: "03:00", timezone: "UTC" } as object,
+      quietHours: { start: "00:00", end: "00:00", timezone: "UTC" } as object,
       blackoutDates: [],
       smartSuppress: false,
       suppressThresh: 0.5,

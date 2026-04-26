@@ -38,8 +38,8 @@ graph LR
     end
 
     subgraph Ingest["/api/ingest"]
-        I1["POST /api/ingest/events<br/>Hightouch conversion events<br/>Auth: Bearer INGEST_API_KEY"]
-        I2["POST /api/ingest/users<br/>Hightouch user profiles<br/>Auth: Bearer INGEST_API_KEY"]
+        I1["POST /api/ingest/events<br/>Hightouch conversion events<br/>Auth: Bearer HIGHTOUCH_API_KEY"]
+        I2["POST /api/ingest/users<br/>Hightouch user profiles<br/>Auth: Bearer HIGHTOUCH_API_KEY"]
     end
 
     subgraph Settings["/api/settings"]
@@ -88,7 +88,7 @@ graph LR
 
 ### POST /api/ingest/events
 ```typescript
-// Headers: Authorization: Bearer <INGEST_API_KEY>
+// Headers: Authorization: Bearer <HIGHTOUCH_API_KEY>
 // Request
 {
   events: Array<{
@@ -105,7 +105,7 @@ graph LR
 
 ### POST /api/ingest/users
 ```typescript
-// Headers: Authorization: Bearer <INGEST_API_KEY>
+// Headers: Authorization: Bearer <HIGHTOUCH_API_KEY>
 // Request
 {
   users: Array<{
@@ -153,5 +153,5 @@ graph LR
 
 | Route group | Auth method |
 |-------------|-------------|
-| `/api/ingest/*` | `Authorization: Bearer <INGEST_API_KEY>` env var |
+| `/api/ingest/*` | `Authorization: Bearer <HIGHTOUCH_API_KEY>` env var |
 | All others | None (internal / assumed network-secured) |

@@ -19,7 +19,7 @@ import { prisma } from "@/lib/db";
 
 function verifyAuth(req: NextRequest): boolean {
   const token = req.headers.get("authorization")?.replace("Bearer ", "");
-  const expected = process.env.INGEST_API_KEY;
+  const expected = process.env.HIGHTOUCH_API_KEY ?? process.env.INGEST_API_KEY;
   if (!expected) return true;
   return token === expected;
 }
@@ -70,7 +70,18 @@ export async function POST(req: NextRequest) {
   let upserted = 0;
   for (const user of deduped) {
     const externalId = user.external_user_id!;
-    const attributes = (user.attributes ?? {}) as unknown as object;
+    const raw = (user.attributes ?? {}) as Record<string, unknown>;
+
+    // Derive days_since_last_open from last_seen_at if present
+    if (raw["last_seen_at"] && typeof raw["last_seen_at"] === "string") {
+      const lastSeen = new Date(raw["last_seen_at"]);
+      if (!isNaN(lastSeen.getTime())) {
+        const days = (Date.now() - lastSeen.getTime()) / (1000 * 60 * 60 * 24);
+        raw["days_since_last_open"] = Math.round(days);
+      }
+    }
+
+    const attributes = raw as unknown as object;
     await prisma.user.upsert({
       where: { externalId },
       create: { externalId, attributes },

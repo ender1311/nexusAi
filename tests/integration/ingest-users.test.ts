@@ -1,7 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it } from "bun:test";
 import { NextRequest } from "next/server";
 import { truncateAll, prisma } from "../helpers/db";
-import { buildRequest, withAuth } from "../helpers/request";
+import { buildRequest } from "../helpers/request";
 import { POST } from "@/app/api/ingest/users/route";
 
 const AUTH = { Authorization: "Bearer test_ingest_key" };

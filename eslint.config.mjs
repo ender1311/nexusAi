@@ -7,6 +7,8 @@ const eslintConfig = defineConfig([
   ...nextTs,
   // Override default ignores of eslint-config-next.
   globalIgnores([
+    // Git worktrees (duplicate checkouts) — not primary source
+    ".worktrees/**",
     // Default ignores of eslint-config-next:
     ".next/**",
     "out/**",

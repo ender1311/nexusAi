@@ -80,7 +80,7 @@ SchedulingRule (1:1 with Agent), ModelMetric, AppSetting
 ```
 POST /api/ingest/users   — upsert user profiles
 POST /api/ingest/events  — conversion events → reward loop
-Auth: Authorization: Bearer <INGEST_API_KEY>
+Auth: Authorization: Bearer <HIGHTOUCH_API_KEY>
 ```
 
 Event flow: event arrives → match UserDecision (48h window) → calculate reward → update arm stats (α/β).
@@ -89,7 +89,7 @@ Event flow: event arrives → match UserDecision (48h window) → calculate rewa
 
 ```bash
 DATABASE_URL=postgresql://user:password@host/dbname   # PostgreSQL (Neon in prod)
-INGEST_API_KEY=          # shared secret for Hightouch auth
+HIGHTOUCH_API_KEY=       # shared secret for Hightouch auth
 BRAZE_API_KEY=
 BRAZE_REST_URL=rest.iad-01.braze.com
 BRAZE_ANDROID_APP_ID=
