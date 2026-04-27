@@ -1,13 +1,15 @@
+export const dynamic = "force-dynamic";
+
 import { Header } from "@/components/layout/header";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { mockAgents } from "@/lib/mock/agents";
 import { Channel, TestedVariable } from "@/types/agent";
 import { cn } from "@/lib/utils";
 import Link from "next/link";
 import { MessageSquare, Plus } from "lucide-react";
 import { TestedVariablesBadges } from "@/components/agents/tested-variables-badges";
+import { prisma } from "@/lib/db";
 
 const channelColors: Record<Channel, string> = {
   push: "bg-blue-100 text-blue-700",
@@ -15,11 +17,23 @@ const channelColors: Record<Channel, string> = {
   sms: "bg-green-100 text-green-700",
 };
 
-export default function MessagesPage() {
-  const allMessages = mockAgents.flatMap((agent) =>
-    (agent.messages ?? []).map((m) => ({ ...m, agentName: agent.name, agentId: agent.id }))
-  );
+async function getAgentsWithMessages() {
+  return prisma.agent.findMany({
+    where: { messages: { some: {} } },
+    include: {
+      messages: {
+        include: { variants: { orderBy: { createdAt: "asc" } } },
+        orderBy: { createdAt: "asc" },
+      },
+    },
+    orderBy: { createdAt: "asc" },
+  });
+}
 
+export default async function MessagesPage() {
+  const agents = await getAgentsWithMessages();
+
+  const allMessages = agents.flatMap((a) => a.messages);
   const byChannel = {
     push: allMessages.filter((m) => m.channel === "push"),
     email: allMessages.filter((m) => m.channel === "email"),
@@ -45,13 +59,21 @@ export default function MessagesPage() {
           ))}
         </div>
 
+        {agents.length === 0 && (
+          <div className="text-center py-16 text-muted-foreground border-2 border-dashed rounded-xl">
+            <MessageSquare className="h-10 w-10 mx-auto mb-3 opacity-30" />
+            <p className="font-medium">No messages yet</p>
+            <p className="text-sm mt-1">Create an agent and add messages to get started.</p>
+          </div>
+        )}
+
         {/* Messages grouped by agent */}
-        {mockAgents.filter((a) => (a.messages?.length ?? 0) > 0).map((agent) => (
+        {agents.map((agent) => (
           <Card key={agent.id}>
             <CardHeader className="flex flex-row items-center justify-between">
               <div>
                 <CardTitle className="text-sm font-semibold">{agent.name}</CardTitle>
-                <p className="text-xs text-muted-foreground mt-0.5">{agent.messages?.length ?? 0} messages</p>
+                <p className="text-xs text-muted-foreground mt-0.5">{agent.messages.length} messages</p>
               </div>
               <Link href={`/agents/${agent.id}/messages`}>
                 <Button size="sm" variant="outline">
@@ -62,28 +84,27 @@ export default function MessagesPage() {
             </CardHeader>
             <CardContent>
               <div className="space-y-3">
-                {agent.messages?.map((msg) => {
+                {agent.messages.map((msg) => {
                   const testedVars = (msg.testedVariables ?? []) as TestedVariable[];
                   return (
                     <div key={msg.id} className="border rounded-lg p-3">
                       <div className="flex items-center justify-between mb-2">
                         <div className="flex items-center gap-2 flex-wrap">
                           <p className="text-sm font-medium">{msg.name}</p>
-                          <Badge variant="outline" className={cn("text-xs capitalize", channelColors[msg.channel])}>
+                          <Badge variant="outline" className={cn("text-xs capitalize", channelColors[msg.channel as Channel] ?? "")}>
                             {msg.channel}
                           </Badge>
                           {testedVars.length > 0 && (
                             <TestedVariablesBadges variables={testedVars} />
                           )}
                         </div>
-                        <span className="text-xs text-muted-foreground shrink-0 ml-2">{msg.variants?.length ?? 0} variants</span>
+                        <span className="text-xs text-muted-foreground shrink-0 ml-2">{msg.variants.length} variants</span>
                       </div>
                       <div className="space-y-1">
-                        {msg.variants?.map((v) => (
+                        {msg.variants.map((v) => (
                           <div key={v.id} className="flex items-center justify-between p-2 bg-muted/40 rounded-md">
                             <div className="flex-1 min-w-0">
                               <span className="text-xs font-medium">{v.name}</span>
-                              {v.subject && <span className="text-xs text-muted-foreground ml-2">· {v.subject}</span>}
                               {msg.channel === "push" && v.title && (
                                 <span className="text-xs text-muted-foreground ml-2">· {v.title}</span>
                               )}
