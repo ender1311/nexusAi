@@ -1,3 +1,5 @@
+export const dynamic = "force-dynamic";
+
 import { Header } from "@/components/layout/header";
 import { MetricCard } from "@/components/charts/metric-card";
 import { PersonaCard } from "@/components/personas/persona-card";
