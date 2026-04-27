@@ -143,12 +143,12 @@ function PhoneMockup() {
           {/* Push notification card — YouVersion/Holy Bible style */}
           <div className="bg-white rounded-2xl p-3 text-gray-900 shadow-lg border border-gray-100">
             <div className="flex items-start gap-2">
-              {/* App icon — YouVersion red with Nexus branding (Holy Bible style) */}
-              <div className="w-10 h-10 rounded-[10px] bg-[#ff3d4d] flex items-center justify-center shrink-0 overflow-hidden">
-                <span className="text-[7px] font-bold text-white leading-tight tracking-tight text-center px-0.5">
-                  NEXUS
-                </span>
-              </div>
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img
+                src="https://air-prod.imgix.net/836ed311-f54b-4463-a1f4-b1628a91ca30.jpg?w=97&h=97&fm=png&fit=crop"
+                alt="Bible App"
+                className="w-10 h-10 rounded-[10px] shrink-0"
+              />
               <div className="flex-1 min-w-0">
                 <div className="flex items-center justify-between gap-1 mb-0.5">
                   <p className="text-[11px] font-bold text-gray-900 leading-tight">
