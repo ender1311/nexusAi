@@ -5,6 +5,7 @@ import { MetricCard } from "@/components/charts/metric-card";
 import { PersonaCard } from "@/components/personas/persona-card";
 import { Persona } from "@/types/persona";
 import { Users2, TrendingUp, Star, Sparkles } from "lucide-react";
+import { AudienceDistribution } from "@/components/personas/audience-distribution";
 import { formatNumber } from "@/lib/utils";
 import { prisma } from "@/lib/db";
 
@@ -26,6 +27,8 @@ export default async function PersonasPage() {
   const manualPersonas = personas.filter((p) => p.source === "manual");
   const discoveredPersonas = personas.filter((p) => p.source === "discovered");
 
+  // Real assigned users (from DB _count), not mock metrics
+  const assignedUsers = personas.reduce((s, p) => s + (p._count?.users ?? 0), 0);
   const totalUsers = personas.reduce((s, p) => s + (p.metrics?.userCount ?? p._count?.users ?? 0), 0);
   const avgConvRate =
     personas.length > 0
@@ -74,6 +77,10 @@ export default async function PersonasPage() {
           />
         </div>
 
+        {assignedUsers > 0 && (
+          <AudienceDistribution personas={personas} totalUsers={assignedUsers} />
+        )}
+
         {manualPersonas.length > 0 && (
           <section>
             <h2 className="text-sm font-semibold text-muted-foreground mb-3 flex items-center gap-1.5">
@@ -82,7 +89,7 @@ export default async function PersonasPage() {
             </h2>
             <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4">
               {manualPersonas.map((persona) => (
-                <PersonaCard key={persona.id} persona={persona} />
+                <PersonaCard key={persona.id} persona={persona} totalUsers={assignedUsers} />
               ))}
             </div>
           </section>
@@ -96,7 +103,7 @@ export default async function PersonasPage() {
             </h2>
             <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4">
               {discoveredPersonas.map((persona) => (
-                <PersonaCard key={persona.id} persona={persona} />
+                <PersonaCard key={persona.id} persona={persona} totalUsers={assignedUsers} />
               ))}
             </div>
           </section>

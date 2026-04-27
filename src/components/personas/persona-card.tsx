@@ -9,6 +9,7 @@ import { Sparkles } from "lucide-react";
 
 interface PersonaCardProps {
   persona: Persona;
+  totalUsers?: number;
 }
 
 function LtvDots({ score }: { score: number }) {
@@ -24,12 +25,14 @@ function LtvDots({ score }: { score: number }) {
   );
 }
 
-export function PersonaCard({ persona }: PersonaCardProps) {
+export function PersonaCard({ persona, totalUsers }: PersonaCardProps) {
   const colors = PERSONA_COLORS[persona.color] ?? PERSONA_COLORS.blue;
   const Icon = PERSONA_ICON_MAP[persona.icon];
   const isDiscovered = persona.source === "discovered";
 
   const userCount = persona.metrics?.userCount ?? persona._count?.users ?? 0;
+  const realCount = persona._count?.users ?? 0;
+  const pct = totalUsers && totalUsers > 0 ? (realCount / totalUsers) * 100 : null;
 
   return (
     <Link href={`/personas/${persona.id}`}>
@@ -85,13 +88,28 @@ export function PersonaCard({ persona }: PersonaCardProps) {
             </div>
           )}
 
-          {/* User count */}
-          {userCount > 0 && (
-            <p className="text-xs text-muted-foreground">
-              <span className="font-semibold text-foreground">{formatNumber(userCount)}</span> users
-              {persona.metrics?.percentOfTotal && ` · ${persona.metrics.percentOfTotal}% of total`}
-              {isDiscovered && persona.clusterSize > 0 && ` · cluster size: ${persona.clusterSize}`}
-            </p>
+          {/* User count + audience % bar */}
+          {(userCount > 0 || pct !== null) && (
+            <div className="space-y-1">
+              <div className="flex items-center justify-between">
+                <p className="text-xs text-muted-foreground">
+                  <span className="font-semibold text-foreground">{formatNumber(realCount || userCount)}</span> users
+                  {persona.metrics?.percentOfTotal && !totalUsers && ` · ${persona.metrics.percentOfTotal}% of total`}
+                  {isDiscovered && persona.clusterSize > 0 && ` · cluster size: ${persona.clusterSize}`}
+                </p>
+                {pct !== null && (
+                  <span className="text-xs font-semibold text-foreground">{pct.toFixed(1)}%</span>
+                )}
+              </div>
+              {pct !== null && (
+                <div className="h-1 w-full rounded-full bg-muted overflow-hidden">
+                  <div
+                    className={cn("h-full rounded-full transition-all", colors.dot.replace("bg-", "bg-"))}
+                    style={{ width: `${Math.max(pct, pct > 0 ? 2 : 0)}%` }}
+                  />
+                </div>
+              )}
+            </div>
           )}
 
           {/* Metrics or discovered traits */}
