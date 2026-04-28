@@ -15,7 +15,7 @@ import { PersonaSelector } from "@/components/personas/persona-selector";
 import { PersonaBadge } from "@/components/personas/persona-badge";
 import { mockPersonas } from "@/lib/mock/personas";
 import { GoalPresetPicker } from "@/components/agents/goal-preset-picker";
-import { PushVariantForm, PushVariantDraft } from "@/components/agents/push-variant-form";
+import { PushVariantPicker } from "@/components/agents/push-variant-picker";
 import { YouVersionGoalPreset } from "@/lib/constants/youversion";
 
 const STEPS = [
@@ -70,22 +70,6 @@ interface MessageDraft {
   }>;
 }
 
-function toPushVariantDraft(v: MessageDraft["variants"][number]): PushVariantDraft {
-  return {
-    name: v.name,
-    body: v.body,
-    title: v.title,
-    deeplink: v.deeplink,
-    iconImageUrl: v.iconImageUrl,
-    preferredHour: v.preferredHour,
-    preferredDayOfWeek: v.preferredDayOfWeek,
-    frequencyCapOverride: v.frequencyCapOverride,
-  };
-}
-
-function fromPushVariantDraft(draft: PushVariantDraft, existing: MessageDraft["variants"][number]): MessageDraft["variants"][number] {
-  return { ...existing, ...draft };
-}
 
 interface FormData {
   name: string;
@@ -141,6 +125,10 @@ export function AgentWizard() {
     name: "", channel: "push",
     variants: [{ ...emptyVariant(), name: "V1" }],
   });
+  // For push channel: selected DB variant options (id, title, body, deeplink, etc.)
+  const [selectedPushVariants, setSelectedPushVariants] = useState<Array<{
+    id: string; name: string; title: string | null; body: string; deeplink: string | null; cta: string | null;
+  }>>([]);
   const [saving, setSaving] = useState(false);
 
   const update = (key: keyof FormData, value: unknown) => setForm((f) => ({ ...f, [key]: value }));
@@ -155,8 +143,20 @@ export function AgentWizard() {
 
   const addMessage = () => {
     if (!newMsg.name.trim()) return;
-    update("messages", [...form.messages, { ...newMsg }]);
+    const variantsToSave = newMsg.channel === "push"
+      ? selectedPushVariants.map((v) => ({
+          ...emptyVariant(),
+          name: v.name,
+          title: v.title ?? "",
+          body: v.body,
+          deeplink: v.deeplink ?? "",
+          cta: v.cta ?? "",
+        }))
+      : newMsg.variants;
+    if (variantsToSave.length === 0) return;
+    update("messages", [...form.messages, { ...newMsg, variants: variantsToSave }]);
     setNewMsg({ name: "", channel: "push", variants: [{ ...emptyVariant(), name: "V1" }] });
+    setSelectedPushVariants([]);
   };
 
   const removeMessage = (i: number) => update("messages", form.messages.filter((_, idx) => idx !== i));
@@ -436,7 +436,7 @@ export function AgentWizard() {
                 onChange={(e) => setNewMsg((m) => ({ ...m, name: e.target.value }))}
                 className="flex-1"
               />
-              <Select value={newMsg.channel} onValueChange={(v) => setNewMsg((m) => ({ ...m, channel: v as Channel }))}>
+              <Select value={newMsg.channel} onValueChange={(v) => { setNewMsg((m) => ({ ...m, channel: v as Channel })); setSelectedPushVariants([]); }}>
                 <SelectTrigger className="w-28">
                   <SelectValue />
                 </SelectTrigger>
@@ -447,20 +447,28 @@ export function AgentWizard() {
                 </SelectContent>
               </Select>
             </div>
-            {newMsg.variants.map((v, vi) => (
-              <div key={vi} className="space-y-2 pt-2 border-t">
-                {newMsg.channel === "push" ? (
-                  <PushVariantForm
-                    variant={toPushVariantDraft({ ...v, name: v.name || `V${vi + 1}` })}
-                    onChange={(draft) => {
-                      const variants = [...newMsg.variants];
-                      variants[vi] = fromPushVariantDraft(draft, v);
-                      setNewMsg((m) => ({ ...m, variants }));
-                    }}
-                    showPreview={true}
-                  />
-                ) : (
-                  <>
+            {newMsg.channel === "push" ? (
+              <div className="pt-2 border-t space-y-2">
+                <p className="text-xs font-medium text-muted-foreground">Select approved push variants</p>
+                <PushVariantPicker
+                  selectedVariantIds={selectedPushVariants.map((v) => v.id)}
+                  onToggle={(v) => {
+                    setSelectedPushVariants((prev) => {
+                      const exists = prev.some((p) => p.id === v.id);
+                      return exists ? prev.filter((p) => p.id !== v.id) : [...prev, v];
+                    });
+                  }}
+                />
+                {selectedPushVariants.length > 0 && (
+                  <p className="text-xs text-green-700 font-medium">
+                    {selectedPushVariants.length} variant(s) selected
+                  </p>
+                )}
+              </div>
+            ) : (
+              <>
+                {newMsg.variants.map((v, vi) => (
+                  <div key={vi} className="space-y-2 pt-2 border-t">
                     <Input
                       placeholder="Body text"
                       value={v.body}
@@ -481,18 +489,24 @@ export function AgentWizard() {
                         }}
                       />
                     )}
-                  </>
-                )}
-              </div>
-            ))}
+                  </div>
+                ))}
+                <Button
+                  size="sm"
+                  variant="outline"
+                  onClick={() => setNewMsg((m) => ({ ...m, variants: [...m.variants, { ...emptyVariant(), name: `V${m.variants.length + 1}` }] }))}
+                >
+                  + Add Variant
+                </Button>
+              </>
+            )}
             <Button
               size="sm"
-              variant="outline"
-              onClick={() => setNewMsg((m) => ({ ...m, variants: [...m.variants, { ...emptyVariant(), name: `V${m.variants.length + 1}` }] }))}
+              onClick={addMessage}
+              disabled={!newMsg.name.trim() || (newMsg.channel === "push" ? selectedPushVariants.length === 0 : newMsg.variants.length === 0)}
             >
-              + Add Variant
+              Add Message
             </Button>
-            <Button size="sm" onClick={addMessage} disabled={!newMsg.name.trim()}>Add Message</Button>
           </div>
 
           {form.messages.map((m, i) => (

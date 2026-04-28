@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
+import { classifyPersona, BrazeAttributes } from "@/lib/engine/plan-persona-classifier";
 
 /**
  * POST /api/ingest/users
@@ -67,7 +68,42 @@ export async function POST(req: NextRequest) {
 
   console.log(`[ingest/users] Upserting ${deduped.length} user profiles`);
 
+  // ── Bulk-load classification data for the whole batch ────────────────────
+  // Collect all unique plan IDs from the batch
+  const planIds = [...new Set(
+    deduped
+      .map((u) => (u.attributes?.plan_day_last_plan_id as string | undefined))
+      .filter((id): id is string => Boolean(id))
+  )];
+
+  // One query: plan_id → persona tags (via PlanSetMember + PlanSet)
+  const planTagMap = new Map<string, string[]>(); // planId → personaTags[]
+  if (planIds.length > 0) {
+    const memberships = await prisma.planSetMember.findMany({
+      where: { planId: { in: planIds } },
+      select: { planId: true, planSet: { select: { personaTag: true } } },
+    });
+    for (const m of memberships) {
+      const tags = planTagMap.get(m.planId) ?? [];
+      tags.push(m.planSet.personaTag);
+      planTagMap.set(m.planId, tags);
+    }
+  }
+
+  // Load all personas once (label → id map)
+  const personas = await prisma.persona.findMany({
+    select: { id: true, label: true },
+  });
+  const personaByLabel = new Map(
+    personas
+      .filter((p): p is { id: string; label: string } => p.label !== null)
+      .map((p) => [p.label, p.id])
+  );
+
+  // ── Upsert each user ─────────────────────────────────────────────────────
   let upserted = 0;
+  let assigned = 0;
+
   for (const user of deduped) {
     const externalId = user.external_user_id!;
     const raw = (user.attributes ?? {}) as Record<string, unknown>;
@@ -76,22 +112,55 @@ export async function POST(req: NextRequest) {
     if (raw["last_seen_at"] && typeof raw["last_seen_at"] === "string") {
       const lastSeen = new Date(raw["last_seen_at"]);
       if (!isNaN(lastSeen.getTime())) {
-        const days = (Date.now() - lastSeen.getTime()) / (1000 * 60 * 60 * 24);
-        raw["days_since_last_open"] = Math.round(days);
+        const ms = Date.now() - lastSeen.getTime();
+        raw["hours_since_last_open"] = Math.round(ms / (1000 * 60 * 60));
+        raw["days_since_last_open"] = Math.round(ms / (1000 * 60 * 60 * 24));
       }
     }
 
     const attributes = raw as unknown as object;
+
+    // ── Persona classification ─────────────────────────────────────────────
+    const brazeAttrs: BrazeAttributes = {
+      plan_day_last_plan_id:        raw["plan_day_last_plan_id"] as string | null,
+      plan_day_last_plan_length:    raw["plan_day_last_plan_length"] as number | null,
+      plan_day_last_plan_publisher: raw["plan_day_last_plan_publisher"] as string | null,
+      plan_day_current_year_count:  raw["plan_day_current_year_count"] as number | null,
+      plan_day_current_month_count: raw["plan_day_current_month_count"] as number | null,
+      plan_day_year:                raw["plan_day_year"] as string | null,
+      plan_finish_lifetime_count:   raw["plan_finish_lifetime_count"] as number | null,
+      gp_current_year_count:        raw["gp_current_year_count"] as number | null,
+      gs_current_year_count:        raw["gs_current_year_count"] as number | null,
+      badge_current_year_count:     raw["badge_current_year_count"] as number | null,
+    };
+
+    const planId = brazeAttrs.plan_day_last_plan_id ?? null;
+    const planTags = planId ? (planTagMap.get(planId) ?? []) : [];
+    const personaLabel = classifyPersona(brazeAttrs, planTags);
+    const personaId = personaLabel ? (personaByLabel.get(personaLabel) ?? null) : null;
+
+    const personaData = personaId
+      ? { personaId, personaConfidence: 0.8, personaAssignedAt: new Date() }
+      : {};
+
     await prisma.user.upsert({
       where: { externalId },
-      create: { externalId, attributes },
-      update: { attributes },
+      create: { externalId, attributes, ...personaData },
+      update: { attributes, ...personaData },
     });
+
     upserted++;
+    if (personaId) assigned++;
   }
 
   return NextResponse.json(
-    { ok: true, received: deduped.length, deduplicated: users.length - deduped.length, upserted },
+    {
+      ok: true,
+      received: deduped.length,
+      deduplicated: users.length - deduped.length,
+      upserted,
+      persona_assigned: assigned,
+    },
     { status: 200 }
   );
 }
