@@ -143,7 +143,7 @@ export async function POST(req: NextRequest) {
       ? { personaId, personaConfidence: 0.8, personaAssignedAt: new Date() }
       : {};
 
-    await prisma.user.upsert({
+    await prisma.trackedUser.upsert({
       where: { externalId },
       create: { externalId, attributes, ...personaData },
       update: { attributes, ...personaData },

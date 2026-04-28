@@ -9,7 +9,7 @@ export async function truncateAll(): Promise<void> {
   await prisma.userDecision.deleteMany();
   await prisma.modelMetric.deleteMany();
   // Users must be deleted before Personas (User.personaId FK)
-  await prisma.user.deleteMany();
+  await prisma.trackedUser.deleteMany();
   // AgentPersonaTarget before Agent/Persona (cascade would handle it, but be explicit)
   await prisma.agentPersonaTarget.deleteMany();
   await prisma.schedulingRule.deleteMany();

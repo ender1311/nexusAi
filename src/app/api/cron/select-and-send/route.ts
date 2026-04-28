@@ -121,7 +121,7 @@ export async function POST(req: NextRequest) {
     // Page through users in this agent's target personas (500 at a time)
     let cursor: string | undefined;
     while (true) {
-      const users = await prisma.user.findMany({
+      const users = await prisma.trackedUser.findMany({
         where: { personaId: { in: personaIds } },
         take: 500,
         ...(cursor ? { skip: 1, cursor: { id: cursor } } : {}),

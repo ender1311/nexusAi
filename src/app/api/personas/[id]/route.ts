@@ -19,7 +19,7 @@ function toApiPersona(p: {
   discoveredAt: Date | null;
   createdAt: Date;
   updatedAt: Date;
-  _count?: { users: number };
+  _count?: { trackedUsers: number };
 }): Persona {
   const traits = (p.traits as Record<string, unknown>) ?? {};
 
@@ -61,7 +61,7 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ id:
   const { id } = await params;
   const persona = await prisma.persona.findUnique({
     where: { id },
-    include: { _count: { select: { users: true } } },
+    include: { _count: { select: { trackedUsers: true } } },
   });
   if (!persona) return NextResponse.json({ error: "Not found" }, { status: 404 });
   return NextResponse.json(toApiPersona(persona));
@@ -100,7 +100,7 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
       ...(coreFields.isActive !== undefined && { isActive: coreFields.isActive }),
       traits: updatedTraits,
     },
-    include: { _count: { select: { users: true } } },
+    include: { _count: { select: { trackedUsers: true } } },
   });
 
   return NextResponse.json(toApiPersona(persona));

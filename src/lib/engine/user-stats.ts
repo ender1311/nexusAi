@@ -20,7 +20,7 @@ export async function accumulateUserStats(params: {
 }): Promise<void> {
   const { externalId, channel, reward, occurredAt } = params;
 
-  const existing = await prisma.user.findUnique({ where: { externalId } });
+  const existing = await prisma.trackedUser.findUnique({ where: { externalId } });
 
   const hour = occurredAt.getUTCHours();
   const dayOfWeek = occurredAt.getUTCDay(); // 0=Sun, 6=Sat
@@ -35,7 +35,7 @@ export async function accumulateUserStats(params: {
       [channel]: { sent: 1, converted: 1 },
     };
 
-    await prisma.user.create({
+    await prisma.trackedUser.create({
       data: {
         externalId,
         totalDecisions: 1,
@@ -64,7 +64,7 @@ export async function accumulateUserStats(params: {
   hourlyStats[hour] += 1;
   dailyStats[dayOfWeek] += 1;
 
-  await prisma.user.update({
+  await prisma.trackedUser.update({
     where: { externalId },
     data: {
       totalDecisions: { increment: 1 },
@@ -86,11 +86,11 @@ export async function recordUserSend(params: {
 }): Promise<void> {
   const { externalId, channel } = params;
 
-  const existing = await prisma.user.findUnique({ where: { externalId } });
+  const existing = await prisma.trackedUser.findUnique({ where: { externalId } });
 
   if (!existing) {
     const channelStats: ChannelStats = { [channel]: { sent: 1, converted: 0 } };
-    await prisma.user.create({
+    await prisma.trackedUser.create({
       data: {
         externalId,
         totalDecisions: 1,
@@ -106,7 +106,7 @@ export async function recordUserSend(params: {
   if (!channelStats[channel]) channelStats[channel] = { sent: 0, converted: 0 };
   channelStats[channel].sent += 1;
 
-  await prisma.user.update({
+  await prisma.trackedUser.update({
     where: { externalId },
     data: {
       totalDecisions: { increment: 1 },

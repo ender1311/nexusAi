@@ -1,26 +1,32 @@
-import { authkitProxy } from "@workos-inc/authkit-nextjs";
+import { getSessionCookie } from "better-auth/cookies";
+import { NextRequest, NextResponse } from "next/server";
 
-/**
- * Protect all UI routes with WorkOS AuthKit.
- * Service-to-service API routes use their own auth (API keys / CRON_SECRET)
- * and must stay publicly reachable.
- */
-export default authkitProxy({
-  middlewareAuth: {
-    enabled: true,
-    unauthenticatedPaths: [
-      // WorkOS OAuth callback — must be reachable before session exists
-      "/callback",
-      // Hightouch → Nexus data sync (HIGHTOUCH_API_KEY / INGEST_API_KEY)
-      "/api/ingest/(.*)",
-      "/api/decide",
-      // Vercel cron (CRON_SECRET)
-      "/api/cron/(.*)",
-      // Admin endpoints (CRON_SECRET)
-      "/api/admin/(.*)",
-    ],
-  },
-});
+const PUBLIC_PREFIXES = [
+  "/login",
+  "/api/auth",
+  // Service-to-service API routes — use their own API-key / CRON_SECRET auth
+  "/api/ingest/",
+  "/api/decide",
+  "/api/cron/",
+  "/api/admin/",
+];
+
+function isPublic(pathname: string): boolean {
+  return PUBLIC_PREFIXES.some((p) => pathname.startsWith(p));
+}
+
+export function middleware(request: NextRequest) {
+  const { pathname } = request.nextUrl;
+
+  if (isPublic(pathname)) return NextResponse.next();
+
+  const session = getSessionCookie(request);
+  if (session) return NextResponse.next();
+
+  const loginUrl = new URL("/login", request.url);
+  loginUrl.searchParams.set("callbackURL", pathname);
+  return NextResponse.redirect(loginUrl);
+}
 
 export const config = {
   matcher: [

@@ -141,7 +141,7 @@ async function main() {
 
   // 2. Assign users to personas based on days_since_last_open
   console.log("\nAssigning users to personas...");
-  const allUsers = await prisma.user.findMany({
+  const allUsers = await prisma.trackedUser.findMany({
     select: { id: true, externalId: true, attributes: true, personaId: true },
   });
 
@@ -170,7 +170,7 @@ async function main() {
       continue; // already correctly assigned
     }
 
-    await prisma.user.update({
+    await prisma.trackedUser.update({
       where: { id: user.id },
       data: {
         personaId: persona.id,
@@ -183,7 +183,7 @@ async function main() {
 
   // Update cluster sizes
   for (const p of createdPersonas) {
-    const count = await prisma.user.count({ where: { personaId: p.id } });
+    const count = await prisma.trackedUser.count({ where: { personaId: p.id } });
     await prisma.persona.update({ where: { id: p.id }, data: { clusterSize: count } });
     console.log(`  • "${p.name}" — ${count} users assigned`);
   }

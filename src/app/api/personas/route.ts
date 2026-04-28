@@ -19,7 +19,7 @@ function toApiPersona(p: {
   discoveredAt: Date | null;
   createdAt: Date;
   updatedAt: Date;
-  _count?: { users: number };
+  _count?: { trackedUsers: number };
 }): Persona {
   const traits = (p.traits as Record<string, unknown>) ?? {};
 
@@ -62,7 +62,7 @@ function toApiPersona(p: {
 export async function GET() {
   const personas = await prisma.persona.findMany({
     where: { isActive: true },
-    include: { _count: { select: { users: true } } },
+    include: { _count: { select: { trackedUsers: true } } },
     orderBy: [{ source: "asc" }, { createdAt: "asc" }],
   });
 
@@ -91,7 +91,7 @@ export async function POST(req: NextRequest) {
       tags: coreFields.tags ?? [],
       traits,
     },
-    include: { _count: { select: { users: true } } },
+    include: { _count: { select: { trackedUsers: true } } },
   });
 
   return NextResponse.json(toApiPersona(persona), { status: 201 });

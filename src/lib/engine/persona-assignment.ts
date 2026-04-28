@@ -18,7 +18,7 @@ export async function assignUserToPersona(
   const minInteractions = config.minInteractions ?? 20;
   const threshold = config.confidenceThreshold ?? 0.75;
 
-  const user = await prisma.user.findUnique({ where: { externalId } });
+  const user = await prisma.trackedUser.findUnique({ where: { externalId } });
   if (!user) return { personaId: null, confidence: 0 };
 
   const discoveredPersonas = await prisma.persona.findMany({
@@ -55,7 +55,7 @@ export async function assignUserToPersona(
   const effectiveConfidence = bestSimilarity * dataRatio;
 
   if (effectiveConfidence >= threshold && bestPersonaId) {
-    await prisma.user.update({
+    await prisma.trackedUser.update({
       where: { externalId },
       data: {
         personaId: bestPersonaId,
@@ -74,7 +74,7 @@ export async function assignUserToPersona(
  * Returns count of assignments made.
  */
 export async function batchAssignPersonas(config: AssignmentConfig = {}): Promise<number> {
-  const users = await prisma.user.findMany({ select: { externalId: true } });
+  const users = await prisma.trackedUser.findMany({ select: { externalId: true } });
   let assigned = 0;
 
   for (const user of users) {

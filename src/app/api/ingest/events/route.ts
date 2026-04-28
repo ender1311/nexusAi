@@ -93,7 +93,7 @@ export async function POST(req: NextRequest) {
     // Apply a hard penalty to arm stats for all agents this user recently received
     // decisions from, then move on. Do not try to match a specific UserDecision.
     if (event.event_name === "push_disabled") {
-      const user = await prisma.user.findFirst({
+      const user = await prisma.trackedUser.findFirst({
         where: { externalId: event.external_user_id },
         select: { personaId: true },
       });
@@ -214,7 +214,7 @@ export async function POST(req: NextRequest) {
     // Decay formula: alpha = 1 + (alpha - 1) * 0.99, same for beta. (Industry practice: ~0.99/update)
     // We update even when reward=0 — neutral events still count as a "try" (tightens variance).
     if (decision.messageVariantId) {
-      const user = await prisma.user.findFirst({
+      const user = await prisma.trackedUser.findFirst({
         where: { externalId: event.external_user_id },
         select: { personaId: true },
       });

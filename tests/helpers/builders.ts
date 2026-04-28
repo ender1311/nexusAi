@@ -79,7 +79,7 @@ export async function createUser(
     totalReward?: number;
   } = {}
 ) {
-  return prisma.user.upsert({
+  return prisma.trackedUser.upsert({
     where: { externalId },
     create: { externalId, ...overrides },
     update: { ...overrides },

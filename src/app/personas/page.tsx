@@ -13,7 +13,7 @@ async function getPersonas(): Promise<Persona[]> {
   try {
     const rows = await prisma.persona.findMany({
       orderBy: { createdAt: "asc" },
-      include: { _count: { select: { users: true } } },
+      include: { _count: { select: { trackedUsers: true } } },
     });
     return rows as unknown as Persona[];
   } catch {
@@ -28,8 +28,8 @@ export default async function PersonasPage() {
   const discoveredPersonas = personas.filter((p) => p.source === "discovered");
 
   // Real assigned users (from DB _count), not mock metrics
-  const assignedUsers = personas.reduce((s, p) => s + (p._count?.users ?? 0), 0);
-  const totalUsers = personas.reduce((s, p) => s + (p.metrics?.userCount ?? p._count?.users ?? 0), 0);
+  const assignedUsers = personas.reduce((s, p) => s + (p._count?.trackedUsers ?? 0), 0);
+  const totalUsers = personas.reduce((s, p) => s + (p.metrics?.userCount ?? p._count?.trackedUsers ?? 0), 0);
   const avgConvRate =
     personas.length > 0
       ? personas.reduce((s, p) => s + (p.metrics?.conversionRate ?? 0), 0) / personas.length

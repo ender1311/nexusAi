@@ -9,7 +9,7 @@ interface AudienceDistributionProps {
 
 export function AudienceDistribution({ personas, totalUsers }: AudienceDistributionProps) {
   const assigned = personas
-    .map((p) => ({ ...p, count: p._count?.users ?? 0 }))
+    .map((p) => ({ ...p, count: p._count?.trackedUsers ?? 0 }))
     .filter((p) => p.count > 0)
     .sort((a, b) => b.count - a.count);
 

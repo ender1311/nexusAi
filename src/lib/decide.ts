@@ -102,9 +102,9 @@ export async function decideForUser(input: DecideInput): Promise<DecideResult | 
   // 2. Fetch or create user (upsert for /api/decide; findUnique when called from cron
   // where user is guaranteed to exist, avoiding an unnecessary write round-trip)
   const user = skipSchedulingChecks
-    ? await prisma.user.findUnique({ where: { externalId: externalUserId } }) ??
-      await prisma.user.create({ data: { externalId: externalUserId } })
-    : await prisma.user.upsert({
+    ? await prisma.trackedUser.findUnique({ where: { externalId: externalUserId } }) ??
+      await prisma.trackedUser.create({ data: { externalId: externalUserId } })
+    : await prisma.trackedUser.upsert({
         where: { externalId: externalUserId },
         create: { externalId: externalUserId },
         update: {},

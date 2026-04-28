@@ -2,7 +2,8 @@ import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
 import { Sidebar } from "@/components/layout/sidebar";
-import { withAuth } from "@workos-inc/authkit-nextjs";
+import { auth } from "@/lib/auth";
+import { headers } from "next/headers";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -24,16 +25,16 @@ export default async function RootLayout({
 }: Readonly<{
   children: React.ReactNode;
 }>) {
-  // withAuth with ensureSignedIn: true redirects to WorkOS AuthKit if the
-  // visitor has no session. All page routes are protected; API routes are
-  // exempt via the middleware unauthenticatedPaths config.
-  const { user } = await withAuth({ ensureSignedIn: true });
+  const session = await auth.api.getSession({ headers: await headers() });
+  const user = session?.user ?? null;
 
-  const sidebarUser = {
-    email: user.email,
-    firstName: user.firstName,
-    lastName: user.lastName,
-  };
+  const sidebarUser = user
+    ? {
+        email: user.email,
+        firstName: user.name?.split(" ")[0] ?? null,
+        lastName: user.name?.split(" ").slice(1).join(" ") || null,
+      }
+    : null;
 
   return (
     <html lang="en">

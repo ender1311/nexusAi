@@ -36,17 +36,17 @@ describe("POST /api/ingest/users", () => {
     expect(res.status).toBe(200);
     expect(body.upserted).toBe(1);
 
-    const user = await prisma.user.findUnique({ where: { externalId: "usr_1" } });
+    const user = await prisma.trackedUser.findUnique({ where: { externalId: "usr_1" } });
     expect(user).toBeTruthy();
   });
 
   it("updates attributes on subsequent sync", async () => {
-    await prisma.user.create({ data: { externalId: "usr_1", attributes: { plan: "old" } } });
+    await prisma.trackedUser.create({ data: { externalId: "usr_1", attributes: { plan: "old" } } });
     const req = buildRequest("POST", { external_user_id: "usr_1", attributes: { plan: "new" } }, AUTH);
     const res = await POST(req as NextRequest);
     expect(res.status).toBe(200);
 
-    const user = await prisma.user.findUnique({ where: { externalId: "usr_1" } });
+    const user = await prisma.trackedUser.findUnique({ where: { externalId: "usr_1" } });
     expect((user?.attributes as Record<string, string>).plan).toBe("new");
   });
 
@@ -64,7 +64,7 @@ describe("POST /api/ingest/users", () => {
     expect(body.deduplicated).toBe(1); // one dupe
     expect(body.upserted).toBe(2);
 
-    const count = await prisma.user.count();
+    const count = await prisma.trackedUser.count();
     expect(count).toBe(2);
   });
 });

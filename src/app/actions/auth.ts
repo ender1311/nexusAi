@@ -1,7 +1,10 @@
 "use server";
 
-import { signOut } from "@workos-inc/authkit-nextjs";
+import { auth } from "@/lib/auth";
+import { headers } from "next/headers";
+import { redirect } from "next/navigation";
 
 export async function handleSignOut() {
-  await signOut({ returnTo: "/" });
+  await auth.api.signOut({ headers: await headers() });
+  redirect("/login");
 }
