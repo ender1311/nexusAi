@@ -212,6 +212,31 @@ model ModelMetric {
   agent Agent @relation(fields: [agentId], references: [id], onDelete: Cascade)
 }
 
+// ── Plan set classification ──────────────────────────────────────────────────
+
+model PlanSet {
+  id           String    @id @default(cuid())
+  setId        String    @unique          // YouVersion Cassi set_id (e.g. "10")
+  collectionId String?                    // YV API collection_id resolved from set_id
+  name         String                     // e.g. "New to Faith"
+  slug         String?
+  personaTag   String                     // maps to Persona.label (e.g. "searching", "anxious")
+  syncedAt     DateTime?                  // when plan memberships were last fetched
+  createdAt    DateTime  @default(now())
+
+  members PlanSetMember[]
+}
+
+model PlanSetMember {
+  planId String   // YouVersion plan_id (matches plan_day_last_plan_id Braze attribute)
+  setId  String   // PlanSet.setId
+
+  planSet PlanSet @relation(fields: [setId], references: [setId], onDelete: Cascade)
+
+  @@id([planId, setId])
+  @@index([planId])
+}
+
 model AppSetting {
   id    String @id @default(cuid())
   key   String @unique

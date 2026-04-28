@@ -190,7 +190,7 @@ export function PushVariantForm({ variant, onChange, showPreview = true }: PushV
             <PushNotificationPreview
               title={variant.title || undefined}
               body={variant.body}
-              iconUrl={variant.iconImageUrl || undefined}
+              deeplink={variant.deeplink || undefined}
             />
           </div>
         </div>

@@ -2,7 +2,5 @@
   "$schema": "https://openapi.vercel.sh/vercel.json",
   "framework": "nextjs",
   "buildCommand": "bun run build",
-  "crons": [
-    { "path": "/api/cron/select-and-send", "schedule": "0 9 * * *" }
-  ]
+  "crons": []
 }

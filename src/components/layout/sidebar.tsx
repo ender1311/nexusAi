@@ -18,6 +18,13 @@ import {
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useState } from "react";
+import { SignOutButton } from "@/components/layout/sign-out-button";
+
+type SidebarUser = {
+  email: string;
+  firstName: string | null;
+  lastName: string | null;
+};
 
 const navItems = [
   { href: "/", label: "Dashboard", icon: LayoutDashboard },
@@ -31,9 +38,16 @@ const navItems = [
   { href: "/settings", label: "Settings", icon: Settings },
 ];
 
-export function Sidebar() {
+export function Sidebar({ user }: { user: SidebarUser | null }) {
   const pathname = usePathname();
   const [collapsed, setCollapsed] = useState(false);
+
+  const displayName = user
+    ? [user.firstName, user.lastName].filter(Boolean).join(" ") || user.email
+    : null;
+  const initials = user
+    ? (user.firstName?.[0] ?? user.email[0]).toUpperCase()
+    : "?";
 
   return (
     <aside
@@ -79,12 +93,27 @@ export function Sidebar() {
         })}
       </nav>
 
-      {!collapsed && (
-        <div className="p-4 border-t">
-          <p className="text-xs text-muted-foreground">YouVersion</p>
-          <p className="text-xs text-muted-foreground">Nexus v1.0</p>
-        </div>
-      )}
+      <div className="border-t p-2">
+        {!collapsed && user && (
+          <div className="flex items-center gap-2 px-3 py-2 mb-1">
+            <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-primary text-primary-foreground text-xs font-semibold">
+              {initials}
+            </div>
+            <div className="min-w-0 flex-1">
+              <p className="truncate text-xs font-medium">{displayName}</p>
+              <p className="truncate text-xs text-muted-foreground">{user.email}</p>
+            </div>
+          </div>
+        )}
+        {collapsed && user && (
+          <div className="flex justify-center py-2 mb-1">
+            <div className="flex h-7 w-7 items-center justify-center rounded-full bg-primary text-primary-foreground text-xs font-semibold">
+              {initials}
+            </div>
+          </div>
+        )}
+        <SignOutButton collapsed={collapsed} />
+      </div>
     </aside>
   );
 }
