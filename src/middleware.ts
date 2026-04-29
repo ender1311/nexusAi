@@ -1,9 +1,9 @@
-import { getSessionCookie } from "better-auth/cookies";
-import { NextRequest, NextResponse } from "next/server";
+import { NextRequest, NextResponse, type NextFetchEvent } from "next/server";
+import { authkitProxy } from "@workos-inc/authkit-nextjs";
 
 const PUBLIC_PREFIXES = [
   "/login",
-  "/api/auth",
+  "/callback",
   // Service-to-service API routes — use their own API-key / CRON_SECRET auth
   "/api/ingest/",
   "/api/decide",
@@ -15,17 +15,21 @@ function isPublic(pathname: string): boolean {
   return PUBLIC_PREFIXES.some((p) => pathname.startsWith(p));
 }
 
-export function middleware(request: NextRequest) {
+const authProxy = authkitProxy();
+
+export async function middleware(request: NextRequest, event: NextFetchEvent) {
   const { pathname } = request.nextUrl;
 
   if (isPublic(pathname)) return NextResponse.next();
 
-  const session = getSessionCookie(request);
-  if (session) return NextResponse.next();
+  // Redirect unauthenticated users to login before delegating to WorkOS proxy
+  const cookieName = process.env.WORKOS_COOKIE_NAME ?? "wos-session";
+  if (!request.cookies.has(cookieName)) {
+    return NextResponse.redirect(new URL("/login", request.url));
+  }
 
-  const loginUrl = new URL("/login", request.url);
-  loginUrl.searchParams.set("callbackURL", pathname);
-  return NextResponse.redirect(loginUrl);
+  // Delegate to WorkOS authkit proxy to refresh session cookies as needed
+  return authProxy(request, event);
 }
 
 export const config = {
