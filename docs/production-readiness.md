@@ -2,7 +2,7 @@
 
 This document describes every step required to move Nexus from its current state (mock/static UI data) to a fully operational bandit optimization system running on real users with Hightouch feeding signals in and out.
 
-**Last updated:** 2026-04-24 (refreshed against repo)
+**Last updated:** 2026-04-27
 
 **Variable template:** see [`.env.example`](../.env.example) for local and Vercel naming.
 
@@ -66,8 +66,9 @@ Hightouch (data warehouse)
 | `/api/cron/select-and-send` | ✅ Built: pages users (500), `decideForUser` + Braze `/messages/send`, batches of 50, `maxDuration` 300s |
 | Vercel cron config | ✅ [vercel.json](../vercel.json) — `0 9 * * *` → `/api/cron/select-and-send` |
 | Test suite + CI pipeline | ✅ `.gitlab-ci.yml`, `tests/` (unit, contracts, integration, regression), Husky `pre-push` → `check:quick` |
-| Hightouch user sync | ❌ Ops task — not configured |
+| Hightouch user sync | ✅ Configured — 1,995 users in DB |
 | Hightouch event streaming | ❌ Ops task — not configured |
+| Re-engagement campaign content | ❌ See below — pending |
 | Braze firing | ⏳ **Code path exists** (cron) — needs prod `BRAZE_*`, `CRON_SECRET`, deployed app |
 | UI wired to real data | ❌ Mock everywhere except `/personas` — post-launch |
 
@@ -273,3 +274,44 @@ These were identified in `docs/research/ai-decisioning.md` and affect production
 | Recency-weighted frequency suppression | MEDIUM | ❌ Tier 2 — post-launch |
 | Contextual features (recency × persona) | MEDIUM | ❌ Tier 3 — post-launch |
 | Scheduling rules wired into decide | MEDIUM | ✅ Done (`decideForUser` + cron bulk checks) |
+
+---
+
+## Re-engagement Campaign Setup (Pending)
+
+**Goal:** Get lapsed users back to daily Bible reading. Deep-link to their last reading position in their preferred version via `youversion://bible?...`.
+
+### Sub-projects
+
+| # | Task | Status |
+|---|------|--------|
+| 1 | **Agent + variant setup** — Create re-engagement agent in UI; populate message variants with real push copy from past campaigns | ❌ Pending |
+| 2 | **Braze push analytics** — Pull per-send received/opened/clicked rates via Braze `/send/data_series` using `send_id`; ingest into Nexus for reward signal | ❌ Pending |
+| 3 | **Smart send timing** — Per-user optimal send hour based on `hours_since_last_open` / install time; morning/afternoon slot logic | ❌ Pending |
+| 4 | **Campaign reporting UI** — Per-agent performance dashboard wired to real `PersonaArmStats` + `UserDecision` data | ❌ Pending |
+
+### Reference docs (already researched ✅)
+
+| Doc | Contents |
+|-----|----------|
+| `docs/deeplinks.md` | Full wayfinder deep-link inventory — all 50+ destinations, URL templates, params, known bugs |
+| `docs/braze-sending-capabilities.md` | Beacon Braze API — push/email/content-card payload shapes, analytics endpoints, send ID flow |
+| `docs/push-copy-inventory.md` | MAU→DAU variants A–D, lapsing plans copy, deep-link recommendations |
+
+### Deep-link for re-engagement push
+
+**Recommended:** `youversion://bible` — opens native reader at user's last-read position. No USFM or version needed. Safe on iOS and Android.
+
+**⚠️ Avoid** `https://www.bible.com/verse-of-the-day` in push — broken on Android (BA-7285).
+
+### Push copy ready to use
+
+- **Variant A:** "Growth is not about perfection…" / "It's about consistency ➡️" → `youversion://bible`
+- **Variant B:** "👂 Listen to God today" / "Reflect on the Verse of the Day ➡️" → `youversion://bible`
+- **Variant C:** "⏸️ Pause with God" / "Spend time with God in Guided Prayer." → `https://www.bible.com/guides/1`
+- **Variant D:** "{{first_name}}, what's your next step?" / "Open your Bible App today!" → `youversion://bible`
+
+### Still needed
+
+- Dropbox `files.content.read` scope — token only has `files.metadata.read`; can't download files. Need scope upgrade to extract BAFK push content and campaign folder files.
+- BAFK multilingual push JSON at `code_infinity/2024 BAFK Push Notifications/data_final/` — 40+ locales, blocked by scope.
