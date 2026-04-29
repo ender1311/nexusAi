@@ -101,7 +101,7 @@ async function main() {
   const targetCount = await prisma.agentPersonaTarget.deleteMany({});
   console.log(`  ✓ Deleted ${targetCount.count} AgentPersonaTarget entries`);
 
-  const userUpdateResult = await prisma.user.updateMany({
+  const userUpdateResult = await prisma.trackedUser.updateMany({
     data: { personaId: null, personaConfidence: null, personaAssignedAt: null },
   });
   console.log(`  ✓ Cleared persona assignment for ${userUpdateResult.count} users`);

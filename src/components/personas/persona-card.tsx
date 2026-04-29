@@ -30,8 +30,8 @@ export function PersonaCard({ persona, totalUsers }: PersonaCardProps) {
   const Icon = PERSONA_ICON_MAP[persona.icon];
   const isDiscovered = persona.source === "discovered";
 
-  const userCount = persona.metrics?.userCount ?? persona._count?.users ?? 0;
-  const realCount = persona._count?.users ?? 0;
+  const userCount = persona.metrics?.userCount ?? persona._count?.trackedUsers ?? 0;
+  const realCount = persona._count?.trackedUsers ?? 0;
   const pct = totalUsers && totalUsers > 0 ? (realCount / totalUsers) * 100 : null;
 
   return (

@@ -50,7 +50,7 @@ export async function POST(
 
   try {
     // Resolve user
-    const user = await prisma.user.findUnique({ where: { externalId: userId } });
+    const user = await prisma.trackedUser.findUnique({ where: { externalId: userId } });
     if (!user) {
       return NextResponse.json({ error: "User not found" }, { status: 404 });
     }

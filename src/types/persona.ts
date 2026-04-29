@@ -38,7 +38,7 @@ export interface Persona {
   discoveredAt: string | null;
   createdAt: string;
   updatedAt: string;
-  _count?: { users: number };
+  _count?: { trackedUsers: number };
 
   // Rich fields (present for seeded/manual personas, may be absent for discovered)
   lifeContext?: string;

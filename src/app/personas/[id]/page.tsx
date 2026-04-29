@@ -19,7 +19,7 @@ async function getPersona(id: string): Promise<Persona | null> {
   try {
     const row = await prisma.persona.findUnique({
       where: { id },
-      include: { _count: { select: { users: true } } },
+      include: { _count: { select: { trackedUsers: true } } },
     });
     return row as unknown as Persona | null;
   } catch {
@@ -123,7 +123,7 @@ export default async function PersonaDetailPage({ params }: { params: Promise<{ 
   const Icon = PERSONA_ICON_MAP[persona.icon];
   const isDiscovered = persona.source === "discovered";
 
-  const userCount = persona.metrics?.userCount ?? persona._count?.users ?? 0;
+  const userCount = persona.metrics?.userCount ?? persona._count?.trackedUsers ?? 0;
   const channels = persona.channels ?? ["push", "email"];
   const engagementLevel = persona.engagement?.level ?? "moderate";
 

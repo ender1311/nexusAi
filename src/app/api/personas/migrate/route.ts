@@ -110,7 +110,7 @@ export async function POST(req: NextRequest) {
         // Null out personaId for users assigned to these personas so they get
         // re-assigned on next ingest cycle
         if (reassignUsers) {
-          const updated = await tx.user.updateMany({
+          const updated = await tx.trackedUser.updateMany({
             where: { personaId: { in: deactivateIds } },
             data: { personaId: null, personaConfidence: null, personaAssignedAt: null },
           });

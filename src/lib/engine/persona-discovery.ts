@@ -188,7 +188,7 @@ export async function discoverPersonas(config: DiscoveryConfig = {}): Promise<{
   const stabilityRuns = config.stabilityRuns ?? 5;
 
   // Fetch users with enough data
-  const eligibleUsers = await prisma.user.findMany({
+  const eligibleUsers = await prisma.trackedUser.findMany({
     where: { totalDecisions: { gte: minInteractions } },
   });
 
