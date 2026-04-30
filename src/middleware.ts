@@ -20,15 +20,15 @@ const authProxy = authkitProxy();
 export async function middleware(request: NextRequest, event: NextFetchEvent) {
   const { pathname } = request.nextUrl;
 
-  if (isPublic(pathname)) return NextResponse.next();
-
-  // Redirect unauthenticated users to login before delegating to WorkOS proxy
+  // Redirect unauthenticated users away from protected routes before handing off
+  // to WorkOS proxy. Public routes still go through authProxy so withAuth() works
+  // in the root layout (which renders on every page including /login).
   const cookieName = process.env.WORKOS_COOKIE_NAME ?? "wos-session";
-  if (!request.cookies.has(cookieName)) {
+  if (!isPublic(pathname) && !request.cookies.has(cookieName)) {
     return NextResponse.redirect(new URL("/login", request.url));
   }
 
-  // Delegate to WorkOS authkit proxy to refresh session cookies as needed
+  // Always delegate to WorkOS authkit proxy — required for withAuth() to work
   return authProxy(request, event);
 }
 
