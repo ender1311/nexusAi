@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
 import { Sidebar } from "@/components/layout/sidebar";
+import { DataModeProvider } from "@/components/layout/data-mode-provider";
 import { withAuth } from "@workos-inc/authkit-nextjs";
 
 const geistSans = Geist({
@@ -37,12 +38,14 @@ export default async function RootLayout({
   return (
     <html lang="en">
       <body className={`${geistSans.variable} ${geistMono.variable} antialiased`}>
-        <div className="flex h-screen overflow-hidden bg-background">
-          <Sidebar user={sidebarUser} />
-          <main className="flex-1 overflow-y-auto">
-            {children}
-          </main>
-        </div>
+        <DataModeProvider>
+          <div className="flex h-screen overflow-hidden bg-background">
+            <Sidebar user={sidebarUser} />
+            <main className="flex-1 overflow-y-auto">
+              {children}
+            </main>
+          </div>
+        </DataModeProvider>
       </body>
     </html>
   );
