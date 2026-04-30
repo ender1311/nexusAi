@@ -1,0 +1,39 @@
+import { NextResponse } from "next/server";
+import { prisma } from "@/lib/db";
+
+export type StatsData = {
+  trackedUsers: number;
+  personas: number;
+  agents: number;
+  totalDecisions: number;
+  totalConversions: number;
+};
+
+export async function GET(): Promise<NextResponse<StatsData | { error: string }>> {
+  try {
+    const [trackedUsers, personas, agents, decisions] = await Promise.all([
+      prisma.trackedUser.count(),
+      prisma.persona.count({ where: { isActive: true } }),
+      prisma.agent.count({ where: { status: "active" } }),
+      prisma.userDecision.aggregate({
+        _count: { id: true },
+        _sum: { reward: true },
+        where: {},
+      }),
+    ]);
+
+    const totalConversions = await prisma.userDecision.count({
+      where: { conversionAt: { not: null } },
+    });
+
+    return NextResponse.json({
+      trackedUsers,
+      personas,
+      agents,
+      totalDecisions: decisions._count.id,
+      totalConversions,
+    });
+  } catch {
+    return NextResponse.json({ error: "Failed to load stats" }, { status: 500 });
+  }
+}

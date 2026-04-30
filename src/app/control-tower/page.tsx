@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { Radar, RotateCcw, Zap } from "lucide-react";
+import { Radar, RotateCcw, Users, Zap } from "lucide-react";
 import { AgentToggleCard } from "@/components/control-tower/agent-toggle-card";
 import { OptimizationObjective } from "@/components/control-tower/optimization-objective";
 import { ScanningAnimation } from "@/components/control-tower/scanning-animation";
@@ -14,6 +14,7 @@ import {
   type PredictionResult,
   type OptimizationConfig,
 } from "@/lib/mock/control-tower";
+import type { StatsData } from "@/app/api/stats/route";
 
 type PageState = "configure" | "scanning" | "results";
 
@@ -28,8 +29,16 @@ export default function ControlTowerPage() {
   const [scanProgress, setScanProgress] = useState(0);
   const [scanPhase, setScanPhase] = useState("");
   const [predictions, setPredictions] = useState<PredictionResult[]>([]);
+  const [stats, setStats] = useState<StatsData | null>(null);
 
   const timeoutsRef = useRef<ReturnType<typeof setTimeout>[]>([]);
+
+  useEffect(() => {
+    fetch("/api/stats")
+      .then((r) => r.json())
+      .then((d: StatsData) => setStats(d))
+      .catch(() => {/* non-critical */});
+  }, []);
 
   // Clear all pending timeouts
   const clearTimeouts = () => {
@@ -43,10 +52,16 @@ export default function ControlTowerPage() {
     setScanProgress(0);
     clearTimeouts();
 
-    const totalDuration = scanningPhases.reduce((s, p) => s + p.durationMs, 0);
+    // Substitute real user count into the scanning phase label if available
+    const phasesWithCount = scanningPhases.map((p, i) =>
+      i === 1 && stats
+        ? { ...p, label: `Analyzing ${stats.trackedUsers.toLocaleString()} user behavioral vectors...` }
+        : p
+    );
+    const totalDuration = phasesWithCount.reduce((s, p) => s + p.durationMs, 0);
     let elapsed = 0;
 
-    scanningPhases.forEach((phase, i) => {
+    phasesWithCount.forEach((phase, i) => {
       const t1 = setTimeout(() => {
         setScanPhase(phase.label);
         setScanProgress((elapsed / totalDuration) * 100);
@@ -61,7 +76,7 @@ export default function ControlTowerPage() {
       }, mid);
       timeoutsRef.current.push(t2);
 
-      if (i === scanningPhases.length - 1) {
+      if (i === phasesWithCount.length - 1) {
         const t3 = setTimeout(() => {
           setScanProgress(100);
           const enabledIds = Object.entries(enabledAgents)
@@ -76,7 +91,7 @@ export default function ControlTowerPage() {
 
     return clearTimeouts;
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [pageState]);
+  }, [pageState, stats]);
 
   const handleActivate = () => {
     setPageState("scanning");
@@ -116,6 +131,42 @@ export default function ControlTowerPage() {
             <RotateCcw className="h-3.5 w-3.5" />
             Reconfigure
           </button>
+        )}
+      </div>
+
+      {/* Live database stats bar */}
+      <div className="border-b bg-muted/30 px-6 py-2.5 flex items-center gap-6 text-sm shrink-0">
+        <span className="flex items-center gap-1.5 text-muted-foreground">
+          <Users className="h-3.5 w-3.5" />
+          <span className="font-medium text-foreground">
+            {stats ? stats.trackedUsers.toLocaleString() : "—"}
+          </span>
+          <span>users tracked</span>
+        </span>
+        <span className="text-muted-foreground/40">·</span>
+        <span className="text-muted-foreground">
+          <span className="font-medium text-foreground">
+            {stats ? stats.personas : "—"}
+          </span>
+          {" "}active personas
+        </span>
+        <span className="text-muted-foreground/40">·</span>
+        <span className="text-muted-foreground">
+          <span className="font-medium text-foreground">
+            {stats ? stats.totalDecisions.toLocaleString() : "—"}
+          </span>
+          {" "}decisions made
+        </span>
+        {stats && stats.totalDecisions > 0 && (
+          <>
+            <span className="text-muted-foreground/40">·</span>
+            <span className="text-muted-foreground">
+              <span className="font-medium text-foreground">
+                {((stats.totalConversions / stats.totalDecisions) * 100).toFixed(1)}%
+              </span>
+              {" "}conversion rate
+            </span>
+          </>
         )}
       </div>
 
