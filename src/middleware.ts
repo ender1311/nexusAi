@@ -25,6 +25,10 @@ export async function middleware(request: NextRequest, event: NextFetchEvent) {
   // in the root layout (which renders on every page including /login).
   const cookieName = process.env.WORKOS_COOKIE_NAME ?? "wos-session";
   if (!isPublic(pathname) && !request.cookies.has(cookieName)) {
+    // API routes return 401 JSON; page routes redirect to login
+    if (pathname.startsWith("/api/")) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
     return NextResponse.redirect(new URL("/login", request.url));
   }
 

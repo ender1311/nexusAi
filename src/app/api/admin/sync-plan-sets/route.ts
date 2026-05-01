@@ -11,16 +11,20 @@ const YV_HEADERS = {
 const BASE = "https://reading-plans.youversionapi.com/3.1";
 
 async function resolveCollectionId(setId: string): Promise<string | null> {
-  const url = `${BASE}/collections/view.json?set_id=${setId}&language_tag=en`;
-  const res = await fetch(url, { headers: YV_HEADERS, signal: AbortSignal.timeout(10000) });
+  const u = new URL(`${BASE}/collections/view.json`);
+  u.searchParams.set("set_id", setId);
+  u.searchParams.set("language_tag", "en");
+  const res = await fetch(u.toString(), { headers: YV_HEADERS, signal: AbortSignal.timeout(10000) });
   if (!res.ok) return null;
   const json = await res.json() as { response: { data?: { id: number } } };
   return json.response.data?.id?.toString() ?? null;
 }
 
 async function fetchPlanIds(collectionId: string): Promise<string[]> {
-  const url = `${BASE}/collections/items.json?ids[]=${collectionId}&page=*`;
-  const res = await fetch(url, { headers: YV_HEADERS, signal: AbortSignal.timeout(30000) });
+  const u = new URL(`${BASE}/collections/items.json`);
+  u.searchParams.append("ids[]", collectionId);
+  u.searchParams.set("page", "*");
+  const res = await fetch(u.toString(), { headers: YV_HEADERS, signal: AbortSignal.timeout(30000) });
   if (!res.ok) return [];
   const json = await res.json() as {
     response: { data: { collections: Array<{ items: Array<{ id: number }> }> } };
