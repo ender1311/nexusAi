@@ -38,14 +38,18 @@ export default async function RootLayout({
   return (
     <html lang="en">
       <body className={`${geistSans.variable} ${geistMono.variable} antialiased`}>
-        <DataModeProvider>
-          <div className="flex h-screen overflow-hidden bg-background">
-            <Sidebar user={sidebarUser} />
-            <main className="flex-1 overflow-y-auto">
-              {children}
-            </main>
-          </div>
-        </DataModeProvider>
+        {user ? (
+          <DataModeProvider>
+            <div className="flex h-screen overflow-hidden bg-background">
+              <Sidebar user={sidebarUser} />
+              <main className="flex-1 overflow-y-auto">
+                {children}
+              </main>
+            </div>
+          </DataModeProvider>
+        ) : (
+          <>{children}</>
+        )}
       </body>
     </html>
   );
