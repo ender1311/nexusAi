@@ -4,6 +4,7 @@ import { createBrazeClient } from "@/lib/braze/client";
 import { PayloadFactory } from "@/lib/braze/payload-factory";
 import { decideForUser } from "@/lib/decide";
 import { evaluateTargetFilter, buildComputedKeys } from "@/lib/engine/target-filter";
+import { buildAgentLottery } from "@/lib/engine/agent-lottery";
 
 // Allow up to 300s execution time on Vercel
 export const maxDuration = 300;
@@ -55,9 +56,38 @@ export async function POST(req: NextRequest) {
     },
   });
 
+  // ── Pre-assignment phase: build lottery map once for the entire cron run ──
+  // For each agent, fetch eligible user IDs (lightweight — IDs only).
+  // Then assign each user to exactly one agent via random lottery.
+  const eligibleUsersByAgent = new Map<string, string[]>();
+  for (const agent of agents) {
+    const personaIds = agent.personaTargets.map((pt) => pt.personaId);
+    if (personaIds.length === 0) {
+      eligibleUsersByAgent.set(agent.id, []);
+      continue;
+    }
+    const rows = await prisma.trackedUser.findMany({
+      where:  { personaId: { in: personaIds } },
+      select: { externalId: true },
+    });
+    eligibleUsersByAgent.set(agent.id, rows.map((r) => r.externalId));
+  }
+
+  const lotteryMap = buildAgentLottery(eligibleUsersByAgent);
+  // lotteryMap: Map<externalUserId, agentId>  — held in memory for this run
+  // ── End pre-assignment phase ──────────────────────────────────────────────
+
   for (const agent of agents) {
     const personaIds = agent.personaTargets.map((pt) => pt.personaId);
     if (personaIds.length === 0) continue;
+
+    // Derive the users assigned to this agent by the lottery
+    const assignedUserIds = [...lotteryMap.entries()]
+      .filter(([, aid]) => aid === agent.id)
+      .map(([uid]) => uid);
+
+    // If no users were assigned to this agent in this run, skip it entirely
+    if (assignedUserIds.length === 0) continue;
 
     // Build variant detail lookup: variantId → { channel, body, title, deeplink, brazeCampaignId, brazeVariantId }
     const variantMeta = new Map<string, {
@@ -126,7 +156,10 @@ export async function POST(req: NextRequest) {
     let cursor: string | undefined;
     while (true) {
       const users = await prisma.trackedUser.findMany({
-        where: { personaId: { in: personaIds } },
+        where: {
+          personaId:  { in: personaIds },
+          externalId: { in: assignedUserIds },
+        },
         take: 500,
         ...(cursor ? { skip: 1, cursor: { id: cursor } } : {}),
         orderBy: { id: "asc" },

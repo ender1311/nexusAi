@@ -161,3 +161,56 @@ describe("POST /api/cron/select-and-send", () => {
     expect(sendCalls).toHaveLength(2); // ceil(55/50) = 2
   });
 });
+
+describe("Lottery: cross-agent user distribution", () => {
+  it("user shared by two agents receives exactly one send", async () => {
+    const persona  = await createPersona();
+    const agentA   = await createAgent({ name: "Agent A" });
+    const agentB   = await createAgent({ name: "Agent B" });
+    const msgA     = await createMessage(agentA.id, { brazeCampaignId: "camp_A" });
+    const msgB     = await createMessage(agentB.id, { brazeCampaignId: "camp_B" });
+    await createVariant(msgA.id, { brazeVariantId: "var_A" });
+    await createVariant(msgB.id, { brazeVariantId: "var_B" });
+    await createUser("usr_shared", { personaId: persona.id });
+    await linkAgentToPersona(agentA.id, persona.id);
+    await linkAgentToPersona(agentB.id, persona.id);
+    await createSchedulingRule(agentA.id);
+    await createSchedulingRule(agentB.id);
+
+    const res  = await POST(buildRequest("POST", undefined, CRON_AUTH) as NextRequest);
+    const body = await res.json();
+
+    expect(body.ok).toBe(true);
+
+    const decisions = await prisma.userDecision.findMany({
+      where: { userId: "usr_shared" },
+    });
+    expect(decisions).toHaveLength(1);  // exactly one send
+  });
+
+  it("users with disjoint personas each receive one send from their respective agent", async () => {
+    const personaA = await createPersona({ name: "Persona A" });
+    const personaB = await createPersona({ name: "Persona B" });
+    const agentA   = await createAgent({ name: "Agent A" });
+    const agentB   = await createAgent({ name: "Agent B" });
+    const msgA     = await createMessage(agentA.id, { brazeCampaignId: "camp_A2" });
+    const msgB     = await createMessage(agentB.id, { brazeCampaignId: "camp_B2" });
+    await createVariant(msgA.id);
+    await createVariant(msgB.id);
+    await createUser("usr_only_A", { personaId: personaA.id });
+    await createUser("usr_only_B", { personaId: personaB.id });
+    await linkAgentToPersona(agentA.id, personaA.id);
+    await linkAgentToPersona(agentB.id, personaB.id);
+    await createSchedulingRule(agentA.id);
+    await createSchedulingRule(agentB.id);
+
+    await POST(buildRequest("POST", undefined, CRON_AUTH) as NextRequest);
+
+    const decisionsA = await prisma.userDecision.findMany({ where: { userId: "usr_only_A" } });
+    const decisionsB = await prisma.userDecision.findMany({ where: { userId: "usr_only_B" } });
+    expect(decisionsA).toHaveLength(1);
+    expect(decisionsB).toHaveLength(1);
+    expect(decisionsA[0].agentId).toBe(agentA.id);
+    expect(decisionsB[0].agentId).toBe(agentB.id);
+  });
+});
