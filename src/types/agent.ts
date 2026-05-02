@@ -93,8 +93,15 @@ export interface MessageVariant {
   preferredHour?: number | null;
   preferredDayOfWeek?: number | null;
   frequencyCapOverride?: string | null;
+  sourceTemplateId?: string | null;
+  category?: string | null;
   createdAt: string;
 }
+
+/** MessageVariant as returned by GET /api/variants (includes the message join shape). */
+export type VariantWithMessage = MessageVariant & {
+  message: { channel: string; name: string };
+};
 
 export interface SchedulingRule {
   id: string;

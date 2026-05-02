@@ -1,10 +1,14 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
 
-export async function GET() {
+export async function GET(req: Request) {
   try {
+    const category = new URL(req.url).searchParams.get("category");
     const variants = await prisma.messageVariant.findMany({
-      where: { status: "active" },
+      where: {
+        status: "active",
+        ...(category ? { category } : {}),
+      },
       select: {
         id: true,
         name: true,
@@ -12,6 +16,8 @@ export async function GET() {
         body: true,
         deeplink: true,
         cta: true,
+        category: true,
+        sourceTemplateId: true,
         message: { select: { channel: true, name: true } },
       },
       orderBy: { createdAt: "asc" },

@@ -77,7 +77,7 @@ Source: `../code_infinity/2024 BAFK Push Notifications/data_final/` (JSON files 
 ## Notes for Nexus Variants
 
 1. **Personalization:** Use Braze Liquid for `${NAME}` → `{{${first_name} | default: "friend"}}`
-2. **Deep-link:** Default to `youversion://bible` (native reader at last position). Safest for re-engagement — no passage routing errors.
-3. **Preferred version:** `User.attributes.preferred_bible_version_id` is available from Hightouch sync. Use in `https://www.bible.com/bible/{version_id}/{USFM}` links if targeting specific passages.
+2. **Deep-link:** For verse references, default to `youversion://bible?reference={USFM}` (e.g. `youversion://bible?reference=JHN.3.16`). Uses the user's already-set Bible version in the app. For generic re-engagement with no specific passage, use `youversion://bible` (opens at last-read position).
+3. **Preferred version:** `User.attributes.preferred_bible_version_id` is available from Hightouch sync. Only needed for HTTP fallback links (`https://www.bible.com/bible/{version_id}/{USFM}`); the native `youversion://` scheme resolves the user's version automatically.
 4. **VOTD link warning:** `https://www.bible.com/verse-of-the-day` is broken on Android (BA-7285). Use `https://www.bible.com/bible/?suppress_branch_meta=true` or `youversion://bible` instead.
 5. **Emoji usage:** Variants B and C use emojis (👂, ⏸️, ➡️) — proven to perform. Include in push copy.

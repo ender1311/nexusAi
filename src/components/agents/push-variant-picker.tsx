@@ -4,34 +4,46 @@ import { useEffect, useState } from "react";
 import { PushNotificationPreview } from "@/components/agents/push-notification-preview";
 import { cn } from "@/lib/utils";
 import { Check } from "lucide-react";
-
-interface VariantOption {
-  id: string;
-  name: string;
-  title: string | null;
-  body: string;
-  deeplink: string | null;
-  cta: string | null;
-  message: { channel: string; name: string };
-}
+import type { VariantWithMessage } from "@/types/agent";
 
 interface PushVariantPickerProps {
   selectedVariantIds: string[];
-  onToggle: (variant: VariantOption) => void;
+  category?: string;
+  onToggle: (variant: VariantWithMessage) => void;
 }
 
-export function PushVariantPicker({ selectedVariantIds, onToggle }: PushVariantPickerProps) {
-  const [variants, setVariants] = useState<VariantOption[]>([]);
-  const [loading, setLoading] = useState(true);
+type FetchState =
+  | { status: "loading" }
+  | { status: "done"; variants: VariantWithMessage[]; fetchedCategory: string | undefined };
+
+export function PushVariantPicker({ selectedVariantIds, category, onToggle }: PushVariantPickerProps) {
+  const [state, setState] = useState<FetchState>({ status: "loading" });
 
   useEffect(() => {
-    fetch("/api/variants")
-      .then((r) => r.json())
-      .then((data: VariantOption[]) => {
-        setVariants(data.filter((v) => v.message.channel === "push"));
+    let cancelled = false;
+    const url = category ? `/api/variants?category=${encodeURIComponent(category)}` : "/api/variants";
+    fetch(url)
+      .then((r) => {
+        if (!r.ok) throw new Error(`HTTP ${r.status}`);
+        return r.json() as Promise<VariantWithMessage[]>;
       })
-      .finally(() => setLoading(false));
-  }, []);
+      .then((data) => {
+        if (!cancelled) {
+          setState({
+            status: "done",
+            variants: data.filter((v) => v.message.channel === "push"),
+            fetchedCategory: category,
+          });
+        }
+      })
+      .catch(() => {
+        if (!cancelled) setState({ status: "done", variants: [], fetchedCategory: category });
+      });
+    return () => { cancelled = true; };
+  }, [category]);
+
+  const loading = state.status === "loading" || (state.status === "done" && state.fetchedCategory !== category);
+  const variants = state.status === "done" ? state.variants : [];
 
   if (loading) {
     return <p className="text-xs text-muted-foreground py-4 text-center">Loading approved variants…</p>;
@@ -40,7 +52,9 @@ export function PushVariantPicker({ selectedVariantIds, onToggle }: PushVariantP
   if (variants.length === 0) {
     return (
       <p className="text-xs text-muted-foreground py-4 text-center">
-        No approved push variants found. Run the seed script first.
+        {category
+          ? `No approved variants for "${category}". Run the seed script: bun run scripts/seed-push-copy-templates.ts`
+          : "No approved push variants found. Run the seed script first."}
       </p>
     );
   }

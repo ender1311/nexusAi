@@ -75,6 +75,7 @@ export async function POST(req: NextRequest) {
               preferredHour?: number;
               preferredDayOfWeek?: number;
               frequencyCapOverride?: string;
+              sourceTemplateId?: string;
             }>;
           }) => {
             const variantList = m.variants ?? [];
@@ -94,6 +95,7 @@ export async function POST(req: NextRequest) {
                   preferredHour: v.preferredHour,
                   preferredDayOfWeek: v.preferredDayOfWeek,
                   frequencyCapOverride: v.frequencyCapOverride,
+                  sourceTemplateId: v.sourceTemplateId,
                 })),
               },
             };

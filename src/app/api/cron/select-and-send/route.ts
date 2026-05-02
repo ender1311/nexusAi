@@ -4,6 +4,9 @@ import { createBrazeClient } from "@/lib/braze/client";
 import { PayloadFactory } from "@/lib/braze/payload-factory";
 import { decideForUser } from "@/lib/decide";
 import { evaluateTargetFilter, buildComputedKeys } from "@/lib/engine/target-filter";
+import { buildAgentLottery } from "@/lib/engine/agent-lottery";
+import { getTodayStartUTC }  from "@/lib/engine/scheduling";
+import { isTimingMatch } from "@/lib/engine/send-timing";
 
 // Allow up to 300s execution time on Vercel
 export const maxDuration = 300;
@@ -22,6 +25,7 @@ type VariantSendGroup = {
   channel: string;
   body: string;
   title: string | null;
+  deeplink: string | null;
   externalUserIds: string[];
   decisionIds: string[];
 };
@@ -54,33 +58,181 @@ export async function POST(req: NextRequest) {
     },
   });
 
+  // ── Pre-assignment phase: build lottery map once for the entire cron run ──
+  // For each agent, fetch eligible user IDs (lightweight — IDs only).
+  // Then assign each user to exactly one agent via random lottery.
+  const eligibleUsersByAgent = new Map<string, string[]>();
+  for (const agent of agents) {
+    const personaIds = agent.personaTargets.map((pt) => pt.personaId);
+    if (personaIds.length === 0) {
+      eligibleUsersByAgent.set(agent.id, []);
+      continue;
+    }
+    const rows = await prisma.trackedUser.findMany({
+      where:  { personaId: { in: personaIds } },
+      select: { externalId: true },
+    });
+    eligibleUsersByAgent.set(agent.id, rows.map((r) => r.externalId));
+  }
+
+  const lotteryMap = buildAgentLottery(eligibleUsersByAgent);
+  // lotteryMap: Map<externalUserId, agentId>  — held in memory for this run
+  // ── End pre-assignment phase ──────────────────────────────────────────────
+
+  const now = new Date();   // single timestamp for the entire cron run
+  const todayStart = getTodayStartUTC("America/New_York", now);
+
+  // ─── Phase 0: Exploration window assignment ───────────────────────────────
+  // Identify lapsed/connected users, create/classify their assignments,
+  // and build inWindowMap (externalUserId → agentId) for this cron run.
+
+  const cooldownSetting = await prisma.appSetting.findUnique({
+    where: { key: "exploration_window_cooldown_days" },
+  });
+  const cooldownDays = cooldownSetting ? parseInt(cooldownSetting.value, 10) : 90;
+  const cooldownMs   = cooldownDays * 86_400_000;
+  const windowMs     = 8 * 86_400_000;
+
+  const explorationAgents = agents.filter(
+    (a) => a.funnelStage === "lapsed" || a.funnelStage === "connected"
+  );
+
+  const inWindowMap = new Map<string, string>(); // externalUserId → agentId
+
+  if (explorationAgents.length > 0) {
+    const explorationPersonaIds = [
+      ...new Set(explorationAgents.flatMap((a) => a.personaTargets.map((pt) => pt.personaId))),
+    ];
+
+    const explorationUsers = await prisma.trackedUser.findMany({
+      where: { personaId: { in: explorationPersonaIds } },
+    });
+
+    const existingAssignments = await prisma.userAgentAssignment.findMany({
+      where: { externalUserId: { in: explorationUsers.map((u) => u.externalId) } },
+    });
+    const assignmentByUser = new Map(existingAssignments.map((a) => [a.externalUserId, a]));
+
+    // For each exploration agent, index the personas it targets
+    const agentPersonaSets = new Map<string, Set<string>>();
+    for (const agent of explorationAgents) {
+      agentPersonaSets.set(
+        agent.id,
+        new Set(agent.personaTargets.map((pt) => pt.personaId))
+      );
+    }
+
+    // Build eligible agent list per user
+    const eligibleAgentsByUser = new Map<string, string[]>();
+    for (const user of explorationUsers) {
+      if (!user.personaId) continue;
+      const eligible: string[] = [];
+      for (const agent of explorationAgents) {
+        if (agentPersonaSets.get(agent.id)?.has(user.personaId)) {
+          eligible.push(agent.id);
+        }
+      }
+      if (eligible.length > 0) eligibleAgentsByUser.set(user.externalId, eligible);
+    }
+
+    const toUpsert: Array<{ externalUserId: string; agentId: string }> = [];
+    const toClose:  string[] = []; // assignment IDs where window expired without 4 sends
+
+    for (const user of explorationUsers) {
+      const assignment = assignmentByUser.get(user.externalId);
+
+      if (!assignment) {
+        // Class A: no prior assignment — newly eligible
+        const eligible = eligibleAgentsByUser.get(user.externalId) ?? [];
+        if (eligible.length === 0) continue;
+        const agentId = eligible[Math.floor(Math.random() * eligible.length)];
+        toUpsert.push({ externalUserId: user.externalId, agentId });
+        inWindowMap.set(user.externalId, agentId);
+      } else if (assignment.windowCompletedAt === null) {
+        const age = now.getTime() - assignment.startedAt.getTime();
+        if (age <= windowMs) {
+          // Class B: active window — keep locked
+          inWindowMap.set(user.externalId, assignment.agentId);
+        } else {
+          // Class C: 8 days elapsed, never hit 4 sends — close window
+          toClose.push(assignment.id);
+        }
+      } else {
+        const timeSinceComplete = now.getTime() - assignment.windowCompletedAt.getTime();
+        if (timeSinceComplete > cooldownMs) {
+          // Class D: cooldown expired — new window
+          const eligible = eligibleAgentsByUser.get(user.externalId) ?? [];
+          if (eligible.length === 0) continue;
+          const agentId = eligible[Math.floor(Math.random() * eligible.length)];
+          toUpsert.push({ externalUserId: user.externalId, agentId });
+          inWindowMap.set(user.externalId, agentId);
+        }
+        // Class E: cooldown not yet expired — no action
+      }
+    }
+
+    // Apply DB writes
+    for (const { externalUserId, agentId } of toUpsert) {
+      await prisma.userAgentAssignment.upsert({
+        where: { externalUserId },
+        create: { externalUserId, agentId, sendCount: 0, windowCompletedAt: null },
+        update: { agentId, startedAt: now, sendCount: 0, windowCompletedAt: null },
+      });
+    }
+    if (toClose.length > 0) {
+      await prisma.userAgentAssignment.updateMany({
+        where: { id: { in: toClose } },
+        data: { windowCompletedAt: now },
+      });
+    }
+  }
+  // ─── End Phase 0 ─────────────────────────────────────────────────────────────
+
+  // Derived once from inWindowMap — used in every agent's user query
+  const inWindowUserIdSet = new Set(inWindowMap.keys());
+
   for (const agent of agents) {
     const personaIds = agent.personaTargets.map((pt) => pt.personaId);
     if (personaIds.length === 0) continue;
 
-    // Build variant detail lookup: variantId → { channel, body, title, brazeCampaignId, brazeVariantId }
+    // Derive the users assigned to this agent by the lottery
+    const assignedUserIds = [...lotteryMap.entries()]
+      .filter(([, aid]) => aid === agent.id)
+      .map(([uid]) => uid);
+
+    // Exclude in-window users from lottery pipeline (they're handled separately below)
+    const lotteryUserIds = assignedUserIds.filter((id) => !inWindowUserIdSet.has(id));
+
+    // Check if this agent has any in-window users to process
+    const hasInWindowUsers = [...inWindowMap.entries()].some(([, aid]) => aid === agent.id);
+
+    // If no lottery users and no in-window users, skip agent entirely
+    if (lotteryUserIds.length === 0 && !hasInWindowUsers) continue;
+
+    // Build variant detail lookup: variantId → { channel, body, title, deeplink, brazeCampaignId, brazeVariantId }
     const variantMeta = new Map<string, {
       channel: string;
       body: string;
       title: string | null;
+      deeplink: string | null;
       brazeCampaignId: string | null;
       brazeVariantId: string | null;
     }>();
     for (const msg of agent.messages) {
       for (const v of msg.variants) {
         variantMeta.set(v.id, {
-          channel:        msg.channel,
-          body:           v.body,
-          title:          v.title ?? null,
+          channel:         msg.channel,
+          body:            v.body,
+          title:           v.title ?? null,
+          deeplink:        v.deeplink ?? null,
           brazeCampaignId: msg.brazeCampaignId ?? null,
-          brazeVariantId: v.brazeVariantId ?? null,
+          brazeVariantId:  v.brazeVariantId ?? null,
         });
       }
     }
 
     // Evaluate agent-level scheduling checks once (not per user)
     const rule = agent.schedulingRule;
-    const now = new Date();
 
     // 4a. Quiet hours — same for all users, check once
     if (rule) {
@@ -123,13 +275,18 @@ export async function POST(req: NextRequest) {
     let cursor: string | undefined;
     while (true) {
       const users = await prisma.trackedUser.findMany({
-        where: { personaId: { in: personaIds } },
+        where: {
+          personaId:  { in: personaIds },
+          externalId: { in: lotteryUserIds },
+        },
         take: 500,
         ...(cursor ? { skip: 1, cursor: { id: cursor } } : {}),
         orderBy: { id: "asc" },
       });
       if (users.length === 0) break;
       cursor = users[users.length - 1].id;
+
+      const userExternalIds = users.map((u) => u.externalId);
 
       // 4b. Bulk frequency cap check — get recent decision counts for all users in one query
       const freqCappedUserIds = new Set<string>();
@@ -142,7 +299,6 @@ export async function POST(req: NextRequest) {
           month:  30 * 86_400_000,
         };
         const windowStart = new Date(now.getTime() - (periodMs[freqCap.period ?? "week"] ?? periodMs.week));
-        const userExternalIds = users.map((u) => u.externalId);
 
         // Fetch recent decision counts per user in one query
         const recentDecisions = await prisma.userDecision.groupBy({
@@ -177,16 +333,35 @@ export async function POST(req: NextRequest) {
         }
       }
 
-      // Count suppressed users
+      // 4d. Global daily cap — cross-agent guard (no agentId filter intentional)
+      const sentTodayRows = await prisma.userDecision.findMany({
+        where: {
+          userId: { in: userExternalIds },
+          sentAt: { gte: todayStart },
+          // intentionally no agentId filter — cross-agent
+        },
+        select:   { userId: true },
+        distinct: ["userId"],
+      });
+      const sentTodayIds = new Set(sentTodayRows.map((r) => r.userId));
+
+      // Count suppressed users (freq cap + smart suppress + global daily cap)
       for (const u of users) {
-        if (freqCappedUserIds.has(u.externalId) || smartSuppressedUserIds.has(u.externalId)) {
+        if (
+          freqCappedUserIds.has(u.externalId) ||
+          smartSuppressedUserIds.has(u.externalId) ||
+          sentTodayIds.has(u.externalId)
+        ) {
           totalSuppressed++;
         }
       }
 
       // Filter to eligible users only
       const eligibleUsers = users.filter(
-        (u) => !freqCappedUserIds.has(u.externalId) && !smartSuppressedUserIds.has(u.externalId)
+        (u) =>
+          !freqCappedUserIds.has(u.externalId) &&
+          !smartSuppressedUserIds.has(u.externalId) &&
+          !sentTodayIds.has(u.externalId)
       );
 
       // Apply targetFilter in-memory on the already-loaded page (V1: no SQL-side JSON filtering)
@@ -236,6 +411,7 @@ export async function POST(req: NextRequest) {
               channel:         meta.channel,
               body:            meta.body,
               title:           meta.title,
+              deeplink:        meta.deeplink,
               externalUserIds: [],
               decisionIds:     [],
             };
@@ -262,7 +438,7 @@ export async function POST(req: NextRequest) {
 
             if (group.channel === "push") {
               payload = factory.buildPushPayload(
-                { title: group.title ?? "", body: group.body },
+                { title: group.title ?? "", body: group.body, deeplink: group.deeplink ?? undefined },
                 audience,
                 group.brazeCampaignId ?? undefined,
                 sendId ?? undefined,
@@ -303,6 +479,188 @@ export async function POST(req: NextRequest) {
 
       if (users.length < 500) break;
     }
+
+    // ── In-window sub-pool for this agent ──────────────────────────────────
+    const inWindowUserIdsForAgent = [...inWindowMap.entries()]
+      .filter(([, aid]) => aid === agent.id)
+      .map(([uid]) => uid);
+
+    if (inWindowUserIdsForAgent.length > 0) {
+      const windowUsers = await prisma.trackedUser.findMany({
+        where: { externalId: { in: inWindowUserIdsForAgent } },
+      });
+
+      const windowAssignments = await prisma.userAgentAssignment.findMany({
+        where: { externalUserId: { in: inWindowUserIdsForAgent } },
+      });
+      const windowAssignmentMap = new Map(
+        windowAssignments.map((a) => [a.externalUserId, a])
+      );
+
+      // Determine current ET hour and day-of-week for timing check
+      const etParts = new Intl.DateTimeFormat("en-US", {
+        timeZone: "America/New_York",
+        weekday:  "short",
+        hour:     "2-digit",
+        hour12:   false,
+      }).formatToParts(now);
+      const currentHourET = parseInt(
+        etParts.find((p) => p.type === "hour")!.value, 10
+      );
+      const weekdayStr = etParts.find((p) => p.type === "weekday")!.value;
+      const dayIndexMap: Record<string, number> = {
+        Sun: 0, Mon: 1, Tue: 2, Wed: 3, Thu: 4, Fri: 5, Sat: 6,
+      };
+      const currentDayET = dayIndexMap[weekdayStr] ?? 0;
+
+      // Global daily cap for in-window users (safety net)
+      const sentTodayWindowRows = await prisma.userDecision.findMany({
+        where: {
+          userId:  { in: inWindowUserIdsForAgent },
+          sentAt:  { gte: todayStart },
+        },
+        select:   { userId: true },
+        distinct: ["userId"],
+      });
+      const sentTodayWindowIds = new Set(sentTodayWindowRows.map((r) => r.userId));
+
+      // Filter eligible window users by timing check + daily cap
+      const eligibleWindowUsers = windowUsers.filter((user) => {
+        const assignment = windowAssignmentMap.get(user.externalId);
+        if (!assignment || assignment.sendCount >= 4) return false;
+        if (sentTodayWindowIds.has(user.externalId)) {
+          totalSuppressed++;
+          return false;
+        }
+
+        const hourlyStats = (Array.isArray(user.hourlyStats)
+          ? user.hourlyStats
+          : Array(24).fill(0)) as number[];
+        const dailyStats = (Array.isArray(user.dailyStats)
+          ? user.dailyStats
+          : Array(7).fill(0)) as number[];
+
+        return isTimingMatch(hourlyStats, dailyStats, assignment.sendCount, currentHourET, currentDayET);
+      });
+
+      // Decide + collect variant groups for in-window users
+      const windowByVariant: Record<string, VariantSendGroup> = {};
+      const sentWindowUserIds: string[] = [];
+      const CONCURRENCY = 10;
+
+      for (let start = 0; start < eligibleWindowUsers.length; start += CONCURRENCY) {
+        const chunk = eligibleWindowUsers.slice(start, start + CONCURRENCY);
+        const chunkResults = await Promise.all(
+          chunk.map((user) =>
+            decideForUser({
+              agentId:          agent.id,
+              externalUserId:   user.externalId,
+              preloadedAgent:   agent,
+              skipSchedulingChecks: true,
+            }).then((r) => ({ user, result: r }))
+          )
+        );
+
+        for (const { user, result } of chunkResults) {
+          if (!result) continue;
+          if (result.suppressed) { totalSuppressed++; continue; }
+
+          const { messageVariantId, userDecisionId } = result;
+          const meta = variantMeta.get(messageVariantId);
+          if (!meta) continue;
+
+          if (!windowByVariant[messageVariantId]) {
+            windowByVariant[messageVariantId] = {
+              variantId:       messageVariantId,
+              brazeVariantId:  meta.brazeVariantId,
+              brazeCampaignId: meta.brazeCampaignId,
+              channel:         meta.channel,
+              body:            meta.body,
+              title:           meta.title,
+              deeplink:        meta.deeplink,
+              externalUserIds: [],
+              decisionIds:     [],
+            };
+          }
+          windowByVariant[messageVariantId].externalUserIds.push(user.externalId);
+          windowByVariant[messageVariantId].decisionIds.push(userDecisionId);
+        }
+      }
+
+      // Send each window variant group in batches of 50 (same as normal pipeline)
+      for (const group of Object.values(windowByVariant)) {
+        const BATCH = 50;
+        for (let i = 0; i < group.externalUserIds.length; i += BATCH) {
+          const batchUserIds     = group.externalUserIds.slice(i, i + BATCH);
+          const batchDecisionIds = group.decisionIds.slice(i, i + BATCH);
+
+          try {
+            const sendId = group.brazeCampaignId
+              ? await brazeClient.createSendId(group.brazeCampaignId)
+              : null;
+
+            const audience = { externalUserIds: batchUserIds };
+            let payload: Record<string, unknown>;
+
+            if (group.channel === "push") {
+              payload = factory.buildPushPayload(
+                { title: group.title ?? "", body: group.body, deeplink: group.deeplink ?? undefined },
+                audience,
+                group.brazeCampaignId ?? undefined,
+                sendId ?? undefined,
+                group.brazeVariantId ?? undefined,
+              );
+            } else if (group.channel === "email") {
+              payload = factory.buildEmailPayload(
+                { subject: group.title ?? "", htmlBody: group.body },
+                audience,
+                group.brazeCampaignId ?? undefined,
+                sendId ?? undefined,
+                group.brazeVariantId ?? undefined,
+              );
+            } else {
+              payload = factory.buildSmsPayload(
+                { body: group.body },
+                audience,
+                group.brazeCampaignId ?? undefined,
+                sendId ?? undefined,
+                group.brazeVariantId ?? undefined,
+              );
+            }
+
+            const res = await brazeClient.post("/messages/send", payload);
+            if (res.ok && sendId) {
+              await prisma.userDecision.updateMany({
+                where: { id: { in: batchDecisionIds } },
+                data: { brazeSendId: sendId },
+              });
+            }
+            // Only mark users as sent after a successful Braze call so that
+            // sendCount is not incremented when the send fails.
+            sentWindowUserIds.push(...batchUserIds);
+            totalSent += batchUserIds.length;
+          } catch (err) {
+            console.error("[cron/select-and-send] window send error:", err);
+            totalErrors += batchUserIds.length;
+          }
+        }
+      }
+
+      // Increment sendCount for each user who was actually sent to
+      for (const userId of sentWindowUserIds) {
+        const assignment = windowAssignmentMap.get(userId);
+        if (!assignment) continue;
+        const newCount = assignment.sendCount + 1;
+        await prisma.userAgentAssignment.update({
+          where: { id: assignment.id },
+          data: {
+            sendCount:         newCount,
+            windowCompletedAt: newCount >= 4 ? now : null,
+          },
+        });
+      }
+    }
+    // ── End in-window sub-pool ───────────────────────────────────────────────
   }
 
   return NextResponse.json({ ok: true, sent: totalSent, suppressed: totalSuppressed, errors: totalErrors });
