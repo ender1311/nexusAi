@@ -357,8 +357,8 @@ async function scenario6_conversionLoop(s1AgentId?: string) {
 //
 // Bible verse links (3):
 //   S7 — youversion://bible          (native reader, last position — safest for re-engagement)
-//   S8 — bible.com/bible/…/JHN.3.16  (Braze Liquid preferred version — John 3:16)
-//   S9 — bible.com/bible/1/PSA.23.1  (KJV/version 1 — Psalm 23:1, named passage)
+//   S8 — youversion://bible?reference=JHN.3.16  (native scheme, user's set version — John 3:16)
+//   S9 — youversion://bible?reference=PSA.23.1  (native scheme, user's set version — Psalm 23:1)
 // Guided Scripture (1):
 //   S10 — bible.com/stories
 // Plans (2):
@@ -380,31 +380,30 @@ async function scenario7_bibleVerseNative() {
 }
 
 async function scenario8_bibleVerseJohn316() {
-  console.log("\nScenario 8 — Bible verse deep-link: John 3:16 (Braze Liquid preferred version)");
-  // Variant B copy: VOTD/listening theme — deeplink to John 3:16 with user's preferred version
-  const deeplink = "https://www.bible.com/bible/{{custom_attribute.${preferred_bible_version_id} | default: 1}}/JHN.3.16";
+  console.log("\nScenario 8 — Bible verse deep-link: John 3:16 (native scheme, user's set version)");
+  // Variant B copy: VOTD/listening theme — youversion:// uses user's already-set Bible version
   const send = await sendPush(
     TEST_USER.externalUserId,
     "👂 Listen to God today",
     "Reflect on the Verse of the Day ➡️",
     null,
-    deeplink
+    "youversion://bible?reference=JHN.3.16"
   );
-  if (send.ok) pass("Braze push sent — John 3:16 deep-link (Liquid version)", `status ${send.status}`);
+  if (send.ok) pass("Braze push sent — John 3:16 native deep-link", `status ${send.status}`);
   else fail("Braze push failed", JSON.stringify(send.body));
 }
 
 async function scenario9_bibleVersePsalm23() {
-  console.log("\nScenario 9 — Bible verse deep-link: Psalm 23:1 (KJV)");
-  // Variant D copy: personalized/next-step theme — deeplink to Psalm 23:1 in KJV (version 1)
+  console.log("\nScenario 9 — Bible verse deep-link: Psalm 23:1 (native scheme, user's set version)");
+  // Variant D copy: personalized/next-step theme — youversion:// uses user's already-set Bible version
   const send = await sendPush(
     TEST_USER.externalUserId,
     "{{${first_name} | default: \"friend\"}}, what's your next step?",
     "Spend time with Him in the Bible App today.",
     null,
-    "https://www.bible.com/bible/1/PSA.23.1"
+    "youversion://bible?reference=PSA.23.1"
   );
-  if (send.ok) pass("Braze push sent — Psalm 23:1 (KJV) deep-link", `status ${send.status}`);
+  if (send.ok) pass("Braze push sent — Psalm 23:1 native deep-link", `status ${send.status}`);
   else fail("Braze push failed", JSON.stringify(send.body));
 }
 
