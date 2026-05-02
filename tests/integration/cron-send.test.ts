@@ -456,4 +456,84 @@ describe("Phase 0: exploration window assignment", () => {
     expect(assignment!.windowCompletedAt).not.toBeNull();  // closed by cron
     expect(assignment!.sendCount).toBe(2);                 // no new sends added
   });
+
+  it("in-window user goes to their assigned agent and sendCount increments", async () => {
+    const persona  = await createPersona();
+    const agent    = await createAgent({ funnelStage: "lapsed" });
+    const msg      = await createMessage(agent.id, { brazeCampaignId: "camp_window" });
+    await createVariant(msg.id, { brazeVariantId: "var_w1" });
+    await createUser("usr_window_send", { personaId: persona.id });
+    await linkAgentToPersona(agent.id, persona.id);
+    await createSchedulingRule(agent.id);
+    await createUserAgentAssignment({
+      externalUserId: "usr_window_send",
+      agentId:        agent.id,
+      sendCount:      0,
+    });
+
+    const res  = await POST(buildRequest("POST", undefined, CRON_AUTH) as NextRequest);
+    const body = await res.json();
+
+    expect(body.ok).toBe(true);
+    expect(body.sent).toBeGreaterThanOrEqual(1);
+
+    const assignment = await prisma.userAgentAssignment.findUnique({
+      where: { externalUserId: "usr_window_send" },
+    });
+    expect(assignment!.sendCount).toBe(1);
+    expect(assignment!.windowCompletedAt).toBeNull(); // only 1 of 4 sends done
+  });
+
+  it("sets windowCompletedAt when sendCount reaches 4", async () => {
+    const persona  = await createPersona();
+    const agent    = await createAgent({ funnelStage: "lapsed" });
+    const msg      = await createMessage(agent.id, { brazeCampaignId: "camp_complete" });
+    await createVariant(msg.id);
+    await createUser("usr_completing", { personaId: persona.id });
+    await linkAgentToPersona(agent.id, persona.id);
+    await createSchedulingRule(agent.id);
+    await createUserAgentAssignment({
+      externalUserId: "usr_completing",
+      agentId:        agent.id,
+      sendCount:      3,   // one more send will complete the window
+    });
+
+    await POST(buildRequest("POST", undefined, CRON_AUTH) as NextRequest);
+
+    const assignment = await prisma.userAgentAssignment.findUnique({
+      where: { externalUserId: "usr_completing" },
+    });
+    expect(assignment!.sendCount).toBe(4);
+    expect(assignment!.windowCompletedAt).not.toBeNull();
+  });
+
+  it("in-window user is excluded from normal (lottery) user pipeline", async () => {
+    const persona     = await createPersona();
+    const agentA      = await createAgent({ funnelStage: "lapsed",     name: "Agent A" });
+    const agentB      = await createAgent({ funnelStage: "connected",  name: "Agent B" });
+    const msgA        = await createMessage(agentA.id, { brazeCampaignId: "camp_a" });
+    const msgB        = await createMessage(agentB.id, { brazeCampaignId: "camp_b" });
+    await createVariant(msgA.id, { brazeVariantId: "var_a" });
+    await createVariant(msgB.id, { brazeVariantId: "var_b" });
+    await createUser("usr_exclusive", { personaId: persona.id });
+    await linkAgentToPersona(agentA.id, persona.id);
+    await linkAgentToPersona(agentB.id, persona.id);
+    await createSchedulingRule(agentA.id);
+    await createSchedulingRule(agentB.id);
+
+    // Lock user to agentA
+    await createUserAgentAssignment({
+      externalUserId: "usr_exclusive",
+      agentId:        agentA.id,
+      sendCount:      0,
+    });
+
+    await POST(buildRequest("POST", undefined, CRON_AUTH) as NextRequest);
+
+    const decisions = await prisma.userDecision.findMany({
+      where: { userId: "usr_exclusive" },
+    });
+    expect(decisions).toHaveLength(1);
+    expect(decisions[0].agentId).toBe(agentA.id);
+  });
 });

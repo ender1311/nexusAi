@@ -6,6 +6,7 @@ import { decideForUser } from "@/lib/decide";
 import { evaluateTargetFilter, buildComputedKeys } from "@/lib/engine/target-filter";
 import { buildAgentLottery } from "@/lib/engine/agent-lottery";
 import { getTodayStartUTC }  from "@/lib/engine/scheduling";
+import { computeSendTime }   from "@/lib/engine/send-timing";
 
 // Allow up to 300s execution time on Vercel
 export const maxDuration = 300;
@@ -186,6 +187,9 @@ export async function POST(req: NextRequest) {
   }
   // ─── End Phase 0 ─────────────────────────────────────────────────────────────
 
+  // Derived once from inWindowMap — used in every agent's user query
+  const inWindowUserIdSet = new Set(inWindowMap.keys());
+
   for (const agent of agents) {
     const personaIds = agent.personaTargets.map((pt) => pt.personaId);
     if (personaIds.length === 0) continue;
@@ -195,8 +199,14 @@ export async function POST(req: NextRequest) {
       .filter(([, aid]) => aid === agent.id)
       .map(([uid]) => uid);
 
-    // If no users were assigned to this agent in this run, skip it entirely
-    if (assignedUserIds.length === 0) continue;
+    // Exclude in-window users from lottery pipeline (they're handled separately below)
+    const lotteryUserIds = assignedUserIds.filter((id) => !inWindowUserIdSet.has(id));
+
+    // Check if this agent has any in-window users to process
+    const hasInWindowUsers = [...inWindowMap.entries()].some(([, aid]) => aid === agent.id);
+
+    // If no lottery users and no in-window users, skip agent entirely
+    if (lotteryUserIds.length === 0 && !hasInWindowUsers) continue;
 
     // Build variant detail lookup: variantId → { channel, body, title, deeplink, brazeCampaignId, brazeVariantId }
     const variantMeta = new Map<string, {
@@ -266,7 +276,7 @@ export async function POST(req: NextRequest) {
       const users = await prisma.trackedUser.findMany({
         where: {
           personaId:  { in: personaIds },
-          externalId: { in: assignedUserIds },
+          externalId: { in: lotteryUserIds },
         },
         take: 500,
         ...(cursor ? { skip: 1, cursor: { id: cursor } } : {}),
@@ -469,6 +479,198 @@ export async function POST(req: NextRequest) {
 
       if (users.length < 500) break;
     }
+
+    // ── In-window sub-pool for this agent ──────────────────────────────────
+    const inWindowUserIdsForAgent = [...inWindowMap.entries()]
+      .filter(([, aid]) => aid === agent.id)
+      .map(([uid]) => uid);
+
+    if (inWindowUserIdsForAgent.length > 0) {
+      const windowUsers = await prisma.trackedUser.findMany({
+        where: { externalId: { in: inWindowUserIdsForAgent } },
+      });
+
+      const windowAssignments = await prisma.userAgentAssignment.findMany({
+        where: { externalUserId: { in: inWindowUserIdsForAgent } },
+      });
+      const windowAssignmentMap = new Map(
+        windowAssignments.map((a) => [a.externalUserId, a])
+      );
+
+      // Determine current ET hour and day-of-week for timing check
+      const etParts = new Intl.DateTimeFormat("en-US", {
+        timeZone: "America/New_York",
+        weekday:  "short",
+        hour:     "2-digit",
+        hour12:   false,
+      }).formatToParts(now);
+      const currentHourET = parseInt(
+        etParts.find((p) => p.type === "hour")!.value, 10
+      );
+      const weekdayStr = etParts.find((p) => p.type === "weekday")!.value;
+      const dayIndexMap: Record<string, number> = {
+        Sun: 0, Mon: 1, Tue: 2, Wed: 3, Thu: 4, Fri: 5, Sat: 6,
+      };
+      const currentDayET = dayIndexMap[weekdayStr] ?? 0;
+
+      // Global daily cap for in-window users (safety net)
+      const todayStart = getTodayStartUTC("America/New_York");
+      const sentTodayWindowRows = await prisma.userDecision.findMany({
+        where: {
+          userId:  { in: inWindowUserIdsForAgent },
+          sentAt:  { gte: todayStart },
+        },
+        select:   { userId: true },
+        distinct: ["userId"],
+      });
+      const sentTodayWindowIds = new Set(sentTodayWindowRows.map((r) => r.userId));
+
+      // Filter eligible window users by timing check + daily cap
+      const eligibleWindowUsers = windowUsers.filter((user) => {
+        const assignment = windowAssignmentMap.get(user.externalId);
+        if (!assignment || assignment.sendCount >= 4) return false;
+        if (sentTodayWindowIds.has(user.externalId)) {
+          totalSuppressed++;
+          return false;
+        }
+
+        const hourlyStats = (Array.isArray(user.hourlyStats)
+          ? user.hourlyStats
+          : Array(24).fill(0)) as number[];
+        const dailyStats = (Array.isArray(user.dailyStats)
+          ? user.dailyStats
+          : Array(7).fill(0)) as number[];
+
+        const allZeroHourly = hourlyStats.every((v) => v === 0);
+        const allZeroDaily  = dailyStats.every((v) => v === 0);
+        const isFallback = allZeroHourly || allZeroDaily;
+
+        if (isFallback) return true;  // no behavioral data → no timing restriction
+
+        const target   = computeSendTime(hourlyStats, dailyStats, assignment.sendCount);
+        const hourDiff = Math.abs(currentHourET - target.hour);
+        const hourMatch = hourDiff <= 1 || hourDiff >= 23;  // wrap-around (e.g. 23 and 0)
+        const dayMatch  = currentDayET === target.dayOfWeek;
+
+        return hourMatch && dayMatch;
+      });
+
+      // Decide + collect variant groups for in-window users
+      const windowByVariant: Record<string, VariantSendGroup> = {};
+      const sentWindowUserIds: string[] = [];
+      const CONCURRENCY = 10;
+
+      for (let start = 0; start < eligibleWindowUsers.length; start += CONCURRENCY) {
+        const chunk = eligibleWindowUsers.slice(start, start + CONCURRENCY);
+        const chunkResults = await Promise.all(
+          chunk.map((user) =>
+            decideForUser({
+              agentId:          agent.id,
+              externalUserId:   user.externalId,
+              preloadedAgent:   agent,
+              skipSchedulingChecks: true,
+            }).then((r) => ({ user, result: r }))
+          )
+        );
+
+        for (const { user, result } of chunkResults) {
+          if (!result) continue;
+          if (result.suppressed) { totalSuppressed++; continue; }
+
+          const { messageVariantId, userDecisionId } = result;
+          const meta = variantMeta.get(messageVariantId);
+          if (!meta) continue;
+
+          if (!windowByVariant[messageVariantId]) {
+            windowByVariant[messageVariantId] = {
+              variantId:       messageVariantId,
+              brazeVariantId:  meta.brazeVariantId,
+              brazeCampaignId: meta.brazeCampaignId,
+              channel:         meta.channel,
+              body:            meta.body,
+              title:           meta.title,
+              deeplink:        meta.deeplink,
+              externalUserIds: [],
+              decisionIds:     [],
+            };
+          }
+          windowByVariant[messageVariantId].externalUserIds.push(user.externalId);
+          windowByVariant[messageVariantId].decisionIds.push(userDecisionId);
+          sentWindowUserIds.push(user.externalId);
+        }
+      }
+
+      // Send each window variant group in batches of 50 (same as normal pipeline)
+      for (const group of Object.values(windowByVariant)) {
+        const BATCH = 50;
+        for (let i = 0; i < group.externalUserIds.length; i += BATCH) {
+          const batchUserIds     = group.externalUserIds.slice(i, i + BATCH);
+          const batchDecisionIds = group.decisionIds.slice(i, i + BATCH);
+
+          try {
+            const sendId = group.brazeCampaignId
+              ? await brazeClient.createSendId(group.brazeCampaignId)
+              : null;
+
+            const audience = { externalUserIds: batchUserIds };
+            let payload: Record<string, unknown>;
+
+            if (group.channel === "push") {
+              payload = factory.buildPushPayload(
+                { title: group.title ?? "", body: group.body, deeplink: group.deeplink ?? undefined },
+                audience,
+                group.brazeCampaignId ?? undefined,
+                sendId ?? undefined,
+                group.brazeVariantId ?? undefined,
+              );
+            } else if (group.channel === "email") {
+              payload = factory.buildEmailPayload(
+                { subject: group.title ?? "", htmlBody: group.body },
+                audience,
+                group.brazeCampaignId ?? undefined,
+                sendId ?? undefined,
+                group.brazeVariantId ?? undefined,
+              );
+            } else {
+              payload = factory.buildSmsPayload(
+                { body: group.body },
+                audience,
+                group.brazeCampaignId ?? undefined,
+                sendId ?? undefined,
+                group.brazeVariantId ?? undefined,
+              );
+            }
+
+            const res = await brazeClient.post("/messages/send", payload);
+            if (res.ok && sendId) {
+              await prisma.userDecision.updateMany({
+                where: { id: { in: batchDecisionIds } },
+                data: { brazeSendId: sendId },
+              });
+            }
+            totalSent += batchUserIds.length;
+          } catch (err) {
+            console.error("[cron/select-and-send] window send error:", err);
+            totalErrors += batchUserIds.length;
+          }
+        }
+      }
+
+      // Increment sendCount for each user who was actually sent to
+      for (const userId of sentWindowUserIds) {
+        const assignment = windowAssignmentMap.get(userId);
+        if (!assignment) continue;
+        const newCount = assignment.sendCount + 1;
+        await prisma.userAgentAssignment.update({
+          where: { id: assignment.id },
+          data: {
+            sendCount:         newCount,
+            windowCompletedAt: newCount >= 4 ? now : null,
+          },
+        });
+      }
+    }
+    // ── End in-window sub-pool ───────────────────────────────────────────────
   }
 
   return NextResponse.json({ ok: true, sent: totalSent, suppressed: totalSuppressed, errors: totalErrors });
