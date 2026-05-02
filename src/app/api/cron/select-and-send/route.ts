@@ -5,6 +5,7 @@ import { PayloadFactory } from "@/lib/braze/payload-factory";
 import { decideForUser } from "@/lib/decide";
 import { evaluateTargetFilter, buildComputedKeys } from "@/lib/engine/target-filter";
 import { buildAgentLottery } from "@/lib/engine/agent-lottery";
+import { getTodayStartUTC }  from "@/lib/engine/scheduling";
 
 // Allow up to 300s execution time on Vercel
 export const maxDuration = 300;
@@ -167,6 +168,8 @@ export async function POST(req: NextRequest) {
       if (users.length === 0) break;
       cursor = users[users.length - 1].id;
 
+      const userExternalIds = users.map((u) => u.externalId);
+
       // 4b. Bulk frequency cap check — get recent decision counts for all users in one query
       const freqCappedUserIds = new Set<string>();
       const freqCap = rule?.frequencyCap as unknown as { maxSends?: number; period?: string } | null;
@@ -178,7 +181,6 @@ export async function POST(req: NextRequest) {
           month:  30 * 86_400_000,
         };
         const windowStart = new Date(now.getTime() - (periodMs[freqCap.period ?? "week"] ?? periodMs.week));
-        const userExternalIds = users.map((u) => u.externalId);
 
         // Fetch recent decision counts per user in one query
         const recentDecisions = await prisma.userDecision.groupBy({
@@ -213,16 +215,36 @@ export async function POST(req: NextRequest) {
         }
       }
 
-      // Count suppressed users
+      // 4d. Global daily cap — cross-agent guard (no agentId filter intentional)
+      const todayStart = getTodayStartUTC("America/New_York");
+      const sentTodayRows = await prisma.userDecision.findMany({
+        where: {
+          userId: { in: userExternalIds },
+          sentAt: { gte: todayStart },
+          // intentionally no agentId filter — cross-agent
+        },
+        select:   { userId: true },
+        distinct: ["userId"],
+      });
+      const sentTodayIds = new Set(sentTodayRows.map((r) => r.userId));
+
+      // Count suppressed users (freq cap + smart suppress + global daily cap)
       for (const u of users) {
-        if (freqCappedUserIds.has(u.externalId) || smartSuppressedUserIds.has(u.externalId)) {
+        if (
+          freqCappedUserIds.has(u.externalId) ||
+          smartSuppressedUserIds.has(u.externalId) ||
+          sentTodayIds.has(u.externalId)
+        ) {
           totalSuppressed++;
         }
       }
 
       // Filter to eligible users only
       const eligibleUsers = users.filter(
-        (u) => !freqCappedUserIds.has(u.externalId) && !smartSuppressedUserIds.has(u.externalId)
+        (u) =>
+          !freqCappedUserIds.has(u.externalId) &&
+          !smartSuppressedUserIds.has(u.externalId) &&
+          !sentTodayIds.has(u.externalId)
       );
 
       // Apply targetFilter in-memory on the already-loaded page (V1: no SQL-side JSON filtering)

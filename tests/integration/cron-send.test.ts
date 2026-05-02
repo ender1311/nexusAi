@@ -5,6 +5,7 @@ import { buildRequest } from "../helpers/request";
 import {
   createAgent, createPersona, createMessage, createVariant,
   createUser, createSchedulingRule, linkAgentToPersona,
+  createUserDecision,
 } from "../helpers/builders";
 
 // This import will FAIL until the route is created — intentional RED test.
@@ -212,5 +213,83 @@ describe("Lottery: cross-agent user distribution", () => {
     expect(decisionsB).toHaveLength(1);
     expect(decisionsA[0].agentId).toBe(agentA.id);
     expect(decisionsB[0].agentId).toBe(agentB.id);
+  });
+});
+
+describe("Global daily cap", () => {
+  it("second cron run on the same day sends to zero users", async () => {
+    const persona  = await createPersona();
+    const agent    = await createAgent();
+    const msg      = await createMessage(agent.id, { brazeCampaignId: "camp_dailycap" });
+    await createVariant(msg.id);
+    await createUser("usr_capped", { personaId: persona.id });
+    await linkAgentToPersona(agent.id, persona.id);
+    await createSchedulingRule(agent.id);
+
+    // First run — should send
+    const res1  = await POST(buildRequest("POST", undefined, CRON_AUTH) as NextRequest);
+    const body1 = await res1.json();
+    expect(body1.sent).toBe(1);
+
+    // Second run — same calendar day, global cap should block
+    const res2  = await POST(buildRequest("POST", undefined, CRON_AUTH) as NextRequest);
+    const body2 = await res2.json();
+    expect(body2.sent).toBe(0);
+    expect(body2.suppressed).toBeGreaterThanOrEqual(1);
+  });
+
+  it("user sent yesterday is eligible again today", async () => {
+    const persona  = await createPersona();
+    const agent    = await createAgent();
+    const msg      = await createMessage(agent.id, { brazeCampaignId: "camp_yesterday" });
+    await createVariant(msg.id);
+    await createUser("usr_yesterday", { personaId: persona.id });
+    await linkAgentToPersona(agent.id, persona.id);
+    await createSchedulingRule(agent.id);
+
+    // Seed a UserDecision from 2 days ago (definitely before today's midnight ET)
+    const twoDaysAgo = new Date(Date.now() - 2 * 86_400_000);
+    await createUserDecision({
+      agentId: agent.id,
+      userId:  "usr_yesterday",
+      sentAt:  twoDaysAgo,
+    });
+
+    // Cron run today — user should NOT be capped
+    const res  = await POST(buildRequest("POST", undefined, CRON_AUTH) as NextRequest);
+    const body = await res.json();
+    expect(body.sent).toBe(1);
+  });
+
+  it("cross-agent: user sent by agentA today is suppressed when agentB tries to send", async () => {
+    const persona  = await createPersona();
+    const agentA   = await createAgent({ name: "Agent A" });
+    const agentB   = await createAgent({ name: "Agent B" });
+    const msgA     = await createMessage(agentA.id);
+    const msgB     = await createMessage(agentB.id);
+    await createVariant(msgA.id);
+    await createVariant(msgB.id);
+    const user     = await createUser("usr_cross_cap", { personaId: persona.id });
+    await linkAgentToPersona(agentA.id, persona.id);
+    await linkAgentToPersona(agentB.id, persona.id);
+    await createSchedulingRule(agentA.id);
+    await createSchedulingRule(agentB.id);
+
+    // Pre-seed a decision from agentA today (before this cron run)
+    await createUserDecision({
+      agentId: agentA.id,
+      userId:  user.externalId,
+      sentAt:  new Date(),
+    });
+
+    const res  = await POST(buildRequest("POST", undefined, CRON_AUTH) as NextRequest);
+    const body = await res.json();
+
+    const decisions = await prisma.userDecision.findMany({
+      where: { userId: user.externalId },
+    });
+    // Still 1 (the pre-seeded one) — cron did not add a second
+    expect(decisions).toHaveLength(1);
+    expect(body.suppressed).toBeGreaterThanOrEqual(1);
   });
 });
