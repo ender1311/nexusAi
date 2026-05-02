@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -10,10 +11,10 @@ import { Switch } from "@/components/ui/switch";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { cn } from "@/lib/utils";
 import { Check, ChevronRight, Bot, Target, MessageSquare, Calendar, Rocket } from "lucide-react";
-import { GoalTier, Channel, FrequencyCap } from "@/types/agent";
+import { GoalTier, Channel, FrequencyCap, FunnelStage, FUNNEL_STAGES, FUNNEL_STAGE_META } from "@/types/agent";
+import type { Persona } from "@/types/persona";
 import { PersonaSelector } from "@/components/personas/persona-selector";
 import { PersonaBadge } from "@/components/personas/persona-badge";
-import { mockPersonas } from "@/lib/mock/personas";
 import { GoalPresetPicker } from "@/components/agents/goal-preset-picker";
 import { PushVariantPicker } from "@/components/agents/push-variant-picker";
 import { YouVersionGoalPreset } from "@/lib/constants/youversion";
@@ -76,6 +77,7 @@ interface FormData {
   description: string;
   algorithm: string;
   epsilon: number;
+  funnelStage: FunnelStage | "";
   targetPersonaIds: string[];
   goals: GoalDraft[];
   messages: MessageDraft[];
@@ -92,6 +94,7 @@ const defaultForm: FormData = {
   description: "",
   algorithm: "thompson",
   epsilon: 0.1,
+  funnelStage: "",
   targetPersonaIds: [],
   goals: [],
   messages: [],
@@ -103,7 +106,7 @@ const defaultForm: FormData = {
   suppressThresh: 0.5,
 };
 
-export function AgentWizard() {
+export function AgentWizard({ personas }: { personas: Persona[] }) {
   const router = useRouter();
   const [step, setStep] = useState(1);
   const [form, setForm] = useState<FormData>(defaultForm);
@@ -261,15 +264,45 @@ export function AgentWizard() {
               </div>
             )}
             <div>
+              <label className="text-sm font-medium">Funnel Stage *</label>
+              <Select
+                value={form.funnelStage}
+                onValueChange={(v) => update("funnelStage", v as FunnelStage)}
+              >
+                <SelectTrigger className="mt-1">
+                  <SelectValue placeholder="Select a funnel stage" />
+                </SelectTrigger>
+                <SelectContent>
+                  {FUNNEL_STAGES.map((stage) => (
+                    <SelectItem key={stage} value={stage}>
+                      {FUNNEL_STAGE_META[stage].label} — {FUNNEL_STAGE_META[stage].description}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <div>
               <label className="text-sm font-medium">Target Personas</label>
               <p className="text-xs text-muted-foreground mb-2 mt-0.5">
-                Select which user segments this agent should target. Leave empty to target all users.
+                Same segments as <Link href="/personas" className="underline font-medium text-foreground">Personas</Link>.
+                Leave empty to target all users.
               </p>
-              <PersonaSelector
-                personas={mockPersonas}
-                selected={form.targetPersonaIds}
-                onChange={(ids) => update("targetPersonaIds", ids)}
-              />
+              {personas.length === 0 ? (
+                <div className="rounded-lg border border-dashed p-4 text-sm text-muted-foreground">
+                  <p>No personas in the database yet.</p>
+                  <p className="mt-2">
+                    Add them under <Link href="/personas" className="underline font-medium text-foreground">Personas</Link>
+                    {" "}or run{" "}
+                    <code className="text-xs bg-muted px-1.5 py-0.5 rounded">npx tsx prisma/seed-personas.ts</code>.
+                  </p>
+                </div>
+              ) : (
+                <PersonaSelector
+                  personas={personas}
+                  selected={form.targetPersonaIds}
+                  onChange={(ids) => update("targetPersonaIds", ids)}
+                />
+              )}
             </div>
           </div>
         </div>
@@ -633,6 +666,7 @@ export function AgentWizard() {
             <div className="border rounded-lg p-4 space-y-2">
               <h3 className="text-sm font-semibold">Basic Info</h3>
               <p className="text-sm"><span className="text-muted-foreground">Name:</span> {form.name || "—"}</p>
+              <p className="text-sm"><span className="text-muted-foreground">Funnel Stage:</span> {form.funnelStage ? FUNNEL_STAGE_META[form.funnelStage].label : "—"}</p>
               <p className="text-sm"><span className="text-muted-foreground">Algorithm:</span> {form.algorithm}</p>
               {form.description && <p className="text-sm"><span className="text-muted-foreground">Description:</span> {form.description}</p>}
               {form.targetPersonaIds.length > 0 && (
@@ -640,7 +674,7 @@ export function AgentWizard() {
                   <p className="text-sm text-muted-foreground mb-1.5">Target Personas:</p>
                   <div className="flex flex-wrap gap-1">
                     {form.targetPersonaIds.map((pid) => {
-                      const persona = mockPersonas.find((p) => p.id === pid);
+                      const persona = personas.find((p) => p.id === pid);
                       return persona ? <PersonaBadge key={pid} persona={persona} /> : null;
                     })}
                   </div>
@@ -685,7 +719,7 @@ export function AgentWizard() {
           {step < 5 ? (
             <Button
               onClick={() => setStep((s) => Math.min(5, s + 1))}
-              disabled={step === 1 && !form.name.trim()}
+              disabled={step === 1 && (!form.name.trim() || !form.funnelStage)}
             >
               Next
               <ChevronRight className="h-4 w-4 ml-1" />
