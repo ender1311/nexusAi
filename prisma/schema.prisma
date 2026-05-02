@@ -7,15 +7,26 @@ datasource db {
   provider = "postgresql"
 }
 
+enum FunnelStage {
+  new
+  lapsed
+  connected
+  activated
+  engaged
+  inspired
+}
+
 model Agent {
-  id          String   @id @default(cuid())
+  id          String      @id @default(cuid())
   name        String
   description String?
-  status      String   @default("draft")
-  algorithm   String   @default("thompson")
-  epsilon     Float    @default(0.1)
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
+  status      String      @default("draft")
+  algorithm   String      @default("thompson")
+  epsilon     Float       @default(0.1)
+  funnelStage FunnelStage @default(connected)
+  targetFilter Json?
+  createdAt   DateTime    @default(now())
+  updatedAt   DateTime    @updatedAt
 
   goals          Goal[]
   messages       Message[]
