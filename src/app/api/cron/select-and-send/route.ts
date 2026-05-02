@@ -22,6 +22,7 @@ type VariantSendGroup = {
   channel: string;
   body: string;
   title: string | null;
+  deeplink: string | null;
   externalUserIds: string[];
   decisionIds: string[];
 };
@@ -63,17 +64,19 @@ export async function POST(req: NextRequest) {
       channel: string;
       body: string;
       title: string | null;
+      deeplink: string | null;
       brazeCampaignId: string | null;
       brazeVariantId: string | null;
     }>();
     for (const msg of agent.messages) {
       for (const v of msg.variants) {
         variantMeta.set(v.id, {
-          channel:        msg.channel,
-          body:           v.body,
-          title:          v.title ?? null,
+          channel:         msg.channel,
+          body:            v.body,
+          title:           v.title ?? null,
+          deeplink:        v.deeplink ?? null,
           brazeCampaignId: msg.brazeCampaignId ?? null,
-          brazeVariantId: v.brazeVariantId ?? null,
+          brazeVariantId:  v.brazeVariantId ?? null,
         });
       }
     }
@@ -236,6 +239,7 @@ export async function POST(req: NextRequest) {
               channel:         meta.channel,
               body:            meta.body,
               title:           meta.title,
+              deeplink:        meta.deeplink,
               externalUserIds: [],
               decisionIds:     [],
             };
@@ -262,7 +266,7 @@ export async function POST(req: NextRequest) {
 
             if (group.channel === "push") {
               payload = factory.buildPushPayload(
-                { title: group.title ?? "", body: group.body },
+                { title: group.title ?? "", body: group.body, deeplink: group.deeplink ?? undefined },
                 audience,
                 group.brazeCampaignId ?? undefined,
                 sendId ?? undefined,
