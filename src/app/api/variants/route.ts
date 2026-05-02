@@ -1,9 +1,9 @@
-import { NextRequest, NextResponse } from "next/server";
+import { NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
 
-export async function GET(req: NextRequest) {
+export async function GET(req: Request) {
   try {
-    const category = req.nextUrl.searchParams.get("category");
+    const category = new URL(req.url).searchParams.get("category");
     const variants = await prisma.messageVariant.findMany({
       where: {
         status: "active",
