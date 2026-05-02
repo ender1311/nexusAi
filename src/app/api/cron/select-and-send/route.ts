@@ -80,6 +80,7 @@ export async function POST(req: NextRequest) {
   // ── End pre-assignment phase ──────────────────────────────────────────────
 
   const now = new Date();   // single timestamp for the entire cron run
+  const todayStart = getTodayStartUTC("America/New_York", now);
 
   // ─── Phase 0: Exploration window assignment ───────────────────────────────
   // Identify lapsed/connected users, create/classify their assignments,
@@ -333,7 +334,6 @@ export async function POST(req: NextRequest) {
       }
 
       // 4d. Global daily cap — cross-agent guard (no agentId filter intentional)
-      const todayStart = getTodayStartUTC("America/New_York");
       const sentTodayRows = await prisma.userDecision.findMany({
         where: {
           userId: { in: userExternalIds },
@@ -514,7 +514,6 @@ export async function POST(req: NextRequest) {
       const currentDayET = dayIndexMap[weekdayStr] ?? 0;
 
       // Global daily cap for in-window users (safety net)
-      const todayStart = getTodayStartUTC("America/New_York");
       const sentTodayWindowRows = await prisma.userDecision.findMany({
         where: {
           userId:  { in: inWindowUserIdsForAgent },
