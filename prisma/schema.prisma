@@ -257,3 +257,15 @@ model AppSetting {
   key   String @unique
   value String
 }
+
+model UserAgentAssignment {
+  id                String    @id @default(cuid())
+  externalUserId    String    @unique   // TrackedUser.externalId (no FK — matches UserDecision pattern)
+  agentId           String              // Agent.id (no FK — assignment survives agent soft-delete)
+  startedAt         DateTime  @default(now())
+  sendCount         Int       @default(0)
+  windowCompletedAt DateTime?           // null = in exploration; non-null = window done
+
+  @@index([agentId])
+  @@index([windowCompletedAt])
+}

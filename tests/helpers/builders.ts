@@ -161,3 +161,28 @@ export async function createUserDecision(params: {
 export async function linkAgentToPersona(agentId: string, personaId: string) {
   return prisma.agentPersonaTarget.create({ data: { agentId, personaId } });
 }
+
+export async function createUserAgentAssignment(params: {
+  externalUserId: string;
+  agentId: string;
+  sendCount?: number;
+  startedAt?: Date;
+  windowCompletedAt?: Date | null;
+}) {
+  return prisma.userAgentAssignment.upsert({
+    where: { externalUserId: params.externalUserId },
+    create: {
+      externalUserId:    params.externalUserId,
+      agentId:           params.agentId,
+      sendCount:         params.sendCount ?? 0,
+      startedAt:         params.startedAt ?? new Date(),
+      windowCompletedAt: params.windowCompletedAt ?? null,
+    },
+    update: {
+      agentId:           params.agentId,
+      sendCount:         params.sendCount ?? 0,
+      startedAt:         params.startedAt ?? new Date(),
+      windowCompletedAt: params.windowCompletedAt ?? null,
+    },
+  });
+}
