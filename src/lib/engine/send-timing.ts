@@ -24,6 +24,36 @@ function argSecondMax(arr: number[], primary: number): number {
 const FALLBACK = { hour: 9, dayOfWeek: 0 } as const;
 
 /**
+ * Returns true if the current time (ET hour + day-of-week) is within the
+ * target send window for a user's Nth exploration send.
+ *
+ * Always returns true when either stats array is all-zero (fallback path:
+ * no behavioral data → send any time).
+ *
+ * @param hourlyStats   24-element array (index = hour 0–23)
+ * @param dailyStats    7-element array (0 = Sunday)
+ * @param sendIndex     0–3 (which exploration send this is)
+ * @param currentHour   Current hour in ET (0–23)
+ * @param currentDay    Current day-of-week in ET (0 = Sunday)
+ */
+export function isTimingMatch(
+  hourlyStats: number[],
+  dailyStats: number[],
+  sendIndex: number,
+  currentHour: number,
+  currentDay: number,
+): boolean {
+  const allZeroHourly = hourlyStats.every((v) => v === 0);
+  const allZeroDaily  = dailyStats.every((v) => v === 0);
+  if (allZeroHourly || allZeroDaily) return true;
+
+  const target = computeSendTime(hourlyStats, dailyStats, sendIndex);
+  const hourDiff = Math.abs(currentHour - target.hour);
+  const hourMatch = hourDiff <= 1 || hourDiff >= 23;  // wrap-around (e.g. 23 and 0)
+  return hourMatch && currentDay === target.dayOfWeek;
+}
+
+/**
  * Returns the target send time for a user's Nth exploration send.
  *
  * sendIndex 0, 2 → primary peak (highest value in hourlyStats × highest in dailyStats)

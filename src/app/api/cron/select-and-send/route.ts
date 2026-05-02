@@ -6,7 +6,7 @@ import { decideForUser } from "@/lib/decide";
 import { evaluateTargetFilter, buildComputedKeys } from "@/lib/engine/target-filter";
 import { buildAgentLottery } from "@/lib/engine/agent-lottery";
 import { getTodayStartUTC }  from "@/lib/engine/scheduling";
-import { computeSendTime }   from "@/lib/engine/send-timing";
+import { isTimingMatch } from "@/lib/engine/send-timing";
 
 // Allow up to 300s execution time on Vercel
 export const maxDuration = 300;
@@ -541,18 +541,7 @@ export async function POST(req: NextRequest) {
           ? user.dailyStats
           : Array(7).fill(0)) as number[];
 
-        const allZeroHourly = hourlyStats.every((v) => v === 0);
-        const allZeroDaily  = dailyStats.every((v) => v === 0);
-        const isFallback = allZeroHourly || allZeroDaily;
-
-        if (isFallback) return true;  // no behavioral data → no timing restriction
-
-        const target   = computeSendTime(hourlyStats, dailyStats, assignment.sendCount);
-        const hourDiff = Math.abs(currentHourET - target.hour);
-        const hourMatch = hourDiff <= 1 || hourDiff >= 23;  // wrap-around (e.g. 23 and 0)
-        const dayMatch  = currentDayET === target.dayOfWeek;
-
-        return hourMatch && dayMatch;
+        return isTimingMatch(hourlyStats, dailyStats, assignment.sendCount, currentHourET, currentDayET);
       });
 
       // Decide + collect variant groups for in-window users
@@ -596,7 +585,6 @@ export async function POST(req: NextRequest) {
           }
           windowByVariant[messageVariantId].externalUserIds.push(user.externalId);
           windowByVariant[messageVariantId].decisionIds.push(userDecisionId);
-          sentWindowUserIds.push(user.externalId);
         }
       }
 
@@ -648,6 +636,9 @@ export async function POST(req: NextRequest) {
                 data: { brazeSendId: sendId },
               });
             }
+            // Only mark users as sent after a successful Braze call so that
+            // sendCount is not incremented when the send fails.
+            sentWindowUserIds.push(...batchUserIds);
             totalSent += batchUserIds.length;
           } catch (err) {
             console.error("[cron/select-and-send] window send error:", err);
