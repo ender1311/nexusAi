@@ -3,6 +3,7 @@ import { prisma } from "@/lib/db";
 import { createBrazeClient } from "@/lib/braze/client";
 import { PayloadFactory } from "@/lib/braze/payload-factory";
 import { decideForUser } from "@/lib/decide";
+import { evaluateTargetFilter, buildComputedKeys } from "@/lib/engine/target-filter";
 
 // Allow up to 300s execution time on Vercel
 export const maxDuration = 300;
@@ -188,13 +189,22 @@ export async function POST(req: NextRequest) {
         (u) => !freqCappedUserIds.has(u.externalId) && !smartSuppressedUserIds.has(u.externalId)
       );
 
+      // Apply targetFilter in-memory on the already-loaded page (V1: no SQL-side JSON filtering)
+      const targetFiltered = eligibleUsers.filter((u) => {
+        if (!agent.targetFilter) return true;
+        return evaluateTargetFilter(agent.targetFilter as Record<string, unknown>, {
+          attributes: u.attributes as Record<string, unknown>,
+          computed: buildComputedKeys(u),
+        });
+      });
+
       // Decide for each eligible user concurrently (concurrency-limited) and group by variant.
       // skipSchedulingChecks=true because we performed them in bulk above.
       const byVariant: Record<string, VariantSendGroup> = {};
       const CONCURRENCY = 10;
 
-      for (let start = 0; start < eligibleUsers.length; start += CONCURRENCY) {
-        const chunk = eligibleUsers.slice(start, start + CONCURRENCY);
+      for (let start = 0; start < targetFiltered.length; start += CONCURRENCY) {
+        const chunk = targetFiltered.slice(start, start + CONCURRENCY);
         const chunkResults = await Promise.all(
           chunk.map((user) =>
             decideForUser({
