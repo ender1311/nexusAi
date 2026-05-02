@@ -9,7 +9,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { mockAgents } from "@/lib/mock/agents";
 import { agentMetrics } from "@/lib/mock/metrics";
-import { AgentStatus } from "@/types/agent";
+import { AgentStatus, FunnelStage, FUNNEL_STAGES, FUNNEL_STAGE_META } from "@/types/agent";
 import { Plus, Search } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -18,12 +18,14 @@ const STATUS_FILTERS: Array<AgentStatus | "all"> = ["all", "active", "paused", "
 export default function AgentsPage() {
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState<AgentStatus | "all">("all");
+  const [stageFilter, setStageFilter] = useState<FunnelStage | null>(null);
 
   const filtered = mockAgents.filter((a) => {
     const matchSearch = a.name.toLowerCase().includes(search.toLowerCase()) ||
       a.description?.toLowerCase().includes(search.toLowerCase());
     const matchStatus = statusFilter === "all" || a.status === statusFilter;
-    return matchSearch && matchStatus;
+    const matchStage = stageFilter === null || a.funnelStage === stageFilter;
+    return matchSearch && matchStatus && matchStage;
   });
 
   return (
@@ -64,6 +66,24 @@ export default function AgentsPage() {
               New Agent
             </Button>
           </Link>
+        </div>
+
+        <div className="flex items-center gap-2 flex-wrap">
+          <span className="text-xs text-muted-foreground font-medium">Stage:</span>
+          {FUNNEL_STAGES.map((stage) => (
+            <button
+              key={stage}
+              onClick={() => setStageFilter(stageFilter === stage ? null : stage)}
+              className={cn(
+                "px-3 py-1 rounded-full text-xs font-medium border transition-colors",
+                stageFilter === stage
+                  ? "bg-primary text-primary-foreground border-primary"
+                  : "bg-background text-muted-foreground border-border hover:text-foreground hover:border-foreground"
+              )}
+            >
+              {FUNNEL_STAGE_META[stage].label}
+            </button>
+          ))}
         </div>
 
         {filtered.length === 0 ? (
