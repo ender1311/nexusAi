@@ -6,6 +6,7 @@ import {
   createAgent, createPersona, createMessage, createVariant,
   createUser, createSchedulingRule, linkAgentToPersona,
   createUserDecision,
+  createUserAgentAssignment,   // ← add this
 } from "../helpers/builders";
 
 // This import will FAIL until the route is created — intentional RED test.
@@ -291,5 +292,168 @@ describe("Global daily cap", () => {
     // Still 1 (the pre-seeded one) — cron did not add a second
     expect(decisions).toHaveLength(1);
     expect(body.suppressed).toBeGreaterThanOrEqual(1);
+  });
+});
+
+describe("Phase 0: exploration window assignment", () => {
+  it("creates an assignment for a lapsed-funnel user with no prior assignment", async () => {
+    const persona  = await createPersona();
+    const agent    = await createAgent({ funnelStage: "lapsed" });
+    const msg      = await createMessage(agent.id, { brazeCampaignId: "camp_phase0" });
+    await createVariant(msg.id);
+    await createUser("usr_new_lapsed", { personaId: persona.id });
+    await linkAgentToPersona(agent.id, persona.id);
+    await createSchedulingRule(agent.id);
+
+    await POST(buildRequest("POST", undefined, CRON_AUTH) as NextRequest);
+
+    const assignment = await prisma.userAgentAssignment.findUnique({
+      where: { externalUserId: "usr_new_lapsed" },
+    });
+    expect(assignment).not.toBeNull();
+    expect(assignment!.agentId).toBe(agent.id);
+    expect(assignment!.windowCompletedAt).toBeNull();
+  });
+
+  it("creates an assignment for a connected-funnel user", async () => {
+    const persona  = await createPersona();
+    const agent    = await createAgent({ funnelStage: "connected" });
+    const msg      = await createMessage(agent.id);
+    await createVariant(msg.id);
+    await createUser("usr_connected", { personaId: persona.id });
+    await linkAgentToPersona(agent.id, persona.id);
+    await createSchedulingRule(agent.id);
+
+    await POST(buildRequest("POST", undefined, CRON_AUTH) as NextRequest);
+
+    const assignment = await prisma.userAgentAssignment.findUnique({
+      where: { externalUserId: "usr_connected" },
+    });
+    expect(assignment).not.toBeNull();
+  });
+
+  it("does NOT create an assignment for an engaged-funnel user (not lapsed/connected)", async () => {
+    const persona  = await createPersona();
+    const agent    = await createAgent({ funnelStage: "engaged" });
+    const msg      = await createMessage(agent.id);
+    await createVariant(msg.id);
+    await createUser("usr_engaged", { personaId: persona.id });
+    await linkAgentToPersona(agent.id, persona.id);
+    await createSchedulingRule(agent.id);
+
+    await POST(buildRequest("POST", undefined, CRON_AUTH) as NextRequest);
+
+    const assignment = await prisma.userAgentAssignment.findUnique({
+      where: { externalUserId: "usr_engaged" },
+    });
+    expect(assignment).toBeNull();
+  });
+
+  it("does not reassign a user whose window is still active", async () => {
+    const persona  = await createPersona();
+    const agent    = await createAgent({ funnelStage: "lapsed" });
+    const msg      = await createMessage(agent.id);
+    await createVariant(msg.id);
+    const user     = await createUser("usr_in_window", { personaId: persona.id });
+    await linkAgentToPersona(agent.id, persona.id);
+    await createSchedulingRule(agent.id);
+
+    const twoDaysAgo = new Date(Date.now() - 2 * 86_400_000);
+    await createUserAgentAssignment({
+      externalUserId: user.externalId,
+      agentId:        agent.id,
+      sendCount:      1,
+      startedAt:      twoDaysAgo,
+      windowCompletedAt: null,
+    });
+
+    await POST(buildRequest("POST", undefined, CRON_AUTH) as NextRequest);
+
+    const assignment = await prisma.userAgentAssignment.findUnique({
+      where: { externalUserId: user.externalId },
+    });
+    // Still the same assignment — startedAt not reset
+    expect(assignment!.startedAt.getTime()).toBeCloseTo(twoDaysAgo.getTime(), -3);
+  });
+
+  it("does not reassign during cooldown period (default 90 days)", async () => {
+    const persona  = await createPersona();
+    const agent    = await createAgent({ funnelStage: "lapsed" });
+    const msg      = await createMessage(agent.id);
+    await createVariant(msg.id);
+    const user     = await createUser("usr_cooldown", { personaId: persona.id });
+    await linkAgentToPersona(agent.id, persona.id);
+    await createSchedulingRule(agent.id);
+
+    const tenDaysAgo = new Date(Date.now() - 10 * 86_400_000);
+    await createUserAgentAssignment({
+      externalUserId:   user.externalId,
+      agentId:          agent.id,
+      sendCount:        4,
+      windowCompletedAt: tenDaysAgo,
+    });
+
+    await POST(buildRequest("POST", undefined, CRON_AUTH) as NextRequest);
+
+    const assignment = await prisma.userAgentAssignment.findUnique({
+      where: { externalUserId: user.externalId },
+    });
+    // windowCompletedAt unchanged
+    expect(assignment!.windowCompletedAt!.getTime()).toBeCloseTo(tenDaysAgo.getTime(), -3);
+    expect(assignment!.sendCount).toBe(4);
+  });
+
+  it("triggers a new window when cooldown has expired", async () => {
+    const persona  = await createPersona();
+    const agent    = await createAgent({ funnelStage: "lapsed" });
+    const msg      = await createMessage(agent.id);
+    await createVariant(msg.id);
+    const user     = await createUser("usr_expired_cooldown", { personaId: persona.id });
+    await linkAgentToPersona(agent.id, persona.id);
+    await createSchedulingRule(agent.id);
+
+    const ninetyOneDaysAgo = new Date(Date.now() - 91 * 86_400_000);
+    await createUserAgentAssignment({
+      externalUserId:   user.externalId,
+      agentId:          agent.id,
+      sendCount:        4,
+      windowCompletedAt: ninetyOneDaysAgo,
+    });
+
+    await POST(buildRequest("POST", undefined, CRON_AUTH) as NextRequest);
+
+    const assignment = await prisma.userAgentAssignment.findUnique({
+      where: { externalUserId: user.externalId },
+    });
+    // Window reset
+    expect(assignment!.windowCompletedAt).toBeNull();
+    expect(assignment!.sendCount).toBeGreaterThanOrEqual(0);
+  });
+
+  it("closes an expired window (8 days elapsed, sendCount < 4) without triggering new sends", async () => {
+    const persona  = await createPersona();
+    const agent    = await createAgent({ funnelStage: "lapsed" });
+    const msg      = await createMessage(agent.id);
+    await createVariant(msg.id);
+    const user     = await createUser("usr_stale_window", { personaId: persona.id });
+    await linkAgentToPersona(agent.id, persona.id);
+    await createSchedulingRule(agent.id);
+
+    const nineDaysAgo = new Date(Date.now() - 9 * 86_400_000);
+    await createUserAgentAssignment({
+      externalUserId:   user.externalId,
+      agentId:          agent.id,
+      sendCount:        2,
+      startedAt:        nineDaysAgo,
+      windowCompletedAt: null,
+    });
+
+    await POST(buildRequest("POST", undefined, CRON_AUTH) as NextRequest);
+
+    const assignment = await prisma.userAgentAssignment.findUnique({
+      where: { externalUserId: user.externalId },
+    });
+    expect(assignment!.windowCompletedAt).not.toBeNull();  // closed by cron
+    expect(assignment!.sendCount).toBe(2);                 // no new sends added
   });
 });

@@ -78,6 +78,114 @@ export async function POST(req: NextRequest) {
   // lotteryMap: Map<externalUserId, agentId>  — held in memory for this run
   // ── End pre-assignment phase ──────────────────────────────────────────────
 
+  const now = new Date();   // single timestamp for the entire cron run
+
+  // ─── Phase 0: Exploration window assignment ───────────────────────────────
+  // Identify lapsed/connected users, create/classify their assignments,
+  // and build inWindowMap (externalUserId → agentId) for this cron run.
+
+  const cooldownSetting = await prisma.appSetting.findUnique({
+    where: { key: "exploration_window_cooldown_days" },
+  });
+  const cooldownDays = cooldownSetting ? parseInt(cooldownSetting.value, 10) : 90;
+  const cooldownMs   = cooldownDays * 86_400_000;
+  const windowMs     = 8 * 86_400_000;
+
+  const explorationAgents = agents.filter(
+    (a) => a.funnelStage === "lapsed" || a.funnelStage === "connected"
+  );
+
+  const inWindowMap = new Map<string, string>(); // externalUserId → agentId
+
+  if (explorationAgents.length > 0) {
+    const explorationPersonaIds = [
+      ...new Set(explorationAgents.flatMap((a) => a.personaTargets.map((pt) => pt.personaId))),
+    ];
+
+    const explorationUsers = await prisma.trackedUser.findMany({
+      where: { personaId: { in: explorationPersonaIds } },
+    });
+
+    const existingAssignments = await prisma.userAgentAssignment.findMany({
+      where: { externalUserId: { in: explorationUsers.map((u) => u.externalId) } },
+    });
+    const assignmentByUser = new Map(existingAssignments.map((a) => [a.externalUserId, a]));
+
+    // For each exploration agent, index the personas it targets
+    const agentPersonaSets = new Map<string, Set<string>>();
+    for (const agent of explorationAgents) {
+      agentPersonaSets.set(
+        agent.id,
+        new Set(agent.personaTargets.map((pt) => pt.personaId))
+      );
+    }
+
+    // Build eligible agent list per user
+    const eligibleAgentsByUser = new Map<string, string[]>();
+    for (const user of explorationUsers) {
+      if (!user.personaId) continue;
+      const eligible: string[] = [];
+      for (const agent of explorationAgents) {
+        if (agentPersonaSets.get(agent.id)?.has(user.personaId)) {
+          eligible.push(agent.id);
+        }
+      }
+      if (eligible.length > 0) eligibleAgentsByUser.set(user.externalId, eligible);
+    }
+
+    const toUpsert: Array<{ externalUserId: string; agentId: string }> = [];
+    const toClose:  string[] = []; // assignment IDs where window expired without 4 sends
+
+    for (const user of explorationUsers) {
+      const assignment = assignmentByUser.get(user.externalId);
+
+      if (!assignment) {
+        // Class A: no prior assignment — newly eligible
+        const eligible = eligibleAgentsByUser.get(user.externalId) ?? [];
+        if (eligible.length === 0) continue;
+        const agentId = eligible[Math.floor(Math.random() * eligible.length)];
+        toUpsert.push({ externalUserId: user.externalId, agentId });
+        inWindowMap.set(user.externalId, agentId);
+      } else if (assignment.windowCompletedAt === null) {
+        const age = now.getTime() - assignment.startedAt.getTime();
+        if (age <= windowMs) {
+          // Class B: active window — keep locked
+          inWindowMap.set(user.externalId, assignment.agentId);
+        } else {
+          // Class C: 8 days elapsed, never hit 4 sends — close window
+          toClose.push(assignment.id);
+        }
+      } else {
+        const timeSinceComplete = now.getTime() - assignment.windowCompletedAt.getTime();
+        if (timeSinceComplete > cooldownMs) {
+          // Class D: cooldown expired — new window
+          const eligible = eligibleAgentsByUser.get(user.externalId) ?? [];
+          if (eligible.length === 0) continue;
+          const agentId = eligible[Math.floor(Math.random() * eligible.length)];
+          toUpsert.push({ externalUserId: user.externalId, agentId });
+          inWindowMap.set(user.externalId, agentId);
+        }
+        // Class E: cooldown not yet expired — no action
+      }
+    }
+
+    // Apply DB writes
+    for (const { externalUserId, agentId } of toUpsert) {
+      await prisma.userAgentAssignment.upsert({
+        where: { externalUserId },
+        create: { externalUserId, agentId, sendCount: 0, windowCompletedAt: null },
+        update: { agentId, startedAt: now, sendCount: 0, windowCompletedAt: null },
+      });
+    }
+    if (toClose.length > 0) {
+      await prisma.userAgentAssignment.updateMany({
+        where: { id: { in: toClose } },
+        data: { windowCompletedAt: now },
+      });
+    }
+  }
+  // ─── End Phase 0 ─────────────────────────────────────────────────────────────
+
   for (const agent of agents) {
     const personaIds = agent.personaTargets.map((pt) => pt.personaId);
     if (personaIds.length === 0) continue;
@@ -114,7 +222,6 @@ export async function POST(req: NextRequest) {
 
     // Evaluate agent-level scheduling checks once (not per user)
     const rule = agent.schedulingRule;
-    const now = new Date();
 
     // 4a. Quiet hours — same for all users, check once
     if (rule) {
