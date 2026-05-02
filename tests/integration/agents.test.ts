@@ -193,3 +193,50 @@ describe("POST /api/agents — funnelStage + targetFilter", () => {
     expect(body.error).toBe("targetFilter must be a plain object");
   });
 });
+
+describe("POST /api/agents — sourceTemplateId", () => {
+  it("stores sourceTemplateId on variant when provided", async () => {
+    // Create a template message+variant to get a real FK-valid ID
+    const templateAgent = await prisma.agent.create({
+      data: { name: "Template Agent", algorithm: "thompson", epsilon: 0.1, funnelStage: "connected" },
+    });
+    const templateMessage = await prisma.message.create({
+      data: { agentId: templateAgent.id, name: "Template Msg", channel: "push" },
+    });
+    const templateVariant = await prisma.messageVariant.create({
+      data: { messageId: templateMessage.id, name: "Template V1", body: "Template body" },
+    });
+
+    const body = {
+      name: "Test Agent",
+      funnelStage: "connected",
+      messages: [
+        {
+          name: "Push Message",
+          channel: "push",
+          variants: [
+            {
+              name: "V1",
+              body: "Test body",
+              title: "Test title",
+              deeplink: "youversion://bible",
+              sourceTemplateId: templateVariant.id,
+            },
+          ],
+        },
+      ],
+    };
+    const req = buildRequest("POST", body);
+    const res = await postAgent(req as NextRequest);
+    const agent = await res.json();
+
+    expect(res.status).toBe(201);
+
+    const variant = await prisma.messageVariant.findFirst({
+      where: { message: { agentId: agent.id } },
+    });
+    expect(variant).not.toBeNull();
+    expect(variant!.sourceTemplateId).toBe(templateVariant.id);
+    expect(variant!.deeplink).toBe("youversion://bible");
+  });
+});

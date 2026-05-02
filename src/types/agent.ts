@@ -93,6 +93,8 @@ export interface MessageVariant {
   preferredHour?: number | null;
   preferredDayOfWeek?: number | null;
   frequencyCapOverride?: string | null;
+  sourceTemplateId?: string | null;
+  category?: string | null;
   createdAt: string;
 }
 
