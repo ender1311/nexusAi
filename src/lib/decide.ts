@@ -52,6 +52,7 @@ export type DecideResult =
   | {
       suppressed: false;
       brazeVariantId: string | null;
+      deeplink: string | null;
       messageVariantId: string;
       channel: string;
       userDecisionId: string;
@@ -285,6 +286,7 @@ export async function decideForUser(input: DecideInput): Promise<DecideResult | 
   return {
     suppressed: false,
     brazeVariantId: selected.brazeVariantId ?? null,
+    deeplink: selected.deeplink ?? null,
     messageVariantId: selected.id,
     channel: selected.channel,
     userDecisionId: decision.id,

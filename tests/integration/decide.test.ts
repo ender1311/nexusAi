@@ -186,4 +186,39 @@ describe("POST /api/decide", () => {
     expect(res.status).toBe(200);
     expect(body.data.suppressed).toBeFalsy();
   });
+
+  it("returns deeplink from the selected variant in DecideResult", async () => {
+    const persona = await createPersona();
+    const agent = await createAgent({ algorithm: "thompson" });
+    const msg = await createMessage(agent.id);
+    await createVariant(msg.id, {
+      name: "A",
+      deeplink: "youversion://bible?reference=JHN.3.16",
+    });
+    await createUser("usr_deeplink", { personaId: persona.id });
+    await createSchedulingRule(agent.id);
+
+    const req = buildRequest("POST", { agentId: agent.id, externalUserId: "usr_deeplink" }, AUTH);
+    const res = await POST(req as NextRequest);
+    const body = await res.json();
+
+    expect(res.status).toBe(200);
+    expect(body.data.deeplink).toBe("youversion://bible?reference=JHN.3.16");
+  });
+
+  it("returns deeplink: null when variant has no deeplink set", async () => {
+    const persona = await createPersona();
+    const agent = await createAgent({ algorithm: "thompson" });
+    const msg = await createMessage(agent.id);
+    await createVariant(msg.id, { name: "A" }); // no deeplink
+    await createUser("usr_nodeeplink", { personaId: persona.id });
+    await createSchedulingRule(agent.id);
+
+    const req = buildRequest("POST", { agentId: agent.id, externalUserId: "usr_nodeeplink" }, AUTH);
+    const res = await POST(req as NextRequest);
+    const body = await res.json();
+
+    expect(res.status).toBe(200);
+    expect(body.data.deeplink).toBeNull();
+  });
 });
