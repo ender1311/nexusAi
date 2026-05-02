@@ -1,10 +1,13 @@
 import { prisma } from "@/lib/db";
+import type { FunnelStage } from "@/generated/prisma/client";
 
 export async function createAgent(overrides: {
   name?: string;
   algorithm?: string;
   epsilon?: number;
   status?: string;
+  funnelStage?: FunnelStage;
+  targetFilter?: object;
 } = {}) {
   return prisma.agent.create({
     data: {
@@ -12,6 +15,7 @@ export async function createAgent(overrides: {
       algorithm: "thompson",
       epsilon: 0.1,
       status: "active",
+      funnelStage: "connected",
       ...overrides,
     },
   });
@@ -77,6 +81,7 @@ export async function createUser(
     totalDecisions?: number;
     totalConversions?: number;
     totalReward?: number;
+    attributes?: object;
   } = {}
 ) {
   return prisma.trackedUser.upsert({

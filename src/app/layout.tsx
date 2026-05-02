@@ -2,8 +2,8 @@ import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
 import { Sidebar } from "@/components/layout/sidebar";
-import { auth } from "@/lib/auth";
-import { headers } from "next/headers";
+import { DataModeProvider } from "@/components/layout/data-mode-provider";
+import { withAuth } from "@workos-inc/authkit-nextjs";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -25,26 +25,31 @@ export default async function RootLayout({
 }: Readonly<{
   children: React.ReactNode;
 }>) {
-  const session = await auth.api.getSession({ headers: await headers() });
-  const user = session?.user ?? null;
+  const { user } = await withAuth();
 
   const sidebarUser = user
     ? {
         email: user.email,
-        firstName: user.name?.split(" ")[0] ?? null,
-        lastName: user.name?.split(" ").slice(1).join(" ") || null,
+        firstName: user.firstName ?? null,
+        lastName: user.lastName ?? null,
       }
     : null;
 
   return (
     <html lang="en">
       <body className={`${geistSans.variable} ${geistMono.variable} antialiased`}>
-        <div className="flex h-screen overflow-hidden bg-background">
-          <Sidebar user={sidebarUser} />
-          <main className="flex-1 overflow-y-auto">
-            {children}
-          </main>
-        </div>
+        {user ? (
+          <DataModeProvider>
+            <div className="flex h-screen overflow-hidden bg-background">
+              <Sidebar user={sidebarUser} />
+              <main className="flex-1 overflow-y-auto">
+                {children}
+              </main>
+            </div>
+          </DataModeProvider>
+        ) : (
+          <>{children}</>
+        )}
       </body>
     </html>
   );

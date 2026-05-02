@@ -19,6 +19,7 @@ import {
 import { cn } from "@/lib/utils";
 import { useState } from "react";
 import { SignOutButton } from "@/components/layout/sign-out-button";
+import { useDataMode } from "@/components/layout/data-mode-provider";
 
 type SidebarUser = {
   email: string;
@@ -41,6 +42,7 @@ const navItems = [
 export function Sidebar({ user }: { user: SidebarUser | null }) {
   const pathname = usePathname();
   const [collapsed, setCollapsed] = useState(false);
+  const { mode, setMode } = useDataMode();
 
   const displayName = user
     ? [user.firstName, user.lastName].filter(Boolean).join(" ") || user.email
@@ -92,6 +94,52 @@ export function Sidebar({ user }: { user: SidebarUser | null }) {
           );
         })}
       </nav>
+
+      {/* Demo / Live toggle */}
+      <div className="border-t px-3 py-2.5">
+        {collapsed ? (
+          <button
+            onClick={() => setMode(mode === "demo" ? "live" : "demo")}
+            title={mode === "demo" ? "Demo mode — click for live" : "Live mode — click for demo"}
+            className={cn(
+              "flex h-7 w-7 mx-auto items-center justify-center rounded-full text-xs font-bold transition-colors",
+              mode === "demo"
+                ? "bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400"
+                : "bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400"
+            )}
+          >
+            {mode === "demo" ? "D" : "L"}
+          </button>
+        ) : (
+          <div className="flex items-center justify-between">
+            <span className="text-xs text-muted-foreground">Data source</span>
+            <div className="flex items-center gap-0.5 rounded-md border p-0.5">
+              <button
+                onClick={() => setMode("demo")}
+                className={cn(
+                  "rounded px-2 py-0.5 text-xs font-medium transition-colors",
+                  mode === "demo"
+                    ? "bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400"
+                    : "text-muted-foreground hover:text-foreground"
+                )}
+              >
+                Demo
+              </button>
+              <button
+                onClick={() => setMode("live")}
+                className={cn(
+                  "rounded px-2 py-0.5 text-xs font-medium transition-colors",
+                  mode === "live"
+                    ? "bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400"
+                    : "text-muted-foreground hover:text-foreground"
+                )}
+              >
+                Live
+              </button>
+            </div>
+          </div>
+        )}
+      </div>
 
       <div className="border-t p-2">
         {!collapsed && user && (

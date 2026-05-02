@@ -1,29 +1,37 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import Link from "next/link";
 import { Header } from "@/components/layout/header";
 import { AgentCard } from "@/components/agents/agent-card";
 import { AgentStatusBadge } from "@/components/agents/agent-status-badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { mockAgents } from "@/lib/mock/agents";
-import { agentMetrics } from "@/lib/mock/metrics";
-import { AgentStatus } from "@/types/agent";
+import { AgentStatus, FunnelStage, FUNNEL_STAGES, FUNNEL_STAGE_META, Agent } from "@/types/agent";
 import { Plus, Search } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 const STATUS_FILTERS: Array<AgentStatus | "all"> = ["all", "active", "paused", "draft"];
 
 export default function AgentsPage() {
+  const [agents, setAgents] = useState<Agent[]>([]);
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState<AgentStatus | "all">("all");
+  const [stageFilter, setStageFilter] = useState<FunnelStage | null>(null);
 
-  const filtered = mockAgents.filter((a) => {
+  useEffect(() => {
+    fetch("/api/agents")
+      .then((res) => res.json())
+      .then((data: Agent[]) => setAgents(Array.isArray(data) ? data : []))
+      .catch((err) => console.error("Failed to fetch agents:", err));
+  }, []);
+
+  const filtered = agents.filter((a) => {
     const matchSearch = a.name.toLowerCase().includes(search.toLowerCase()) ||
       a.description?.toLowerCase().includes(search.toLowerCase());
     const matchStatus = statusFilter === "all" || a.status === statusFilter;
-    return matchSearch && matchStatus;
+    const matchStage = stageFilter === null || a.funnelStage === stageFilter;
+    return matchSearch && matchStatus && matchStage;
   });
 
   return (
@@ -66,22 +74,36 @@ export default function AgentsPage() {
           </Link>
         </div>
 
+        <div className="flex items-center gap-2 flex-wrap">
+          <span className="text-xs text-muted-foreground font-medium">Stage:</span>
+          {FUNNEL_STAGES.map((stage) => (
+            <button
+              key={stage}
+              onClick={() => setStageFilter(stageFilter === stage ? null : stage)}
+              className={cn(
+                "px-3 py-1 rounded-full text-xs font-medium border transition-colors",
+                stageFilter === stage
+                  ? "bg-primary text-primary-foreground border-primary"
+                  : "bg-background text-muted-foreground border-border hover:text-foreground hover:border-foreground"
+              )}
+            >
+              {FUNNEL_STAGE_META[stage].label}
+            </button>
+          ))}
+        </div>
+
         {filtered.length === 0 ? (
           <div className="text-center py-12 text-muted-foreground">
             <p className="text-sm">No agents found</p>
           </div>
         ) : (
           <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
-            {filtered.map((agent) => {
-              const metric = agentMetrics.find((m) => m.agentId === agent.id);
-              return (
-                <AgentCard
-                  key={agent.id}
-                  agent={agent}
-                  conversionRate={metric?.conversionRate}
-                />
-              );
-            })}
+            {filtered.map((agent) => (
+              <AgentCard
+                key={agent.id}
+                agent={agent}
+              />
+            ))}
           </div>
         )}
       </div>

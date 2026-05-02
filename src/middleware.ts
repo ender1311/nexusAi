@@ -1,9 +1,9 @@
-import { getSessionCookie } from "better-auth/cookies";
-import { NextRequest, NextResponse } from "next/server";
+import { NextRequest, NextResponse, type NextFetchEvent } from "next/server";
+import { authkitProxy } from "@workos-inc/authkit-nextjs";
 
 const PUBLIC_PREFIXES = [
   "/login",
-  "/api/auth",
+  "/callback",
   // Service-to-service API routes — use their own API-key / CRON_SECRET auth
   "/api/ingest/",
   "/api/decide",
@@ -15,17 +15,25 @@ function isPublic(pathname: string): boolean {
   return PUBLIC_PREFIXES.some((p) => pathname.startsWith(p));
 }
 
-export function middleware(request: NextRequest) {
+const authProxy = authkitProxy();
+
+export async function middleware(request: NextRequest, event: NextFetchEvent) {
   const { pathname } = request.nextUrl;
 
-  if (isPublic(pathname)) return NextResponse.next();
+  // Redirect unauthenticated users away from protected routes before handing off
+  // to WorkOS proxy. Public routes still go through authProxy so withAuth() works
+  // in the root layout (which renders on every page including /login).
+  const cookieName = process.env.WORKOS_COOKIE_NAME ?? "wos-session";
+  if (!isPublic(pathname) && !request.cookies.has(cookieName)) {
+    // API routes return 401 JSON; page routes redirect to login
+    if (pathname.startsWith("/api/")) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
+    return NextResponse.redirect(new URL("/login", request.url));
+  }
 
-  const session = getSessionCookie(request);
-  if (session) return NextResponse.next();
-
-  const loginUrl = new URL("/login", request.url);
-  loginUrl.searchParams.set("callbackURL", pathname);
-  return NextResponse.redirect(loginUrl);
+  // Always delegate to WorkOS authkit proxy — required for withAuth() to work
+  return authProxy(request, event);
 }
 
 export const config = {

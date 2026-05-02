@@ -1,5 +1,9 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
+import { FUNNEL_STAGES } from "@/types/agent";
+import { isPlainObject } from "@/lib/utils";
+
+const VALID_STAGES = new Set(FUNNEL_STAGES);
 
 export async function GET(_req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
@@ -25,6 +29,15 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
   const { id } = await params;
   try {
     const body = await req.json();
+
+    if (body.funnelStage !== undefined && !VALID_STAGES.has(body.funnelStage)) {
+      return NextResponse.json({ error: "Invalid funnelStage" }, { status: 400 });
+    }
+
+    if (body.targetFilter !== undefined && !isPlainObject(body.targetFilter)) {
+      return NextResponse.json({ error: "targetFilter must be a plain object" }, { status: 400 });
+    }
+
     const agent = await prisma.agent.update({
       where: { id },
       data: {
@@ -33,6 +46,8 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
         status: body.status,
         algorithm: body.algorithm,
         epsilon: body.epsilon,
+        ...(body.funnelStage !== undefined ? { funnelStage: body.funnelStage } : {}),
+        ...(body.targetFilter !== undefined ? { targetFilter: body.targetFilter } : {}),
       },
     });
     return NextResponse.json(agent);

@@ -25,9 +25,9 @@ import { accumulateUserStats } from "@/lib/engine/user-stats";
  */
 
 function verifyAuth(req: NextRequest): boolean {
-  const token = req.headers.get("authorization")?.replace("Bearer ", "");
   const expected = process.env.HIGHTOUCH_API_KEY ?? process.env.INGEST_API_KEY;
-  if (!expected) return true;
+  if (!expected) return false; // Require key to be configured — never open to all
+  const token = req.headers.get("authorization")?.replace("Bearer ", "");
   return token === expected;
 }
 

@@ -1,7 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
 import { detectTestedVariables } from "@/lib/engine/variant-diff";
-import { MessageVariant } from "@/types/agent";
+import { MessageVariant, FUNNEL_STAGES } from "@/types/agent";
+import { isPlainObject } from "@/lib/utils";
 
 export async function GET() {
   try {
@@ -21,6 +22,8 @@ export async function GET() {
   }
 }
 
+const VALID_STAGES = new Set(FUNNEL_STAGES);
+
 export async function POST(req: NextRequest) {
   try {
     const body = await req.json();
@@ -29,7 +32,16 @@ export async function POST(req: NextRequest) {
       goals = [], messages = [],
       frequencyCap, quietStart, quietEnd, timezone,
       smartSuppress, suppressThresh,
+      funnelStage, targetFilter,
     } = body;
+
+    if (!VALID_STAGES.has(funnelStage)) {
+      return NextResponse.json({ error: "Invalid funnelStage" }, { status: 400 });
+    }
+
+    if (targetFilter !== undefined && !isPlainObject(targetFilter)) {
+      return NextResponse.json({ error: "targetFilter must be a plain object" }, { status: 400 });
+    }
 
     const agent = await prisma.agent.create({
       data: {
@@ -38,6 +50,8 @@ export async function POST(req: NextRequest) {
         algorithm: algorithm ?? "thompson",
         epsilon: epsilon ?? 0.1,
         status: "draft",
+        funnelStage,
+        ...(targetFilter !== undefined ? { targetFilter } : {}),
         goals: {
           create: goals.map((g: { eventName: string; tier: string; valueWeight: number; description?: string }) => ({
             eventName: g.eventName,

@@ -7,15 +7,26 @@ datasource db {
   provider = "postgresql"
 }
 
+enum FunnelStage {
+  new
+  lapsed
+  connected
+  activated
+  engaged
+  inspired
+}
+
 model Agent {
-  id          String   @id @default(cuid())
+  id          String      @id @default(cuid())
   name        String
   description String?
-  status      String   @default("draft")
-  algorithm   String   @default("thompson")
-  epsilon     Float    @default(0.1)
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
+  status      String      @default("draft")
+  algorithm   String      @default("thompson")
+  epsilon     Float       @default(0.1)
+  funnelStage FunnelStage @default(connected)
+  targetFilter Json?
+  createdAt   DateTime    @default(now())
+  updatedAt   DateTime    @updatedAt
 
   goals          Goal[]
   messages       Message[]
@@ -129,69 +140,6 @@ model TrackedUser {
 
   @@index([personaId])
   @@map("User")  // keeps the existing DB table — no migration needed for this rename
-}
-
-// ── Better Auth — internal team auth (Google SSO) ────────────────────────────
-
-model User {
-  id            String   @id
-  name          String
-  email         String   @unique
-  emailVerified Boolean
-  image         String?
-  createdAt     DateTime @default(now())
-  updatedAt     DateTime @updatedAt
-
-  sessions Session[]
-  accounts Account[]
-
-  @@map("auth_users")
-}
-
-model Session {
-  id        String   @id
-  expiresAt DateTime
-  token     String   @unique
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-  ipAddress String?
-  userAgent String?
-  userId    String
-
-  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
-
-  @@map("auth_sessions")
-}
-
-model Account {
-  id                    String    @id
-  accountId             String
-  providerId            String
-  userId                String
-  accessToken           String?
-  refreshToken          String?
-  idToken               String?
-  accessTokenExpiresAt  DateTime?
-  refreshTokenExpiresAt DateTime?
-  scope                 String?
-  password              String?
-  createdAt             DateTime  @default(now())
-  updatedAt             DateTime  @updatedAt
-
-  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
-
-  @@map("auth_accounts")
-}
-
-model Verification {
-  id         String   @id
-  identifier String
-  value      String
-  expiresAt  DateTime
-  createdAt  DateTime @default(now())
-  updatedAt  DateTime @updatedAt
-
-  @@map("auth_verifications")
 }
 
 model Persona {

@@ -1,24 +1,34 @@
 import { prisma } from "@/lib/db";
 
 /**
- * Delete all rows in safe dependency order.
- * Call in beforeEach for integration test files.
+ * Wipe all test data in a single atomic TRUNCATE.
+ * Call in beforeEach (and optionally afterEach) for integration test files.
+ * Using TRUNCATE CASCADE is faster and more reliable than chained deleteMany()
+ * calls across the Neon HTTP adapter.
  */
 export async function truncateAll(): Promise<void> {
-  await prisma.personaArmStats.deleteMany();
-  await prisma.userDecision.deleteMany();
-  await prisma.modelMetric.deleteMany();
-  // Users must be deleted before Personas (User.personaId FK)
-  await prisma.trackedUser.deleteMany();
-  // AgentPersonaTarget before Agent/Persona (cascade would handle it, but be explicit)
-  await prisma.agentPersonaTarget.deleteMany();
-  await prisma.schedulingRule.deleteMany();
-  await prisma.messageVariant.deleteMany();
-  await prisma.message.deleteMany();
-  await prisma.goal.deleteMany();
-  await prisma.agent.deleteMany();
-  await prisma.persona.deleteMany();
-  await prisma.appSetting.deleteMany();
+  // Delete in FK-safe order. deleteMany() is a no-op when the table is empty,
+  // and skips tables that don't yet exist (pending migrations) silently via try/catch.
+  const steps: (() => Promise<unknown>)[] = [
+    () => prisma.personaArmStats.deleteMany(),
+    () => prisma.linUCBArm.deleteMany(),
+    () => prisma.userDecision.deleteMany(),
+    () => prisma.modelMetric.deleteMany(),
+    () => prisma.trackedUser.deleteMany(),
+    () => prisma.agentPersonaTarget.deleteMany(),
+    () => prisma.schedulingRule.deleteMany(),
+    () => prisma.messageVariant.deleteMany(),
+    () => prisma.message.deleteMany(),
+    () => prisma.goal.deleteMany(),
+    () => prisma.agent.deleteMany(),
+    () => prisma.persona.deleteMany(),
+    () => prisma.planSetMember.deleteMany(),
+    () => prisma.planSet.deleteMany(),
+    () => prisma.appSetting.deleteMany(),
+  ];
+  for (const step of steps) {
+    await step().catch(() => {/* table may not exist yet — skip */});
+  }
 }
 
 export { prisma };

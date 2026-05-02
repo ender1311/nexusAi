@@ -8,8 +8,7 @@ import { Input } from "@/components/ui/input";
 import { Slider } from "@/components/ui/slider";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
-import { Separator } from "@/components/ui/separator";
-import { CheckCircle2, Eye, EyeOff, Sparkles } from "lucide-react";
+import { CheckCircle2, Sparkles } from "lucide-react";
 
 export default function SettingsPage() {
   const [saved, setSaved] = useState(false);
@@ -17,20 +16,6 @@ export default function SettingsPage() {
   const [discoveryResult, setDiscoveryResult] = useState<null | { ok: boolean; message?: string; k?: number; personasCreated?: number; personasUpdated?: number; usersAssigned?: number; silhouetteScore?: number }>(null);
   const [minInteractions, setMinInteractions] = useState(20);
   const [confidenceThreshold, setConfidenceThreshold] = useState(75);
-  const [showApiKey, setShowApiKey] = useState(false);
-
-  // Braze config
-  const [brazeApiKey, setBrazeApiKey] = useState("");
-  const [brazeRestUrl, setBrazeRestUrl] = useState("rest.iad-01.braze.com");
-  const [brazeAndroidAppId, setBrazeAndroidAppId] = useState("");
-  const [brazeIosAppId, setBrazeIosAppId] = useState("");
-  const [brazeWebAppId, setBrazeWebAppId] = useState("");
-  const [brazeAppGroupId, setBrazeAppGroupId] = useState("");
-
-  // BigQuery config
-  const [bqProjectId, setBqProjectId] = useState("");
-  const [bqDataset, setBqDataset] = useState("");
-  const [bqCredentialsPath, setBqCredentialsPath] = useState("");
 
   // Global defaults
   const [defaultFreqCap, setDefaultFreqCap] = useState(3);
@@ -61,15 +46,6 @@ export default function SettingsPage() {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
-        braze_api_key: brazeApiKey,
-        braze_rest_url: brazeRestUrl,
-        braze_android_app_id: brazeAndroidAppId,
-        braze_ios_app_id: brazeIosAppId,
-        braze_web_app_id: brazeWebAppId,
-        braze_app_group_id: brazeAppGroupId,
-        bigquery_project_id: bqProjectId,
-        bigquery_dataset: bqDataset,
-        bigquery_credentials_path: bqCredentialsPath,
         default_frequency_cap: String(defaultFreqCap),
         default_frequency_period: defaultPeriod,
         default_quiet_start: defaultQuietStart,
@@ -84,111 +60,6 @@ export default function SettingsPage() {
     <>
       <Header title="Settings" description="Platform configuration" />
       <div className="p-6 max-w-2xl space-y-6">
-        {/* Braze */}
-        <Card>
-          <CardHeader>
-            <div className="flex items-center justify-between">
-              <CardTitle className="text-sm font-semibold">Braze Configuration</CardTitle>
-              <Badge variant="outline" className="text-xs">REST API</Badge>
-            </div>
-          </CardHeader>
-          <CardContent className="space-y-3">
-            <div>
-              <label className="text-xs font-medium text-muted-foreground">API Key</label>
-              <div className="flex gap-2 mt-1">
-                <Input
-                  type={showApiKey ? "text" : "password"}
-                  placeholder="Your Braze REST API key"
-                  value={brazeApiKey}
-                  onChange={(e) => setBrazeApiKey(e.target.value)}
-                  className="flex-1 font-mono"
-                />
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  className="px-3"
-                  onClick={() => setShowApiKey(!showApiKey)}
-                >
-                  {showApiKey ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
-                </Button>
-              </div>
-            </div>
-            <div>
-              <label className="text-xs font-medium text-muted-foreground">REST Endpoint URL</label>
-              <Input
-                className="mt-1"
-                placeholder="rest.iad-01.braze.com"
-                value={brazeRestUrl}
-                onChange={(e) => setBrazeRestUrl(e.target.value)}
-              />
-              <p className="text-xs text-muted-foreground mt-1">
-                See your Braze dashboard for the correct endpoint (e.g. rest.iad-01.braze.com)
-              </p>
-            </div>
-            <Separator />
-            <div className="grid grid-cols-2 gap-3">
-              <div>
-                <label className="text-xs font-medium text-muted-foreground">Android App ID</label>
-                <Input className="mt-1" placeholder="BRAZE_ANDROID_APP_ID" value={brazeAndroidAppId} onChange={(e) => setBrazeAndroidAppId(e.target.value)} />
-              </div>
-              <div>
-                <label className="text-xs font-medium text-muted-foreground">iOS App ID</label>
-                <Input className="mt-1" placeholder="BRAZE_IOS_APP_ID" value={brazeIosAppId} onChange={(e) => setBrazeIosAppId(e.target.value)} />
-              </div>
-              <div>
-                <label className="text-xs font-medium text-muted-foreground">Web App ID</label>
-                <Input className="mt-1" placeholder="BRAZE_WEB_APP_ID" value={brazeWebAppId} onChange={(e) => setBrazeWebAppId(e.target.value)} />
-              </div>
-              <div>
-                <label className="text-xs font-medium text-muted-foreground">App Group ID</label>
-                <Input className="mt-1" placeholder="BRAZE_APP_GROUP_ID" value={brazeAppGroupId} onChange={(e) => setBrazeAppGroupId(e.target.value)} />
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-
-        {/* BigQuery */}
-        <Card>
-          <CardHeader>
-            <div className="flex items-center justify-between">
-              <CardTitle className="text-sm font-semibold">BigQuery Configuration</CardTitle>
-              <Badge variant="outline" className="text-xs">User Data</Badge>
-            </div>
-          </CardHeader>
-          <CardContent className="space-y-3">
-            <div>
-              <label className="text-xs font-medium text-muted-foreground">GCP Project ID</label>
-              <Input
-                className="mt-1"
-                placeholder="my-gcp-project"
-                value={bqProjectId}
-                onChange={(e) => setBqProjectId(e.target.value)}
-              />
-            </div>
-            <div>
-              <label className="text-xs font-medium text-muted-foreground">Dataset</label>
-              <Input
-                className="mt-1"
-                placeholder="analytics_dataset"
-                value={bqDataset}
-                onChange={(e) => setBqDataset(e.target.value)}
-              />
-            </div>
-            <div>
-              <label className="text-xs font-medium text-muted-foreground">Service Account Credentials Path</label>
-              <Input
-                className="mt-1"
-                placeholder="/path/to/service-account.json"
-                value={bqCredentialsPath}
-                onChange={(e) => setBqCredentialsPath(e.target.value)}
-              />
-              <p className="text-xs text-muted-foreground mt-1">
-                Path to a JSON service account key file with BigQuery read access
-              </p>
-            </div>
-          </CardContent>
-        </Card>
-
         {/* Global Defaults */}
         <Card>
           <CardHeader>
