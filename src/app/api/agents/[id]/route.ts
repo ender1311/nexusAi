@@ -1,11 +1,9 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
+import { FUNNEL_STAGES } from "@/types/agent";
+import { isPlainObject } from "@/lib/utils";
 
-const VALID_STAGES = new Set(["new", "lapsed", "connected", "activated", "engaged", "inspired"]);
-
-function isPlainObject(value: unknown): value is Record<string, unknown> {
-  return typeof value === "object" && value !== null && !Array.isArray(value);
-}
+const VALID_STAGES = new Set(FUNNEL_STAGES);
 
 export async function GET(_req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;

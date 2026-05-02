@@ -1,26 +1,32 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import Link from "next/link";
 import { Header } from "@/components/layout/header";
 import { AgentCard } from "@/components/agents/agent-card";
 import { AgentStatusBadge } from "@/components/agents/agent-status-badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { mockAgents } from "@/lib/mock/agents";
-import { agentMetrics } from "@/lib/mock/metrics";
-import { AgentStatus, FunnelStage, FUNNEL_STAGES, FUNNEL_STAGE_META } from "@/types/agent";
+import { AgentStatus, FunnelStage, FUNNEL_STAGES, FUNNEL_STAGE_META, Agent } from "@/types/agent";
 import { Plus, Search } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 const STATUS_FILTERS: Array<AgentStatus | "all"> = ["all", "active", "paused", "draft"];
 
 export default function AgentsPage() {
+  const [agents, setAgents] = useState<Agent[]>([]);
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState<AgentStatus | "all">("all");
   const [stageFilter, setStageFilter] = useState<FunnelStage | null>(null);
 
-  const filtered = mockAgents.filter((a) => {
+  useEffect(() => {
+    fetch("/api/agents")
+      .then((res) => res.json())
+      .then((data: Agent[]) => setAgents(Array.isArray(data) ? data : []))
+      .catch((err) => console.error("Failed to fetch agents:", err));
+  }, []);
+
+  const filtered = agents.filter((a) => {
     const matchSearch = a.name.toLowerCase().includes(search.toLowerCase()) ||
       a.description?.toLowerCase().includes(search.toLowerCase());
     const matchStatus = statusFilter === "all" || a.status === statusFilter;
@@ -92,16 +98,12 @@ export default function AgentsPage() {
           </div>
         ) : (
           <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
-            {filtered.map((agent) => {
-              const metric = agentMetrics.find((m) => m.agentId === agent.id);
-              return (
-                <AgentCard
-                  key={agent.id}
-                  agent={agent}
-                  conversionRate={metric?.conversionRate}
-                />
-              );
-            })}
+            {filtered.map((agent) => (
+              <AgentCard
+                key={agent.id}
+                agent={agent}
+              />
+            ))}
           </div>
         )}
       </div>

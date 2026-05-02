@@ -108,7 +108,7 @@ export async function POST(req: NextRequest) {
     // concurrent decideForUser calls don't race on the upsert.
     const allVariantIds = agent.messages.flatMap((m) => m.variants.map((v) => v.id));
     const initialAlpha = agent.algorithm === "thompson" ? 1 : 0;
-    const initialBeta  = agent.algorithm === "thompson" ? 1 : 0;
+    const initialBeta  = agent.algorithm === "thompson" ? 30 : 0;
     for (const personaId of personaIds) {
       for (const variantId of allVariantIds) {
         await prisma.personaArmStats.upsert({
