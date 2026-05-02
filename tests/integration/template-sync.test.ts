@@ -4,6 +4,7 @@ import { truncateAll, prisma } from "../helpers/db";
 import { createAgent, createMessage, createVariant } from "../helpers/builders";
 import { PATCH } from "@/app/api/variants/[id]/route";
 import { buildRequest } from "../helpers/request";
+import { GET as syncCron } from "@/app/api/cron/sync-template-variants/route";
 
 const LIBRARY_AGENT_NAME = "__push-copy-library__";
 
@@ -102,5 +103,71 @@ describe("PATCH /api/variants/[id]", () => {
 
     const c2After = await prisma.messageVariant.findUnique({ where: { id: clone2.id } });
     expect(c2After!.title).toBe("updated title");
+  });
+});
+
+describe("GET /api/cron/sync-template-variants", () => {
+  beforeEach(async () => {
+    process.env.CRON_SECRET = "test_cron_secret";
+  });
+  afterEach(async () => {
+    delete process.env.CRON_SECRET;
+  });
+
+  it("returns 401 without CRON_SECRET", async () => {
+    delete process.env.CRON_SECRET;
+    const req = new Request("http://localhost/api/cron/sync-template-variants") as NextRequest;
+    const res = await syncCron(req);
+    expect(res.status).toBe(401);
+  });
+
+  it("corrects drifted clones and reports counts", async () => {
+    const libAgent = await createAgent({ name: LIBRARY_AGENT_NAME, status: "draft" });
+    const libMsg = await createMessage(libAgent.id);
+    const template = await createVariant(libMsg.id, {
+      name: "Tmpl",
+      title: "canonical title",
+      body: "canonical body",
+      deeplink: "youversion://bible",
+      category: "general",
+    });
+
+    const agent = await createAgent();
+    const msg = await createMessage(agent.id);
+    // Clone with drifted title (simulate direct DB edit)
+    const clone = await createVariant(msg.id, {
+      name: "Clone",
+      title: "drifted title",   // should be corrected
+      body: "canonical body",
+      sourceTemplateId: template.id,
+    });
+
+    const req = new Request("http://localhost/api/cron/sync-template-variants", {
+      headers: { Authorization: "Bearer test_cron_secret" },
+    }) as NextRequest;
+    const res = await syncCron(req);
+    const body = await res.json();
+
+    expect(res.status).toBe(200);
+    expect(body.templatesChecked).toBe(1);
+    expect(body.clonesUpdated).toBe(1);
+
+    const cloneAfter = await prisma.messageVariant.findUnique({ where: { id: clone.id } });
+    expect(cloneAfter!.title).toBe("canonical title");
+  });
+
+  it("returns 0 clonesUpdated when no drift exists", async () => {
+    const libAgent = await createAgent({ name: LIBRARY_AGENT_NAME, status: "draft" });
+    const libMsg = await createMessage(libAgent.id);
+    await createVariant(libMsg.id, { name: "Tmpl", category: "general" }); // no clones
+
+    const req = new Request("http://localhost/api/cron/sync-template-variants", {
+      headers: { Authorization: "Bearer test_cron_secret" },
+    }) as NextRequest;
+    const res = await syncCron(req);
+    const body = await res.json();
+
+    expect(res.status).toBe(200);
+    expect(body.clonesUpdated).toBe(0);
   });
 });
