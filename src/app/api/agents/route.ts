@@ -21,6 +21,12 @@ export async function GET() {
   }
 }
 
+const VALID_STAGES = new Set(["new", "lapsed", "connected", "activated", "engaged", "inspired"]);
+
+function isPlainObject(value: unknown): value is Record<string, unknown> {
+  return typeof value === "object" && value !== null && !Array.isArray(value);
+}
+
 export async function POST(req: NextRequest) {
   try {
     const body = await req.json();
@@ -29,7 +35,16 @@ export async function POST(req: NextRequest) {
       goals = [], messages = [],
       frequencyCap, quietStart, quietEnd, timezone,
       smartSuppress, suppressThresh,
+      funnelStage, targetFilter,
     } = body;
+
+    if (!VALID_STAGES.has(funnelStage)) {
+      return NextResponse.json({ error: "Invalid funnelStage" }, { status: 400 });
+    }
+
+    if (targetFilter !== undefined && !isPlainObject(targetFilter)) {
+      return NextResponse.json({ error: "targetFilter must be a plain object" }, { status: 400 });
+    }
 
     const agent = await prisma.agent.create({
       data: {
@@ -38,6 +53,8 @@ export async function POST(req: NextRequest) {
         algorithm: algorithm ?? "thompson",
         epsilon: epsilon ?? 0.1,
         status: "draft",
+        funnelStage,
+        ...(targetFilter !== undefined ? { targetFilter } : {}),
         goals: {
           create: goals.map((g: { eventName: string; tier: string; valueWeight: number; description?: string }) => ({
             eventName: g.eventName,

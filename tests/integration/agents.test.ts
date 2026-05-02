@@ -21,6 +21,7 @@ describe("POST /api/agents", () => {
       name: "Test Campaign",
       algorithm: "thompson",
       epsilon: 0.1,
+      funnelStage: "connected",
       goals: [],
       messages: [],
     });
@@ -91,5 +92,104 @@ describe("PATCH /api/agents/[id]", () => {
     const body = await res.json();
     expect(res.status).toBe(200);
     expect(body.status).toBe("active");
+  });
+
+  it("updates funnelStage to a different valid value", async () => {
+    const agent = await prisma.agent.create({ data: { name: "Stage Agent", algorithm: "thompson", epsilon: 0.1 } });
+    const req = buildRequest("PATCH", { funnelStage: "engaged" });
+    const res = await patchAgent(req as NextRequest, { params: Promise.resolve({ id: agent.id }) });
+    const body = await res.json();
+    expect(res.status).toBe(200);
+    expect(body.funnelStage).toBe("engaged");
+  });
+
+  it("returns 400 for invalid funnelStage", async () => {
+    const agent = await prisma.agent.create({ data: { name: "Stage Agent", algorithm: "thompson", epsilon: 0.1 } });
+    const req = buildRequest("PATCH", { funnelStage: "badstage" });
+    const res = await patchAgent(req as NextRequest, { params: Promise.resolve({ id: agent.id }) });
+    const body = await res.json();
+    expect(res.status).toBe(400);
+    expect(body.error).toBe("Invalid funnelStage");
+  });
+
+  it("returns 400 for invalid targetFilter (array)", async () => {
+    const agent = await prisma.agent.create({ data: { name: "Filter Agent", algorithm: "thompson", epsilon: 0.1 } });
+    const req = buildRequest("PATCH", { targetFilter: ["not", "an", "object"] });
+    const res = await patchAgent(req as NextRequest, { params: Promise.resolve({ id: agent.id }) });
+    const body = await res.json();
+    expect(res.status).toBe(400);
+    expect(body.error).toBe("targetFilter must be a plain object");
+  });
+
+  it("updates targetFilter when provided as a valid plain object", async () => {
+    const agent = await prisma.agent.create({ data: { name: "Filter Agent", algorithm: "thompson", epsilon: 0.1 } });
+    const filter = { attribute: "country", op: "eq", value: "US" };
+    const req = buildRequest("PATCH", { targetFilter: filter });
+    const res = await patchAgent(req as NextRequest, { params: Promise.resolve({ id: agent.id }) });
+    const body = await res.json();
+    expect(res.status).toBe(200);
+    expect(body.targetFilter).toEqual(filter);
+  });
+});
+
+describe("POST /api/agents — funnelStage + targetFilter", () => {
+  it("creates agent with valid funnelStage and targetFilter, round-trips both fields", async () => {
+    const filter = { attribute: "country", op: "eq", value: "US" };
+    const req = buildRequest("POST", {
+      name: "Staged Agent",
+      algorithm: "thompson",
+      epsilon: 0.1,
+      funnelStage: "lapsed",
+      targetFilter: filter,
+      goals: [],
+      messages: [],
+    });
+    const res = await postAgent(req as NextRequest);
+    const body = await res.json();
+    expect(res.status).toBe(201);
+    expect(body.funnelStage).toBe("lapsed");
+    expect(body.targetFilter).toEqual(filter);
+  });
+
+  it("returns 400 for invalid funnelStage", async () => {
+    const req = buildRequest("POST", {
+      name: "Bad Stage Agent",
+      algorithm: "thompson",
+      funnelStage: "unknown",
+      goals: [],
+      messages: [],
+    });
+    const res = await postAgent(req as NextRequest);
+    const body = await res.json();
+    expect(res.status).toBe(400);
+    expect(body.error).toBe("Invalid funnelStage");
+  });
+
+  it("returns 400 when funnelStage is missing", async () => {
+    const req = buildRequest("POST", {
+      name: "No Stage Agent",
+      algorithm: "thompson",
+      goals: [],
+      messages: [],
+    });
+    const res = await postAgent(req as NextRequest);
+    const body = await res.json();
+    expect(res.status).toBe(400);
+    expect(body.error).toBe("Invalid funnelStage");
+  });
+
+  it("returns 400 for invalid targetFilter (array) on POST", async () => {
+    const req = buildRequest("POST", {
+      name: "Bad Filter Agent",
+      algorithm: "thompson",
+      funnelStage: "connected",
+      targetFilter: [1, 2, 3],
+      goals: [],
+      messages: [],
+    });
+    const res = await postAgent(req as NextRequest);
+    const body = await res.json();
+    expect(res.status).toBe(400);
+    expect(body.error).toBe("targetFilter must be a plain object");
   });
 });
