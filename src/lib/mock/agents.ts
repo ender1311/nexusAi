@@ -8,6 +8,7 @@ export const mockAgents: Agent[] = [
     status: "active",
     algorithm: "thompson",
     epsilon: 0.1,
+    funnelStage: "connected",
     createdAt: new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString(),
     updatedAt: new Date(Date.now() - 2 * 60 * 60 * 1000).toISOString(),
     goals: [
@@ -61,6 +62,7 @@ export const mockAgents: Agent[] = [
     status: "active",
     algorithm: "contextual",
     epsilon: 0.15,
+    funnelStage: "lapsed",
     createdAt: new Date(Date.now() - 45 * 24 * 60 * 60 * 1000).toISOString(),
     updatedAt: new Date(Date.now() - 1 * 60 * 60 * 1000).toISOString(),
     goals: [
@@ -102,6 +104,7 @@ export const mockAgents: Agent[] = [
     status: "active",
     algorithm: "epsilon_greedy",
     epsilon: 0.2,
+    funnelStage: "engaged",
     createdAt: new Date(Date.now() - 20 * 24 * 60 * 60 * 1000).toISOString(),
     updatedAt: new Date(Date.now() - 30 * 60 * 1000).toISOString(),
     goals: [
@@ -141,6 +144,7 @@ export const mockAgents: Agent[] = [
     status: "draft",
     algorithm: "thompson",
     epsilon: 0.1,
+    funnelStage: "lapsed",
     createdAt: new Date(Date.now() - 5 * 24 * 60 * 60 * 1000).toISOString(),
     updatedAt: new Date(Date.now() - 5 * 24 * 60 * 60 * 1000).toISOString(),
     goals: [],

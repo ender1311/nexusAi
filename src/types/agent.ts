@@ -1,3 +1,18 @@
+export type FunnelStage = "new" | "lapsed" | "connected" | "activated" | "engaged" | "inspired";
+
+export const FUNNEL_STAGES: FunnelStage[] = [
+  "new", "lapsed", "connected", "activated", "engaged", "inspired",
+];
+
+export const FUNNEL_STAGE_META: Record<FunnelStage, { label: string; description: string }> = {
+  new:       { label: "New",       description: "First installed < 28 days ago" },
+  lapsed:    { label: "Lapsed",    description: "Last app use > 28 days ago" },
+  connected: { label: "Connected", description: "MAU — monthly active users" },
+  activated: { label: "Activated", description: "WAU — weekly/daily active users" },
+  engaged:   { label: "Engaged",   description: "DEU — active 4+ days/week" },
+  inspired:  { label: "Inspired",  description: "Givers & evangelists" },
+};
+
 export type AgentStatus = "draft" | "active" | "paused";
 export type Algorithm = "thompson" | "epsilon_greedy" | "contextual";
 
@@ -8,6 +23,8 @@ export interface Agent {
   status: AgentStatus;
   algorithm: Algorithm;
   epsilon: number;
+  funnelStage: FunnelStage;
+  targetFilter?: Record<string, unknown> | null;
   createdAt: string;
   updatedAt: string;
   goals?: Goal[];
