@@ -12,6 +12,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { cn } from "@/lib/utils";
 import { Check, ChevronRight, Bot, Target, MessageSquare, Calendar, Rocket } from "lucide-react";
 import { GoalTier, Channel, FrequencyCap, FunnelStage, FUNNEL_STAGES, FUNNEL_STAGE_META } from "@/types/agent";
+import type { VariantWithMessage } from "@/types/agent";
 import type { Persona } from "@/types/persona";
 import { PersonaSelector } from "@/components/personas/persona-selector";
 import { PersonaBadge } from "@/components/personas/persona-badge";
@@ -68,6 +69,7 @@ interface MessageDraft {
     preferredHour: number | null;
     preferredDayOfWeek: number | null;
     frequencyCapOverride: FrequencyCap | null;
+    sourceTemplateId?: string;
   }>;
 }
 
@@ -129,9 +131,8 @@ export function AgentWizard({ personas }: { personas: Persona[] }) {
     variants: [{ ...emptyVariant(), name: "V1" }],
   });
   // For push channel: selected DB variant options (id, title, body, deeplink, etc.)
-  const [selectedPushVariants, setSelectedPushVariants] = useState<Array<{
-    id: string; name: string; title: string | null; body: string; deeplink: string | null; cta: string | null;
-  }>>([]);
+  const [selectedPushVariants, setSelectedPushVariants] = useState<VariantWithMessage[]>([]);
+  const [selectedCategory, setSelectedCategory] = useState<string>("");
   const [saving, setSaving] = useState(false);
 
   const update = (key: keyof FormData, value: unknown) => setForm((f) => ({ ...f, [key]: value }));
@@ -154,12 +155,14 @@ export function AgentWizard({ personas }: { personas: Persona[] }) {
           body: v.body,
           deeplink: v.deeplink ?? "",
           cta: v.cta ?? "",
+          sourceTemplateId: v.id,   // v.id is the template variant's id — the clone relationship
         }))
       : newMsg.variants;
     if (variantsToSave.length === 0) return;
     update("messages", [...form.messages, { ...newMsg, variants: variantsToSave }]);
     setNewMsg({ name: "", channel: "push", variants: [{ ...emptyVariant(), name: "V1" }] });
     setSelectedPushVariants([]);
+    setSelectedCategory("");
   };
 
   const removeMessage = (i: number) => update("messages", form.messages.filter((_, idx) => idx !== i));
@@ -469,7 +472,11 @@ export function AgentWizard({ personas }: { personas: Persona[] }) {
                 onChange={(e) => setNewMsg((m) => ({ ...m, name: e.target.value }))}
                 className="flex-1"
               />
-              <Select value={newMsg.channel} onValueChange={(v) => { setNewMsg((m) => ({ ...m, channel: v as Channel })); setSelectedPushVariants([]); }}>
+              <Select value={newMsg.channel} onValueChange={(v) => {
+                setNewMsg((m) => ({ ...m, channel: v as Channel }));
+                setSelectedPushVariants([]);
+                setSelectedCategory("");
+              }}>
                 <SelectTrigger className="w-28">
                   <SelectValue />
                 </SelectTrigger>
@@ -481,22 +488,56 @@ export function AgentWizard({ personas }: { personas: Persona[] }) {
               </Select>
             </div>
             {newMsg.channel === "push" ? (
-              <div className="pt-2 border-t space-y-2">
-                <p className="text-xs font-medium text-muted-foreground">Select approved push variants</p>
-                <PushVariantPicker
-                  selectedVariantIds={selectedPushVariants.map((v) => v.id)}
-                  onToggle={(v) => {
-                    setSelectedPushVariants((prev) => {
-                      const exists = prev.some((p) => p.id === v.id);
-                      return exists ? prev.filter((p) => p.id !== v.id) : [...prev, v];
-                    });
-                  }}
-                />
-                {selectedPushVariants.length > 0 && (
-                  <p className="text-xs text-green-700 font-medium">
-                    {selectedPushVariants.length} variant(s) selected
-                  </p>
-                )}
+              <div className="pt-2 border-t space-y-3">
+                <div>
+                  <p className="text-xs font-medium text-muted-foreground mb-2">Destination</p>
+                  <div className="flex gap-2 flex-wrap">
+                    {(["bible-verse", "guided-scripture", "plans", "general"] as const).map((cat) => {
+                      const labels: Record<string, string> = {
+                        "bible-verse": "Bible Verse",
+                        "guided-scripture": "Guided Scripture",
+                        "plans": "Plans",
+                        "general": "General",
+                      };
+                      return (
+                        <button
+                          key={cat}
+                          type="button"
+                          onClick={() => {
+                            setSelectedCategory(cat);
+                            setSelectedPushVariants([]);
+                          }}
+                          className={cn(
+                            "px-3 py-1.5 rounded-full text-xs font-medium border transition-colors",
+                            selectedCategory === cat
+                              ? "border-primary bg-primary text-primary-foreground"
+                              : "border-border bg-background hover:border-primary/50"
+                          )}
+                        >
+                          {labels[cat]}
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
+                <div>
+                  <p className="text-xs font-medium text-muted-foreground mb-2">Select approved push variants</p>
+                  <PushVariantPicker
+                    selectedVariantIds={selectedPushVariants.map((v) => v.id)}
+                    category={selectedCategory || undefined}
+                    onToggle={(v) => {
+                      setSelectedPushVariants((prev) => {
+                        const exists = prev.some((p) => p.id === v.id);
+                        return exists ? prev.filter((p) => p.id !== v.id) : [...prev, v];
+                      });
+                    }}
+                  />
+                  {selectedPushVariants.length > 0 && (
+                    <p className="text-xs text-green-700 font-medium">
+                      {selectedPushVariants.length} variant(s) selected
+                    </p>
+                  )}
+                </div>
               </div>
             ) : (
               <>

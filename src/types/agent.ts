@@ -98,6 +98,11 @@ export interface MessageVariant {
   createdAt: string;
 }
 
+/** MessageVariant as returned by GET /api/variants (includes the message join shape). */
+export type VariantWithMessage = MessageVariant & {
+  message: { channel: string; name: string };
+};
+
 export interface SchedulingRule {
   id: string;
   agentId: string;
