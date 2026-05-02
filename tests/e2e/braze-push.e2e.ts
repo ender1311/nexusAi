@@ -1,7 +1,8 @@
 /**
  * E2E Braze Push Test Suite
  *
- * Runs 6 real scenarios end-to-end: decide → Braze push → conversion loop.
+ * Runs 12 real scenarios end-to-end: decide → Braze push → conversion loop,
+ * plus deep-link delivery tests for Bible verses, Guided Scripture, and Plans.
  * Sends actual push notifications to the named test user on their personal device.
  *
  * Test users:
@@ -20,7 +21,7 @@ config({ path: ".env.local.braze", override: true });
 
 import { prisma } from "@/lib/db";
 import { decideForUser } from "@/lib/decide";
-import { BrazeClient, createBrazeClient } from "@/lib/braze/client";
+import { createBrazeClient } from "@/lib/braze/client";
 import { PayloadFactory } from "@/lib/braze/payload-factory";
 
 // ─── Test user ───────────────────────────────────────────────────────────────
@@ -36,10 +37,11 @@ async function sendPush(
   externalUserId: string,
   title: string,
   body: string,
-  brazeVariantId?: string | null
+  brazeVariantId?: string | null,
+  deeplink?: string
 ): Promise<{ ok: boolean; status: number; body: unknown }> {
   const payload = factory.buildPushPayload(
-    { title, body },
+    { title, body, deeplink },
     { externalUserIds: [externalUserId] },
     undefined,
     undefined,
@@ -242,7 +244,7 @@ async function scenario5_thompsonTwoVariants() {
   });
   agentIds.push(agent.id);
   const vA = await makeVariant(agent.id, "S5-A", "🔥 Streak alert!", "Don't break your streak — read today.");
-  const vB = await makeVariant(agent.id, "S5-B", "📿 Moment of peace", "Take 2 minutes for a Bible verse right now.");
+  await makeVariant(agent.id, "S5-B", "📿 Moment of peace", "Take 2 minutes for a Bible verse right now.");
 
   const result = await decideForUser({ agentId: agent.id, externalUserId: TEST_USER.externalUserId });
 
@@ -348,6 +350,106 @@ async function scenario6_conversionLoop(s1AgentId?: string) {
   }
 }
 
+// ─── Deep-link scenarios ──────────────────────────────────────────────────────
+//
+// Copy sourced from docs/push-copy-inventory.md (approved variants A–D + lapsing plans).
+// Deep-links sourced from docs/deeplinks.md (verified inventory).
+//
+// Bible verse links (3):
+//   S7 — youversion://bible          (native reader, last position — safest for re-engagement)
+//   S8 — bible.com/bible/…/JHN.3.16  (Braze Liquid preferred version — John 3:16)
+//   S9 — bible.com/bible/1/PSA.23.1  (KJV/version 1 — Psalm 23:1, named passage)
+// Guided Scripture (1):
+//   S10 — bible.com/stories
+// Plans (2):
+//   S11 — bible.com/reading-plans    (plans discovery / upsell)
+//   S12 — bible.com/my-plans         (user's active plans)
+
+async function scenario7_bibleVerseNative() {
+  console.log("\nScenario 7 — Bible verse deep-link: youversion://bible (native reader)");
+  // Variant A copy: habit/consistency theme
+  const send = await sendPush(
+    TEST_USER.externalUserId,
+    "Growth is not about perfection…",
+    "It's about consistency ➡️",
+    null,
+    "youversion://bible"
+  );
+  if (send.ok) pass("Braze push sent — native Bible reader deep-link", `status ${send.status}`);
+  else fail("Braze push failed", JSON.stringify(send.body));
+}
+
+async function scenario8_bibleVerseJohn316() {
+  console.log("\nScenario 8 — Bible verse deep-link: John 3:16 (Braze Liquid preferred version)");
+  // Variant B copy: VOTD/listening theme — deeplink to John 3:16 with user's preferred version
+  const deeplink = "https://www.bible.com/bible/{{custom_attribute.${preferred_bible_version_id} | default: 1}}/JHN.3.16";
+  const send = await sendPush(
+    TEST_USER.externalUserId,
+    "👂 Listen to God today",
+    "Reflect on the Verse of the Day ➡️",
+    null,
+    deeplink
+  );
+  if (send.ok) pass("Braze push sent — John 3:16 deep-link (Liquid version)", `status ${send.status}`);
+  else fail("Braze push failed", JSON.stringify(send.body));
+}
+
+async function scenario9_bibleVersePsalm23() {
+  console.log("\nScenario 9 — Bible verse deep-link: Psalm 23:1 (KJV)");
+  // Variant D copy: personalized/next-step theme — deeplink to Psalm 23:1 in KJV (version 1)
+  const send = await sendPush(
+    TEST_USER.externalUserId,
+    "{{${first_name} | default: \"friend\"}}, what's your next step?",
+    "Spend time with Him in the Bible App today.",
+    null,
+    "https://www.bible.com/bible/1/PSA.23.1"
+  );
+  if (send.ok) pass("Braze push sent — Psalm 23:1 (KJV) deep-link", `status ${send.status}`);
+  else fail("Braze push failed", JSON.stringify(send.body));
+}
+
+async function scenario10_guidedScripture() {
+  console.log("\nScenario 10 — Guided Scripture deep-link: bible.com/stories");
+  // Variant C copy: prayer/pause theme — deeplink to Today's Guided Scripture
+  const send = await sendPush(
+    TEST_USER.externalUserId,
+    "⏸️ Pause with God",
+    "Take a moment with Him today…",
+    null,
+    "https://www.bible.com/stories"
+  );
+  if (send.ok) pass("Braze push sent — Guided Scripture deep-link", `status ${send.status}`);
+  else fail("Braze push failed", JSON.stringify(send.body));
+}
+
+async function scenario11_plansDiscovery() {
+  console.log("\nScenario 11 — Plans deep-link: bible.com/reading-plans (discovery)");
+  // Lapsing-plans copy: completion/momentum/upsell theme
+  const send = await sendPush(
+    TEST_USER.externalUserId,
+    "Congrats! You completed a Plan!",
+    "Choose another Plan and keep your momentum going.",
+    null,
+    "https://www.bible.com/reading-plans"
+  );
+  if (send.ok) pass("Braze push sent — Plans discovery deep-link", `status ${send.status}`);
+  else fail("Braze push failed", JSON.stringify(send.body));
+}
+
+async function scenario12_myActivePlans() {
+  console.log("\nScenario 12 — Plans deep-link: bible.com/my-plans (active plans)");
+  // Resume prompt: re-engagement for users mid-plan
+  const send = await sendPush(
+    TEST_USER.externalUserId,
+    "Who do you want to be?",
+    "Here's what happens when you spend time with God ➡️",
+    null,
+    "https://www.bible.com/my-plans"
+  );
+  if (send.ok) pass("Braze push sent — My Plans deep-link", `status ${send.status}`);
+  else fail("Braze push failed", JSON.stringify(send.body));
+}
+
 // ─── Main ─────────────────────────────────────────────────────────────────────
 
 console.log(`\n🧪 Nexus E2E Braze Push Test Suite`);
@@ -374,6 +476,15 @@ try {
   await scenario4_lapsedFunnelStage();
   await scenario5_thompsonTwoVariants();
   await scenario6_conversionLoop(s1AgentId);
+
+  // Deep-link scenarios — no DB agents needed (direct Braze sends)
+  console.log("\n─── Deep-link scenarios ───────────────────────────────────────");
+  await scenario7_bibleVerseNative();
+  await scenario8_bibleVerseJohn316();
+  await scenario9_bibleVersePsalm23();
+  await scenario10_guidedScripture();
+  await scenario11_plansDiscovery();
+  await scenario12_myActivePlans();
 } finally {
   console.log("\n🧹 Cleaning up E2E test agents...");
   await cleanup(agentIds);
@@ -385,5 +496,5 @@ console.log("\n─────────────────────�
 if (process.exitCode) {
   console.log("❌ Some scenarios failed — see above.");
 } else {
-  console.log("✅ All 6 E2E scenarios passed.");
+  console.log("✅ All 12 E2E scenarios passed.");
 }
