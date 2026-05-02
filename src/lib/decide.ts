@@ -4,6 +4,7 @@ import { LinUCB } from "@/lib/engine/lin-ucb";
 import { assignUserToPersona } from "@/lib/engine/persona-assignment";
 import { computeFeatureVector } from "@/lib/engine/feature-vector";
 import { FEATURE_DIM } from "@/lib/engine/feature-vector";
+import { evaluateTargetFilter, buildComputedKeys } from "@/lib/engine/target-filter";
 import { prisma } from "@/lib/db";
 import type { BanditArm, LinUCBArm } from "@/lib/engine/types";
 import type { Prisma } from "@/generated/prisma/client";
@@ -124,6 +125,16 @@ export async function decideForUser(input: DecideInput): Promise<DecideResult | 
     personaId = fallback?.id ?? null;
   }
   if (!personaId) return null; // no personas configured
+
+  // 3b. targetFilter check — bail before variant selection
+  if (agent.targetFilter) {
+    const computed = buildComputedKeys(user);
+    const passes = evaluateTargetFilter(agent.targetFilter as Record<string, unknown>, {
+      attributes: user.attributes as Record<string, unknown>,
+      computed,
+    });
+    if (!passes) return null;
+  }
 
   // 4. Scheduling rule checks (skipped when caller has already performed them)
   const rule = agent.schedulingRule;

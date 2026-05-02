@@ -128,6 +128,47 @@ describe("POST /api/decide", () => {
     expect(body.data.reason).toBe("quiet_hours");
   });
 
+  it("returns a decision when targetFilter matches the user", async () => {
+    const persona = await createPersona();
+    const agent = await createAgent({
+      targetFilter: { country__eq: "US" },
+    });
+    const msg = await createMessage(agent.id);
+    await createVariant(msg.id);
+    await createUser("usr_filter_match", {
+      personaId: persona.id,
+      attributes: { country: "US" },
+    });
+    await createSchedulingRule(agent.id);
+
+    const req = buildRequest("POST", { agentId: agent.id, externalUserId: "usr_filter_match" }, AUTH);
+    const res = await POST(req as NextRequest);
+    const body = await res.json();
+
+    expect(res.status).toBe(200);
+    expect(body.data.suppressed).toBeFalsy();
+    expect(body.data.messageVariantId).toBeTruthy();
+  });
+
+  it("returns 404 when targetFilter excludes the user", async () => {
+    const persona = await createPersona();
+    const agent = await createAgent({
+      targetFilter: { country__eq: "US" },
+    });
+    const msg = await createMessage(agent.id);
+    await createVariant(msg.id);
+    await createUser("usr_filter_exclude", {
+      personaId: persona.id,
+      attributes: { country: "CA" },
+    });
+    await createSchedulingRule(agent.id);
+
+    const req = buildRequest("POST", { agentId: agent.id, externalUserId: "usr_filter_exclude" }, AUTH);
+    const res = await POST(req as NextRequest);
+
+    expect(res.status).toBe(404);
+  });
+
   it("falls back to largest active persona when user has no persona", async () => {
     const agent = await createAgent();
     const msg = await createMessage(agent.id);
