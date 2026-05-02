@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
-import { Agent } from "@/types/agent";
+import { Badge } from "@/components/ui/badge";
+import { Agent, FUNNEL_STAGE_META } from "@/types/agent";
 import { AgentStatusBadge } from "./agent-status-badge";
 import { formatNumber } from "@/lib/utils";
 import { MessageSquare, Target, ArrowRight } from "lucide-react";
@@ -27,6 +28,9 @@ export function AgentCard({ agent, conversionRate }: AgentCardProps) {
               {agent.description && (
                 <p className="text-xs text-muted-foreground mt-0.5 line-clamp-2">{agent.description}</p>
               )}
+              <Badge variant="secondary" className="mt-1.5 text-xs font-normal">
+                {FUNNEL_STAGE_META[agent.funnelStage].label} · {FUNNEL_STAGE_META[agent.funnelStage].description}
+              </Badge>
             </div>
             <AgentStatusBadge status={agent.status} />
           </div>
