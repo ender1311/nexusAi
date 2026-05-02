@@ -14,8 +14,9 @@ import { cn } from "@/lib/utils";
 import { TestedVariablesBadges } from "@/components/agents/tested-variables-badges";
 import { VariantDiffTable } from "@/components/agents/variant-diff-table";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
-import { TestedVariable, MessageVariant, AgentStatus } from "@/types/agent";
+import { TestedVariable, MessageVariant, AgentStatus, FunnelStage } from "@/types/agent";
 import { prisma } from "@/lib/db";
+import { AgentFunnelConfig } from "@/components/agents/agent-funnel-config";
 
 const TIER_COLORS: Record<string, string> = {
   best: "bg-green-100 text-green-700 border-green-200",
@@ -356,6 +357,24 @@ export default async function AgentDetailPage({ params }: { params: Promise<{ id
                     No target personas configured.
                   </p>
                 )}
+              </CardContent>
+            </Card>
+            <Card>
+              <CardHeader>
+                <CardTitle className="text-sm font-semibold">Funnel Stage &amp; Targeting</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <AgentFunnelConfig
+                  agentId={agent.id}
+                  funnelStage={agent.funnelStage as FunnelStage}
+                  targetFilter={
+                    agent.targetFilter !== null &&
+                    typeof agent.targetFilter === "object" &&
+                    !Array.isArray(agent.targetFilter)
+                      ? (agent.targetFilter as Record<string, unknown>)
+                      : null
+                  }
+                />
               </CardContent>
             </Card>
           </TabsContent>
