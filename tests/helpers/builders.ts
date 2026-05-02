@@ -60,6 +60,9 @@ export async function createVariant(
     title?: string | null;
     brazeVariantId?: string | null;
     status?: string;
+    deeplink?: string | null;
+    category?: string | null;
+    sourceTemplateId?: string | null;
   } = {}
 ) {
   return prisma.messageVariant.create({

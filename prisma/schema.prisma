@@ -79,6 +79,8 @@ model MessageVariant {
   preferredDayOfWeek   Int?
   frequencyCapOverride Json?
   warmupUntil          DateTime?
+  category             String?
+  sourceTemplateId     String?
   // Semantic descriptor of the message — enables oracle generalization across variants
   // { tone: "empathy"|"urgency"|"question"|"milestone", hasPersonalization: bool,
   //   ctaType: "button"|"link"|"deeplink", messageLengthBucket: "short"|"medium"|"long" }
