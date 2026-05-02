@@ -13,9 +13,6 @@
  * Idempotent: safe to run multiple times.
  */
 
-import { config } from "dotenv";
-config({ path: ".env.local", override: true });
-
 import { prisma } from "../src/lib/db";
 
 const LIBRARY_AGENT_NAME = "__push-copy-library__";
