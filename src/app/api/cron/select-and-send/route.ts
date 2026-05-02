@@ -59,7 +59,7 @@ export async function POST(req: NextRequest) {
     const personaIds = agent.personaTargets.map((pt) => pt.personaId);
     if (personaIds.length === 0) continue;
 
-    // Build variant detail lookup: variantId → { channel, body, title, brazeCampaignId, brazeVariantId }
+    // Build variant detail lookup: variantId → { channel, body, title, deeplink, brazeCampaignId, brazeVariantId }
     const variantMeta = new Map<string, {
       channel: string;
       body: string;
