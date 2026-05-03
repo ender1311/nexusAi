@@ -1,3 +1,4 @@
+@import url('https://fonts.googleapis.com/css2?family=Newsreader:ital,wght@0,400;0,500;0,600;1,400;1,500&family=Playfair+Display:ital,wght@1,400;1,600;1,700&display=swap');
 @import "tailwindcss";
 @import "tw-animate-css";
 @import "shadcn/tailwind.css";
@@ -48,6 +49,10 @@
 }
 
 :root {
+  /* Editorial type families */
+  --font-serif: 'Newsreader', 'Untitled Serif', Georgia, 'Times New Roman', serif;
+  --font-display-italic: 'Playfair Display', 'Denton', Georgia, serif;
+
   /* YouVersion brand colors */
   --yv-red: #ff3d4d;
   --yv-red-dark: #e6323f;
