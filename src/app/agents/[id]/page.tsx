@@ -8,7 +8,6 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { PERSONA_COLORS, PERSONA_ICON_MAP } from "@/lib/mock/personas";
 import { Target, MessageSquare, Calendar, BarChart3, Settings, Play, Pause, Users2, GitCompare } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { TestedVariablesBadges } from "@/components/agents/tested-variables-badges";
@@ -449,37 +448,20 @@ export default async function AgentDetailPage({ params }: { params: Promise<{ id
                 <CardTitle className="text-sm font-semibold">Target Personas</CardTitle>
               </CardHeader>
               <CardContent>
-                {agent.personaTargets.length > 0 ? (
-                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
-                    {agent.personaTargets.map(({ persona }) => {
-                      const colors = PERSONA_COLORS[persona.color] ?? PERSONA_COLORS.blue;
-                      const Icon = PERSONA_ICON_MAP[persona.icon];
-                      return (
-                        <div key={persona.id} className={cn("border rounded-lg p-3 space-y-2", colors.border, colors.bg)}>
-                          <div className="flex items-center gap-2">
-                            <div className={cn("h-8 w-8 rounded-full flex items-center justify-center", colors.iconBg)}>
-                              {Icon ? (
-                                <Icon className={cn("h-4 w-4", colors.text)} />
-                              ) : (
-                                <span className={cn("text-xs font-bold", colors.text)}>
-                                  {persona.name.slice(0, 2).toUpperCase()}
-                                </span>
-                              )}
-                            </div>
-                            <div>
-                              <p className="text-sm font-semibold">{persona.name}</p>
-                              <p className={cn("text-xs", colors.text)}>{persona.description?.slice(0, 40)}</p>
-                            </div>
-                          </div>
-                        </div>
-                      );
-                    })}
-                  </div>
-                ) : (
-                  <p className="text-sm text-muted-foreground text-center py-4">
-                    No target personas configured.
-                  </p>
-                )}
+                <PersonaTargetManager
+                  agentId={agent.id}
+                  initialTargets={agent.personaTargets.map((pt) => ({
+                    id: pt.id,
+                    persona: {
+                      id: pt.persona.id,
+                      name: pt.persona.name,
+                      icon: pt.persona.icon,
+                      color: pt.persona.color,
+                      description: pt.persona.description,
+                    },
+                  }))}
+                  allPersonas={allPersonas}
+                />
               </CardContent>
             </Card>
             <Card>
