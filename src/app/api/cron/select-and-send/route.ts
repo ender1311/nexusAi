@@ -28,9 +28,19 @@ type VariantSendGroup = {
   body: string;
   title: string | null;
   deeplink: string | null;
+  inLocalTime?: boolean;
+  scheduledAt?: Date;
   externalUserIds: string[];
   decisionIds: string[];
 };
+
+/** Returns a Date scheduled at the given UTC hour today, or undefined if already past. */
+function computeScheduledAt(preferredHour: number | null, now: Date): Date | undefined {
+  if (preferredHour === null) return undefined;
+  const candidate = new Date(now);
+  candidate.setUTCHours(preferredHour, 0, 0, 0);
+  return candidate > now ? candidate : undefined;
+}
 
 // Local helper to send a batch of users for a variant group.
 // Encapsulates channel switch, payload building, Braze POST, and brazeSendId update.
@@ -58,6 +68,7 @@ async function sendVariantGroup(
         group.brazeCampaignId ?? undefined,
         sendId ?? undefined,
         group.brazeVariantId ?? undefined,
+        group.inLocalTime,
       );
     } else if (group.channel === "email") {
       payload = factory.buildEmailPayload(
@@ -66,6 +77,7 @@ async function sendVariantGroup(
         group.brazeCampaignId ?? undefined,
         sendId ?? undefined,
         group.brazeVariantId ?? undefined,
+        group.inLocalTime,
       );
     } else {
       payload = factory.buildSmsPayload(
@@ -74,10 +86,20 @@ async function sendVariantGroup(
         group.brazeCampaignId ?? undefined,
         sendId ?? undefined,
         group.brazeVariantId ?? undefined,
+        group.inLocalTime,
       );
     }
 
-    const res = await brazeClient!.post("/messages/send", payload);
+    // Route to scheduled endpoint when group has a future send time
+    const endpoint = group.scheduledAt
+      ? "/messages/schedule/create"
+      : "/messages/send";
+
+    if (group.scheduledAt) {
+      payload = { ...payload, schedule: { time: group.scheduledAt.toISOString() } };
+    }
+
+    const res = await brazeClient!.post(endpoint, payload);
     if (res.ok && sendId) {
       await prisma.userDecision.updateMany({
         where: { id: { in: batchDecisionIds } },
@@ -114,6 +136,8 @@ export async function POST(req: NextRequest) {
     update: { value: new Date().toISOString() },
   });
 
+  let cronRunId: string | undefined;
+
   try {
 
   const brazeClient = createBrazeClient();
@@ -138,6 +162,11 @@ export async function POST(req: NextRequest) {
       },
     },
   });
+
+  const cronRun = await prisma.cronRun.create({
+    data: { cronName: "select-and-send", agentCount: agents.length },
+  });
+  cronRunId = cronRun.id;
 
   const now = new Date();   // single timestamp for the entire cron run
   const todayStart = getTodayStartUTC("America/New_York", now);
@@ -317,7 +346,7 @@ export async function POST(req: NextRequest) {
     // If no lottery users and no in-window users, skip agent entirely
     if (lotteryUserIds.length === 0 && !hasInWindowUsers) continue;
 
-    // Build variant detail lookup: variantId → { channel, body, title, deeplink, brazeCampaignId, brazeVariantId }
+    // Build variant detail lookup: variantId → { channel, body, title, deeplink, brazeCampaignId, brazeVariantId, preferredHour }
     const variantMeta = new Map<string, {
       channel: string;
       body: string;
@@ -325,6 +354,7 @@ export async function POST(req: NextRequest) {
       deeplink: string | null;
       brazeCampaignId: string | null;
       brazeVariantId: string | null;
+      preferredHour: number | null;
     }>();
     for (const msg of agent.messages) {
       for (const v of msg.variants) {
@@ -335,6 +365,7 @@ export async function POST(req: NextRequest) {
           deeplink:        v.deeplink ?? null,
           brazeCampaignId: msg.brazeCampaignId ?? null,
           brazeVariantId:  v.brazeVariantId ?? null,
+          preferredHour:   v.preferredHour ?? null,
         });
       }
     }
@@ -342,8 +373,12 @@ export async function POST(req: NextRequest) {
     // Evaluate agent-level scheduling checks once (not per user)
     const rule = agent.schedulingRule;
 
-    // 4a. Quiet hours — same for all users, check once
-    if (rule) {
+    // When timezone === "user", skip server-side quiet hours check and let Braze
+    // deliver in each user's local timezone via in_local_time: true.
+    const inLocalTime = (rule?.quietHours as { timezone?: string } | null)?.timezone === "user";
+
+    // 4a. Quiet hours — same for all users, check once (skip when delegating to Braze local time)
+    if (rule && !inLocalTime) {
       const quietHours = rule.quietHours as unknown as { start?: string; end?: string; timezone?: string };
       if (quietHours?.start && quietHours?.end) {
         const tzTime = new Intl.DateTimeFormat("en-US", {
@@ -561,15 +596,18 @@ export async function POST(req: NextRequest) {
             if (created) lotteryDecisionIdByUser.set(lotteryDecisionInputs[i].user.externalId, created.id);
           }
 
-          // Group by variant for batch sending
+          // Group by variant + scheduled time for batch sending
           for (const { user, variantId } of lotteryDecisionInputs) {
             const meta = variantMeta.get(variantId);
             if (!meta) continue;
             const decisionId = lotteryDecisionIdByUser.get(user.externalId);
             if (!decisionId) continue;
 
-            if (!byVariant[variantId]) {
-              byVariant[variantId] = {
+            const scheduledAt = computeScheduledAt(meta.preferredHour, now);
+            const groupKey = `${variantId}:${scheduledAt?.toISOString() ?? 'now'}`;
+
+            if (!byVariant[groupKey]) {
+              byVariant[groupKey] = {
                 variantId,
                 brazeVariantId:  meta.brazeVariantId,
                 brazeCampaignId: meta.brazeCampaignId,
@@ -577,12 +615,14 @@ export async function POST(req: NextRequest) {
                 body:            meta.body,
                 title:           meta.title,
                 deeplink:        meta.deeplink,
+                inLocalTime,
+                scheduledAt,
                 externalUserIds: [],
                 decisionIds:     [],
               };
             }
-            byVariant[variantId].externalUserIds.push(user.externalId);
-            byVariant[variantId].decisionIds.push(decisionId);
+            byVariant[groupKey].externalUserIds.push(user.externalId);
+            byVariant[groupKey].decisionIds.push(decisionId);
           }
         }
       }
@@ -794,15 +834,18 @@ export async function POST(req: NextRequest) {
           if (created) decisionIdByUser.set(decisionInputs[i].user.externalId, created.id);
         }
 
-        // Group by variant for batch sending
+        // Group by variant + scheduled time for batch sending
         for (const { user, variantId } of decisionInputs) {
           const meta = variantMeta.get(variantId);
           if (!meta) continue;
           const decisionId = decisionIdByUser.get(user.externalId);
           if (!decisionId) continue;
 
-          if (!windowByVariant[variantId]) {
-            windowByVariant[variantId] = {
+          const scheduledAt = computeScheduledAt(meta.preferredHour, now);
+          const groupKey = `${variantId}:${scheduledAt?.toISOString() ?? 'now'}`;
+
+          if (!windowByVariant[groupKey]) {
+            windowByVariant[groupKey] = {
               variantId,
               brazeVariantId:  meta.brazeVariantId,
               brazeCampaignId: meta.brazeCampaignId,
@@ -810,12 +853,14 @@ export async function POST(req: NextRequest) {
               body:            meta.body,
               title:           meta.title,
               deeplink:        meta.deeplink,
+              inLocalTime,
+              scheduledAt,
               externalUserIds: [],
               decisionIds:     [],
             };
           }
-          windowByVariant[variantId].externalUserIds.push(user.externalId);
-          windowByVariant[variantId].decisionIds.push(decisionId);
+          windowByVariant[groupKey].externalUserIds.push(user.externalId);
+          windowByVariant[groupKey].decisionIds.push(decisionId);
         }
       }
 
@@ -888,8 +933,25 @@ export async function POST(req: NextRequest) {
     await prisma.modelMetric.createMany({ data: metricsToWrite });
   }
 
+  await prisma.cronRun.update({
+    where: { id: cronRun.id },
+    data: {
+      status: "completed",
+      finishedAt: new Date(),
+      sent: totalSent,
+      suppressed: totalSuppressed,
+      errors: totalErrors,
+    },
+  });
+
   return NextResponse.json({ ok: true, sent: totalSent, suppressed: totalSuppressed, errors: totalErrors });
   } finally {
     await prisma.appSetting.delete({ where: { key: "cron_lock_select_and_send" } }).catch(() => {});
+    if (cronRunId) {
+      await prisma.cronRun.updateMany({
+        where: { id: cronRunId, status: "running" },
+        data: { status: "failed", finishedAt: new Date() },
+      }).catch(() => {});
+    }
   }
 }

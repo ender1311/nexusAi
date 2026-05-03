@@ -7,6 +7,7 @@ import { OptimizationObjective } from "@/components/control-tower/optimization-o
 import { ScanningAnimation } from "@/components/control-tower/scanning-animation";
 import { PredictionResults } from "@/components/control-tower/prediction-results";
 import { UserInspector } from "@/components/control-tower/user-inspector";
+import { CronRuns } from "@/components/control-tower/cron-runs";
 import {
   controlAgents,
   scanningPhases,
@@ -238,6 +239,11 @@ export default function ControlTowerPage() {
         {/* User inspector — always visible, real DB data */}
         <div className="border-t pt-6">
           <UserInspector />
+        </div>
+
+        {/* Cron run history */}
+        <div className="border-t pt-6">
+          <CronRuns />
         </div>
       </div>
     </div>
