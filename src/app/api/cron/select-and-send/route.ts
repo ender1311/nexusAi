@@ -32,6 +32,68 @@ type VariantSendGroup = {
   decisionIds: string[];
 };
 
+// Local helper to send a batch of users for a variant group.
+// Encapsulates channel switch, payload building, Braze POST, and brazeSendId update.
+async function sendVariantGroup(
+  group: VariantSendGroup,
+  batchUserIds: string[],
+  batchDecisionIds: string[],
+  brazeClient: ReturnType<typeof createBrazeClient>,
+  factory: PayloadFactory,
+  prisma: typeof import("@/lib/db").prisma,
+  onSuccessfulBatch?: (userIds: string[]) => void,
+): Promise<{ sent: number; errors: number }> {
+  try {
+    const sendId = group.brazeCampaignId
+      ? await brazeClient!.createSendId(group.brazeCampaignId)
+      : null;
+
+    const audience = { externalUserIds: batchUserIds };
+    let payload: Record<string, unknown>;
+
+    if (group.channel === "push") {
+      payload = factory.buildPushPayload(
+        { title: group.title ?? "", body: group.body, deeplink: group.deeplink ?? undefined },
+        audience,
+        group.brazeCampaignId ?? undefined,
+        sendId ?? undefined,
+        group.brazeVariantId ?? undefined,
+      );
+    } else if (group.channel === "email") {
+      payload = factory.buildEmailPayload(
+        { subject: group.title ?? "", htmlBody: group.body },
+        audience,
+        group.brazeCampaignId ?? undefined,
+        sendId ?? undefined,
+        group.brazeVariantId ?? undefined,
+      );
+    } else {
+      payload = factory.buildSmsPayload(
+        { body: group.body },
+        audience,
+        group.brazeCampaignId ?? undefined,
+        sendId ?? undefined,
+        group.brazeVariantId ?? undefined,
+      );
+    }
+
+    const res = await brazeClient!.post("/messages/send", payload);
+    if (res.ok && sendId) {
+      await prisma.userDecision.updateMany({
+        where: { id: { in: batchDecisionIds } },
+        data: { brazeSendId: sendId },
+      });
+    }
+    if (onSuccessfulBatch) {
+      onSuccessfulBatch(batchUserIds);
+    }
+    return { sent: batchUserIds.length, errors: 0 };
+  } catch (err) {
+    console.error("[cron/select-and-send] Braze send error:", err);
+    return { sent: 0, errors: batchUserIds.length };
+  }
+}
+
 export async function POST(req: NextRequest) {
   if (!verifyAuth(req)) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
@@ -511,52 +573,16 @@ export async function POST(req: NextRequest) {
           const batchUserIds    = group.externalUserIds.slice(i, i + BATCH);
           const batchDecisionIds = group.decisionIds.slice(i, i + BATCH);
 
-          try {
-            const sendId = group.brazeCampaignId
-              ? await brazeClient.createSendId(group.brazeCampaignId)
-              : null;
-
-            const audience = { externalUserIds: batchUserIds };
-            let payload: Record<string, unknown>;
-
-            if (group.channel === "push") {
-              payload = factory.buildPushPayload(
-                { title: group.title ?? "", body: group.body, deeplink: group.deeplink ?? undefined },
-                audience,
-                group.brazeCampaignId ?? undefined,
-                sendId ?? undefined,
-                group.brazeVariantId ?? undefined,
-              );
-            } else if (group.channel === "email") {
-              payload = factory.buildEmailPayload(
-                { subject: group.title ?? "", htmlBody: group.body },
-                audience,
-                group.brazeCampaignId ?? undefined,
-                sendId ?? undefined,
-                group.brazeVariantId ?? undefined,
-              );
-            } else {
-              payload = factory.buildSmsPayload(
-                { body: group.body },
-                audience,
-                group.brazeCampaignId ?? undefined,
-                sendId ?? undefined,
-                group.brazeVariantId ?? undefined,
-              );
-            }
-
-            const res = await brazeClient.post("/messages/send", payload);
-            if (res.ok && sendId) {
-              await prisma.userDecision.updateMany({
-                where: { id: { in: batchDecisionIds } },
-                data: { brazeSendId: sendId },
-              });
-            }
-            totalSent += batchUserIds.length;
-          } catch (err) {
-            console.error("[cron/select-and-send] Braze send error:", err);
-            totalErrors += batchUserIds.length;
-          }
+          const result = await sendVariantGroup(
+            group,
+            batchUserIds,
+            batchDecisionIds,
+            brazeClient,
+            factory,
+            prisma,
+          );
+          totalSent += result.sent;
+          totalErrors += result.errors;
         }
       }
 
@@ -779,55 +805,19 @@ export async function POST(req: NextRequest) {
           const batchUserIds     = group.externalUserIds.slice(i, i + BATCH);
           const batchDecisionIds = group.decisionIds.slice(i, i + BATCH);
 
-          try {
-            const sendId = group.brazeCampaignId
-              ? await brazeClient.createSendId(group.brazeCampaignId)
-              : null;
-
-            const audience = { externalUserIds: batchUserIds };
-            let payload: Record<string, unknown>;
-
-            if (group.channel === "push") {
-              payload = factory.buildPushPayload(
-                { title: group.title ?? "", body: group.body, deeplink: group.deeplink ?? undefined },
-                audience,
-                group.brazeCampaignId ?? undefined,
-                sendId ?? undefined,
-                group.brazeVariantId ?? undefined,
-              );
-            } else if (group.channel === "email") {
-              payload = factory.buildEmailPayload(
-                { subject: group.title ?? "", htmlBody: group.body },
-                audience,
-                group.brazeCampaignId ?? undefined,
-                sendId ?? undefined,
-                group.brazeVariantId ?? undefined,
-              );
-            } else {
-              payload = factory.buildSmsPayload(
-                { body: group.body },
-                audience,
-                group.brazeCampaignId ?? undefined,
-                sendId ?? undefined,
-                group.brazeVariantId ?? undefined,
-              );
-            }
-
-            const res = await brazeClient.post("/messages/send", payload);
-            if (res.ok && sendId) {
-              await prisma.userDecision.updateMany({
-                where: { id: { in: batchDecisionIds } },
-                data: { brazeSendId: sendId },
-              });
-            }
-            // Only mark users as sent after a successful Braze call so that
-            // sendCount is not incremented when the send fails.
-            sentWindowUserIds.push(...batchUserIds);
-            totalSent += batchUserIds.length;
-          } catch (err) {
-            console.error("[cron/select-and-send] window send error:", err);
-            totalErrors += batchUserIds.length;
-          }
+          // Only mark users as sent after a successful Braze call so that
+          // sendCount is not incremented when the send fails.
+          const result = await sendVariantGroup(
+            group,
+            batchUserIds,
+            batchDecisionIds,
+            brazeClient,
+            factory,
+            prisma,
+            (userIds) => sentWindowUserIds.push(...userIds),
+          );
+          totalSent += result.sent;
+          totalErrors += result.errors;
         }
       }
 
