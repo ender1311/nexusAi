@@ -852,6 +852,149 @@ export default function DemoPage() {
               </div>
             </div>
 
+            {/* Reward tier table */}
+            <Separator />
+            <div>
+              <h3 className="text-sm font-semibold mb-3">Full Reward Tier Map</h3>
+              <div className="rounded-lg border overflow-hidden text-xs">
+                <table className="w-full">
+                  <thead>
+                    <tr className="bg-muted/50 text-muted-foreground">
+                      <th className="text-left px-3 py-2 font-medium">Event</th>
+                      <th className="text-left px-3 py-2 font-medium">Tier</th>
+                      <th className="text-right px-3 py-2 font-medium">α change</th>
+                      <th className="text-right px-3 py-2 font-medium">β change</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y">
+                    {[
+                      { event: "plan_completed / plan_read_day_7", tier: "best", alpha: "+10", beta: "0", positive: true, attribution: "30-day" },
+                      { event: "plan_started / plan_read_day_3", tier: "very_good", alpha: "+7", beta: "0", positive: true, attribution: "30-day" },
+                      { event: "bible_opened", tier: "good", alpha: "+5", beta: "0", positive: true, attribution: "48h" },
+                      { event: "no conversion within window", tier: "neutral", alpha: "0", beta: "+1", positive: false, attribution: "—" },
+                      { event: "push_disabled", tier: "worst", alpha: "0", beta: "+10", positive: false, attribution: "90-day lookback" },
+                    ].map(({ event, tier, alpha, beta, positive }) => (
+                      <tr key={event} className="hover:bg-muted/20">
+                        <td className="px-3 py-2 font-mono text-[11px]">{event}</td>
+                        <td className="px-3 py-2">
+                          <Badge
+                            variant="outline"
+                            className={`text-[10px] py-0 ${positive ? "border-green-400 text-green-700" : "border-red-300 text-red-600"}`}
+                          >
+                            {tier}
+                          </Badge>
+                        </td>
+                        <td className={`px-3 py-2 text-right font-mono ${positive ? "text-green-600" : "text-muted-foreground"}`}>{alpha}</td>
+                        <td className={`px-3 py-2 text-right font-mono ${!positive && beta !== "0" ? "text-red-500" : "text-muted-foreground"}`}>{beta}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+                <div className="px-3 py-2 bg-muted/30 text-[10px] text-muted-foreground">
+                  * After temporal decay: α = 1 + (α−1)×0.99, β = 1 + (β−1)×0.99 — applied before each update
+                </div>
+              </div>
+            </div>
+
+            <Separator />
+
+            {/* Four learning mechanisms */}
+            <div>
+              <h3 className="text-sm font-semibold mb-3">Why the System Gets Better Over Time</h3>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                {[
+                  {
+                    title: "Pessimistic prior Beta(1, 30)",
+                    color: "border-blue-300 bg-blue-500/5",
+                    badge: "bg-blue-100 text-blue-700",
+                    label: "~3.2% expected reward",
+                    body: "Every new variant starts at Beta(1, 30) — 97% chance of non-conversion. This prevents the system from over-exploiting an arm before it has real evidence. Arms must earn trust.",
+                  },
+                  {
+                    title: "Temporal decay ×0.99 per update",
+                    color: "border-purple-300 bg-purple-500/5",
+                    badge: "bg-purple-100 text-purple-700",
+                    label: "prevents winner lock-in",
+                    body: "Before each update, α and β decay toward 1 and 30 respectively. A variant that won 3 months ago but has gone stale gradually loses confidence, allowing re-exploration.",
+                  },
+                  {
+                    title: "Persona-segmented arms",
+                    color: "border-teal-300 bg-teal-500/5",
+                    badge: "bg-teal-100 text-teal-700",
+                    label: "independent per cluster",
+                    body: "Each persona × agent × variant has its own arm. \"Evening Engager\" users train a completely separate model from \"Morning Devotee\" users — the right message per archetype.",
+                  },
+                  {
+                    title: "push_disabled = hard negative",
+                    color: "border-red-300 bg-red-500/5",
+                    badge: "bg-red-100 text-red-700",
+                    label: "β += 10 across all arms",
+                    body: "When a user disables push, all arms in that agent take a −10 penalty across the last 90 days of decisions. The system learns which content leads to opt-outs and suppresses it.",
+                  },
+                ].map(({ title, color, badge, label, body }) => (
+                  <div key={title} className={`rounded-lg border ${color} p-4`}>
+                    <div className="flex items-start justify-between gap-2 mb-2">
+                      <span className="text-xs font-semibold leading-tight">{title}</span>
+                      <span className={`text-[10px] rounded px-1.5 py-0.5 font-medium shrink-0 ${badge}`}>{label}</span>
+                    </div>
+                    <p className="text-[11px] text-muted-foreground leading-relaxed">{body}</p>
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            <Separator />
+
+            {/* Convergence timeline */}
+            <div>
+              <h3 className="text-sm font-semibold mb-3">Convergence Timeline</h3>
+              <div className="space-y-2">
+                {[
+                  {
+                    period: "Week 1–2",
+                    pct: 25,
+                    label: "High exploration",
+                    desc: "All arms uncertain — system explores broadly. Beta distributions are wide; winners haven't emerged yet.",
+                    color: "bg-blue-400",
+                  },
+                  {
+                    period: "Week 3–4",
+                    pct: 55,
+                    label: "Winners emerge per persona",
+                    desc: "Arm distributions narrow. Per-persona winning variants start dominating sends. First measurable lift vs. random.",
+                    color: "bg-purple-400",
+                  },
+                  {
+                    period: "Month 2",
+                    pct: 80,
+                    label: "Convergence",
+                    desc: "Exploit ratio climbs above 85%. System confidently selects best arm per persona. Typically 15–30% CTR lift over random baseline.",
+                    color: "bg-teal-400",
+                  },
+                  {
+                    period: "Month 3+",
+                    pct: 95,
+                    label: "Continuous improvement",
+                    desc: "Temporal decay keeps the system sensitive to trend shifts. New variants are explored; stale ones fade. The flywheel compounds.",
+                    color: "bg-green-500",
+                  },
+                ].map(({ period, pct, label, desc, color }) => (
+                  <div key={period} className="flex items-start gap-3">
+                    <div className="w-14 shrink-0 text-right">
+                      <span className="text-[10px] text-muted-foreground font-medium">{period}</span>
+                    </div>
+                    <div className="flex-1 pt-1">
+                      <div className="flex items-center gap-2 mb-1">
+                        <div className={`h-1.5 rounded-full ${color}`} style={{ width: `${pct}%`, maxWidth: "100%" }} />
+                      </div>
+                      <span className="text-xs font-medium">{label}</span>
+                      <p className="text-[11px] text-muted-foreground mt-0.5 leading-relaxed">{desc}</p>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+
             {/* Learning summary */}
             <div className="rounded-lg bg-primary/10 border border-primary/30 px-4 py-3">
               <p className="text-sm">

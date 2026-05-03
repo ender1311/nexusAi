@@ -6,6 +6,7 @@ import { AgentToggleCard } from "@/components/control-tower/agent-toggle-card";
 import { OptimizationObjective } from "@/components/control-tower/optimization-objective";
 import { ScanningAnimation } from "@/components/control-tower/scanning-animation";
 import { PredictionResults } from "@/components/control-tower/prediction-results";
+import { UserInspector } from "@/components/control-tower/user-inspector";
 import {
   controlAgents,
   scanningPhases,
@@ -233,6 +234,11 @@ export default function ControlTowerPage() {
 
         {/* Results */}
         {isResults && <PredictionResults results={predictions} />}
+
+        {/* User inspector — always visible, real DB data */}
+        <div className="border-t pt-6">
+          <UserInspector />
+        </div>
       </div>
     </div>
   );
