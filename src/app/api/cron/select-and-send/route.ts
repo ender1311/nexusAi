@@ -131,6 +131,8 @@ export async function POST(req: NextRequest) {
     update: { value: new Date().toISOString() },
   });
 
+  let cronRunId: string | undefined;
+
   try {
 
   const brazeClient = createBrazeClient();
@@ -155,6 +157,11 @@ export async function POST(req: NextRequest) {
       },
     },
   });
+
+  const cronRun = await prisma.cronRun.create({
+    data: { cronName: "select-and-send", agentCount: agents.length },
+  });
+  cronRunId = cronRun.id;
 
   const now = new Date();   // single timestamp for the entire cron run
   const todayStart = getTodayStartUTC("America/New_York", now);
@@ -921,8 +928,25 @@ export async function POST(req: NextRequest) {
     await prisma.modelMetric.createMany({ data: metricsToWrite });
   }
 
+  await prisma.cronRun.update({
+    where: { id: cronRun.id },
+    data: {
+      status: "completed",
+      finishedAt: new Date(),
+      sent: totalSent,
+      suppressed: totalSuppressed,
+      errors: totalErrors,
+    },
+  });
+
   return NextResponse.json({ ok: true, sent: totalSent, suppressed: totalSuppressed, errors: totalErrors });
   } finally {
     await prisma.appSetting.delete({ where: { key: "cron_lock_select_and_send" } }).catch(() => {});
+    if (cronRunId) {
+      await prisma.cronRun.updateMany({
+        where: { id: cronRunId, status: "running" },
+        data: { status: "failed", finishedAt: new Date() },
+      }).catch(() => {});
+    }
   }
 }

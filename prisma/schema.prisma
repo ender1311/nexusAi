@@ -271,3 +271,18 @@ model UserAgentAssignment {
   @@index([agentId])
   @@index([windowCompletedAt])
 }
+
+model CronRun {
+  id         String    @id @default(cuid())
+  cronName   String
+  startedAt  DateTime  @default(now())
+  finishedAt DateTime?
+  status     String    @default("running")  // "running" | "completed" | "failed"
+  sent       Int       @default(0)
+  suppressed Int       @default(0)
+  errors     Int       @default(0)
+  agentCount Int       @default(0)
+  errorMsg   String?
+
+  @@index([cronName, startedAt])
+}
