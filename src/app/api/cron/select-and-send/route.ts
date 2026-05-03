@@ -29,27 +29,42 @@ type VariantSendGroup = {
   title: string | null;
   deeplink: string | null;
   inLocalTime?: boolean;
-  scheduledAt?: Date;
+  scheduledAt: Date;
   externalUserIds: string[];
   decisionIds: string[];
 };
 
 /**
- * Returns a Date scheduled 10 minutes before the user's preferred UTC time today.
+ * Returns a scheduled send time and whether Braze should deliver in the user's local timezone.
+ *
+ * When the user has last_seen_at data (preferredHour is non-null) and the computed time
+ * is still in the future: schedules 10 minutes before their preferred UTC time today.
  * The 10-minute offset accounts for last_seen_at being session-end (sessions ~3-10 min),
- * so we arrive just before the user's next typical session start.
- * Returns undefined if that time has already passed — caller sends immediately.
+ * so we arrive just before the user's next typical session window opens.
+ * inLocalTime: false — the time is already expressed in UTC.
+ *
+ * Fallback (no last_seen_at, or computed time already passed): schedules at 08:00 today
+ * with inLocalTime: true. Braze delivers at 8am in each user's own timezone.
+ * The cron runs at 00:00 UTC so the 08:00 slot is always ≥8 hours away.
  */
 function computeScheduledAt(
   preferredHour: number | null,
   preferredMinute: number | null,
   now: Date,
-): Date | undefined {
-  if (preferredHour === null) return undefined;
-  const candidate = new Date(now);
-  // setUTCHours handles minute underflow automatically (e.g. minute=2 → wraps to prev hour)
-  candidate.setUTCHours(preferredHour, (preferredMinute ?? 0) - 10, 0, 0);
-  return candidate > now ? candidate : undefined;
+): { scheduledAt: Date; inLocalTime: boolean } {
+  if (preferredHour !== null) {
+    const candidate = new Date(now);
+    // setUTCHours handles minute underflow automatically (e.g. minute=2 → wraps to prev hour)
+    candidate.setUTCHours(preferredHour, (preferredMinute ?? 0) - 10, 0, 0);
+    if (candidate > now) {
+      return { scheduledAt: candidate, inLocalTime: false };
+    }
+  }
+
+  // Fallback: deliver at 8am in each user's local timezone via Braze in_local_time
+  const fallback = new Date(now);
+  fallback.setUTCHours(8, 0, 0, 0);
+  return { scheduledAt: fallback, inLocalTime: true };
 }
 
 // Local helper to send a batch of users for a variant group.
@@ -78,7 +93,6 @@ async function sendVariantGroup(
         group.brazeCampaignId ?? undefined,
         sendId ?? undefined,
         group.brazeVariantId ?? undefined,
-        group.inLocalTime,
       );
     } else if (group.channel === "email") {
       payload = factory.buildEmailPayload(
@@ -87,7 +101,6 @@ async function sendVariantGroup(
         group.brazeCampaignId ?? undefined,
         sendId ?? undefined,
         group.brazeVariantId ?? undefined,
-        group.inLocalTime,
       );
     } else {
       payload = factory.buildSmsPayload(
@@ -96,18 +109,19 @@ async function sendVariantGroup(
         group.brazeCampaignId ?? undefined,
         sendId ?? undefined,
         group.brazeVariantId ?? undefined,
-        group.inLocalTime,
       );
     }
 
-    // Route to scheduled endpoint when group has a future send time
-    const endpoint = group.scheduledAt
-      ? "/messages/schedule/create"
-      : "/messages/send";
-
-    if (group.scheduledAt) {
-      payload = { ...payload, schedule: { time: group.scheduledAt.toISOString() } };
-    }
+    // scheduledAt is always set — route to scheduled endpoint.
+    // in_local_time belongs inside the schedule object per Braze API spec.
+    const endpoint = "/messages/schedule/create";
+    payload = {
+      ...payload,
+      schedule: {
+        time: group.scheduledAt.toISOString(),
+        ...(group.inLocalTime && { in_local_time: true }),
+      },
+    };
 
     const res = await brazeClient!.post(endpoint, payload);
     if (res.ok && sendId) {
@@ -611,12 +625,13 @@ export async function POST(req: NextRequest) {
             const decisionId = lotteryDecisionIdByUser.get(user.externalId);
             if (!decisionId) continue;
 
-            const scheduledAt = computeScheduledAt(
+            const { scheduledAt, inLocalTime: isFallback } = computeScheduledAt(
               user.preferredSendHour ?? null,
               user.preferredSendMinute ?? null,
               now,
             );
-            const groupKey = `${variantId}:${scheduledAt?.toISOString() ?? 'now'}`;
+            const groupInLocalTime = inLocalTime || isFallback;
+            const groupKey = `${variantId}:${scheduledAt.toISOString()}:${groupInLocalTime}`;
 
             if (!byVariant[groupKey]) {
               byVariant[groupKey] = {
@@ -627,7 +642,7 @@ export async function POST(req: NextRequest) {
                 body:            meta.body,
                 title:           meta.title,
                 deeplink:        meta.deeplink,
-                inLocalTime,
+                inLocalTime:     groupInLocalTime,
                 scheduledAt,
                 externalUserIds: [],
                 decisionIds:     [],
@@ -858,12 +873,13 @@ export async function POST(req: NextRequest) {
           const decisionId = decisionIdByUser.get(user.externalId);
           if (!decisionId) continue;
 
-          const scheduledAt = computeScheduledAt(
+          const { scheduledAt, inLocalTime: isFallback } = computeScheduledAt(
             user.preferredSendHour ?? null,
             user.preferredSendMinute ?? null,
             now,
           );
-          const groupKey = `${variantId}:${scheduledAt?.toISOString() ?? 'now'}`;
+          const groupInLocalTime = inLocalTime || isFallback;
+          const groupKey = `${variantId}:${scheduledAt.toISOString()}:${groupInLocalTime}`;
 
           if (!windowByVariant[groupKey]) {
             windowByVariant[groupKey] = {
@@ -874,7 +890,7 @@ export async function POST(req: NextRequest) {
               body:            meta.body,
               title:           meta.title,
               deeplink:        meta.deeplink,
-              inLocalTime,
+              inLocalTime:     groupInLocalTime,
               scheduledAt,
               externalUserIds: [],
               decisionIds:     [],
