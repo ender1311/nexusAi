@@ -38,6 +38,7 @@ export class PayloadFactory {
     campaignId?: string,
     sendId?: string,
     variantId?: string,
+    inLocalTime?: boolean,
     sendAt?: string
   ): Record<string, unknown> {
     const androidMsg: Record<string, unknown> = {
@@ -64,6 +65,7 @@ export class PayloadFactory {
     return {
       ...(campaignId && { campaign_id: campaignId }),
       ...(sendId && { send_id: sendId }),
+      ...(inLocalTime && { in_local_time: true }),
       ...(sendAt && { send_at: sendAt }),
       messages: { android_push: androidMsg, apple_push: appleMsg },
       ...this.buildAudience(audience),
@@ -76,6 +78,7 @@ export class PayloadFactory {
     campaignId?: string,
     sendId?: string,
     variantId?: string,
+    inLocalTime?: boolean,
     sendAt?: string
   ): Record<string, unknown> {
     const fromName = msg.fromName ?? "YouVersion";
@@ -93,6 +96,7 @@ export class PayloadFactory {
     return {
       ...(campaignId && { campaign_id: campaignId }),
       ...(sendId && { send_id: sendId }),
+      ...(inLocalTime && { in_local_time: true }),
       ...(sendAt && { send_at: sendAt }),
       messages: { email: emailMsg },
       ...this.buildAudience(audience),
@@ -105,11 +109,13 @@ export class PayloadFactory {
     campaignId?: string,
     sendId?: string,
     variantId?: string,
+    inLocalTime?: boolean,
     sendAt?: string
   ): Record<string, unknown> {
     return {
       ...(campaignId && { campaign_id: campaignId }),
       ...(sendId && { send_id: sendId }),
+      ...(inLocalTime && { in_local_time: true }),
       ...(sendAt && { send_at: sendAt }),
       messages: {
         sms: {

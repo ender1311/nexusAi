@@ -28,6 +28,7 @@ type VariantSendGroup = {
   body: string;
   title: string | null;
   deeplink: string | null;
+  inLocalTime?: boolean;
   scheduledAt?: Date;
   externalUserIds: string[];
   decisionIds: string[];
@@ -68,6 +69,7 @@ async function sendVariantGroup(
         group.brazeCampaignId ?? undefined,
         sendId ?? undefined,
         group.brazeVariantId ?? undefined,
+        group.inLocalTime,
         sendAt,
       );
     } else if (group.channel === "email") {
@@ -77,6 +79,7 @@ async function sendVariantGroup(
         group.brazeCampaignId ?? undefined,
         sendId ?? undefined,
         group.brazeVariantId ?? undefined,
+        group.inLocalTime,
         sendAt,
       );
     } else {
@@ -86,6 +89,7 @@ async function sendVariantGroup(
         group.brazeCampaignId ?? undefined,
         sendId ?? undefined,
         group.brazeVariantId ?? undefined,
+        group.inLocalTime,
         sendAt,
       );
     }
@@ -357,8 +361,12 @@ export async function POST(req: NextRequest) {
     // Evaluate agent-level scheduling checks once (not per user)
     const rule = agent.schedulingRule;
 
-    // 4a. Quiet hours — same for all users, check once
-    if (rule) {
+    // When timezone === "user", skip server-side quiet hours check and let Braze
+    // deliver in each user's local timezone via in_local_time: true.
+    const inLocalTime = (rule?.quietHours as { timezone?: string } | null)?.timezone === "user";
+
+    // 4a. Quiet hours — same for all users, check once (skip when delegating to Braze local time)
+    if (rule && !inLocalTime) {
       const quietHours = rule.quietHours as unknown as { start?: string; end?: string; timezone?: string };
       if (quietHours?.start && quietHours?.end) {
         const tzTime = new Intl.DateTimeFormat("en-US", {
@@ -595,6 +603,7 @@ export async function POST(req: NextRequest) {
                 body:            meta.body,
                 title:           meta.title,
                 deeplink:        meta.deeplink,
+                inLocalTime,
                 scheduledAt,
                 externalUserIds: [],
                 decisionIds:     [],
@@ -832,6 +841,7 @@ export async function POST(req: NextRequest) {
               body:            meta.body,
               title:           meta.title,
               deeplink:        meta.deeplink,
+              inLocalTime,
               scheduledAt,
               externalUserIds: [],
               decisionIds:     [],
