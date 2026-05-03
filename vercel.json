@@ -2,5 +2,22 @@
   "$schema": "https://openapi.vercel.sh/vercel.json",
   "framework": "nextjs",
   "buildCommand": "bun run build",
-  "crons": []
+  "crons": [
+    {
+      "path": "/api/cron/select-and-send",
+      "schedule": "0 * * * *"
+    },
+    {
+      "path": "/api/cron/discover-personas",
+      "schedule": "0 3 * * *"
+    },
+    {
+      "path": "/api/cron/sync-template-variants",
+      "schedule": "0 6 * * *"
+    },
+    {
+      "path": "/api/cron/ingest-braze-analytics",
+      "schedule": "0 */6 * * *"
+    }
+  ]
 }
