@@ -37,7 +37,8 @@ export class PayloadFactory {
     audience: AudienceTarget,
     campaignId?: string,
     sendId?: string,
-    variantId?: string
+    variantId?: string,
+    schedule?: { time: string }
   ): Record<string, unknown> {
     const androidMsg: Record<string, unknown> = {
       alert: msg.body,
@@ -63,6 +64,7 @@ export class PayloadFactory {
     return {
       ...(campaignId && { campaign_id: campaignId }),
       ...(sendId && { send_id: sendId }),
+      ...(schedule && { schedule }),
       messages: { android_push: androidMsg, apple_push: appleMsg },
       ...this.buildAudience(audience),
     };
@@ -73,7 +75,8 @@ export class PayloadFactory {
     audience: AudienceTarget,
     campaignId?: string,
     sendId?: string,
-    variantId?: string
+    variantId?: string,
+    schedule?: { time: string }
   ): Record<string, unknown> {
     const fromName = msg.fromName ?? "YouVersion";
     const fromEmail = msg.fromEmail ?? "no-reply@youversion.com";
@@ -90,6 +93,7 @@ export class PayloadFactory {
     return {
       ...(campaignId && { campaign_id: campaignId }),
       ...(sendId && { send_id: sendId }),
+      ...(schedule && { schedule }),
       messages: { email: emailMsg },
       ...this.buildAudience(audience),
     };
@@ -100,11 +104,13 @@ export class PayloadFactory {
     audience: AudienceTarget,
     campaignId?: string,
     sendId?: string,
-    variantId?: string
+    variantId?: string,
+    schedule?: { time: string }
   ): Record<string, unknown> {
     return {
       ...(campaignId && { campaign_id: campaignId }),
       ...(sendId && { send_id: sendId }),
+      ...(schedule && { schedule }),
       messages: {
         sms: {
           body: msg.body,

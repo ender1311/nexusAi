@@ -28,9 +28,18 @@ type VariantSendGroup = {
   body: string;
   title: string | null;
   deeplink: string | null;
+  scheduledAt?: Date;
   externalUserIds: string[];
   decisionIds: string[];
 };
+
+/** Returns a Date scheduled at the given UTC hour today, or undefined if already past. */
+function computeScheduledAt(preferredHour: number | null, now: Date): Date | undefined {
+  if (preferredHour === null) return undefined;
+  const candidate = new Date(now);
+  candidate.setUTCHours(preferredHour, 0, 0, 0);
+  return candidate > now ? candidate : undefined;
+}
 
 // Local helper to send a batch of users for a variant group.
 // Encapsulates channel switch, payload building, Braze POST, and brazeSendId update.
@@ -49,6 +58,9 @@ async function sendVariantGroup(
       : null;
 
     const audience = { externalUserIds: batchUserIds };
+    const schedule = group.scheduledAt
+      ? { time: group.scheduledAt.toISOString() }
+      : undefined;
     let payload: Record<string, unknown>;
 
     if (group.channel === "push") {
@@ -58,6 +70,7 @@ async function sendVariantGroup(
         group.brazeCampaignId ?? undefined,
         sendId ?? undefined,
         group.brazeVariantId ?? undefined,
+        schedule,
       );
     } else if (group.channel === "email") {
       payload = factory.buildEmailPayload(
@@ -66,6 +79,7 @@ async function sendVariantGroup(
         group.brazeCampaignId ?? undefined,
         sendId ?? undefined,
         group.brazeVariantId ?? undefined,
+        schedule,
       );
     } else {
       payload = factory.buildSmsPayload(
@@ -74,6 +88,7 @@ async function sendVariantGroup(
         group.brazeCampaignId ?? undefined,
         sendId ?? undefined,
         group.brazeVariantId ?? undefined,
+        schedule,
       );
     }
 
@@ -317,7 +332,7 @@ export async function POST(req: NextRequest) {
     // If no lottery users and no in-window users, skip agent entirely
     if (lotteryUserIds.length === 0 && !hasInWindowUsers) continue;
 
-    // Build variant detail lookup: variantId → { channel, body, title, deeplink, brazeCampaignId, brazeVariantId }
+    // Build variant detail lookup: variantId → { channel, body, title, deeplink, brazeCampaignId, brazeVariantId, preferredHour }
     const variantMeta = new Map<string, {
       channel: string;
       body: string;
@@ -325,6 +340,7 @@ export async function POST(req: NextRequest) {
       deeplink: string | null;
       brazeCampaignId: string | null;
       brazeVariantId: string | null;
+      preferredHour: number | null;
     }>();
     for (const msg of agent.messages) {
       for (const v of msg.variants) {
@@ -335,6 +351,7 @@ export async function POST(req: NextRequest) {
           deeplink:        v.deeplink ?? null,
           brazeCampaignId: msg.brazeCampaignId ?? null,
           brazeVariantId:  v.brazeVariantId ?? null,
+          preferredHour:   v.preferredHour ?? null,
         });
       }
     }
@@ -561,15 +578,18 @@ export async function POST(req: NextRequest) {
             if (created) lotteryDecisionIdByUser.set(lotteryDecisionInputs[i].user.externalId, created.id);
           }
 
-          // Group by variant for batch sending
+          // Group by variant + scheduled time for batch sending
           for (const { user, variantId } of lotteryDecisionInputs) {
             const meta = variantMeta.get(variantId);
             if (!meta) continue;
             const decisionId = lotteryDecisionIdByUser.get(user.externalId);
             if (!decisionId) continue;
 
-            if (!byVariant[variantId]) {
-              byVariant[variantId] = {
+            const scheduledAt = computeScheduledAt(meta.preferredHour, now);
+            const groupKey = `${variantId}:${scheduledAt?.toISOString() ?? 'now'}`;
+
+            if (!byVariant[groupKey]) {
+              byVariant[groupKey] = {
                 variantId,
                 brazeVariantId:  meta.brazeVariantId,
                 brazeCampaignId: meta.brazeCampaignId,
@@ -577,12 +597,13 @@ export async function POST(req: NextRequest) {
                 body:            meta.body,
                 title:           meta.title,
                 deeplink:        meta.deeplink,
+                scheduledAt,
                 externalUserIds: [],
                 decisionIds:     [],
               };
             }
-            byVariant[variantId].externalUserIds.push(user.externalId);
-            byVariant[variantId].decisionIds.push(decisionId);
+            byVariant[groupKey].externalUserIds.push(user.externalId);
+            byVariant[groupKey].decisionIds.push(decisionId);
           }
         }
       }
@@ -794,15 +815,18 @@ export async function POST(req: NextRequest) {
           if (created) decisionIdByUser.set(decisionInputs[i].user.externalId, created.id);
         }
 
-        // Group by variant for batch sending
+        // Group by variant + scheduled time for batch sending
         for (const { user, variantId } of decisionInputs) {
           const meta = variantMeta.get(variantId);
           if (!meta) continue;
           const decisionId = decisionIdByUser.get(user.externalId);
           if (!decisionId) continue;
 
-          if (!windowByVariant[variantId]) {
-            windowByVariant[variantId] = {
+          const scheduledAt = computeScheduledAt(meta.preferredHour, now);
+          const groupKey = `${variantId}:${scheduledAt?.toISOString() ?? 'now'}`;
+
+          if (!windowByVariant[groupKey]) {
+            windowByVariant[groupKey] = {
               variantId,
               brazeVariantId:  meta.brazeVariantId,
               brazeCampaignId: meta.brazeCampaignId,
@@ -810,12 +834,13 @@ export async function POST(req: NextRequest) {
               body:            meta.body,
               title:           meta.title,
               deeplink:        meta.deeplink,
+              scheduledAt,
               externalUserIds: [],
               decisionIds:     [],
             };
           }
-          windowByVariant[variantId].externalUserIds.push(user.externalId);
-          windowByVariant[variantId].decisionIds.push(decisionId);
+          windowByVariant[groupKey].externalUserIds.push(user.externalId);
+          windowByVariant[groupKey].decisionIds.push(decisionId);
         }
       }
 
