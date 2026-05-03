@@ -34,11 +34,21 @@ type VariantSendGroup = {
   decisionIds: string[];
 };
 
-/** Returns a Date scheduled at the given UTC hour today, or undefined if already past. */
-function computeScheduledAt(preferredHour: number | null, now: Date): Date | undefined {
+/**
+ * Returns a Date scheduled 10 minutes before the user's preferred UTC time today.
+ * The 10-minute offset accounts for last_seen_at being session-end (sessions ~3-10 min),
+ * so we arrive just before the user's next typical session start.
+ * Returns undefined if that time has already passed — caller sends immediately.
+ */
+function computeScheduledAt(
+  preferredHour: number | null,
+  preferredMinute: number | null,
+  now: Date,
+): Date | undefined {
   if (preferredHour === null) return undefined;
   const candidate = new Date(now);
-  candidate.setUTCHours(preferredHour, 0, 0, 0);
+  // setUTCHours handles minute underflow automatically (e.g. minute=2 → wraps to prev hour)
+  candidate.setUTCHours(preferredHour, (preferredMinute ?? 0) - 10, 0, 0);
   return candidate > now ? candidate : undefined;
 }
 
@@ -346,7 +356,7 @@ export async function POST(req: NextRequest) {
     // If no lottery users and no in-window users, skip agent entirely
     if (lotteryUserIds.length === 0 && !hasInWindowUsers) continue;
 
-    // Build variant detail lookup: variantId → { channel, body, title, deeplink, brazeCampaignId, brazeVariantId, preferredHour }
+    // Build variant detail lookup: variantId → { channel, body, title, deeplink, brazeCampaignId, brazeVariantId }
     const variantMeta = new Map<string, {
       channel: string;
       body: string;
@@ -354,7 +364,6 @@ export async function POST(req: NextRequest) {
       deeplink: string | null;
       brazeCampaignId: string | null;
       brazeVariantId: string | null;
-      preferredHour: number | null;
     }>();
     for (const msg of agent.messages) {
       for (const v of msg.variants) {
@@ -365,7 +374,6 @@ export async function POST(req: NextRequest) {
           deeplink:        v.deeplink ?? null,
           brazeCampaignId: msg.brazeCampaignId ?? null,
           brazeVariantId:  v.brazeVariantId ?? null,
-          preferredHour:   v.preferredHour ?? null,
         });
       }
     }
@@ -603,7 +611,11 @@ export async function POST(req: NextRequest) {
             const decisionId = lotteryDecisionIdByUser.get(user.externalId);
             if (!decisionId) continue;
 
-            const scheduledAt = computeScheduledAt(meta.preferredHour, now);
+            const scheduledAt = computeScheduledAt(
+              user.preferredSendHour ?? null,
+              user.preferredSendMinute ?? null,
+              now,
+            );
             const groupKey = `${variantId}:${scheduledAt?.toISOString() ?? 'now'}`;
 
             if (!byVariant[groupKey]) {
@@ -627,23 +639,28 @@ export async function POST(req: NextRequest) {
         }
       }
 
-      // Send each variant group in batches of 50
-      for (const group of Object.values(byVariant)) {
+      // Send all variant groups in parallel batches of 50
+      {
         const BATCH = 50;
-        for (let i = 0; i < group.externalUserIds.length; i += BATCH) {
-          const batchUserIds    = group.externalUserIds.slice(i, i + BATCH);
-          const batchDecisionIds = group.decisionIds.slice(i, i + BATCH);
-
-          const result = await sendVariantGroup(
-            group,
-            batchUserIds,
-            batchDecisionIds,
-            brazeClient,
-            factory,
-            prisma,
-          );
-          totalSent += result.sent;
-          totalErrors += result.errors;
+        const CONCURRENCY = 50;
+        const sendTasks: Array<() => Promise<{ sent: number; errors: number }>> = [];
+        for (const group of Object.values(byVariant)) {
+          for (let i = 0; i < group.externalUserIds.length; i += BATCH) {
+            const batchUserIds    = group.externalUserIds.slice(i, i + BATCH);
+            const batchDecisionIds = group.decisionIds.slice(i, i + BATCH);
+            sendTasks.push(() => sendVariantGroup(group, batchUserIds, batchDecisionIds, brazeClient, factory, prisma));
+          }
+        }
+        for (let i = 0; i < sendTasks.length; i += CONCURRENCY) {
+          const results = await Promise.allSettled(sendTasks.slice(i, i + CONCURRENCY).map((t) => t()));
+          for (const r of results) {
+            if (r.status === "fulfilled") {
+              totalSent += r.value.sent;
+              totalErrors += r.value.errors;
+            } else {
+              totalErrors++;
+            }
+          }
         }
       }
 
@@ -841,7 +858,11 @@ export async function POST(req: NextRequest) {
           const decisionId = decisionIdByUser.get(user.externalId);
           if (!decisionId) continue;
 
-          const scheduledAt = computeScheduledAt(meta.preferredHour, now);
+          const scheduledAt = computeScheduledAt(
+            user.preferredSendHour ?? null,
+            user.preferredSendMinute ?? null,
+            now,
+          );
           const groupKey = `${variantId}:${scheduledAt?.toISOString() ?? 'now'}`;
 
           if (!windowByVariant[groupKey]) {
@@ -864,26 +885,36 @@ export async function POST(req: NextRequest) {
         }
       }
 
-      // Send each window variant group in batches of 50 (same as normal pipeline)
-      for (const group of Object.values(windowByVariant)) {
+      // Send all window variant groups in parallel batches of 50
+      {
         const BATCH = 50;
-        for (let i = 0; i < group.externalUserIds.length; i += BATCH) {
-          const batchUserIds     = group.externalUserIds.slice(i, i + BATCH);
-          const batchDecisionIds = group.decisionIds.slice(i, i + BATCH);
-
-          // Only mark users as sent after a successful Braze call so that
-          // sendCount is not incremented when the send fails.
-          const result = await sendVariantGroup(
-            group,
-            batchUserIds,
-            batchDecisionIds,
-            brazeClient,
-            factory,
-            prisma,
-            (userIds) => sentWindowUserIds.push(...userIds),
-          );
-          totalSent += result.sent;
-          totalErrors += result.errors;
+        const CONCURRENCY = 50;
+        const windowSendTasks: Array<() => Promise<{ sent: number; errors: number; userIds: string[] }>> = [];
+        for (const group of Object.values(windowByVariant)) {
+          for (let i = 0; i < group.externalUserIds.length; i += BATCH) {
+            const batchUserIds     = group.externalUserIds.slice(i, i + BATCH);
+            const batchDecisionIds = group.decisionIds.slice(i, i + BATCH);
+            windowSendTasks.push(async () => {
+              const localSent: string[] = [];
+              const result = await sendVariantGroup(
+                group, batchUserIds, batchDecisionIds, brazeClient, factory, prisma,
+                (userIds) => localSent.push(...userIds),
+              );
+              return { ...result, userIds: localSent };
+            });
+          }
+        }
+        for (let i = 0; i < windowSendTasks.length; i += CONCURRENCY) {
+          const results = await Promise.allSettled(windowSendTasks.slice(i, i + CONCURRENCY).map((t) => t()));
+          for (const r of results) {
+            if (r.status === "fulfilled") {
+              totalSent += r.value.sent;
+              totalErrors += r.value.errors;
+              sentWindowUserIds.push(...r.value.userIds);
+            } else {
+              totalErrors++;
+            }
+          }
         }
       }
 

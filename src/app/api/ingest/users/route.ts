@@ -109,12 +109,17 @@ export async function POST(req: NextRequest) {
     const raw = (user.attributes ?? {}) as Record<string, unknown>;
 
     // Derive days_since_last_open from last_seen_at if present
+    let preferredSendHour: number | undefined;
+    let preferredSendMinute: number | undefined;
     if (raw["last_seen_at"] && typeof raw["last_seen_at"] === "string") {
       const lastSeen = new Date(raw["last_seen_at"]);
       if (!isNaN(lastSeen.getTime())) {
         const ms = Date.now() - lastSeen.getTime();
         raw["hours_since_last_open"] = Math.round(ms / (1000 * 60 * 60));
         raw["days_since_last_open"] = Math.round(ms / (1000 * 60 * 60 * 24));
+        // Store preferred send time fields separately for the upsert (not in attributes JSON)
+        preferredSendHour = lastSeen.getUTCHours();
+        preferredSendMinute = lastSeen.getUTCMinutes();
       }
     }
 
@@ -145,8 +150,17 @@ export async function POST(req: NextRequest) {
 
     await prisma.trackedUser.upsert({
       where: { externalId },
-      create: { externalId, attributes, ...personaData },
-      update: { attributes, ...personaData },
+      create: {
+        externalId,
+        attributes,
+        ...(preferredSendHour !== undefined && { preferredSendHour, preferredSendMinute }),
+        ...personaData,
+      },
+      update: {
+        attributes,
+        ...(preferredSendHour !== undefined && { preferredSendHour, preferredSendMinute }),
+        ...personaData,
+      },
     });
 
     upserted++;
