@@ -1,16 +1,16 @@
 const editorialStyles = `
 /* === Editorial Page — scoped to .ep === */
 .ep {
-  --paper:       #F2ECE3;
-  --paper-2:     #EAE2D6;
+  --paper:       #F6EFEE;
+  --paper-2:     #EDE4E2;
   --ink:         #1C1A18;
   --ink-2:       #3A352F;
   --ink-muted:   #6B645B;
   --ink-faint:   #A39B8E;
-  --rule:        #C9C0B2;
-  --ed-accent:   #B8412C;
+  --rule:        #DCCFCE;
+  --ed-accent:   #F04C59;
   --ep-mono:     'Menlo','SF Mono','Roboto Mono',ui-monospace,Consolas,monospace;
-  background: #0d0c0b;
+  background: #121212;
 }
 .ep * { box-sizing: border-box; }
 
@@ -31,9 +31,9 @@ const editorialStyles = `
   pointer-events: none;
   z-index: 0;
   background:
-    radial-gradient(ellipse at 12% 0%, rgba(255,255,255,0.55), transparent 55%),
-    radial-gradient(ellipse at 100% 100%, rgba(0,0,0,0.05), transparent 50%),
-    repeating-linear-gradient(0deg, rgba(28,26,24,0.012) 0 1px, transparent 1px 3px);
+    radial-gradient(ellipse at 12% 0%, rgba(255,255,255,0.60), transparent 55%),
+    radial-gradient(ellipse at 100% 100%, rgba(240,76,89,0.04), transparent 50%),
+    repeating-linear-gradient(0deg, rgba(28,26,24,0.010) 0 1px, transparent 1px 3px);
 }
 .ep .page > * { position: relative; z-index: 1; }
 
@@ -568,8 +568,8 @@ const editorialStyles = `
   content: "";
   position: absolute; inset: 0;
   background:
-    radial-gradient(ellipse at 80% 0%, rgba(184,65,44,0.18), transparent 60%),
-    radial-gradient(ellipse at 0% 100%, rgba(255,255,255,0.04), transparent 55%);
+    radial-gradient(ellipse at 80% 0%, rgba(240,76,89,0.22), transparent 60%),
+    radial-gradient(ellipse at 10% 100%, rgba(241,149,54,0.10), transparent 55%);
   pointer-events: none;
 }
 .ep .closing .inner { position: relative; max-width: 1120px; }
@@ -591,7 +591,7 @@ const editorialStyles = `
   margin: 0;
   color: #F2ECE3;
 }
-.ep .closing h2 .accent { color: #E48766; }
+.ep .closing h2 .accent { color: #F1953E; }
 .ep .closing .deck {
   font-family: var(--font-serif, Georgia, serif);
   font-size: 24px;
@@ -623,7 +623,7 @@ const editorialStyles = `
   font-family: var(--font-display-italic, Georgia, serif);
   font-style: italic;
   font-size: 28px;
-  color: #E48766;
+  color: #F1953E;
   letter-spacing: -0.02em;
   margin: 6px 0;
   text-transform: none;
