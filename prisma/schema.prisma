@@ -128,6 +128,10 @@ model TrackedUser {
   hourlyStats       Json      @default("[]")     // 24-element array [N, N, ...]
   dailyStats        Json      @default("[]")     // 7-element array [N, N, ...]
 
+  // Preferred send time (derived from last_seen_at UTC hour/minute during ingest)
+  preferredSendHour   Int?   // 0-23 UTC — derived from last_seen_at hour
+  preferredSendMinute Int?   // 0-59 UTC — derived from last_seen_at minute
+
   // Feature vector (computed periodically from stats)
   featureVector     Json?
   featureVectorAt   DateTime?
