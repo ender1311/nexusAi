@@ -23,18 +23,18 @@ import { Separator } from "@/components/ui/separator";
 
 // ─── Color palette ─────────────────────────────────────────────────────────────
 const STEP_COLORS = [
-  "bg-red-500",
+  "bg-[#57a16c]",
   "bg-purple-500",
   "bg-teal-500",
   "bg-green-500",
   "bg-orange-500",
-  "bg-red-500",
+  "bg-[#57a16c]",
 ];
 
 // ─── Feature vector data ────────────────────────────────────────────────────────
 const CHANNEL_COLORS = ["bg-blue-400", "bg-green-400", "bg-yellow-400"];
 const HOURLY_COLORS = Array.from({ length: 24 }, (_, i) =>
-  i >= 19 && i <= 21 ? "bg-primary" : "bg-muted-foreground/30"
+  i >= 19 && i <= 21 ? "bg-[#57a16c]" : "bg-muted-foreground/30"
 );
 const DAILY_COLORS = Array.from({ length: 7 }, () => "bg-purple-400");
 const EXTRA_COLORS = ["bg-orange-400", "bg-pink-400", "bg-indigo-400"];
@@ -101,12 +101,12 @@ function BetaCurve({
     <svg
       width="160"
       height="64"
-      className={`rounded border ${highlight ? "border-primary bg-primary/5" : "border-border bg-muted/30"}`}
+      className={`rounded border ${highlight ? "border-[#57a16c] bg-[#57a16c]/5" : "border-border bg-muted/30"}`}
     >
       <polyline
         points={polyline}
         fill="none"
-        stroke={highlight ? "hsl(var(--primary))" : "hsl(var(--muted-foreground))"}
+        stroke={highlight ? "#57a16c" : "hsl(var(--muted-foreground))"}
         strokeWidth="2"
       />
       <line
@@ -114,11 +114,11 @@ function BetaCurve({
         y1="8"
         x2={sampleX}
         y2="56"
-        stroke={highlight ? "hsl(var(--primary))" : "hsl(var(--muted-foreground))"}
+        stroke={highlight ? "#57a16c" : "hsl(var(--muted-foreground))"}
         strokeWidth="1.5"
         strokeDasharray="3,2"
       />
-      <text x={sampleX + 3} y="16" fontSize="8" fill={highlight ? "hsl(var(--primary))" : "hsl(var(--muted-foreground))"}>
+      <text x={sampleX + 3} y="16" fontSize="8" fill={highlight ? "#57a16c" : "hsl(var(--muted-foreground))"}>
         {sample.toFixed(2)}
       </text>
     </svg>
@@ -242,7 +242,7 @@ export default function DemoPage() {
   return (
     <div className="max-w-5xl mx-auto px-4 py-8 space-y-10">
       {/* Hero */}
-      <Card className="border-l-4 border-l-primary">
+      <Card className="border-l-4 border-l-[#57a16c]">
         <CardContent className="pt-6">
           <h1 className="text-2xl font-bold mb-1">How Nexus Makes a Decision</h1>
           <p className="text-muted-foreground mb-6">
@@ -286,7 +286,7 @@ export default function DemoPage() {
           <CardContent className="pt-6 space-y-6">
             {/* Identity */}
             <div className="flex items-start gap-4">
-              <div className="w-14 h-14 rounded-full bg-primary/20 flex items-center justify-center text-primary font-bold text-lg shrink-0">
+              <div className="w-14 h-14 rounded-full bg-[#57a16c]/20 flex items-center justify-center text-[#57a16c] font-bold text-lg shrink-0">
                 SC
               </div>
               <div className="flex-1">
@@ -367,7 +367,7 @@ export default function DemoPage() {
                   return (
                     <div
                       key={i}
-                      className={`flex-1 rounded-sm ${isPeak ? "bg-primary" : "bg-muted-foreground/30"}`}
+                      className={`flex-1 rounded-sm ${isPeak ? "bg-[#57a16c]" : "bg-muted-foreground/30"}`}
                       style={{ height: `${heights[i] * 10}%` }}
                     />
                   );
@@ -409,7 +409,7 @@ export default function DemoPage() {
                   <div className="w-3 h-3 rounded-sm bg-blue-400" /> Channel[3]
                 </span>
                 <span className="flex items-center gap-1">
-                  <div className="w-3 h-3 rounded-sm bg-primary" /> Hourly[24] (peak lit)
+                  <div className="w-3 h-3 rounded-sm bg-[#57a16c]" /> Hourly[24] (peak lit)
                 </span>
                 <span className="flex items-center gap-1">
                   <div className="w-3 h-3 rounded-sm bg-purple-400" /> Daily[7]
@@ -480,7 +480,7 @@ export default function DemoPage() {
                     icon: Moon,
                     traits: ["Push-first", "7–9 PM peak", "High streak"],
                     winner: true,
-                    color: "text-primary",
+                    color: "text-[#57a16c]",
                   },
                   {
                     name: "Morning Devotee",
@@ -501,7 +501,7 @@ export default function DemoPage() {
                 ].map(({ name, score, icon: Icon, traits, winner, color }) => (
                   <div
                     key={name}
-                    className={`rounded-lg border p-4 ${winner ? "ring-2 ring-primary" : ""}`}
+                    className={`rounded-lg border p-4 ${winner ? "ring-2 ring-[#57a16c]" : ""}`}
                   >
                     <div className="flex items-center gap-2 mb-2">
                       <Icon className={`h-4 w-4 ${color}`} />
@@ -602,7 +602,7 @@ export default function DemoPage() {
                   <div className="flex items-center gap-2">
                     <div
                       className={`w-7 h-7 rounded-full flex items-center justify-center text-xs font-bold ${
-                        winner ? "bg-primary text-primary-foreground" : "bg-muted text-muted-foreground"
+                        winner ? "bg-[#57a16c] text-white" : "bg-muted text-muted-foreground"
                       }`}
                     >
                       {letter}
@@ -624,8 +624,8 @@ export default function DemoPage() {
             </div>
 
             {/* Decision bar */}
-            <div className="rounded-lg bg-primary/10 border border-primary/30 px-4 py-3 flex items-center gap-3">
-              <Brain className="h-5 w-5 text-primary shrink-0" />
+            <div className="rounded-lg bg-[#57a16c]/10 border border-[#57a16c]/30 px-4 py-3 flex items-center gap-3">
+              <Brain className="h-5 w-5 text-[#57a16c] shrink-0" />
               <div className="flex-1">
                 <span className="font-semibold text-sm">EXPLOIT</span>
                 <span className="text-sm text-muted-foreground ml-2">
@@ -983,9 +983,9 @@ export default function DemoPage() {
             </div>
 
             {/* Learning summary */}
-            <div className="rounded-lg bg-primary/10 border border-primary/30 px-4 py-3">
+            <div className="rounded-lg bg-[#57a16c]/10 border border-[#57a16c]/30 px-4 py-3">
               <p className="text-sm">
-                <Zap className="inline h-4 w-4 text-primary mr-1 -mt-0.5" />
+                <Zap className="inline h-4 w-4 text-[#57a16c] mr-1 -mt-0.5" />
                 Next time for <strong>Evening Engager</strong>, Variant B is now{" "}
                 <strong>3% more likely</strong> to be selected.
               </p>
