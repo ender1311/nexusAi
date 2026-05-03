@@ -59,7 +59,6 @@ async function sendVariantGroup(
       : null;
 
     const audience = { externalUserIds: batchUserIds };
-    const sendAt = group.scheduledAt?.toISOString();
     let payload: Record<string, unknown>;
 
     if (group.channel === "push") {
@@ -70,7 +69,6 @@ async function sendVariantGroup(
         sendId ?? undefined,
         group.brazeVariantId ?? undefined,
         group.inLocalTime,
-        sendAt,
       );
     } else if (group.channel === "email") {
       payload = factory.buildEmailPayload(
@@ -80,7 +78,6 @@ async function sendVariantGroup(
         sendId ?? undefined,
         group.brazeVariantId ?? undefined,
         group.inLocalTime,
-        sendAt,
       );
     } else {
       payload = factory.buildSmsPayload(
@@ -90,11 +87,19 @@ async function sendVariantGroup(
         sendId ?? undefined,
         group.brazeVariantId ?? undefined,
         group.inLocalTime,
-        sendAt,
       );
     }
 
-    const res = await brazeClient!.post("/messages/send", payload);
+    // Route to scheduled endpoint when group has a future send time
+    const endpoint = group.scheduledAt
+      ? "/messages/schedule/create"
+      : "/messages/send";
+
+    if (group.scheduledAt) {
+      payload = { ...payload, schedule: { time: group.scheduledAt.toISOString() } };
+    }
+
+    const res = await brazeClient!.post(endpoint, payload);
     if (res.ok && sendId) {
       await prisma.userDecision.updateMany({
         where: { id: { in: batchDecisionIds } },
