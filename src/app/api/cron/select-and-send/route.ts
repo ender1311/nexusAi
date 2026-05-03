@@ -2,11 +2,13 @@ import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
 import { createBrazeClient } from "@/lib/braze/client";
 import { PayloadFactory } from "@/lib/braze/payload-factory";
-import { decideForUser } from "@/lib/decide";
 import { evaluateTargetFilter, buildComputedKeys } from "@/lib/engine/target-filter";
 import { buildAgentLottery } from "@/lib/engine/agent-lottery";
 import { getTodayStartUTC }  from "@/lib/engine/scheduling";
 import { isTimingMatch } from "@/lib/engine/send-timing";
+import { ThompsonSampling } from "@/lib/engine/thompson-sampling";
+import { EpsilonGreedy } from "@/lib/engine/epsilon-greedy";
+import type { BanditArm } from "@/lib/engine/types";
 
 // Allow up to 300s execution time on Vercel
 export const maxDuration = 300;
@@ -58,37 +60,39 @@ export async function POST(req: NextRequest) {
     },
   });
 
+  const now = new Date();   // single timestamp for the entire cron run
+  const todayStart = getTodayStartUTC("America/New_York", now);
+
   // ── Pre-assignment phase: build lottery map once for the entire cron run ──
-  // For each agent, fetch eligible user IDs (lightweight — IDs only).
-  // Then assign each user to exactly one agent via random lottery.
+  // Fetch eligible user IDs for all agents in parallel (one query per agent),
+  // and also fetch the cooldown setting for Phase 0 in the same round trip.
   const eligibleUsersByAgent = new Map<string, string[]>();
-  for (const agent of agents) {
-    const personaIds = agent.personaTargets.map((pt) => pt.personaId);
-    if (personaIds.length === 0) {
-      eligibleUsersByAgent.set(agent.id, []);
-      continue;
-    }
-    const rows = await prisma.trackedUser.findMany({
-      where:  { personaId: { in: personaIds } },
-      select: { externalId: true },
-    });
-    eligibleUsersByAgent.set(agent.id, rows.map((r) => r.externalId));
-  }
+  const [, cooldownSetting] = await Promise.all([
+    Promise.all(
+      agents.map(async (agent) => {
+        const personaIds = agent.personaTargets.map((pt) => pt.personaId);
+        if (personaIds.length === 0) {
+          eligibleUsersByAgent.set(agent.id, []);
+          return;
+        }
+        const rows = await prisma.trackedUser.findMany({
+          where:  { personaId: { in: personaIds } },
+          select: { externalId: true },
+        });
+        eligibleUsersByAgent.set(agent.id, rows.map((r) => r.externalId));
+      })
+    ),
+    // ─── Phase 0 setup: fetch cooldown config in parallel with lottery queries ───
+    prisma.appSetting.findUnique({ where: { key: "exploration_window_cooldown_days" } }),
+  ]);
 
   const lotteryMap = buildAgentLottery(eligibleUsersByAgent);
   // lotteryMap: Map<externalUserId, agentId>  — held in memory for this run
   // ── End pre-assignment phase ──────────────────────────────────────────────
 
-  const now = new Date();   // single timestamp for the entire cron run
-  const todayStart = getTodayStartUTC("America/New_York", now);
-
   // ─── Phase 0: Exploration window assignment ───────────────────────────────
   // Identify lapsed/connected users, create/classify their assignments,
   // and build inWindowMap (externalUserId → agentId) for this cron run.
-
-  const cooldownSetting = await prisma.appSetting.findUnique({
-    where: { key: "exploration_window_cooldown_days" },
-  });
   const cooldownDays = cooldownSetting ? parseInt(cooldownSetting.value, 10) : 90;
   const cooldownMs   = cooldownDays * 86_400_000;
   const windowMs     = 8 * 86_400_000;
@@ -104,13 +108,18 @@ export async function POST(req: NextRequest) {
       ...new Set(explorationAgents.flatMap((a) => a.personaTargets.map((pt) => pt.personaId))),
     ];
 
-    const explorationUsers = await prisma.trackedUser.findMany({
-      where: { personaId: { in: explorationPersonaIds } },
-    });
-
-    const existingAssignments = await prisma.userAgentAssignment.findMany({
-      where: { externalUserId: { in: explorationUsers.map((u) => u.externalId) } },
-    });
+    // Run user fetch and assignment fetch in parallel.
+    // We use a broad assignment query (all exploration agents) since we can't
+    // know user externalIds until explorationUsers resolves; instead we filter
+    // by agentId to limit scope, then reconcile after both resolve.
+    const [explorationUsers, existingAssignments] = await Promise.all([
+      prisma.trackedUser.findMany({
+        where: { personaId: { in: explorationPersonaIds } },
+      }),
+      prisma.userAgentAssignment.findMany({
+        where: { agentId: { in: explorationAgents.map((a) => a.id) } },
+      }),
+    ]);
     const assignmentByUser = new Map(existingAssignments.map((a) => [a.externalUserId, a]));
 
     // For each exploration agent, index the personas it targets
@@ -135,7 +144,10 @@ export async function POST(req: NextRequest) {
       if (eligible.length > 0) eligibleAgentsByUser.set(user.externalId, eligible);
     }
 
-    const toUpsert: Array<{ externalUserId: string; agentId: string }> = [];
+    // Class A: new assignments (no prior record) — bulk create in one round trip
+    const toCreate: Array<{ externalUserId: string; agentId: string }> = [];
+    // Class D: reset existing assignments (cooldown expired) — upsert per row (different agentId per user)
+    const toReset:  Array<{ externalUserId: string; agentId: string }> = [];
     const toClose:  string[] = []; // assignment IDs where window expired without 4 sends
 
     for (const user of explorationUsers) {
@@ -146,7 +158,7 @@ export async function POST(req: NextRequest) {
         const eligible = eligibleAgentsByUser.get(user.externalId) ?? [];
         if (eligible.length === 0) continue;
         const agentId = eligible[Math.floor(Math.random() * eligible.length)];
-        toUpsert.push({ externalUserId: user.externalId, agentId });
+        toCreate.push({ externalUserId: user.externalId, agentId });
         inWindowMap.set(user.externalId, agentId);
       } else if (assignment.windowCompletedAt === null) {
         const age = now.getTime() - assignment.startedAt.getTime();
@@ -164,20 +176,33 @@ export async function POST(req: NextRequest) {
           const eligible = eligibleAgentsByUser.get(user.externalId) ?? [];
           if (eligible.length === 0) continue;
           const agentId = eligible[Math.floor(Math.random() * eligible.length)];
-          toUpsert.push({ externalUserId: user.externalId, agentId });
+          toReset.push({ externalUserId: user.externalId, agentId });
           inWindowMap.set(user.externalId, agentId);
         }
         // Class E: cooldown not yet expired — no action
       }
     }
 
-    // Apply DB writes
-    for (const { externalUserId, agentId } of toUpsert) {
-      await prisma.userAgentAssignment.upsert({
-        where: { externalUserId },
-        create: { externalUserId, agentId, sendCount: 0, windowCompletedAt: null },
-        update: { agentId, startedAt: now, sendCount: 0, windowCompletedAt: null },
+    // Apply DB writes:
+    // Class A — single createMany (1 round trip for any number of new users)
+    if (toCreate.length > 0) {
+      await prisma.userAgentAssignment.createMany({
+        data: toCreate.map(({ externalUserId, agentId }) => ({
+          externalUserId, agentId, sendCount: 0, windowCompletedAt: null,
+        })),
+        skipDuplicates: true,
       });
+    }
+    // Class D — parallel upserts (reset per-user with possibly different agentId)
+    if (toReset.length > 0) {
+      await Promise.all(
+        toReset.map(({ externalUserId, agentId }) =>
+          prisma.userAgentAssignment.update({
+            where: { externalUserId },
+            data: { agentId, startedAt: now, sendCount: 0, windowCompletedAt: null },
+          })
+        )
+      );
     }
     if (toClose.length > 0) {
       await prisma.userAgentAssignment.updateMany({
@@ -257,23 +282,26 @@ export async function POST(req: NextRequest) {
     }
 
     // Pre-seed PersonaArmStats for all persona × variant combinations so
-    // concurrent decideForUser calls don't race on the upsert.
+    // concurrent decideForUser calls don't race on the upsert — run in parallel.
     const allVariantIds = agent.messages.flatMap((m) => m.variants.map((v) => v.id));
     const initialAlpha = agent.algorithm === "thompson" ? 1 : 0;
     const initialBeta  = agent.algorithm === "thompson" ? 30 : 0;
-    for (const personaId of personaIds) {
-      for (const variantId of allVariantIds) {
-        await prisma.personaArmStats.upsert({
-          where: { personaId_agentId_variantId: { personaId, agentId: agent.id, variantId } },
-          create: { personaId, agentId: agent.id, variantId, alpha: initialAlpha, beta: initialBeta, tries: 0, wins: 0 },
-          update: {},
-        });
-      }
-    }
+    await Promise.all(
+      personaIds.flatMap((personaId) =>
+        allVariantIds.map((variantId) =>
+          prisma.personaArmStats.upsert({
+            where: { personaId_agentId_variantId: { personaId, agentId: agent.id, variantId } },
+            create: { personaId, agentId: agent.id, variantId, alpha: initialAlpha, beta: initialBeta, tries: 0, wins: 0 },
+            update: {},
+          })
+        )
+      )
+    );
 
-    // Page through users in this agent's target personas (500 at a time)
+    // Page through users in this agent's target personas (500 at a time).
+    // Skip the loop entirely when there are no lottery users to avoid a wasted DB round trip.
     let cursor: string | undefined;
-    while (true) {
+    while (lotteryUserIds.length > 0) {
       const users = await prisma.trackedUser.findMany({
         where: {
           personaId:  { in: personaIds },
@@ -288,37 +316,54 @@ export async function POST(req: NextRequest) {
 
       const userExternalIds = users.map((u) => u.externalId);
 
-      // 4b. Bulk frequency cap check — get recent decision counts for all users in one query
-      const freqCappedUserIds = new Set<string>();
+      // 4b. Bulk frequency cap check and 4d. Global daily cap — run in parallel (independent reads)
       const freqCap = rule?.frequencyCap as unknown as { maxSends?: number; period?: string } | null;
-      if (rule && typeof freqCap?.maxSends === "number") {
-        const periodMs: Record<string, number> = {
-          day:    86_400_000,
-          week:   7  * 86_400_000,
-          biweek: 14 * 86_400_000,
-          month:  30 * 86_400_000,
-        };
-        const windowStart = new Date(now.getTime() - (periodMs[freqCap.period ?? "week"] ?? periodMs.week));
+      const hasLotteryFreqCap = rule && typeof freqCap?.maxSends === "number";
+      const lotteryPeriodMs: Record<string, number> = {
+        day:    86_400_000,
+        week:   7  * 86_400_000,
+        biweek: 14 * 86_400_000,
+        month:  30 * 86_400_000,
+      };
+      const lotteryFreqWindowStart = hasLotteryFreqCap
+        ? new Date(now.getTime() - (lotteryPeriodMs[freqCap!.period ?? "week"] ?? lotteryPeriodMs.week))
+        : null;
 
-        // Fetch recent decision counts per user in one query
-        const recentDecisions = await prisma.userDecision.groupBy({
-          by: ["userId"],
+      const [lotteryRecentDecisions, sentTodayRows] = await Promise.all([
+        hasLotteryFreqCap
+          ? prisma.userDecision.groupBy({
+              by: ["userId"],
+              where: {
+                agentId: agent.id,
+                userId:  { in: userExternalIds },
+                sentAt:  { gte: lotteryFreqWindowStart! },
+              },
+              _count: { userId: true },
+            })
+          : Promise.resolve([] as Array<{ userId: string; _count: { userId: number } }>),
+        // 4d. Global daily cap — cross-agent guard (no agentId filter intentional)
+        prisma.userDecision.findMany({
           where: {
-            agentId: agent.id,
             userId: { in: userExternalIds },
-            sentAt: { gte: windowStart },
+            sentAt: { gte: todayStart },
+            // intentionally no agentId filter — cross-agent
           },
-          _count: { userId: true },
-        });
+          select:   { userId: true },
+          distinct: ["userId"],
+        }),
+      ]);
 
-        const countByUser = new Map(recentDecisions.map((r) => [r.userId, r._count.userId]));
+      const freqCappedUserIds = new Set<string>();
+      if (hasLotteryFreqCap) {
+        const countByUser = new Map(lotteryRecentDecisions.map((r) => [r.userId, r._count.userId]));
         for (const u of users) {
           const count = countByUser.get(u.externalId) ?? 0;
-          if (count >= freqCap.maxSends) {
+          if (count >= freqCap!.maxSends!) {
             freqCappedUserIds.add(u.externalId);
           }
         }
       }
+      const sentTodayIds = new Set(sentTodayRows.map((r) => r.userId));
 
       // 4c. Smart suppression — filter out chronically low-reward users using already-loaded user data
       const smartSuppressedUserIds = new Set<string>();
@@ -332,18 +377,6 @@ export async function POST(req: NextRequest) {
           }
         }
       }
-
-      // 4d. Global daily cap — cross-agent guard (no agentId filter intentional)
-      const sentTodayRows = await prisma.userDecision.findMany({
-        where: {
-          userId: { in: userExternalIds },
-          sentAt: { gte: todayStart },
-          // intentionally no agentId filter — cross-agent
-        },
-        select:   { userId: true },
-        distinct: ["userId"],
-      });
-      const sentTodayIds = new Set(sentTodayRows.map((r) => r.userId));
 
       // Count suppressed users (freq cap + smart suppress + global daily cap)
       for (const u of users) {
@@ -373,51 +406,101 @@ export async function POST(req: NextRequest) {
         });
       });
 
-      // Decide for each eligible user concurrently (concurrency-limited) and group by variant.
-      // skipSchedulingChecks=true because we performed them in bulk above.
+      // Batch-decide for lottery users: load arm stats once, select variant in-memory,
+      // then bulk-create all UserDecision records in a single createManyAndReturn call.
       const byVariant: Record<string, VariantSendGroup> = {};
-      const CONCURRENCY = 10;
 
-      for (let start = 0; start < targetFiltered.length; start += CONCURRENCY) {
-        const chunk = targetFiltered.slice(start, start + CONCURRENCY);
-        const chunkResults = await Promise.all(
-          chunk.map((user) =>
-            decideForUser({
-              agentId: agent.id,
-              externalUserId: user.externalId,
-              preloadedAgent: agent,
-              skipSchedulingChecks: true,
-            }).then((r) => ({ user, result: r }))
-          )
+      if (targetFiltered.length > 0) {
+        // Collect unique personaIds among eligible users
+        const pagePersonaIds = [...new Set(
+          targetFiltered.map((u) => u.personaId).filter(Boolean) as string[]
+        )];
+
+        // Load all arm stats for this agent × page personas in one query
+        const pageArmStatsRows = await prisma.personaArmStats.findMany({
+          where: {
+            agentId:   agent.id,
+            personaId: { in: pagePersonaIds },
+            variantId: { in: allVariantIds },
+          },
+        });
+
+        // Index: personaId → variantId → BanditArm
+        const pageArmsByPersona = new Map<string, Map<string, BanditArm>>();
+        for (const row of pageArmStatsRows) {
+          if (!pageArmsByPersona.has(row.personaId)) {
+            pageArmsByPersona.set(row.personaId, new Map());
+          }
+          pageArmsByPersona.get(row.personaId)!.set(row.variantId, { id: row.variantId, stats: row });
+        }
+
+        // Variants with channel for in-memory selection
+        const pageVariants = agent.messages.flatMap((m) =>
+          m.variants.map((v) => ({ ...v, channel: m.channel }))
         );
 
-        for (const { user, result } of chunkResults) {
-          if (!result) continue;
-          if (result.suppressed) {
-            // Shouldn't happen since we skipped scheduling checks, but handle gracefully
-            totalSuppressed++;
-            continue;
+        const lotteryDecisionInputs: Array<{ user: typeof targetFiltered[number]; variantId: string }> = [];
+        for (const user of targetFiltered) {
+          const pid = user.personaId as string | null;
+          if (!pid) continue;
+          const personaArms = pageArmsByPersona.get(pid);
+          if (!personaArms) continue;
+
+          const arms: BanditArm[] = pageVariants
+            .map((v) => personaArms.get(v.id))
+            .filter(Boolean) as BanditArm[];
+          if (arms.length === 0) continue;
+
+          const selectedVariantId =
+            agent.algorithm === "epsilon_greedy"
+              ? new EpsilonGreedy(agent.epsilon).select(arms).variantId
+              : new ThompsonSampling().select(arms).variantId;
+
+          lotteryDecisionInputs.push({ user, variantId: selectedVariantId });
+        }
+
+        // Bulk-create all UserDecision records in one createManyAndReturn call
+        if (lotteryDecisionInputs.length > 0) {
+          const decisionData2 = lotteryDecisionInputs.map(({ user, variantId }) => ({
+            agentId:          agent.id,
+            userId:           user.externalId,
+            messageVariantId: variantId,
+            channel:          pageVariants.find((v) => v.id === variantId)?.channel ?? "push",
+          }));
+
+          const createdLotteryDecisions = await prisma.userDecision.createManyAndReturn({
+            data: decisionData2,
+          });
+
+          const lotteryDecisionIdByUser = new Map<string, string>();
+          for (let i = 0; i < lotteryDecisionInputs.length; i++) {
+            const created = createdLotteryDecisions[i];
+            if (created) lotteryDecisionIdByUser.set(lotteryDecisionInputs[i].user.externalId, created.id);
           }
 
-          const { messageVariantId, userDecisionId } = result;
-          const meta = variantMeta.get(messageVariantId);
-          if (!meta) continue;
+          // Group by variant for batch sending
+          for (const { user, variantId } of lotteryDecisionInputs) {
+            const meta = variantMeta.get(variantId);
+            if (!meta) continue;
+            const decisionId = lotteryDecisionIdByUser.get(user.externalId);
+            if (!decisionId) continue;
 
-          if (!byVariant[messageVariantId]) {
-            byVariant[messageVariantId] = {
-              variantId:       messageVariantId,
-              brazeVariantId:  meta.brazeVariantId,
-              brazeCampaignId: meta.brazeCampaignId,
-              channel:         meta.channel,
-              body:            meta.body,
-              title:           meta.title,
-              deeplink:        meta.deeplink,
-              externalUserIds: [],
-              decisionIds:     [],
-            };
+            if (!byVariant[variantId]) {
+              byVariant[variantId] = {
+                variantId,
+                brazeVariantId:  meta.brazeVariantId,
+                brazeCampaignId: meta.brazeCampaignId,
+                channel:         meta.channel,
+                body:            meta.body,
+                title:           meta.title,
+                deeplink:        meta.deeplink,
+                externalUserIds: [],
+                decisionIds:     [],
+              };
+            }
+            byVariant[variantId].externalUserIds.push(user.externalId);
+            byVariant[variantId].decisionIds.push(decisionId);
           }
-          byVariant[messageVariantId].externalUserIds.push(user.externalId);
-          byVariant[messageVariantId].decisionIds.push(userDecisionId);
         }
       }
 
@@ -486,13 +569,15 @@ export async function POST(req: NextRequest) {
       .map(([uid]) => uid);
 
     if (inWindowUserIdsForAgent.length > 0) {
-      const windowUsers = await prisma.trackedUser.findMany({
-        where: { externalId: { in: inWindowUserIdsForAgent } },
-      });
-
-      const windowAssignments = await prisma.userAgentAssignment.findMany({
-        where: { externalUserId: { in: inWindowUserIdsForAgent } },
-      });
+      // Fetch users and assignments in parallel — independent reads
+      const [windowUsers, windowAssignments] = await Promise.all([
+        prisma.trackedUser.findMany({
+          where: { externalId: { in: inWindowUserIdsForAgent } },
+        }),
+        prisma.userAgentAssignment.findMany({
+          where: { externalUserId: { in: inWindowUserIdsForAgent } },
+        }),
+      ]);
       const windowAssignmentMap = new Map(
         windowAssignments.map((a) => [a.externalUserId, a])
       );
@@ -513,21 +598,61 @@ export async function POST(req: NextRequest) {
       };
       const currentDayET = dayIndexMap[weekdayStr] ?? 0;
 
-      // Global daily cap for in-window users (safety net)
-      const sentTodayWindowRows = await prisma.userDecision.findMany({
-        where: {
-          userId:  { in: inWindowUserIdsForAgent },
-          sentAt:  { gte: todayStart },
-        },
-        select:   { userId: true },
-        distinct: ["userId"],
-      });
+      // Frequency cap and global daily cap — run in parallel since they're independent reads
+      const windowFreqCap = rule?.frequencyCap as unknown as { maxSends?: number; period?: string } | null;
+      const hasFreqCap = rule && typeof windowFreqCap?.maxSends === "number";
+      const periodMs: Record<string, number> = {
+        day:    86_400_000,
+        week:   7  * 86_400_000,
+        biweek: 14 * 86_400_000,
+        month:  30 * 86_400_000,
+      };
+      const freqWindowStart = hasFreqCap
+        ? new Date(now.getTime() - (periodMs[windowFreqCap!.period ?? "week"] ?? periodMs.week))
+        : null;
+
+      const [recentDecisionsForFreq, sentTodayWindowRows] = await Promise.all([
+        hasFreqCap
+          ? prisma.userDecision.groupBy({
+              by: ["userId"],
+              where: {
+                agentId: agent.id,
+                userId:  { in: inWindowUserIdsForAgent },
+                sentAt:  { gte: freqWindowStart! },
+              },
+              _count: { userId: true },
+            })
+          : Promise.resolve([] as Array<{ userId: string; _count: { userId: number } }>),
+        prisma.userDecision.findMany({
+          where: {
+            userId: { in: inWindowUserIdsForAgent },
+            sentAt: { gte: todayStart },
+          },
+          select:   { userId: true },
+          distinct: ["userId"],
+        }),
+      ]);
+
+      const windowFreqCappedUserIds = new Set<string>();
+      if (hasFreqCap) {
+        const countByUser = new Map(recentDecisionsForFreq.map((r) => [r.userId, r._count.userId]));
+        for (const u of windowUsers) {
+          const count = countByUser.get(u.externalId) ?? 0;
+          if (count >= windowFreqCap!.maxSends!) {
+            windowFreqCappedUserIds.add(u.externalId);
+          }
+        }
+      }
       const sentTodayWindowIds = new Set(sentTodayWindowRows.map((r) => r.userId));
 
-      // Filter eligible window users by timing check + daily cap
+      // Filter eligible window users by frequency cap + timing check + daily cap
       const eligibleWindowUsers = windowUsers.filter((user) => {
         const assignment = windowAssignmentMap.get(user.externalId);
         if (!assignment || assignment.sendCount >= 4) return false;
+        if (windowFreqCappedUserIds.has(user.externalId)) {
+          totalSuppressed++;
+          return false;
+        }
         if (sentTodayWindowIds.has(user.externalId)) {
           totalSuppressed++;
           return false;
@@ -543,35 +668,95 @@ export async function POST(req: NextRequest) {
         return isTimingMatch(hourlyStats, dailyStats, assignment.sendCount, currentHourET, currentDayET);
       });
 
-      // Decide + collect variant groups for in-window users
+      // Batch-decide for in-window users: load arm stats once, select variant in-memory,
+      // then bulk-create all UserDecision records in a single createMany call.
       const windowByVariant: Record<string, VariantSendGroup> = {};
       const sentWindowUserIds: string[] = [];
-      const CONCURRENCY = 10;
 
-      for (let start = 0; start < eligibleWindowUsers.length; start += CONCURRENCY) {
-        const chunk = eligibleWindowUsers.slice(start, start + CONCURRENCY);
-        const chunkResults = await Promise.all(
-          chunk.map((user) =>
-            decideForUser({
-              agentId:          agent.id,
-              externalUserId:   user.externalId,
-              preloadedAgent:   agent,
-              skipSchedulingChecks: true,
-            }).then((r) => ({ user, result: r }))
-          )
+      if (eligibleWindowUsers.length > 0) {
+        // Collect all unique personaIds among eligible window users
+        const windowPersonaIds = [...new Set(
+          eligibleWindowUsers.map((u) => u.personaId).filter(Boolean) as string[]
+        )];
+
+        // Load all arm stats for this agent × these personas in one query
+        const armStatsRows = await prisma.personaArmStats.findMany({
+          where: {
+            agentId:   agent.id,
+            personaId: { in: windowPersonaIds },
+            variantId: { in: allVariantIds },
+          },
+        });
+
+        // Index arm stats by personaId → variantId → stats
+        const armStatsByPersona = new Map<string, Map<string, BanditArm>>();
+        for (const row of armStatsRows) {
+          if (!armStatsByPersona.has(row.personaId)) {
+            armStatsByPersona.set(row.personaId, new Map());
+          }
+          armStatsByPersona.get(row.personaId)!.set(row.variantId, { id: row.variantId, stats: row });
+        }
+
+        // Select variant for each eligible window user (pure in-memory computation)
+        const windowVariants = agent.messages.flatMap((m) =>
+          m.variants.map((v) => ({ ...v, channel: m.channel }))
         );
 
-        for (const { user, result } of chunkResults) {
-          if (!result) continue;
-          if (result.suppressed) { totalSuppressed++; continue; }
+        const decisionInputs: Array<{ user: typeof eligibleWindowUsers[number]; variantId: string }> = [];
 
-          const { messageVariantId, userDecisionId } = result;
-          const meta = variantMeta.get(messageVariantId);
+        for (const user of eligibleWindowUsers) {
+          const pid = user.personaId as string | null;
+          if (!pid) continue;
+          const personaArms = armStatsByPersona.get(pid);
+          if (!personaArms) continue;
+
+          const arms: BanditArm[] = windowVariants
+            .map((v) => personaArms.get(v.id))
+            .filter(Boolean) as BanditArm[];
+          if (arms.length === 0) continue;
+
+          const selectedVariantId =
+            agent.algorithm === "epsilon_greedy"
+              ? new EpsilonGreedy(agent.epsilon).select(arms).variantId
+              : new ThompsonSampling().select(arms).variantId;
+
+          decisionInputs.push({ user, variantId: selectedVariantId });
+        }
+
+        // Bulk-create all UserDecision records in one createMany call
+        const now2 = new Date();
+        const decisionData = decisionInputs.map(({ user, variantId }) => ({
+          agentId:          agent.id,
+          userId:           user.externalId,
+          messageVariantId: variantId,
+          channel:          windowVariants.find((v) => v.id === variantId)?.channel ?? "push",
+          sentAt:           now2,
+        }));
+
+        // createMany returns count, not individual IDs — use createManyAndReturn when available,
+        // otherwise fall back to individual creates for ID tracking.
+        // Prisma 7 supports createManyAndReturn (returns created records with IDs).
+        const createdDecisions = await prisma.userDecision.createManyAndReturn({
+          data: decisionData,
+        });
+
+        // Build a map from externalUserId → decisionId
+        const decisionIdByUser = new Map<string, string>();
+        for (let i = 0; i < decisionInputs.length; i++) {
+          const created = createdDecisions[i];
+          if (created) decisionIdByUser.set(decisionInputs[i].user.externalId, created.id);
+        }
+
+        // Group by variant for batch sending
+        for (const { user, variantId } of decisionInputs) {
+          const meta = variantMeta.get(variantId);
           if (!meta) continue;
+          const decisionId = decisionIdByUser.get(user.externalId);
+          if (!decisionId) continue;
 
-          if (!windowByVariant[messageVariantId]) {
-            windowByVariant[messageVariantId] = {
-              variantId:       messageVariantId,
+          if (!windowByVariant[variantId]) {
+            windowByVariant[variantId] = {
+              variantId,
               brazeVariantId:  meta.brazeVariantId,
               brazeCampaignId: meta.brazeCampaignId,
               channel:         meta.channel,
@@ -582,8 +767,8 @@ export async function POST(req: NextRequest) {
               decisionIds:     [],
             };
           }
-          windowByVariant[messageVariantId].externalUserIds.push(user.externalId);
-          windowByVariant[messageVariantId].decisionIds.push(userDecisionId);
+          windowByVariant[variantId].externalUserIds.push(user.externalId);
+          windowByVariant[variantId].decisionIds.push(decisionId);
         }
       }
 
@@ -646,18 +831,33 @@ export async function POST(req: NextRequest) {
         }
       }
 
-      // Increment sendCount for each user who was actually sent to
-      for (const userId of sentWindowUserIds) {
-        const assignment = windowAssignmentMap.get(userId);
-        if (!assignment) continue;
-        const newCount = assignment.sendCount + 1;
-        await prisma.userAgentAssignment.update({
-          where: { id: assignment.id },
-          data: {
-            sendCount:         newCount,
-            windowCompletedAt: newCount >= 4 ? now : null,
-          },
-        });
+      // Increment sendCount for each user who was actually sent to.
+      // Use two updateMany calls (increment + conditional complete) instead of N individual updates.
+      if (sentWindowUserIds.length > 0) {
+        // Collect assignment IDs
+        const sentAssignmentIds = sentWindowUserIds
+          .map((uid) => windowAssignmentMap.get(uid)?.id)
+          .filter(Boolean) as string[];
+        // IDs of users whose window completes with this send (sendCount was 3, now becomes 4)
+        const completingIds = sentWindowUserIds
+          .map((uid) => windowAssignmentMap.get(uid))
+          .filter((a) => a && a.sendCount >= 3)
+          .map((a) => a!.id);
+
+        await Promise.all([
+          // Increment sendCount for all sent users
+          prisma.userAgentAssignment.updateMany({
+            where: { id: { in: sentAssignmentIds } },
+            data: { sendCount: { increment: 1 } },
+          }),
+          // Mark window complete for users reaching 4 sends
+          completingIds.length > 0
+            ? prisma.userAgentAssignment.updateMany({
+                where: { id: { in: completingIds } },
+                data: { windowCompletedAt: now },
+              })
+            : Promise.resolve(),
+        ]);
       }
     }
     // ── End in-window sub-pool ───────────────────────────────────────────────

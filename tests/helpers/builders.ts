@@ -15,7 +15,7 @@ export async function createAgent(overrides: {
       algorithm: "thompson",
       epsilon: 0.1,
       status: "active",
-      funnelStage: "connected",
+      funnelStage: "engaged",
       ...overrides,
     },
   });
