@@ -6,12 +6,12 @@
  * select when creating agents in the wizard. They are cloned (not referenced)
  * into each agent's own variants via sourceTemplateId.
  *
- * Copy sourced from: docs/push-copy-inventory.md
- * Deep-links sourced from: docs/deeplinks.md
- *
  * Usage: bun run scripts/seed-push-copy-templates.ts
  * Idempotent: safe to run multiple times.
  */
+
+import { config } from "dotenv";
+config({ path: ".env.local", override: true });
 
 import { prisma } from "../src/lib/db";
 

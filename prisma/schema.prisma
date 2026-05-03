@@ -87,8 +87,10 @@ model MessageVariant {
   actionFeatures       Json?
   createdAt            DateTime  @default(now())
 
-  message   Message        @relation(fields: [messageId], references: [id], onDelete: Cascade)
-  decisions UserDecision[]
+  message       Message        @relation(fields: [messageId], references: [id], onDelete: Cascade)
+  sourceTemplate MessageVariant? @relation("TemplateClones", fields: [sourceTemplateId], references: [id], onDelete: SetNull)
+  clones         MessageVariant[] @relation("TemplateClones")
+  decisions      UserDecision[]
 }
 
 model UserDecision {
