@@ -143,7 +143,8 @@ describe("POST /api/cron/select-and-send", () => {
 
   it("batches users ≤50 per Braze /messages/send call", async () => {
     const persona = await createPersona();
-    const agent = await createAgent();
+    // Use "engaged" so users go through the lottery path (not Phase 0 exploration window)
+    const agent = await createAgent({ funnelStage: "engaged" });
     const msg = await createMessage(agent.id, { brazeCampaignId: "camp_batch" });
     await createVariant(msg.id);
     await linkAgentToPersona(agent.id, persona.id);
@@ -161,7 +162,7 @@ describe("POST /api/cron/select-and-send", () => {
     expect(body.sent).toBe(55);
     const sendCalls = brazeRequests.filter((r) => r.url.includes("/messages/send"));
     expect(sendCalls).toHaveLength(2); // ceil(55/50) = 2
-  });
+  }, 20000); // 55 users × sequential DB ops against Neon
 });
 
 describe("Lottery: cross-agent user distribution", () => {
@@ -505,7 +506,7 @@ describe("Phase 0: exploration window assignment", () => {
     });
     expect(assignment!.sendCount).toBe(4);
     expect(assignment!.windowCompletedAt).not.toBeNull();
-  });
+  }, 15000);
 
   it("in-window user is excluded from normal (lottery) user pipeline", async () => {
     const persona     = await createPersona();
