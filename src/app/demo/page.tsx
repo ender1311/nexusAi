@@ -241,19 +241,6 @@ function FlywheelDiagram() {
 export default function DemoPage() {
   return (
     <div className="max-w-5xl mx-auto px-4 py-8 space-y-10">
-      {/* Demo video */}
-      <div className="rounded-xl overflow-hidden border bg-muted/30">
-        <video
-          src="/nexus-demo.mp4"
-          controls
-          className="w-full"
-          playsInline
-          preload="metadata"
-        >
-          Your browser does not support the video tag.
-        </video>
-      </div>
-
       {/* Hero */}
       <Card className="border-l-4 border-l-primary">
         <CardContent className="pt-6">
