@@ -99,6 +99,23 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
+  // Concurrency lock — prevent duplicate runs if cron invokes before previous run completes
+  const lockKey = "cron_lock_select_and_send";
+  const existing = await prisma.appSetting.findUnique({ where: { key: lockKey } });
+  if (existing) {
+    const lockAge = Date.now() - new Date(existing.value).getTime();
+    if (lockAge < 290_000) {
+      return NextResponse.json({ error: "Already running" }, { status: 409 });
+    }
+  }
+  await prisma.appSetting.upsert({
+    where:  { key: lockKey },
+    create: { key: lockKey, value: new Date().toISOString() },
+    update: { value: new Date().toISOString() },
+  });
+
+  try {
+
   const brazeClient = createBrazeClient();
   if (!brazeClient) {
     return NextResponse.json({ error: "Braze not configured (missing BRAZE_API_KEY or BRAZE_REST_URL)" }, { status: 500 });
@@ -278,7 +295,11 @@ export async function POST(req: NextRequest) {
   // Derived once from inWindowMap — used in every agent's user query
   const inWindowUserIdSet = new Set(inWindowMap.keys());
 
+  // Per-agent metric accumulators for ModelMetric writes
+  const agentMetrics = new Map<string, { sent: number; suppressed: number; errors: number }>();
+
   for (const agent of agents) {
+    const metricsBefore = { sent: totalSent, suppressed: totalSuppressed, errors: totalErrors };
     const personaIds = agent.personaTargets.map((pt) => pt.personaId);
     if (personaIds.length === 0) continue;
 
@@ -851,7 +872,24 @@ export async function POST(req: NextRequest) {
       }
     }
     // ── End in-window sub-pool ───────────────────────────────────────────────
+    agentMetrics.set(agent.id, {
+      sent:       totalSent       - metricsBefore.sent,
+      suppressed: totalSuppressed - metricsBefore.suppressed,
+      errors:     totalErrors     - metricsBefore.errors,
+    });
+  }
+
+  // Write ModelMetric rows for agents that had any activity
+  const metricsToWrite = [...agentMetrics.entries()]
+    .filter(([, m]) => m.sent > 0 || m.suppressed > 0 || m.errors > 0)
+    .map(([agentId, m]) => ({ agentId, metrics: m }));
+
+  if (metricsToWrite.length > 0) {
+    await prisma.modelMetric.createMany({ data: metricsToWrite });
   }
 
   return NextResponse.json({ ok: true, sent: totalSent, suppressed: totalSuppressed, errors: totalErrors });
+  } finally {
+    await prisma.appSetting.delete({ where: { key: "cron_lock_select_and_send" } }).catch(() => {});
+  }
 }

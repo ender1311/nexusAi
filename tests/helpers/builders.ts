@@ -81,16 +81,19 @@ export async function createUser(
   externalId: string,
   overrides: {
     personaId?: string | null;
+    personaConfidence?: number | null;
     totalDecisions?: number;
     totalConversions?: number;
     totalReward?: number;
     attributes?: object;
   } = {}
 ) {
+  // Default personaConfidence to 1.0 so tests pass the MIN_PERSONA_CONFIDENCE filter
+  const data = { personaConfidence: 1.0, ...overrides };
   return prisma.trackedUser.upsert({
     where: { externalId },
-    create: { externalId, ...overrides },
-    update: { ...overrides },
+    create: { externalId, ...data },
+    update: { ...data },
   });
 }
 
