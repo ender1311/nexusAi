@@ -58,9 +58,7 @@ async function sendVariantGroup(
       : null;
 
     const audience = { externalUserIds: batchUserIds };
-    const schedule = group.scheduledAt
-      ? { time: group.scheduledAt.toISOString() }
-      : undefined;
+    const sendAt = group.scheduledAt?.toISOString();
     let payload: Record<string, unknown>;
 
     if (group.channel === "push") {
@@ -70,7 +68,7 @@ async function sendVariantGroup(
         group.brazeCampaignId ?? undefined,
         sendId ?? undefined,
         group.brazeVariantId ?? undefined,
-        schedule,
+        sendAt,
       );
     } else if (group.channel === "email") {
       payload = factory.buildEmailPayload(
@@ -79,7 +77,7 @@ async function sendVariantGroup(
         group.brazeCampaignId ?? undefined,
         sendId ?? undefined,
         group.brazeVariantId ?? undefined,
-        schedule,
+        sendAt,
       );
     } else {
       payload = factory.buildSmsPayload(
@@ -88,7 +86,7 @@ async function sendVariantGroup(
         group.brazeCampaignId ?? undefined,
         sendId ?? undefined,
         group.brazeVariantId ?? undefined,
-        schedule,
+        sendAt,
       );
     }
 
