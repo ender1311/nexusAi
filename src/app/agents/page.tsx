@@ -8,13 +8,14 @@ import { AgentStatusBadge } from "@/components/agents/agent-status-badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { AgentStatus, FunnelStage, FUNNEL_STAGES, FUNNEL_STAGE_META, Agent } from "@/types/agent";
-import { Plus, Search } from "lucide-react";
+import { Bot, Plus, Search } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 const STATUS_FILTERS: Array<AgentStatus | "all"> = ["all", "active", "paused", "draft"];
 
 export default function AgentsPage() {
   const [agents, setAgents] = useState<Agent[]>([]);
+  const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState<AgentStatus | "all">("all");
   const [stageFilter, setStageFilter] = useState<FunnelStage | null>(null);
@@ -23,7 +24,8 @@ export default function AgentsPage() {
     fetch("/api/agents")
       .then((res) => res.json())
       .then((data: Agent[]) => setAgents(Array.isArray(data) ? data : []))
-      .catch((err) => console.error("Failed to fetch agents:", err));
+      .catch((err) => console.error("Failed to fetch agents:", err))
+      .finally(() => setLoading(false));
   }, []);
 
   const filtered = agents.filter((a) => {
@@ -92,10 +94,40 @@ export default function AgentsPage() {
           ))}
         </div>
 
-        {filtered.length === 0 ? (
-          <div className="text-center py-12 text-muted-foreground">
-            <p className="text-sm">No agents found</p>
+        {loading ? (
+          <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
+            {Array.from({ length: 6 }).map((_, i) => (
+              <div key={i} className="h-48 rounded-lg border bg-muted/30 animate-pulse" />
+            ))}
           </div>
+        ) : filtered.length === 0 ? (
+          agents.length === 0 ? (
+            <div className="flex flex-col items-center justify-center py-16 text-center border-2 border-dashed rounded-xl text-muted-foreground">
+              <Bot className="h-10 w-10 mx-auto mb-3 opacity-40" />
+              <p className="font-medium">No agents yet</p>
+              <p className="text-sm text-muted-foreground mt-1">Create your first Nexus agent to start optimizing message performance.</p>
+              <Link href="/agents/new" className="mt-4">
+                <Button size="sm">
+                  <Plus className="h-4 w-4 mr-1" />
+                  Create Agent
+                </Button>
+              </Link>
+            </div>
+          ) : (
+            <div className="flex flex-col items-center justify-center py-16 text-center border-2 border-dashed rounded-xl text-muted-foreground">
+              <Search className="h-10 w-10 mx-auto mb-3 opacity-40" />
+              <p className="font-medium">No matching agents</p>
+              <p className="text-sm text-muted-foreground mt-1">Try adjusting your search or filter criteria.</p>
+              <Button
+                variant="ghost"
+                size="sm"
+                className="mt-4"
+                onClick={() => { setSearch(""); setStatusFilter("all"); setStageFilter(null); }}
+              >
+                Clear filters
+              </Button>
+            </div>
+          )
         ) : (
           <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
             {filtered.map((agent) => (

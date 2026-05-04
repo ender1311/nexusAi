@@ -1,7 +1,7 @@
 "use client";
 
-import { useEffect, useState } from "react";
-import { Loader2 } from "lucide-react";
+import { Fragment, useEffect, useState } from "react";
+import { Loader2, Send } from "lucide-react";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -129,7 +129,11 @@ export function AgentSendsTable({ agentId }: Props) {
 
   if (rows.length === 0) {
     return (
-      <p className="text-center py-8 text-sm text-muted-foreground">No sends yet.</p>
+      <div className="flex flex-col items-center justify-center py-12 text-center text-muted-foreground">
+        <Send className="h-8 w-8 mx-auto mb-2 opacity-40" />
+        <p className="text-sm font-medium">No sends yet</p>
+        <p className="text-xs mt-1">Sends appear here once the cron job delivers messages for this agent.</p>
+      </div>
     );
   }
 
@@ -149,8 +153,8 @@ export function AgentSendsTable({ agentId }: Props) {
         </TableHeader>
         <TableBody>
           {groups.map(({ dateKey, label, rows: groupRows }) => (
-            <>
-              <TableRow key={`group-${dateKey}`} className="hover:bg-transparent">
+            <Fragment key={dateKey}>
+              <TableRow className="hover:bg-transparent">
                 <TableCell
                   colSpan={5}
                   className="py-2 px-4 text-xs font-medium text-muted-foreground bg-muted/40 border-y"
@@ -179,7 +183,7 @@ export function AgentSendsTable({ agentId }: Props) {
                   </TableCell>
                 </TableRow>
               ))}
-            </>
+            </Fragment>
           ))}
         </TableBody>
       </Table>

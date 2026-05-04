@@ -3,11 +3,13 @@ export const dynamic = "force-dynamic";
 import { Header } from "@/components/layout/header";
 import { MetricCard } from "@/components/charts/metric-card";
 import { PersonaCard } from "@/components/personas/persona-card";
+import { Button } from "@/components/ui/button";
 import { Persona } from "@/types/persona";
 import { Users2, TrendingUp, Star, Sparkles } from "lucide-react";
 import { AudienceDistribution } from "@/components/personas/audience-distribution";
 import { formatNumber } from "@/lib/utils";
 import { prisma } from "@/lib/db";
+import Link from "next/link";
 
 async function getPersonas(): Promise<Persona[]> {
   try {
@@ -110,15 +112,17 @@ export default async function PersonasPage() {
         )}
 
         {personas.length === 0 && (
-          <div className="text-center py-16 text-muted-foreground border-2 border-dashed rounded-xl">
-            <Users2 className="h-10 w-10 mx-auto mb-3 opacity-30" />
-            <p className="font-medium">No personas in database</p>
+          <div className="flex flex-col items-center justify-center py-16 text-center border-2 border-dashed rounded-xl text-muted-foreground">
+            <Users2 className="h-10 w-10 mx-auto mb-3 opacity-40" />
+            <p className="font-medium">No personas configured</p>
             <p className="text-sm mt-1">
-              Run the seed script to load the 12 default personas, or use the discovery engine once users accumulate behavioral data.
+              Personas define your user behavioral segments. Use the Settings page to run persona discovery once users have accumulated engagement data.
             </p>
-            <p className="text-xs font-mono mt-3 bg-muted inline-block px-3 py-1 rounded">
-              npx tsx prisma/seed-personas.ts
-            </p>
+            <Link href="/settings" className="mt-4">
+              <Button size="sm" variant="outline">
+                Go to Settings
+              </Button>
+            </Link>
           </div>
         )}
       </div>

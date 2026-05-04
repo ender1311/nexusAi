@@ -1,7 +1,8 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { Radar, RotateCcw, Users, Zap } from "lucide-react";
+import { RotateCcw, Users, Zap } from "lucide-react";
+import { Header } from "@/components/layout/header";
 import { AgentToggleCard } from "@/components/control-tower/agent-toggle-card";
 import { OptimizationObjective } from "@/components/control-tower/optimization-objective";
 import { ScanningAnimation } from "@/components/control-tower/scanning-animation";
@@ -115,19 +116,7 @@ export default function ControlTowerPage() {
 
   return (
     <div className="flex flex-col h-full">
-      {/* Header */}
-      <div className="flex h-16 items-center justify-between border-b px-6 shrink-0">
-        <div className="flex items-center gap-3">
-          <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-primary/10">
-            <Radar className="h-4 w-4 text-primary" />
-          </div>
-          <div>
-            <h1 className="text-base font-semibold leading-tight">Control Tower</h1>
-            <p className="text-xs text-muted-foreground leading-tight">
-              AI-Powered Optimization Command Center
-            </p>
-          </div>
-        </div>
+      <Header title="Control Tower" description="AI-Powered Optimization Command Center">
         {isResults && (
           <button
             onClick={handleReconfigure}
@@ -137,7 +126,7 @@ export default function ControlTowerPage() {
             Reconfigure
           </button>
         )}
-      </div>
+      </Header>
 
       {/* Live database stats bar */}
       <div className="border-b bg-muted/30 px-6 py-2.5 flex items-center gap-6 text-sm shrink-0">
@@ -217,6 +206,8 @@ export default function ControlTowerPage() {
 
             {!isResults && (
               <button
+                type="button"
+                aria-label="Activate Nexus AI optimization"
                 onClick={handleActivate}
                 disabled={isScanning || enabledCount === 0}
                 className="w-full relative flex items-center justify-center gap-2 rounded-xl px-4 py-3 text-sm font-semibold text-white transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed bg-gradient-to-r from-primary to-red-600 shadow-[0_0_20px_rgba(255,61,77,0.4)] hover:shadow-[0_0_30px_rgba(255,61,77,0.6)] hover:scale-[1.01] active:scale-[0.99]"

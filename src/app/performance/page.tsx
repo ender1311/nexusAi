@@ -3,15 +3,18 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { MetricCard } from "@/components/charts/metric-card";
 import { TimeSeriesChart } from "@/components/charts/time-series-chart";
 import { DailySendsChart } from "@/components/charts/bar-chart";
 import { VariantComparison } from "@/components/charts/variant-comparison";
 import { ExplorationRatio } from "@/components/charts/exploration-ratio";
 import { TimingHeatmap } from "@/components/charts/timing-heatmap";
+import { AgentStatusBadge } from "@/components/agents/agent-status-badge";
 import { globalTimeSeries, agentMetrics, variantMetrics, timingHeatmap } from "@/lib/mock/metrics";
 import { formatNumber, formatPercent } from "@/lib/utils";
 import Link from "next/link";
-import { TrendingUp, TrendingDown, Minus } from "lucide-react";
+import { TrendingUp, TrendingDown, Minus, Send, Zap, GitCompare } from "lucide-react";
+import { AgentStatus } from "@/types/agent";
 
 function LiftBadge({ lift }: { lift: number }) {
   if (lift > 5) return (
@@ -42,36 +45,26 @@ export default function PerformancePage() {
       <div className="p-6 space-y-6">
         {/* KPIs */}
         <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-          <Card>
-            <CardContent className="p-4">
-              <p className="text-xs text-muted-foreground">Total Sends (30d)</p>
-              <p className="text-2xl font-bold mt-1">
-                {formatNumber(last30.reduce((s, d) => s + d.sends, 0))}
-              </p>
-            </CardContent>
-          </Card>
-          <Card>
-            <CardContent className="p-4">
-              <p className="text-xs text-muted-foreground">Avg Conv. Rate</p>
-              <p className="text-2xl font-bold mt-1 text-primary">
-                {formatPercent(last30.reduce((s, d) => s + d.conversionRate, 0) / last30.length)}
-              </p>
-            </CardContent>
-          </Card>
-          <Card>
-            <CardContent className="p-4">
-              <p className="text-xs text-muted-foreground">Best Agent Lift</p>
-              <p className="text-2xl font-bold mt-1 text-green-600">
-                +{Math.max(...agentMetrics.map((m) => m.liftVsControl))}%
-              </p>
-            </CardContent>
-          </Card>
-          <Card>
-            <CardContent className="p-4">
-              <p className="text-xs text-muted-foreground">Active Variants</p>
-              <p className="text-2xl font-bold mt-1">{allVariants.length}</p>
-            </CardContent>
-          </Card>
+          <MetricCard
+            title="Total Sends (30d)"
+            value={formatNumber(last30.reduce((s, d) => s + d.sends, 0))}
+            icon={Send}
+          />
+          <MetricCard
+            title="Avg Conv. Rate"
+            value={formatPercent(last30.reduce((s, d) => s + d.conversionRate, 0) / last30.length)}
+            icon={TrendingUp}
+          />
+          <MetricCard
+            title="Best Agent Lift"
+            value={`+${Math.max(...agentMetrics.map((m) => m.liftVsControl))}%`}
+            icon={Zap}
+          />
+          <MetricCard
+            title="Active Variants"
+            value={allVariants.length}
+            icon={GitCompare}
+          />
         </div>
 
         {/* Charts */}
@@ -104,13 +97,13 @@ export default function PerformancePage() {
             <Table>
               <TableHeader>
                 <TableRow>
-                  <TableHead>Agent</TableHead>
-                  <TableHead>Status</TableHead>
-                  <TableHead className="text-right">Sends</TableHead>
-                  <TableHead className="text-right">Conversions</TableHead>
-                  <TableHead className="text-right">Conv. Rate</TableHead>
-                  <TableHead className="text-right">Lift vs Control</TableHead>
-                  <TableHead className="text-right">Explore %</TableHead>
+                  <TableHead className="font-semibold">Agent</TableHead>
+                  <TableHead className="font-semibold">Status</TableHead>
+                  <TableHead className="text-right font-semibold">Sends</TableHead>
+                  <TableHead className="text-right font-semibold">Conversions</TableHead>
+                  <TableHead className="text-right font-semibold">Conv. Rate</TableHead>
+                  <TableHead className="text-right font-semibold">Lift vs Control</TableHead>
+                  <TableHead className="text-right font-semibold">Explore %</TableHead>
                   <TableHead />
                 </TableRow>
               </TableHeader>
@@ -119,16 +112,7 @@ export default function PerformancePage() {
                   <TableRow key={m.agentId}>
                     <TableCell className="font-medium">{m.agentName}</TableCell>
                     <TableCell>
-                      <Badge
-                        variant="outline"
-                        className={
-                          m.status === "active"
-                            ? "text-green-700 bg-green-50 text-xs"
-                            : "text-gray-600 bg-gray-50 text-xs"
-                        }
-                      >
-                        {m.status}
-                      </Badge>
+                      <AgentStatusBadge status={m.status as AgentStatus} />
                     </TableCell>
                     <TableCell className="text-right">{formatNumber(m.sends)}</TableCell>
                     <TableCell className="text-right">{formatNumber(m.conversions)}</TableCell>
@@ -141,7 +125,7 @@ export default function PerformancePage() {
                     <TableCell className="text-right text-muted-foreground">{m.exploreRatio}%</TableCell>
                     <TableCell>
                       <Link href={`/agents/${m.agentId}/performance`}>
-                        <Button variant="ghost" size="sm" className="h-7 text-xs">View</Button>
+                        <Button variant="outline" size="sm" className="h-7 text-xs">View</Button>
                       </Link>
                     </TableCell>
                   </TableRow>
