@@ -26,10 +26,28 @@ interface AudienceTarget {
 export class PayloadFactory {
   private androidAppId?: string;
   private iosAppId?: string;
+  private nexusIosVariantId?: string;
+  private nexusAndroidVariantId?: string;
+  private nexusEmailVariantId?: string;
+  private nexusEmailCampaignId?: string;
+  private nexusContentCardVariantId?: string;
 
-  constructor(opts?: { androidAppId?: string; iosAppId?: string }) {
+  constructor(opts?: {
+    androidAppId?: string;
+    iosAppId?: string;
+    nexusIosVariantId?: string;
+    nexusAndroidVariantId?: string;
+    nexusEmailVariantId?: string;
+    nexusEmailCampaignId?: string;
+    nexusContentCardVariantId?: string;
+  }) {
     this.androidAppId = opts?.androidAppId ?? process.env.BRAZE_ANDROID_APP_ID;
     this.iosAppId = opts?.iosAppId ?? process.env.BRAZE_IOS_APP_ID;
+    this.nexusIosVariantId = opts?.nexusIosVariantId ?? process.env.BRAZE_NEXUS_IOS_VARIANT_ID;
+    this.nexusAndroidVariantId = opts?.nexusAndroidVariantId ?? process.env.BRAZE_NEXUS_ANDROID_VARIANT_ID;
+    this.nexusEmailVariantId = opts?.nexusEmailVariantId ?? process.env.BRAZE_NEXUS_EMAIL_VARIANT_ID;
+    this.nexusEmailCampaignId = opts?.nexusEmailCampaignId ?? process.env.BRAZE_NEXUS_EMAIL_CAMPAIGN_ID;
+    this.nexusContentCardVariantId = opts?.nexusContentCardVariantId ?? process.env.BRAZE_NEXUS_CONTENTCARD_VARIANT_ID;
   }
 
   buildPushPayload(
@@ -40,13 +58,17 @@ export class PayloadFactory {
     variantId?: string,
     inLocalTime?: boolean
   ): Record<string, unknown> {
+    // Use platform-specific env var fallbacks when no per-variant DB ID is set
+    const resolvedAndroidVariantId = variantId ?? this.nexusAndroidVariantId;
+    const resolvedIosVariantId = variantId ?? this.nexusIosVariantId;
+
     const androidMsg: Record<string, unknown> = {
       alert: msg.body,
       title: msg.title,
       ...(msg.deeplink && { custom_uri: msg.deeplink }),
       ...(msg.iconImageUrl && { image_url: msg.iconImageUrl }),
       ...(msg.extraData && { extra: msg.extraData }),
-      ...(variantId && { message_variation_id: variantId }),
+      ...(resolvedAndroidVariantId && { message_variation_id: resolvedAndroidVariantId }),
       ...(audience.externalUserIds && { app_id: this.androidAppId }),
     };
 
@@ -57,7 +79,7 @@ export class PayloadFactory {
         rich_notification: { media_url: msg.iconImageUrl, media_type: "img" },
       }),
       ...(msg.extraData && { extra: msg.extraData }),
-      ...(variantId && { message_variation_id: variantId }),
+      ...(resolvedIosVariantId && { message_variation_id: resolvedIosVariantId }),
       ...(audience.externalUserIds && { app_id: this.iosAppId }),
     };
 
@@ -81,17 +103,21 @@ export class PayloadFactory {
     const fromName = msg.fromName ?? "YouVersion";
     const fromEmail = msg.fromEmail ?? "no-reply@youversion.com";
 
+    // Fall back to Nexus env-var campaign/variant IDs when not set per-message in DB
+    const resolvedCampaignId = campaignId ?? this.nexusEmailCampaignId;
+    const resolvedVariantId = variantId ?? this.nexusEmailVariantId;
+
     const emailMsg: Record<string, unknown> = {
       subject: msg.subject,
       body: msg.htmlBody,
       from: `${fromName} <${fromEmail}>`,
       reply_to: msg.replyTo ?? fromEmail,
       app_id: this.iosAppId,
-      ...(variantId && { message_variation_id: variantId }),
+      ...(resolvedVariantId && { message_variation_id: resolvedVariantId }),
     };
 
     return {
-      ...(campaignId && { campaign_id: campaignId }),
+      ...(resolvedCampaignId && { campaign_id: resolvedCampaignId }),
       ...(sendId && { send_id: sendId }),
       ...(inLocalTime && { in_local_time: true }),
       messages: { email: emailMsg },
@@ -119,6 +145,16 @@ export class PayloadFactory {
       },
       ...this.buildAudience(audience),
     };
+  }
+
+  /** Exposed so callers can look up the env-based email campaign ID when needed. */
+  get emailCampaignId(): string | undefined {
+    return this.nexusEmailCampaignId;
+  }
+
+  /** Exposed so callers can look up the env-based content card variant ID. */
+  get contentCardVariantId(): string | undefined {
+    return this.nexusContentCardVariantId;
   }
 
   private buildAudience(audience: AudienceTarget): Record<string, unknown> {

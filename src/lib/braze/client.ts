@@ -57,7 +57,7 @@ export class BrazeClient {
 
 export function createBrazeClient(): BrazeClient | null {
   const apiKey = process.env.BRAZE_API_KEY;
-  const restUrl = process.env.BRAZE_REST_URL;
+  const restUrl = process.env.BRAZE_REST_ENDPOINT ?? process.env.BRAZE_REST_URL;
   if (!apiKey || !restUrl) return null;
   return new BrazeClient(apiKey, restUrl);
 }

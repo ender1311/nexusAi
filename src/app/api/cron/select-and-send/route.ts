@@ -82,8 +82,13 @@ async function sendVariantGroup(
   onSuccessfulBatch?: (userIds: string[]) => void,
 ): Promise<{ sent: number; errors: number }> {
   try {
-    const sendId = group.brazeCampaignId
-      ? await brazeClient!.createSendId(group.brazeCampaignId)
+    // Fall back to env-based campaign ID when the DB field is not set
+    const resolvedCampaignId =
+      group.brazeCampaignId ??
+      (group.channel === "email" ? process.env.BRAZE_NEXUS_EMAIL_CAMPAIGN_ID : undefined);
+
+    const sendId = resolvedCampaignId
+      ? await brazeClient!.createSendId(resolvedCampaignId)
       : null;
 
     const audience = { externalUserIds: batchUserIds };
@@ -93,7 +98,7 @@ async function sendVariantGroup(
       payload = factory.buildPushPayload(
         { title: group.title ?? "", body: group.body, deeplink: group.deeplink ?? undefined },
         audience,
-        group.brazeCampaignId ?? undefined,
+        resolvedCampaignId,
         sendId ?? undefined,
         group.brazeVariantId ?? undefined,
         group.inLocalTime,
@@ -102,7 +107,7 @@ async function sendVariantGroup(
       payload = factory.buildEmailPayload(
         { subject: group.title ?? "", htmlBody: group.body },
         audience,
-        group.brazeCampaignId ?? undefined,
+        resolvedCampaignId,
         sendId ?? undefined,
         group.brazeVariantId ?? undefined,
         group.inLocalTime,
@@ -111,7 +116,7 @@ async function sendVariantGroup(
       payload = factory.buildSmsPayload(
         { body: group.body },
         audience,
-        group.brazeCampaignId ?? undefined,
+        resolvedCampaignId,
         sendId ?? undefined,
         group.brazeVariantId ?? undefined,
         group.inLocalTime,
