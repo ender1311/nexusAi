@@ -68,19 +68,30 @@ export function Sidebar({ user }: { user: SidebarUser | null }) {
         {collapsed && <Zap className="h-5 w-5 text-primary mx-auto" />}
         <button
           onClick={() => setCollapsed(!collapsed)}
+          aria-label={collapsed ? "Expand sidebar" : "Collapse sidebar"}
+          aria-expanded={!collapsed}
           className="p-1 rounded-md hover:bg-muted text-muted-foreground ml-auto"
         >
-          {collapsed ? <ChevronRight className="h-4 w-4" /> : <ChevronLeft className="h-4 w-4" />}
+          {collapsed ? (
+            <ChevronRight className="h-4 w-4" />
+          ) : (
+            <ChevronLeft className="h-4 w-4" />
+          )}
         </button>
       </div>
 
       <nav className="flex-1 p-2 space-y-1">
         {navItems.map((item) => {
-          const active = item.href === "/" ? pathname === "/" : pathname.startsWith(item.href);
+          const active =
+            item.href === "/"
+              ? pathname === "/"
+              : pathname.startsWith(item.href);
           return (
             <Link
               key={item.href}
               href={item.href}
+              title={collapsed ? item.label : undefined}
+              aria-current={active ? "page" : undefined}
               className={cn(
                 "flex items-center gap-3 px-3 py-2 rounded-lg text-sm font-medium transition-colors",
                 active
@@ -100,7 +111,16 @@ export function Sidebar({ user }: { user: SidebarUser | null }) {
         {collapsed ? (
           <button
             onClick={() => setMode(mode === "demo" ? "live" : "demo")}
-            title={mode === "demo" ? "Demo mode — click for live" : "Live mode — click for demo"}
+            aria-label={
+              mode === "demo"
+                ? "Data source: Demo — click to switch to Live"
+                : "Data source: Live — click to switch to Demo"
+            }
+            title={
+              mode === "demo"
+                ? "Demo mode — click for live"
+                : "Live mode — click for demo"
+            }
             className={cn(
               "flex h-7 w-7 mx-auto items-center justify-center rounded-full text-xs font-bold transition-colors",
               mode === "demo"
@@ -116,6 +136,8 @@ export function Sidebar({ user }: { user: SidebarUser | null }) {
             <div className="flex items-center gap-0.5 rounded-md border p-0.5">
               <button
                 onClick={() => setMode("demo")}
+                aria-label="Switch to Demo data source"
+                aria-pressed={mode === "demo"}
                 className={cn(
                   "rounded px-2 py-0.5 text-xs font-medium transition-colors",
                   mode === "demo"
@@ -127,6 +149,8 @@ export function Sidebar({ user }: { user: SidebarUser | null }) {
               </button>
               <button
                 onClick={() => setMode("live")}
+                aria-label="Switch to Live data source"
+                aria-pressed={mode === "live"}
                 className={cn(
                   "rounded px-2 py-0.5 text-xs font-medium transition-colors",
                   mode === "live"
@@ -149,7 +173,9 @@ export function Sidebar({ user }: { user: SidebarUser | null }) {
             </div>
             <div className="min-w-0 flex-1">
               <p className="truncate text-xs font-medium">{displayName}</p>
-              <p className="truncate text-xs text-muted-foreground">{user.email}</p>
+              <p className="truncate text-xs text-muted-foreground">
+                {user.email}
+              </p>
             </div>
           </div>
         )}

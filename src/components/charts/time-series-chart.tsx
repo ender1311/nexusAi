@@ -20,6 +20,14 @@ interface TimeSeriesChartProps {
 }
 
 export function TimeSeriesChart({ data, height = 280, showSends = false }: TimeSeriesChartProps) {
+  if (data.length === 0) {
+    return (
+      <div style={{ height }} className="flex items-center justify-center text-sm text-muted-foreground">
+        No data available
+      </div>
+    );
+  }
+
   const formatted = data.map((d) => ({
     ...d,
     date: formatDateShort(d.date),

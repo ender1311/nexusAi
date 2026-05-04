@@ -23,8 +23,8 @@ export function MetricCard({ title, value, description, icon: Icon, trend, class
         {(description || trend !== undefined) && (
           <p className="text-xs text-muted-foreground mt-1 flex items-center gap-1">
             {trend !== undefined && (
-              <span className={cn(trend >= 0 ? "text-green-600" : "text-red-500")}>
-                {trend >= 0 ? "+" : ""}{trend.toFixed(1)}%
+              <span className={cn(trend > 0 ? "text-green-600" : trend < 0 ? "text-red-500" : "text-muted-foreground")}>
+                {trend === 0 ? "—" : `${trend > 0 ? "+" : ""}${trend.toFixed(1)}%`}
               </span>
             )}
             {description}

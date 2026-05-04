@@ -4,7 +4,7 @@ import { Badge } from "@/components/ui/badge";
 import { Agent, FUNNEL_STAGE_META } from "@/types/agent";
 import { AgentStatusBadge } from "./agent-status-badge";
 import { formatNumber } from "@/lib/utils";
-import { MessageSquare, Target, ArrowRight } from "lucide-react";
+import { MessageSquare, Target } from "lucide-react";
 
 interface AgentCardProps {
   agent: Agent;
@@ -20,7 +20,7 @@ const algorithmLabels: Record<string, string> = {
 export function AgentCard({ agent, conversionRate }: AgentCardProps) {
   return (
     <Link href={`/agents/${agent.id}`}>
-      <Card className="hover:shadow-md transition-shadow cursor-pointer h-full">
+      <Card className="hover:shadow-md hover:border-primary/30 transition-shadow cursor-pointer h-full">
         <CardHeader className="pb-3">
           <div className="flex items-start justify-between gap-2">
             <div className="flex-1 min-w-0">
@@ -66,10 +66,6 @@ export function AgentCard({ agent, conversionRate }: AgentCardProps) {
             )}
           </div>
 
-          <div className="flex items-center text-primary text-xs font-medium">
-            <span>View details</span>
-            <ArrowRight className="h-3 w-3 ml-1" />
-          </div>
         </CardContent>
       </Card>
     </Link>

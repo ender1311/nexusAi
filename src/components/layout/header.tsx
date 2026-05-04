@@ -1,32 +1,26 @@
-"use client";
+import type { ReactNode } from "react";
 
-import { Bell, RefreshCw } from "lucide-react";
-import { Badge } from "@/components/ui/badge";
-
-interface HeaderProps {
+type HeaderProps = {
   title: string;
   description?: string;
-}
+  children?: ReactNode;
+};
 
-export function Header({ title, description }: HeaderProps) {
+export function Header({ title, description, children }: HeaderProps) {
   return (
     <header className="h-16 border-b flex items-center justify-between px-6 bg-background">
       <div>
         <h1 className="text-lg font-semibold">{title}</h1>
-        {description && <p className="text-sm text-muted-foreground">{description}</p>}
+        {description && (
+          <p className="text-sm text-muted-foreground">{description}</p>
+        )}
       </div>
       <div className="flex items-center gap-3">
+        {children}
         <div className="flex items-center gap-2">
-          <div className="h-2 w-2 rounded-full bg-green-500 animate-pulse" />
+          <div className="h-2 w-2 rounded-full bg-green-500 motion-safe:animate-pulse" />
           <span className="text-xs text-muted-foreground">Engine Active</span>
         </div>
-        <Badge variant="outline" className="text-xs">
-          <RefreshCw className="h-3 w-3 mr-1" />
-          Live
-        </Badge>
-        <button className="p-2 rounded-md hover:bg-muted text-muted-foreground">
-          <Bell className="h-4 w-4" />
-        </button>
       </div>
     </header>
   );

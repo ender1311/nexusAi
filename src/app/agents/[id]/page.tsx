@@ -8,7 +8,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Target, MessageSquare, Calendar, BarChart3, Settings, Play, Pause, Users2, GitCompare, Send } from "lucide-react";
+import { Target, MessageSquare, Calendar, BarChart3, Settings, Play, Pause, Users2, GitCompare, Send, LayoutDashboard } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { TestedVariablesBadges } from "@/components/agents/tested-variables-badges";
 import { VariantDiffTable } from "@/components/agents/variant-diff-table";
@@ -130,7 +130,7 @@ export default async function AgentDetailPage({ params }: { params: Promise<{ id
           </div>
           <div className="flex gap-2">
             {(agent.status as AgentStatus) === "active" ? (
-              <Button variant="outline" size="sm">
+              <Button variant="outline" size="sm" className="hover:bg-destructive/10 hover:text-destructive hover:border-destructive/30">
                 <Pause className="h-3.5 w-3.5 mr-1.5" />
                 Pause
               </Button>
@@ -146,7 +146,10 @@ export default async function AgentDetailPage({ params }: { params: Promise<{ id
         {/* Tabs */}
         <Tabs defaultValue="overview">
           <TabsList>
-            <TabsTrigger value="overview">Overview</TabsTrigger>
+            <TabsTrigger value="overview">
+              <LayoutDashboard className="h-3.5 w-3.5 mr-1.5" />
+              Overview
+            </TabsTrigger>
             <TabsTrigger value="goals">
               <Target className="h-3.5 w-3.5 mr-1.5" />
               Goals
@@ -175,11 +178,16 @@ export default async function AgentDetailPage({ params }: { params: Promise<{ id
 
           <TabsContent value="overview" className="space-y-4 mt-4">
             {agent.status === "draft" && (
-              <div className="border-2 border-dashed rounded-lg p-8 text-center">
-                <p className="text-muted-foreground text-sm">This agent is in draft mode.</p>
-                <p className="text-muted-foreground text-xs mt-1">Configure goals and messages, then activate it.</p>
+              <div className="flex items-center gap-3 rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-sm">
+                <div className="h-2 w-2 rounded-full bg-amber-400 shrink-0" />
+                <div className="flex-1 min-w-0">
+                  <span className="font-medium text-amber-900">Draft mode</span>
+                  <span className="text-amber-700 ml-2">Configure goals and messages, then activate this agent.</span>
+                </div>
                 <Link href={`/agents/${agent.id}/goals`}>
-                  <Button className="mt-4" size="sm">Configure Goals</Button>
+                  <Button size="sm" variant="outline" className="border-amber-300 text-amber-800 hover:bg-amber-100 shrink-0">
+                    Configure Goals
+                  </Button>
                 </Link>
               </div>
             )}

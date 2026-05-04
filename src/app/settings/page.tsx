@@ -8,10 +8,11 @@ import { Input } from "@/components/ui/input";
 import { Slider } from "@/components/ui/slider";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
-import { CheckCircle2, Sparkles } from "lucide-react";
+import { CheckCircle2, Loader2, Sparkles } from "lucide-react";
 
 export default function SettingsPage() {
   const [saved, setSaved] = useState(false);
+  const [saving, setSaving] = useState(false);
   const [discovering, setDiscovering] = useState(false);
   const [discoveryResult, setDiscoveryResult] = useState<null | { ok: boolean; message?: string; k?: number; personasCreated?: number; personasUpdated?: number; usersAssigned?: number; silhouetteScore?: number }>(null);
   const [minInteractions, setMinInteractions] = useState(20);
@@ -42,24 +43,29 @@ export default function SettingsPage() {
   };
 
   const handleSave = async () => {
-    await fetch("/api/settings", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        default_frequency_cap: String(defaultFreqCap),
-        default_frequency_period: defaultPeriod,
-        default_quiet_start: defaultQuietStart,
-        default_quiet_end: defaultQuietEnd,
-      }),
-    });
-    setSaved(true);
-    setTimeout(() => setSaved(false), 3000);
+    setSaving(true);
+    try {
+      await fetch("/api/settings", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          default_frequency_cap: String(defaultFreqCap),
+          default_frequency_period: defaultPeriod,
+          default_quiet_start: defaultQuietStart,
+          default_quiet_end: defaultQuietEnd,
+        }),
+      });
+      setSaved(true);
+      setTimeout(() => setSaved(false), 3000);
+    } finally {
+      setSaving(false);
+    }
   };
 
   return (
     <>
       <Header title="Settings" description="Platform configuration" />
-      <div className="p-6 max-w-2xl space-y-6">
+      <div className="p-6 max-w-3xl space-y-6">
         {/* Global Defaults */}
         <Card>
           <CardHeader>
@@ -165,7 +171,11 @@ export default function SettingsPage() {
               {discovering ? "Running Discovery…" : "Run Discovery"}
             </Button>
             {discoveryResult && (
-              <div className={`rounded-lg border p-3 text-xs space-y-1 ${discoveryResult.ok ? "bg-green-50 border-green-200" : "bg-muted"}`}>
+              <div className={`rounded-lg border p-3 text-xs space-y-1 ${
+                discoveryResult.ok
+                  ? "bg-emerald-50 border-emerald-200"
+                  : "bg-red-50 border-red-200"
+              }`}>
                 {discoveryResult.ok ? (
                   <>
                     <p className="font-semibold text-green-700">Discovery complete</p>
@@ -175,7 +185,7 @@ export default function SettingsPage() {
                     <p>Silhouette score: {discoveryResult.silhouetteScore?.toFixed(4)}</p>
                   </>
                 ) : (
-                  <p className="text-muted-foreground">{discoveryResult.message ?? "Not enough data yet."}</p>
+                  <p className="text-red-700">{discoveryResult.message ?? "Not enough data to run discovery yet. Accumulate more user interactions first."}</p>
                 )}
               </div>
             )}
@@ -183,7 +193,14 @@ export default function SettingsPage() {
         </Card>
 
         <div className="flex items-center gap-3">
-          <Button onClick={handleSave}>Save Settings</Button>
+          <Button onClick={handleSave} disabled={saving}>
+            {saving ? (
+              <>
+                <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                Saving…
+              </>
+            ) : "Save Settings"}
+          </Button>
           {saved && (
             <div className="flex items-center gap-1.5 text-green-600 text-sm">
               <CheckCircle2 className="h-4 w-4" />
