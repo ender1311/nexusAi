@@ -90,7 +90,8 @@ describe("POST /api/cron/select-and-send", () => {
     expect(body.suppressed).toBe(0);
   });
 
-  it("calls Braze /messages/send with external_user_ids", async () => {
+  it("calls Braze /messages/schedule/create with external_user_ids and schedule.time", async () => {
+    // All sends now route to /messages/schedule/create (per-user timing via computeScheduledAt)
     const persona = await createPersona();
     const agent = await createAgent();
     const msg = await createMessage(agent.id, { brazeCampaignId: "camp_1" });
@@ -101,10 +102,11 @@ describe("POST /api/cron/select-and-send", () => {
 
     await POST(buildRequest("POST", undefined, CRON_AUTH) as NextRequest);
 
-    const sendCall = brazeRequests.find((r) => r.url.includes("/messages/send"));
+    const sendCall = brazeRequests.find((r) => r.url.includes("/messages/schedule/create"));
     expect(sendCall).toBeTruthy();
     const body = sendCall!.body as Record<string, unknown>;
     expect(body.external_user_ids).toContain("usr_braze");
+    expect((body.schedule as Record<string, unknown>)?.time).toBeTruthy();
   });
 
   it("records brazeSendId on UserDecision after successful send", async () => {
@@ -138,10 +140,10 @@ describe("POST /api/cron/select-and-send", () => {
 
     expect(body.sent).toBe(0);
     expect(body.suppressed).toBeGreaterThanOrEqual(1);
-    expect(brazeRequests.filter((r) => r.url.includes("/messages/send"))).toHaveLength(0);
+    expect(brazeRequests.filter((r) => r.url.includes("/messages/schedule/create"))).toHaveLength(0);
   });
 
-  it("batches users ≤50 per Braze /messages/send call", async () => {
+  it("batches users ≤50 per Braze /messages/schedule/create call", async () => {
     const persona = await createPersona();
     // Use "engaged" so users go through the lottery path (not Phase 0 exploration window)
     const agent = await createAgent({ funnelStage: "engaged" });
@@ -160,8 +162,8 @@ describe("POST /api/cron/select-and-send", () => {
     const body = await res.json();
 
     expect(body.sent).toBe(55);
-    const sendCalls = brazeRequests.filter((r) => r.url.includes("/messages/send"));
-    expect(sendCalls).toHaveLength(2); // ceil(55/50) = 2
+    const sendCalls = brazeRequests.filter((r) => r.url.includes("/messages/schedule/create"));
+    expect(sendCalls).toHaveLength(2); // ceil(55/50) = 2; all users share fallback scheduledAt → one group
   }, 20000); // 55 users × sequential DB ops against Neon
 });
 

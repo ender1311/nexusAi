@@ -38,6 +38,20 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
       return NextResponse.json({ error: "targetFilter must be a plain object" }, { status: 400 });
     }
 
+    if (body.fallbackSendHour !== undefined) {
+      if (
+        body.fallbackSendHour !== null &&
+        (!Number.isInteger(body.fallbackSendHour) ||
+          body.fallbackSendHour < 0 ||
+          body.fallbackSendHour > 23)
+      ) {
+        return NextResponse.json(
+          { error: "fallbackSendHour must be null or an integer 0–23" },
+          { status: 400 },
+        );
+      }
+    }
+
     const agent = await prisma.agent.update({
       where: { id },
       data: {
@@ -48,6 +62,7 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
         epsilon: body.epsilon,
         ...(body.funnelStage !== undefined ? { funnelStage: body.funnelStage } : {}),
         ...(body.targetFilter !== undefined ? { targetFilter: body.targetFilter } : {}),
+        ...(body.fallbackSendHour !== undefined ? { fallbackSendHour: body.fallbackSendHour } : {}),
       },
     });
     return NextResponse.json(agent);
