@@ -29,41 +29,44 @@ type VariantSendGroup = {
   title: string | null;
   deeplink: string | null;
   inLocalTime?: boolean;
-  scheduledAt: Date;
+  scheduledAt?: Date;
   externalUserIds: string[];
   decisionIds: string[];
 };
 
 /**
- * Returns a scheduled send time and whether Braze should deliver in the user's local timezone.
+ * Returns a scheduled delivery time and whether local-time delivery is in use.
  *
- * When the user has last_seen_at data (preferredHour is non-null) and the computed time
- * is still in the future: schedules 10 minutes before their preferred UTC time today.
+ * When the user has a preferred send time, schedules 10 minutes before that UTC time today.
  * The 10-minute offset accounts for last_seen_at being session-end (sessions ~3-10 min),
- * so we arrive just before the user's next typical session window opens.
- * inLocalTime: false — the time is already expressed in UTC.
- *
- * Fallback (no last_seen_at, or computed time already passed): schedules at 08:00 today
- * with inLocalTime: true. Braze delivers at 8am in each user's own timezone.
- * The cron runs at 00:00 UTC so the 08:00 slot is always ≥8 hours away.
+ * so we arrive just before the user's next typical session start.
+ * If that time has already passed, falls back to the agent's fallbackSendHour delivered in
+ * local time via Braze in_local_time.
+ * When using the fallback hour, inLocalTime is true so Braze delivers in each user's local timezone.
  */
 function computeScheduledAt(
   preferredHour: number | null,
   preferredMinute: number | null,
+  agentFallbackHour: number,
   now: Date,
 ): { scheduledAt: Date; inLocalTime: boolean } {
   if (preferredHour !== null) {
     const candidate = new Date(now);
-    // setUTCHours handles minute underflow automatically (e.g. minute=2 → wraps to prev hour)
-    candidate.setUTCHours(preferredHour, (preferredMinute ?? 0) - 10, 0, 0);
+    // Computes a 10-minute offset using total-minutes arithmetic to handle cross-hour boundaries correctly
+    const totalMinutes = preferredHour * 60 + (preferredMinute ?? 0) - 10;
+    const offsetHour   = Math.floor(totalMinutes / 60);
+    const offsetMinute = ((totalMinutes % 60) + 60) % 60;
+    candidate.setUTCHours(offsetHour, offsetMinute, 0, 0);
     if (candidate > now) {
       return { scheduledAt: candidate, inLocalTime: false };
     }
   }
-
-  // Fallback: deliver at 8am in each user's local timezone via Braze in_local_time
+  // Fallback: deliver at the agent's configured hour in each user's local timezone via Braze in_local_time
   const fallback = new Date(now);
-  fallback.setUTCHours(8, 0, 0, 0);
+  fallback.setUTCHours(agentFallbackHour, 0, 0, 0);
+  if (fallback <= now) {
+    fallback.setUTCDate(fallback.getUTCDate() + 1);
+  }
   return { scheduledAt: fallback, inLocalTime: true };
 }
 
@@ -93,6 +96,7 @@ async function sendVariantGroup(
         group.brazeCampaignId ?? undefined,
         sendId ?? undefined,
         group.brazeVariantId ?? undefined,
+        group.inLocalTime,
       );
     } else if (group.channel === "email") {
       payload = factory.buildEmailPayload(
@@ -101,6 +105,7 @@ async function sendVariantGroup(
         group.brazeCampaignId ?? undefined,
         sendId ?? undefined,
         group.brazeVariantId ?? undefined,
+        group.inLocalTime,
       );
     } else {
       payload = factory.buildSmsPayload(
@@ -109,19 +114,18 @@ async function sendVariantGroup(
         group.brazeCampaignId ?? undefined,
         sendId ?? undefined,
         group.brazeVariantId ?? undefined,
+        group.inLocalTime,
       );
     }
 
-    // scheduledAt is always set — route to scheduled endpoint.
-    // in_local_time belongs inside the schedule object per Braze API spec.
-    const endpoint = "/messages/schedule/create";
-    payload = {
-      ...payload,
-      schedule: {
-        time: group.scheduledAt.toISOString(),
-        ...(group.inLocalTime && { in_local_time: true }),
-      },
-    };
+    // Route to scheduled endpoint when group has a future send time
+    const endpoint = group.scheduledAt
+      ? "/messages/schedule/create"
+      : "/messages/send";
+
+    if (group.scheduledAt) {
+      payload = { ...payload, schedule: { time: group.scheduledAt.toISOString() } };
+    }
 
     const res = await brazeClient!.post(endpoint, payload);
     if (res.ok && sendId) {
@@ -579,7 +583,7 @@ export async function POST(req: NextRequest) {
           m.variants.map((v) => ({ ...v, channel: m.channel }))
         );
 
-        const lotteryDecisionInputs: Array<{ user: typeof targetFiltered[number]; variantId: string }> = [];
+        const lotteryDecisionInputs: Array<{ user: typeof targetFiltered[number]; variantId: string; scheduledAt: Date; inLocalTime: boolean }> = [];
         for (const user of targetFiltered) {
           const pid = user.personaId as string | null;
           if (!pid) continue;
@@ -596,16 +600,24 @@ export async function POST(req: NextRequest) {
               ? new EpsilonGreedy(agent.epsilon).select(arms).variantId
               : new ThompsonSampling().select(arms).variantId;
 
-          lotteryDecisionInputs.push({ user, variantId: selectedVariantId });
+          const { scheduledAt, inLocalTime: isFallback } = computeScheduledAt(
+            user.preferredSendHour ?? null,
+            user.preferredSendMinute ?? null,
+            agent.fallbackSendHour ?? 8,
+            now,
+          );
+
+          lotteryDecisionInputs.push({ user, variantId: selectedVariantId, scheduledAt, inLocalTime: isFallback });
         }
 
         // Bulk-create all UserDecision records in one createManyAndReturn call
         if (lotteryDecisionInputs.length > 0) {
-          const decisionData2 = lotteryDecisionInputs.map(({ user, variantId }) => ({
+          const decisionData2 = lotteryDecisionInputs.map(({ user, variantId, scheduledAt }) => ({
             agentId:          agent.id,
             userId:           user.externalId,
             messageVariantId: variantId,
             channel:          pageVariants.find((v) => v.id === variantId)?.channel ?? "push",
+            scheduledFor:     scheduledAt,
           }));
 
           const createdLotteryDecisions = await prisma.userDecision.createManyAndReturn({
@@ -619,18 +631,13 @@ export async function POST(req: NextRequest) {
           }
 
           // Group by variant + scheduled time for batch sending
-          for (const { user, variantId } of lotteryDecisionInputs) {
+          for (const { user, variantId, scheduledAt, inLocalTime: isFallback } of lotteryDecisionInputs) {
             const meta = variantMeta.get(variantId);
             if (!meta) continue;
             const decisionId = lotteryDecisionIdByUser.get(user.externalId);
             if (!decisionId) continue;
 
-            const { scheduledAt, inLocalTime: isFallback } = computeScheduledAt(
-              user.preferredSendHour ?? null,
-              user.preferredSendMinute ?? null,
-              now,
-            );
-            const groupInLocalTime = inLocalTime || isFallback;
+            const groupInLocalTime = isFallback;
             const groupKey = `${variantId}:${scheduledAt.toISOString()}:${groupInLocalTime}`;
 
             if (!byVariant[groupKey]) {
@@ -821,7 +828,7 @@ export async function POST(req: NextRequest) {
           m.variants.map((v) => ({ ...v, channel: m.channel }))
         );
 
-        const decisionInputs: Array<{ user: typeof eligibleWindowUsers[number]; variantId: string }> = [];
+        const decisionInputs: Array<{ user: typeof eligibleWindowUsers[number]; variantId: string; scheduledAt: Date; inLocalTime: boolean }> = [];
 
         for (const user of eligibleWindowUsers) {
           const pid = user.personaId as string | null;
@@ -839,17 +846,24 @@ export async function POST(req: NextRequest) {
               ? new EpsilonGreedy(agent.epsilon).select(arms).variantId
               : new ThompsonSampling().select(arms).variantId;
 
-          decisionInputs.push({ user, variantId: selectedVariantId });
+          const { scheduledAt, inLocalTime: isFallback } = computeScheduledAt(
+            user.preferredSendHour ?? null,
+            user.preferredSendMinute ?? null,
+            agent.fallbackSendHour ?? 8,
+            now,
+          );
+
+          decisionInputs.push({ user, variantId: selectedVariantId, scheduledAt, inLocalTime: isFallback });
         }
 
         // Bulk-create all UserDecision records in one createMany call
-        const now2 = new Date();
-        const decisionData = decisionInputs.map(({ user, variantId }) => ({
+        const decisionData = decisionInputs.map(({ user, variantId, scheduledAt }) => ({
           agentId:          agent.id,
           userId:           user.externalId,
           messageVariantId: variantId,
           channel:          windowVariants.find((v) => v.id === variantId)?.channel ?? "push",
-          sentAt:           now2,
+          sentAt:           now,
+          scheduledFor:     scheduledAt,
         }));
 
         // createMany returns count, not individual IDs — use createManyAndReturn when available,
@@ -867,18 +881,13 @@ export async function POST(req: NextRequest) {
         }
 
         // Group by variant + scheduled time for batch sending
-        for (const { user, variantId } of decisionInputs) {
+        for (const { user, variantId, scheduledAt, inLocalTime: isFallback } of decisionInputs) {
           const meta = variantMeta.get(variantId);
           if (!meta) continue;
           const decisionId = decisionIdByUser.get(user.externalId);
           if (!decisionId) continue;
 
-          const { scheduledAt, inLocalTime: isFallback } = computeScheduledAt(
-            user.preferredSendHour ?? null,
-            user.preferredSendMinute ?? null,
-            now,
-          );
-          const groupInLocalTime = inLocalTime || isFallback;
+          const groupInLocalTime = isFallback;
           const groupKey = `${variantId}:${scheduledAt.toISOString()}:${groupInLocalTime}`;
 
           if (!windowByVariant[groupKey]) {
