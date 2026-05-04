@@ -630,7 +630,8 @@ export async function POST(req: NextRequest) {
             const decisionId = lotteryDecisionIdByUser.get(user.externalId);
             if (!decisionId) continue;
 
-            const groupKey = `${variantId}:${scheduledAt.toISOString()}`;
+            const groupInLocalTime = inLocalTime || isFallback;
+            const groupKey = `${variantId}:${scheduledAt.toISOString()}:${groupInLocalTime}`;
 
             if (!byVariant[groupKey]) {
               byVariant[groupKey] = {
@@ -641,7 +642,7 @@ export async function POST(req: NextRequest) {
                 body:            meta.body,
                 title:           meta.title,
                 deeplink:        meta.deeplink,
-                inLocalTime:     isFallback,
+                inLocalTime:     groupInLocalTime,
                 scheduledAt,
                 externalUserIds: [],
                 decisionIds:     [],
@@ -880,7 +881,8 @@ export async function POST(req: NextRequest) {
           const decisionId = decisionIdByUser.get(user.externalId);
           if (!decisionId) continue;
 
-          const groupKey = `${variantId}:${scheduledAt.toISOString()}`;
+          const groupInLocalTime = inLocalTime || isFallback;
+          const groupKey = `${variantId}:${scheduledAt.toISOString()}:${groupInLocalTime}`;
 
           if (!windowByVariant[groupKey]) {
             windowByVariant[groupKey] = {
@@ -891,7 +893,7 @@ export async function POST(req: NextRequest) {
               body:            meta.body,
               title:           meta.title,
               deeplink:        meta.deeplink,
-              inLocalTime:     isFallback,
+              inLocalTime:     groupInLocalTime,
               scheduledAt,
               externalUserIds: [],
               decisionIds:     [],
