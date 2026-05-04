@@ -8,7 +8,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Target, MessageSquare, Calendar, BarChart3, Settings, Play, Pause, Users2, GitCompare } from "lucide-react";
+import { Target, MessageSquare, Calendar, BarChart3, Settings, Play, Pause, Users2, GitCompare, Send } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { TestedVariablesBadges } from "@/components/agents/tested-variables-badges";
 import { VariantDiffTable } from "@/components/agents/variant-diff-table";
@@ -18,6 +18,7 @@ import { prisma } from "@/lib/db";
 import { AgentFunnelConfig } from "@/components/agents/agent-funnel-config";
 import { PersonaTargetManager } from "@/components/agents/persona-target-manager";
 import { FallbackSendTimeEditor } from "@/components/agents/fallback-send-time-editor";
+import { AgentSendsTable } from "@/components/agents/agent-sends-table";
 
 const TIER_COLORS: Record<string, string> = {
   best: "bg-green-100 text-green-700 border-green-200",
@@ -165,6 +166,10 @@ export default async function AgentDetailPage({ params }: { params: Promise<{ id
             <TabsTrigger value="audience">
               <Users2 className="h-3.5 w-3.5 mr-1.5" />
               Audience
+            </TabsTrigger>
+            <TabsTrigger value="sends">
+              <Send className="h-3.5 w-3.5 mr-1.5" />
+              Sends
             </TabsTrigger>
           </TabsList>
 
@@ -494,6 +499,10 @@ export default async function AgentDetailPage({ params }: { params: Promise<{ id
                 />
               </CardContent>
             </Card>
+          </TabsContent>
+
+          <TabsContent value="sends" className="mt-4">
+            <AgentSendsTable agentId={agent.id} />
           </TabsContent>
         </Tabs>
       </div>
