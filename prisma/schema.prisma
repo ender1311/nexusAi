@@ -23,10 +23,11 @@ model Agent {
   status      String      @default("draft")
   algorithm   String      @default("thompson")
   epsilon     Float       @default(0.1)
-  funnelStage FunnelStage @default(connected)
-  targetFilter Json?
-  createdAt   DateTime    @default(now())
-  updatedAt   DateTime    @updatedAt
+  funnelStage      FunnelStage @default(connected)
+  targetFilter     Json?
+  fallbackSendHour Int?        // 0-23 UTC-naive hour; Braze delivers at this hour in user's local timezone via in_local_time
+  createdAt        DateTime    @default(now())
+  updatedAt        DateTime    @updatedAt
 
   goals          Goal[]
   messages       Message[]
@@ -101,6 +102,7 @@ model UserDecision {
   channel          String
   sentAt           DateTime  @default(now())
   brazeSendId      String?
+  scheduledFor     DateTime?  // when Braze is scheduled to deliver this message (null = immediate)
   conversionEvent  String?
   conversionAt     DateTime?
   reward           Float?
