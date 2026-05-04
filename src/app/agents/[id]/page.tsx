@@ -17,6 +17,7 @@ import { TestedVariable, MessageVariant, AgentStatus, FunnelStage } from "@/type
 import { prisma } from "@/lib/db";
 import { AgentFunnelConfig } from "@/components/agents/agent-funnel-config";
 import { PersonaTargetManager } from "@/components/agents/persona-target-manager";
+import { FallbackSendTimeEditor } from "@/components/agents/fallback-send-time-editor";
 
 const TIER_COLORS: Record<string, string> = {
   best: "bg-green-100 text-green-700 border-green-200",
@@ -317,7 +318,7 @@ export default async function AgentDetailPage({ params }: { params: Promise<{ id
             </Card>
           </TabsContent>
 
-          <TabsContent value="scheduling" className="mt-4">
+          <TabsContent value="scheduling" className="mt-4 space-y-4">
             <Card>
               <CardHeader className="flex flex-row items-center justify-between">
                 <CardTitle className="text-sm font-semibold">Scheduling Rules</CardTitle>
@@ -365,6 +366,17 @@ export default async function AgentDetailPage({ params }: { params: Promise<{ id
                 ) : (
                   <p className="text-sm text-muted-foreground text-center py-4">No scheduling rules configured.</p>
                 )}
+              </CardContent>
+            </Card>
+            <Card>
+              <CardHeader>
+                <CardTitle className="text-sm font-semibold">Fallback Send Time</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <FallbackSendTimeEditor
+                  agentId={agent.id}
+                  fallbackSendHour={agent.fallbackSendHour}
+                />
               </CardContent>
             </Card>
           </TabsContent>
