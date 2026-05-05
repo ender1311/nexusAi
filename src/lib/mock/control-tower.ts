@@ -172,11 +172,19 @@ export function buildDefaultConfig(): OptimizationConfig {
 
 export function computePredictions(
   enabledAgentIds: string[],
-  config: OptimizationConfig
+  config: OptimizationConfig,
+  realBaselines?: { convRate?: number }
 ): PredictionResult[] {
   const enabledAgents = controlAgents.filter((a) => enabledAgentIds.includes(a.id));
 
-  return optimizationParams.map((param) => {
+  // Substitute real baseline for responseRate when available
+  const params = optimizationParams.map((p) =>
+    p.id === "responseRate" && realBaselines?.convRate !== undefined && realBaselines.convRate > 0
+      ? { ...p, baseline: parseFloat(realBaselines.convRate.toFixed(2)), bestCase: Math.max(p.bestCase, realBaselines.convRate * 2) }
+      : p
+  );
+
+  return params.map((param) => {
     const isPrimary = param.id === config.primaryObjective;
 
     // Sum impact weights of all enabled agents for this parameter

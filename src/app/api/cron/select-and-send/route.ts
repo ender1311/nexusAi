@@ -626,13 +626,26 @@ export async function POST(req: NextRequest) {
 
         // Bulk-create all UserDecision records in one createManyAndReturn call
         if (lotteryDecisionInputs.length > 0) {
-          const decisionData2 = lotteryDecisionInputs.map(({ user, variantId, scheduledAt }) => ({
-            agentId:          agent.id,
-            userId:           user.externalId,
-            messageVariantId: variantId,
-            channel:          pageVariants.find((v) => v.id === variantId)?.channel ?? "push",
-            scheduledFor:     scheduledAt,
-          }));
+          const decisionData2 = lotteryDecisionInputs.map(({ user, variantId, scheduledAt }) => {
+            const pid = user.personaId as string | null;
+            const arms = pid ? pageArmsByPersona.get(pid) : null;
+            const variantScores: Record<string, number> = {};
+            if (arms) {
+              for (const [vid, arm] of arms) {
+                const a = arm.stats.alpha;
+                const b = arm.stats.beta;
+                variantScores[vid] = a + b > 0 ? a / (a + b) : 0;
+              }
+            }
+            return {
+              agentId:          agent.id,
+              userId:           user.externalId,
+              messageVariantId: variantId,
+              channel:          pageVariants.find((v) => v.id === variantId)?.channel ?? "push",
+              scheduledFor:     scheduledAt,
+              decisionContext:  pid ? { personaId: pid, selectedVariantId: variantId, variantScores } : undefined,
+            };
+          });
 
           const createdLotteryDecisions = await prisma.userDecision.createManyAndReturn({
             data: decisionData2,
@@ -871,14 +884,27 @@ export async function POST(req: NextRequest) {
         }
 
         // Bulk-create all UserDecision records in one createMany call
-        const decisionData = decisionInputs.map(({ user, variantId, scheduledAt }) => ({
-          agentId:          agent.id,
-          userId:           user.externalId,
-          messageVariantId: variantId,
-          channel:          windowVariants.find((v) => v.id === variantId)?.channel ?? "push",
-          sentAt:           now,
-          scheduledFor:     scheduledAt,
-        }));
+        const decisionData = decisionInputs.map(({ user, variantId, scheduledAt }) => {
+          const pid = user.personaId as string | null;
+          const arms = pid ? armStatsByPersona.get(pid) : null;
+          const variantScores: Record<string, number> = {};
+          if (arms) {
+            for (const [vid, arm] of arms) {
+              const a = arm.stats.alpha;
+              const b = arm.stats.beta;
+              variantScores[vid] = a + b > 0 ? a / (a + b) : 0;
+            }
+          }
+          return {
+            agentId:          agent.id,
+            userId:           user.externalId,
+            messageVariantId: variantId,
+            channel:          windowVariants.find((v) => v.id === variantId)?.channel ?? "push",
+            sentAt:           now,
+            scheduledFor:     scheduledAt,
+            decisionContext:  pid ? { personaId: pid, selectedVariantId: variantId, variantScores } : undefined,
+          };
+        });
 
         // createMany returns count, not individual IDs — use createManyAndReturn when available,
         // otherwise fall back to individual creates for ID tracking.

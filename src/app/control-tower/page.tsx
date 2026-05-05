@@ -88,7 +88,11 @@ export default function ControlTowerPage() {
           const enabledIds = Object.entries(enabledAgents)
             .filter(([, on]) => on)
             .map(([id]) => id);
-          setPredictions(computePredictions(enabledIds, config));
+          const realConvRate =
+            stats && stats.totalDecisions > 0
+              ? (stats.totalConversions / stats.totalDecisions) * 100
+              : undefined;
+          setPredictions(computePredictions(enabledIds, config, { convRate: realConvRate }));
           setPageState("results");
         }, elapsed);
         timeoutsRef.current.push(t3);

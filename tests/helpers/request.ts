@@ -4,7 +4,7 @@
  * Request cast works without importing from next/server.
  */
 export function buildRequest(
-  method: "GET" | "POST" | "PATCH" | "DELETE",
+  method: "GET" | "POST" | "PUT" | "PATCH" | "DELETE",
   body?: unknown,
   headers: Record<string, string> = {}
 ): Request {
