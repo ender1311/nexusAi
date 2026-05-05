@@ -78,6 +78,7 @@ async function sendVariantGroup(
   batchDecisionIds: string[],
   brazeClient: ReturnType<typeof createBrazeClient>,
   factory: PayloadFactory,
+  agentId: string,
   prisma: typeof import("@/lib/db").prisma,
   onSuccessfulBatch?: (userIds: string[]) => void,
 ): Promise<{ sent: number; errors: number }> {
@@ -144,7 +145,20 @@ async function sendVariantGroup(
     }
     return { sent: batchUserIds.length, errors: 0 };
   } catch (err) {
+    const reason = err instanceof Error ? err.message : String(err);
     console.error("[cron/select-and-send] Braze send error:", err);
+    void prisma.failedBrazeSend.create({
+      data: {
+        agentId,
+        variantId: group.variantId,
+        channel:   group.channel,
+        userIds:   batchUserIds,
+        decisionIds: batchDecisionIds,
+        reason,
+      },
+    }).catch((dbErr: unknown) => {
+      console.error("[cron/select-and-send] Failed to write FailedBrazeSend record:", dbErr);
+    });
     return { sent: 0, errors: batchUserIds.length };
   }
 }
@@ -704,7 +718,7 @@ export async function POST(req: NextRequest) {
           for (let i = 0; i < group.externalUserIds.length; i += BATCH) {
             const batchUserIds    = group.externalUserIds.slice(i, i + BATCH);
             const batchDecisionIds = group.decisionIds.slice(i, i + BATCH);
-            sendTasks.push(() => sendVariantGroup(group, batchUserIds, batchDecisionIds, brazeClient, factory, prisma));
+            sendTasks.push(() => sendVariantGroup(group, batchUserIds, batchDecisionIds, brazeClient, factory, agent.id, prisma));
           }
         }
         for (let i = 0; i < sendTasks.length; i += CONCURRENCY) {
@@ -969,7 +983,7 @@ export async function POST(req: NextRequest) {
             windowSendTasks.push(async () => {
               const localSent: string[] = [];
               const result = await sendVariantGroup(
-                group, batchUserIds, batchDecisionIds, brazeClient, factory, prisma,
+                group, batchUserIds, batchDecisionIds, brazeClient, factory, agent.id, prisma,
                 (userIds) => localSent.push(...userIds),
               );
               return { ...result, userIds: localSent };
