@@ -385,6 +385,7 @@ export async function POST(req: NextRequest) {
     const metricsBefore = { sent: totalSent, suppressed: totalSuppressed, errors: totalErrors };
     const personaIds = agent.personaTargets.map((pt) => pt.personaId);
     if (personaIds.length === 0) continue;
+    const suppress = { freqCap: 0, smartSuppress: 0, dailyCap: 0, targetFilter: 0, audienceCap: 0 };
 
     // Derive the users assigned to this agent by the lottery
     const assignedUserIds = [...lotteryMap.entries()]
@@ -400,7 +401,9 @@ export async function POST(req: NextRequest) {
         const j = Math.floor(Math.random() * (i + 1));
         [lotteryUserIds[i], lotteryUserIds[j]] = [lotteryUserIds[j], lotteryUserIds[i]];
       }
+      const preCap = lotteryUserIds.length;
       lotteryUserIds = lotteryUserIds.slice(0, agent.audienceCap);
+      suppress.audienceCap = preCap - lotteryUserIds.length;
     }
 
     // Check if this agent has any in-window users to process
@@ -454,7 +457,9 @@ export async function POST(req: NextRequest) {
             ? tzTime >= start || tzTime < end
             : tzTime >= start && tzTime < end;
         if (inQuiet) {
-          // All users for this agent are in quiet hours — skip agent entirely
+          console.log("[cron/select-and-send] agent suppressed — quiet hours", {
+            agentId: agent.id, agentName: agent.name, timezone: quietHours.timezone ?? "UTC",
+          });
           continue;
         }
       }
@@ -559,12 +564,14 @@ export async function POST(req: NextRequest) {
 
       // Count suppressed users (freq cap + smart suppress + global daily cap)
       for (const u of users) {
-        if (
-          freqCappedUserIds.has(u.externalId) ||
-          smartSuppressedUserIds.has(u.externalId) ||
-          sentTodayIds.has(u.externalId)
-        ) {
+        const isFreqCapped  = freqCappedUserIds.has(u.externalId);
+        const isSmartSup    = smartSuppressedUserIds.has(u.externalId);
+        const isDailyCapped = sentTodayIds.has(u.externalId);
+        if (isFreqCapped || isSmartSup || isDailyCapped) {
           totalSuppressed++;
+          if (isFreqCapped)  suppress.freqCap++;
+          if (isSmartSup)    suppress.smartSuppress++;
+          if (isDailyCapped) suppress.dailyCap++;
         }
       }
 
@@ -584,6 +591,7 @@ export async function POST(req: NextRequest) {
           computed: buildComputedKeys(u),
         });
       });
+      suppress.targetFilter += eligibleUsers.length - targetFiltered.length;
 
       // Batch-decide for lottery users: load arm stats once, select variant in-memory,
       // then bulk-create all UserDecision records in a single createManyAndReturn call.
@@ -1034,6 +1042,14 @@ export async function POST(req: NextRequest) {
       }
     }
     // ── End in-window sub-pool ───────────────────────────────────────────────
+    console.log("[cron/select-and-send] agent summary", {
+      agentId:   agent.id,
+      agentName: agent.name,
+      sent:       totalSent       - metricsBefore.sent,
+      suppressed: totalSuppressed - metricsBefore.suppressed,
+      errors:     totalErrors     - metricsBefore.errors,
+      suppressBreakdown: suppress,
+    });
     agentMetrics.set(agent.id, {
       sent:       totalSent       - metricsBefore.sent,
       suppressed: totalSuppressed - metricsBefore.suppressed,
