@@ -1,7 +1,6 @@
 "use client";
 
 import { PieChart, Pie, Cell, Tooltip, ResponsiveContainer, Legend } from "recharts";
-import { personaDistribution } from "@/lib/mock/personas";
 import { formatNumber } from "@/lib/utils";
 
 const TAILWIND_HEX: Record<string, string> = {
@@ -38,8 +37,20 @@ function CustomTooltip({ active, payload }: { active?: boolean; payload?: Toolti
   );
 }
 
-export function PersonaDistributionChart() {
-  const data = personaDistribution.map((p) => ({
+interface PersonaDistributionChartProps {
+  data: { name: string; label: string; value: number; percent: number; color: string }[];
+}
+
+export function PersonaDistributionChart({ data }: PersonaDistributionChartProps) {
+  if (data.length === 0) {
+    return (
+      <div className="flex items-center justify-center h-[280px] text-sm text-muted-foreground">
+        No persona data yet
+      </div>
+    );
+  }
+
+  const chartData = data.map((p) => ({
     name: p.name,
     label: p.label,
     value: p.value,
@@ -52,7 +63,7 @@ export function PersonaDistributionChart() {
     <ResponsiveContainer width="100%" height={280}>
       <PieChart>
         <Pie
-          data={data}
+          data={chartData}
           cx="50%"
           cy="50%"
           innerRadius={60}
@@ -60,7 +71,7 @@ export function PersonaDistributionChart() {
           paddingAngle={2}
           dataKey="value"
         >
-          {data.map((entry, index) => (
+          {chartData.map((entry, index) => (
             <Cell key={index} fill={entry.fill} />
           ))}
         </Pie>
