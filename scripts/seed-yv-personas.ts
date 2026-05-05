@@ -21,7 +21,7 @@ import { prisma } from "../src/lib/db";
 
 const PERSONAS = [
   {
-    name: "Anxious Abby",
+    name: "Anxious",
     label: "Emotion-first",
     icon: "Heart",
     color: "purple",
@@ -29,7 +29,7 @@ const PERSONAS = [
     tags: ["emotion-first", "anxiety", "wellness"],
   },
   {
-    name: "Studious Sam",
+    name: "Studious",
     label: "Devotion-first",
     icon: "BookOpen",
     color: "blue",
@@ -37,7 +37,7 @@ const PERSONAS = [
     tags: ["devotion-first", "study", "depth"],
   },
   {
-    name: "Connected Callie",
+    name: "Connected",
     label: "Social-first",
     icon: "Share2",
     color: "green",
@@ -45,7 +45,7 @@ const PERSONAS = [
     tags: ["social-first", "community", "sharing"],
   },
   {
-    name: "Word-driven William",
+    name: "Word-driven",
     label: "Bible-first",
     icon: "Quote",
     color: "amber",
@@ -53,7 +53,7 @@ const PERSONAS = [
     tags: ["bible-first", "scripture", "study"],
   },
   {
-    name: "Plugged-in Priya",
+    name: "Plugged-in",
     label: "Church-first",
     icon: "Landmark",
     color: "red",
@@ -61,7 +61,7 @@ const PERSONAS = [
     tags: ["church-first", "pastor", "community"],
   },
   {
-    name: "Searching Sebastian",
+    name: "Searching",
     label: "Seeker",
     icon: "Compass",
     color: "teal",
@@ -69,7 +69,7 @@ const PERSONAS = [
     tags: ["seeker", "new-user", "curious"],
   },
   {
-    name: "Family-first Fiona",
+    name: "Family-first",
     label: "Parent",
     icon: "CalendarDays",
     color: "orange",
@@ -77,7 +77,7 @@ const PERSONAS = [
     tags: ["parent", "family", "kids"],
   },
   {
-    name: "Returning Ryan",
+    name: "Returning",
     label: "Re-engager",
     icon: "Sprout",
     color: "slate",
