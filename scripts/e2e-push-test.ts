@@ -9,7 +9,7 @@ import { createBrazeClient } from "../src/lib/braze/client";
 import { PayloadFactory } from "../src/lib/braze/payload-factory";
 
 const TEST_USER_ID = process.argv[2] ?? "183037114";
-const SENDS_COUNT = 3;
+const SENDS_COUNT = 9; // send all active variants
 
 const brazeClient = createBrazeClient();
 if (!brazeClient) {
@@ -25,7 +25,7 @@ const agent = await prisma.agent.findFirst({
   include: {
     messages: {
       where: { channel: "push" },
-      include: { variants: { where: { status: "active" }, take: 1 } },
+      include: { variants: { where: { status: "active" } } },
     },
   },
 });

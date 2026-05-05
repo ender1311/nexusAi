@@ -371,7 +371,16 @@ export async function POST(req: NextRequest) {
       .map(([uid]) => uid);
 
     // Exclude in-window users from lottery pipeline (they're handled separately below)
-    const lotteryUserIds = assignedUserIds.filter((id) => !inWindowUserIdSet.has(id));
+    let lotteryUserIds = assignedUserIds.filter((id) => !inWindowUserIdSet.has(id));
+
+    // Apply audience cap — shuffle and truncate if set
+    if (agent.audienceCap !== null && agent.audienceCap !== undefined) {
+      for (let i = lotteryUserIds.length - 1; i > 0; i--) {
+        const j = Math.floor(Math.random() * (i + 1));
+        [lotteryUserIds[i], lotteryUserIds[j]] = [lotteryUserIds[j], lotteryUserIds[i]];
+      }
+      lotteryUserIds = lotteryUserIds.slice(0, agent.audienceCap);
+    }
 
     // Check if this agent has any in-window users to process
     const hasInWindowUsers = [...inWindowMap.entries()].some(([, aid]) => aid === agent.id);

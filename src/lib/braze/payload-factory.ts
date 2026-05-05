@@ -58,9 +58,10 @@ export class PayloadFactory {
     variantId?: string,
     inLocalTime?: boolean
   ): Record<string, unknown> {
-    // Use platform-specific env var fallbacks when no per-variant DB ID is set
-    const resolvedAndroidVariantId = variantId ?? this.nexusAndroidVariantId;
-    const resolvedIosVariantId = variantId ?? this.nexusIosVariantId;
+    // Use platform-specific env var fallbacks when no per-variant DB ID is set.
+    // message_variation_id requires campaign_id — only include it when a campaign is present.
+    const resolvedAndroidVariantId = campaignId ? (variantId ?? this.nexusAndroidVariantId) : variantId;
+    const resolvedIosVariantId = campaignId ? (variantId ?? this.nexusIosVariantId) : variantId;
 
     const androidMsg: Record<string, unknown> = {
       alert: msg.body,

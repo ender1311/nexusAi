@@ -52,6 +52,12 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
       }
     }
 
+    if (body.audienceCap !== undefined) {
+      if (body.audienceCap !== null && (!Number.isInteger(body.audienceCap) || body.audienceCap < 1)) {
+        return NextResponse.json({ error: "audienceCap must be null or a positive integer" }, { status: 400 });
+      }
+    }
+
     const agent = await prisma.agent.update({
       where: { id },
       data: {
@@ -63,6 +69,7 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
         ...(body.funnelStage !== undefined ? { funnelStage: body.funnelStage } : {}),
         ...(body.targetFilter !== undefined ? { targetFilter: body.targetFilter } : {}),
         ...(body.fallbackSendHour !== undefined ? { fallbackSendHour: body.fallbackSendHour } : {}),
+        ...(body.audienceCap !== undefined ? { audienceCap: body.audienceCap } : {}),
       },
     });
     return NextResponse.json(agent);

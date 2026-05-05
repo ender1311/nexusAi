@@ -18,6 +18,7 @@ import { prisma } from "@/lib/db";
 import { AgentFunnelConfig } from "@/components/agents/agent-funnel-config";
 import { PersonaTargetManager } from "@/components/agents/persona-target-manager";
 import { FallbackSendTimeEditor } from "@/components/agents/fallback-send-time-editor";
+import { AudienceCapEditor } from "@/components/agents/audience-cap-editor";
 import { AgentSendsTable } from "@/components/agents/agent-sends-table";
 
 const TIER_COLORS: Record<string, string> = {
@@ -389,6 +390,17 @@ export default async function AgentDetailPage({ params }: { params: Promise<{ id
                 <FallbackSendTimeEditor
                   agentId={agent.id}
                   fallbackSendHour={agent.fallbackSendHour}
+                />
+              </CardContent>
+            </Card>
+            <Card>
+              <CardHeader>
+                <CardTitle className="text-sm font-semibold">Audience Cap</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <AudienceCapEditor
+                  agentId={agent.id}
+                  audienceCap={agent.audienceCap}
                 />
               </CardContent>
             </Card>
