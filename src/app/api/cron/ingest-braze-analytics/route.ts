@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
 import { createBrazeClient } from "@/lib/braze/client";
 import { BrazeAnalytics } from "@/lib/braze/analytics";
+import { upsertArmStats } from "@/lib/arm-stats";
 
 // Allow up to 300s execution time on Vercel
 export const maxDuration = 300;
@@ -117,52 +118,18 @@ export async function POST(req: NextRequest) {
 
     if (uniqueCombos.length === 0) continue;
 
-    // Fetch existing arm stats for all unique combos in one query
-    const existingStats = await prisma.personaArmStats.findMany({
-      where: {
-        OR: uniqueCombos.map((c) => ({
-          personaId: c.personaId,
-          agentId: c.agentId,
-          variantId: c.variantId,
-        })),
-      },
-    });
-
-    const statsByKey = new Map(
-      existingStats.map((s) => [`${s.agentId}|${s.variantId}|${s.personaId}`, s])
-    );
-
-    // Upsert arm stats and update decision rewards in parallel
+    // Atomically apply decay + reward for each unique (persona, agent, variant) combo
     await Promise.all(
-      agentVariantPersonaCombos.map(async ({ agentId, variantId, personaId }) => {
-        const key = `${agentId}|${variantId}|${personaId}`;
-        const existing = statsByKey.get(key);
-
-        // Apply temporal decay then reward
-        const decayedAlpha = existing ? 1 + (existing.alpha - 1) * 0.99 : 1;
-        const decayedBeta = existing ? 1 + (existing.beta - 1) * 0.99 : 30;
-        const newAlpha = decayedAlpha + analyticsReward;
-        const newBeta = decayedBeta; // no increment — positive signal
-
-        await prisma.personaArmStats.upsert({
-          where: { personaId_agentId_variantId: { personaId, agentId, variantId } },
-          create: {
-            personaId,
-            agentId,
-            variantId,
-            alpha: newAlpha,
-            beta: newBeta,
-            tries: 1,
-            wins: 1,
-          },
-          update: {
-            alpha: newAlpha,
-            beta: newBeta,
-            tries: { increment: 1 },
-            wins: { increment: 1 },
-          },
-        });
-      })
+      agentVariantPersonaCombos.map(({ agentId, variantId, personaId }) =>
+        upsertArmStats({
+          personaId,
+          agentId,
+          variantId,
+          deltaAlpha: analyticsReward,
+          deltaBeta: 0,
+          deltaWins: 1,
+        })
+      )
     );
 
     // Mark each decision in the group as processed
