@@ -293,3 +293,17 @@ model CronRun {
 
   @@index([cronName, startedAt])
 }
+
+model FailedBrazeSend {
+  id          String   @id @default(cuid())
+  agentId     String
+  variantId   String
+  channel     String
+  userIds     Json     @default("[]")
+  decisionIds Json     @default("[]")
+  reason      String?
+  failedAt    DateTime @default(now())
+  retryCount  Int      @default(0)
+
+  @@index([agentId, failedAt])
+}

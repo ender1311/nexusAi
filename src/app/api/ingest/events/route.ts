@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
 import { calculateReward } from "@/lib/engine/reward-calculator";
 import { accumulateUserStats } from "@/lib/engine/user-stats";
+import { upsertArmStats } from "@/lib/arm-stats";
 
 /**
  * POST /api/ingest/events
@@ -112,39 +113,15 @@ export async function POST(req: NextRequest) {
         const pushOptOutReward = -1.0;
         for (const d of recentDecisions) {
           if (!d.messageVariantId) continue;
-          const existing = await prisma.personaArmStats.findUnique({
-            where: {
-              personaId_agentId_variantId: {
-                personaId: user.personaId,
-                agentId: d.agentId,
-                variantId: d.messageVariantId,
-              },
-            },
-          });
-          const decayedAlpha = existing ? 1 + (existing.alpha - 1) * 0.99 : 1;
-          const decayedBeta = existing ? 1 + (existing.beta - 1) * 0.99 : 30;
-          await prisma.personaArmStats.upsert({
-            where: {
-              personaId_agentId_variantId: {
-                personaId: user.personaId,
-                agentId: d.agentId,
-                variantId: d.messageVariantId,
-              },
-            },
-            update: {
-              alpha: decayedAlpha,
-              beta: decayedBeta + 1,
-              tries: { increment: 1 },
-            },
-            create: {
-              personaId: user.personaId,
-              agentId: d.agentId,
-              variantId: d.messageVariantId,
-              alpha: 1,
-              beta: 31,
-              tries: 1,
-              wins: 0,
-            },
+          await upsertArmStats({
+            personaId: user.personaId,
+            agentId: d.agentId,
+            variantId: d.messageVariantId,
+            deltaAlpha: 0,
+            deltaBeta: 1,
+            deltaWins: 0,
+          }).catch((err) => {
+            console.error("[ingest/events] Failed to update arm stats for push_disabled:", err);
           });
         }
         await accumulateUserStats({
@@ -219,41 +196,13 @@ export async function POST(req: NextRequest) {
         select: { personaId: true },
       });
       if (user?.personaId) {
-        const existing = await prisma.personaArmStats.findUnique({
-          where: {
-            personaId_agentId_variantId: {
-              personaId: user.personaId,
-              agentId: decision.agentId,
-              variantId: decision.messageVariantId,
-            },
-          },
-        });
-        // Apply temporal decay then update
-        const decayedAlpha = existing ? 1 + (existing.alpha - 1) * 0.99 : 1;
-        const decayedBeta = existing ? 1 + (existing.beta - 1) * 0.99 : 30;
-        await prisma.personaArmStats.upsert({
-          where: {
-            personaId_agentId_variantId: {
-              personaId: user.personaId,
-              agentId: decision.agentId,
-              variantId: decision.messageVariantId,
-            },
-          },
-          update: {
-            alpha: decayedAlpha + (reward > 0 ? reward : 0),
-            beta: decayedBeta + (reward <= 0 ? 1 : 0),
-            tries: { increment: 1 },
-            wins: { increment: reward > 0 ? 1 : 0 },
-          },
-          create: {
-            personaId: user.personaId,
-            agentId: decision.agentId,
-            variantId: decision.messageVariantId,
-            alpha: 1 + (reward > 0 ? reward : 0),
-            beta: 30 + (reward <= 0 ? 1 : 0),
-            tries: 1,
-            wins: reward > 0 ? 1 : 0,
-          },
+        await upsertArmStats({
+          personaId: user.personaId,
+          agentId: decision.agentId,
+          variantId: decision.messageVariantId,
+          deltaAlpha: reward > 0 ? reward : 0,
+          deltaBeta: reward <= 0 ? 1 : 0,
+          deltaWins: reward > 0 ? 1 : 0,
         }).catch((err) => {
           console.error("[ingest/events] Failed to update PersonaArmStats:", err);
         });

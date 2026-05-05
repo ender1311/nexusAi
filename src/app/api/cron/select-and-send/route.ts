@@ -78,6 +78,7 @@ async function sendVariantGroup(
   batchDecisionIds: string[],
   brazeClient: ReturnType<typeof createBrazeClient>,
   factory: PayloadFactory,
+  agentId: string,
   prisma: typeof import("@/lib/db").prisma,
   onSuccessfulBatch?: (userIds: string[]) => void,
 ): Promise<{ sent: number; errors: number }> {
@@ -144,7 +145,20 @@ async function sendVariantGroup(
     }
     return { sent: batchUserIds.length, errors: 0 };
   } catch (err) {
+    const reason = err instanceof Error ? err.message : String(err);
     console.error("[cron/select-and-send] Braze send error:", err);
+    void prisma.failedBrazeSend.create({
+      data: {
+        agentId,
+        variantId: group.variantId,
+        channel:   group.channel,
+        userIds:   batchUserIds,
+        decisionIds: batchDecisionIds,
+        reason,
+      },
+    }).catch((dbErr: unknown) => {
+      console.error("[cron/select-and-send] Failed to write FailedBrazeSend record:", dbErr);
+    });
     return { sent: 0, errors: batchUserIds.length };
   }
 }
@@ -169,12 +183,19 @@ export async function POST(req: NextRequest) {
     update: { value: new Date().toISOString() },
   });
 
-  let cronRunId: string | undefined;
+  const cronRun = await prisma.cronRun.create({
+    data: { cronName: "select-and-send", agentCount: 0 },
+  });
+  const cronRunId = cronRun.id;
 
   try {
 
   const brazeClient = createBrazeClient();
   if (!brazeClient) {
+    await prisma.cronRun.update({
+      where: { id: cronRunId },
+      data: { status: "failed", finishedAt: new Date(), errorMsg: "Braze not configured" },
+    }).catch(() => {});
     return NextResponse.json({ error: "Braze not configured (missing BRAZE_API_KEY or BRAZE_REST_URL)" }, { status: 500 });
   }
 
@@ -196,10 +217,10 @@ export async function POST(req: NextRequest) {
     },
   });
 
-  const cronRun = await prisma.cronRun.create({
-    data: { cronName: "select-and-send", agentCount: agents.length },
-  });
-  cronRunId = cronRun.id;
+  void prisma.cronRun.update({
+    where: { id: cronRunId },
+    data: { agentCount: agents.length },
+  }).catch(() => {});
 
   const now = new Date();   // single timestamp for the entire cron run
   const todayStart = getTodayStartUTC("America/New_York", now);
@@ -364,6 +385,7 @@ export async function POST(req: NextRequest) {
     const metricsBefore = { sent: totalSent, suppressed: totalSuppressed, errors: totalErrors };
     const personaIds = agent.personaTargets.map((pt) => pt.personaId);
     if (personaIds.length === 0) continue;
+    const suppress = { freqCap: 0, smartSuppress: 0, dailyCap: 0, targetFilter: 0, audienceCap: 0 };
 
     // Derive the users assigned to this agent by the lottery
     const assignedUserIds = [...lotteryMap.entries()]
@@ -379,7 +401,9 @@ export async function POST(req: NextRequest) {
         const j = Math.floor(Math.random() * (i + 1));
         [lotteryUserIds[i], lotteryUserIds[j]] = [lotteryUserIds[j], lotteryUserIds[i]];
       }
+      const preCap = lotteryUserIds.length;
       lotteryUserIds = lotteryUserIds.slice(0, agent.audienceCap);
+      suppress.audienceCap = preCap - lotteryUserIds.length;
     }
 
     // Check if this agent has any in-window users to process
@@ -433,7 +457,9 @@ export async function POST(req: NextRequest) {
             ? tzTime >= start || tzTime < end
             : tzTime >= start && tzTime < end;
         if (inQuiet) {
-          // All users for this agent are in quiet hours — skip agent entirely
+          console.log("[cron/select-and-send] agent suppressed — quiet hours", {
+            agentId: agent.id, agentName: agent.name, timezone: quietHours.timezone ?? "UTC",
+          });
           continue;
         }
       }
@@ -538,12 +564,14 @@ export async function POST(req: NextRequest) {
 
       // Count suppressed users (freq cap + smart suppress + global daily cap)
       for (const u of users) {
-        if (
-          freqCappedUserIds.has(u.externalId) ||
-          smartSuppressedUserIds.has(u.externalId) ||
-          sentTodayIds.has(u.externalId)
-        ) {
+        const isFreqCapped  = freqCappedUserIds.has(u.externalId);
+        const isSmartSup    = smartSuppressedUserIds.has(u.externalId);
+        const isDailyCapped = sentTodayIds.has(u.externalId);
+        if (isFreqCapped || isSmartSup || isDailyCapped) {
           totalSuppressed++;
+          if (isFreqCapped)  suppress.freqCap++;
+          if (isSmartSup)    suppress.smartSuppress++;
+          if (isDailyCapped) suppress.dailyCap++;
         }
       }
 
@@ -563,6 +591,7 @@ export async function POST(req: NextRequest) {
           computed: buildComputedKeys(u),
         });
       });
+      suppress.targetFilter += eligibleUsers.length - targetFiltered.length;
 
       // Batch-decide for lottery users: load arm stats once, select variant in-memory,
       // then bulk-create all UserDecision records in a single createManyAndReturn call.
@@ -697,7 +726,7 @@ export async function POST(req: NextRequest) {
           for (let i = 0; i < group.externalUserIds.length; i += BATCH) {
             const batchUserIds    = group.externalUserIds.slice(i, i + BATCH);
             const batchDecisionIds = group.decisionIds.slice(i, i + BATCH);
-            sendTasks.push(() => sendVariantGroup(group, batchUserIds, batchDecisionIds, brazeClient, factory, prisma));
+            sendTasks.push(() => sendVariantGroup(group, batchUserIds, batchDecisionIds, brazeClient, factory, agent.id, prisma));
           }
         }
         for (let i = 0; i < sendTasks.length; i += CONCURRENCY) {
@@ -962,7 +991,7 @@ export async function POST(req: NextRequest) {
             windowSendTasks.push(async () => {
               const localSent: string[] = [];
               const result = await sendVariantGroup(
-                group, batchUserIds, batchDecisionIds, brazeClient, factory, prisma,
+                group, batchUserIds, batchDecisionIds, brazeClient, factory, agent.id, prisma,
                 (userIds) => localSent.push(...userIds),
               );
               return { ...result, userIds: localSent };
@@ -1013,6 +1042,14 @@ export async function POST(req: NextRequest) {
       }
     }
     // ── End in-window sub-pool ───────────────────────────────────────────────
+    console.log("[cron/select-and-send] agent summary", {
+      agentId:   agent.id,
+      agentName: agent.name,
+      sent:       totalSent       - metricsBefore.sent,
+      suppressed: totalSuppressed - metricsBefore.suppressed,
+      errors:     totalErrors     - metricsBefore.errors,
+      suppressBreakdown: suppress,
+    });
     agentMetrics.set(agent.id, {
       sent:       totalSent       - metricsBefore.sent,
       suppressed: totalSuppressed - metricsBefore.suppressed,
@@ -1030,10 +1067,11 @@ export async function POST(req: NextRequest) {
   }
 
   await prisma.cronRun.update({
-    where: { id: cronRun.id },
+    where: { id: cronRunId },
     data: {
       status: "completed",
       finishedAt: new Date(),
+      agentCount: agents.length,
       sent: totalSent,
       suppressed: totalSuppressed,
       errors: totalErrors,
