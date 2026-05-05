@@ -169,12 +169,19 @@ export async function POST(req: NextRequest) {
     update: { value: new Date().toISOString() },
   });
 
-  let cronRunId: string | undefined;
+  const cronRun = await prisma.cronRun.create({
+    data: { cronName: "select-and-send", agentCount: 0 },
+  });
+  const cronRunId = cronRun.id;
 
   try {
 
   const brazeClient = createBrazeClient();
   if (!brazeClient) {
+    await prisma.cronRun.update({
+      where: { id: cronRunId },
+      data: { status: "failed", finishedAt: new Date(), errorMsg: "Braze not configured" },
+    }).catch(() => {});
     return NextResponse.json({ error: "Braze not configured (missing BRAZE_API_KEY or BRAZE_REST_URL)" }, { status: 500 });
   }
 
@@ -196,10 +203,10 @@ export async function POST(req: NextRequest) {
     },
   });
 
-  const cronRun = await prisma.cronRun.create({
-    data: { cronName: "select-and-send", agentCount: agents.length },
-  });
-  cronRunId = cronRun.id;
+  void prisma.cronRun.update({
+    where: { id: cronRunId },
+    data: { agentCount: agents.length },
+  }).catch(() => {});
 
   const now = new Date();   // single timestamp for the entire cron run
   const todayStart = getTodayStartUTC("America/New_York", now);
@@ -1030,10 +1037,11 @@ export async function POST(req: NextRequest) {
   }
 
   await prisma.cronRun.update({
-    where: { id: cronRun.id },
+    where: { id: cronRunId },
     data: {
       status: "completed",
       finishedAt: new Date(),
+      agentCount: agents.length,
       sent: totalSent,
       suppressed: totalSuppressed,
       errors: totalErrors,
