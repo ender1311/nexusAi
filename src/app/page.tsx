@@ -29,7 +29,7 @@ export default function DashboardPage() {
           <MetricCard
             title="Active Agents"
             value={activeAgents}
-            description="of 4 total agents"
+            description="currently running"
             icon={Bot}
             trend={0}
           />
@@ -43,12 +43,12 @@ export default function DashboardPage() {
           <MetricCard
             title="Avg Conversion Rate"
             value={`${avgConvRate.toFixed(2)}%`}
-            description="vs 5.2% control baseline"
+            description="across active agents"
             icon={TrendingUp}
             trend={24.1}
           />
           <MetricCard
-            title="Decisions Made"
+            title="Total Sends"
             value={formatNumber(totalDecisions)}
             description="lifetime total"
             icon={Users}
@@ -104,7 +104,7 @@ export default function DashboardPage() {
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
           <Card className="lg:col-span-2">
             <CardHeader className="flex flex-row items-center justify-between">
-              <CardTitle className="text-sm font-semibold">Recent Decisions</CardTitle>
+              <CardTitle className="text-sm font-semibold">Recent Sends</CardTitle>
               <Link href="/performance">
                 <Button variant="ghost" size="sm" className="h-7 text-xs">View all</Button>
               </Link>

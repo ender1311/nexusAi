@@ -9,6 +9,7 @@ Mermaid diagrams for AI agents and developers to understand how the system works
 | [system-overview.md](./system-overview.md) | High-level architecture: all systems, integrations, and how they connect |
 | [data-model.md](./data-model.md) | Full ER diagram of all Prisma DB models + JSON field schemas |
 | [bandit-engine.md](./bandit-engine.md) | Thompson Sampling & Epsilon-Greedy algorithms, reward calculation, arm update flow |
+| [thompson-sampling-model.md](./thompson-sampling-model.md) | Dedicated Thompson Sampling model reference: priors, selection logic, update rules, and runtime integration |
 | [data-flows.md](./data-flows.md) | Sequence diagrams for all 5 key operations (ingest, reward loop, variant selection, persona discovery, settings) |
 | [api-routes.md](./api-routes.md) | All REST endpoints, HTTP methods, request/response shapes, auth |
 | [persona-discovery.md](./persona-discovery.md) | K-Means++ clustering, 37-dim feature vector, cosine similarity, engagement buckets |

@@ -178,20 +178,44 @@ export default async function AgentDetailPage({ params }: { params: Promise<{ id
           </TabsList>
 
           <TabsContent value="overview" className="space-y-4 mt-4">
-            {agent.status === "draft" && (
-              <div className="flex items-center gap-3 rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-sm">
-                <div className="h-2 w-2 rounded-full bg-amber-400 shrink-0" />
-                <div className="flex-1 min-w-0">
-                  <span className="font-medium text-amber-900">Draft mode</span>
-                  <span className="text-amber-700 ml-2">Configure goals and messages, then activate this agent.</span>
+            {agent.status === "draft" && (() => {
+              const hasGoals = agent.goals.length > 0;
+              const hasMessages = agent.messages.length > 0 && agent.messages.some((m) => m.variants.length > 0);
+              const hasScheduling = !!agent.schedulingRule;
+              const steps = [
+                { label: "Add conversion goals", done: hasGoals, href: `/agents/${agent.id}/goals` },
+                { label: "Add message variants", done: hasMessages, href: `/agents/${agent.id}/messages` },
+                { label: "Configure scheduling rules", done: hasScheduling, href: `/agents/${agent.id}/scheduling` },
+              ];
+              const nextStep = steps.find((s) => !s.done);
+              return (
+                <div className="rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 space-y-2.5">
+                  <div className="flex items-center justify-between gap-3">
+                    <div className="flex items-center gap-2">
+                      <div className="h-2 w-2 rounded-full bg-amber-400 shrink-0" />
+                      <span className="text-sm font-medium text-amber-900">Draft — complete setup before activating</span>
+                    </div>
+                    {nextStep && (
+                      <Link href={nextStep.href}>
+                        <Button size="sm" variant="outline" className="border-amber-300 text-amber-800 hover:bg-amber-100 shrink-0 h-7 text-xs">
+                          {nextStep.label.replace(/^\w/, (c) => c.toUpperCase())} →
+                        </Button>
+                      </Link>
+                    )}
+                  </div>
+                  <div className="flex flex-wrap gap-x-5 gap-y-1">
+                    {steps.map(({ label, done, href }) => (
+                      <Link key={href} href={href} className="flex items-center gap-1.5 text-xs hover:underline">
+                        <span className={cn("text-base leading-none", done ? "text-green-600" : "text-amber-400")}>
+                          {done ? "✓" : "○"}
+                        </span>
+                        <span className={cn(done ? "text-green-700" : "text-amber-800")}>{label}</span>
+                      </Link>
+                    ))}
+                  </div>
                 </div>
-                <Link href={`/agents/${agent.id}/goals`}>
-                  <Button size="sm" variant="outline" className="border-amber-300 text-amber-800 hover:bg-amber-100 shrink-0">
-                    Configure Goals
-                  </Button>
-                </Link>
-              </div>
-            )}
+              );
+            })()}
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
               <Card>
                 <CardContent className="p-4">
@@ -411,7 +435,7 @@ export default async function AgentDetailPage({ params }: { params: Promise<{ id
             <Card>
               <CardHeader>
                 <div className="flex items-center justify-between">
-                  <CardTitle className="text-sm font-semibold">Arm Health</CardTitle>
+                  <CardTitle className="text-sm font-semibold">Variant Health</CardTitle>
                   <Badge
                     variant="outline"
                     className={cn(

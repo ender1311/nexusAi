@@ -127,7 +127,7 @@ export default function SettingsPage() {
         {/* Global Defaults */}
         <Card>
           <CardHeader>
-            <CardTitle className="text-sm font-semibold">Global Guardrail Defaults</CardTitle>
+            <CardTitle className="text-sm font-semibold">Default Send Limits</CardTitle>
           </CardHeader>
           <CardContent className="space-y-4">
             <div className="flex items-center gap-4">
@@ -190,8 +190,8 @@ export default function SettingsPage() {
           </CardHeader>
           <CardContent className="space-y-4">
             <p className="text-xs text-muted-foreground">
-              Automatically discovers user behavioral clusters from accumulated engagement data using k-means clustering.
-              Requires users to have enough interactions before they qualify for clustering.
+              Automatically groups users into behavioral segments based on their activity patterns.
+              Users need a minimum number of interactions before they can be assigned to a segment.
             </p>
             <div>
               <label className="text-xs font-medium text-muted-foreground">
@@ -215,7 +215,7 @@ export default function SettingsPage() {
                 className="mt-2"
               />
               <p className="text-xs text-muted-foreground mt-1">
-                Users below this cosine similarity threshold won&apos;t be assigned to a persona.
+                Users who don&apos;t match any segment closely enough won&apos;t be assigned to one.
               </p>
             </div>
             <Button
@@ -240,7 +240,7 @@ export default function SettingsPage() {
                     <p>Clusters found: {discoveryResult.k}</p>
                     <p>Personas created: {discoveryResult.personasCreated} · updated: {discoveryResult.personasUpdated}</p>
                     <p>Users assigned: {discoveryResult.usersAssigned}</p>
-                    <p>Silhouette score: {discoveryResult.silhouetteScore?.toFixed(4)}</p>
+                    <p>Cluster quality: {discoveryResult.silhouetteScore !== undefined ? `${(discoveryResult.silhouetteScore * 100).toFixed(1)}%` : "—"} (higher = more distinct segments)</p>
                   </>
                 ) : (
                   <p className="text-red-700">{discoveryResult.message ?? "Not enough data to run discovery yet. Accumulate more user interactions first."}</p>

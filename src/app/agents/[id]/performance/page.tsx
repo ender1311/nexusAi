@@ -55,7 +55,7 @@ export default async function AgentPerformancePage({ params }: { params: Promise
           </Card>
           <Card>
             <CardContent className="p-4">
-              <p className="text-xs text-muted-foreground">Lift vs Control</p>
+              <p className="text-xs text-muted-foreground">Lift vs Random</p>
               <p className="text-2xl font-bold mt-1 text-green-600">+{metric.liftVsControl}%</p>
             </CardContent>
           </Card>
@@ -93,7 +93,7 @@ export default async function AgentPerformancePage({ params }: { params: Promise
           )}
           <Card>
             <CardHeader>
-              <CardTitle className="text-sm font-semibold">Explore / Deliver Balance</CardTitle>
+              <CardTitle className="text-sm font-semibold">Exploration Rate</CardTitle>
             </CardHeader>
             <CardContent>
               <ExplorationRatio explorePercent={metric.exploreRatio} />
