@@ -14,6 +14,7 @@ import {
   scanningPhases,
   computePredictions,
   buildDefaultConfig,
+  type ControlAgent,
   type PredictionResult,
   type OptimizationConfig,
 } from "@/lib/mock/control-tower";
@@ -22,13 +23,39 @@ import { useDataMode } from "@/components/layout/data-mode-provider";
 
 type PageState = "configure" | "scanning" | "results";
 
-function buildDefaultEnabled(): Record<string, boolean> {
-  return Object.fromEntries(controlAgents.map((a) => [a.id, a.defaultEnabled]));
+const STAGE_WEIGHTS: Record<string, ControlAgent["impactWeights"]> = {
+  new:       { responseRate: 0.5, revenue: 0.2, churnReduction: 0.3, funnelProgression: 0.8 },
+  lapsed:    { responseRate: 0.5, revenue: 0.2, churnReduction: 0.9, funnelProgression: 0.4 },
+  connected: { responseRate: 0.6, revenue: 0.3, churnReduction: 0.4, funnelProgression: 0.5 },
+  activated: { responseRate: 0.7, revenue: 0.3, churnReduction: 0.3, funnelProgression: 0.6 },
+  engaged:   { responseRate: 0.7, revenue: 0.5, churnReduction: 0.2, funnelProgression: 0.4 },
+  inspired:  { responseRate: 0.5, revenue: 0.8, churnReduction: 0.1, funnelProgression: 0.3 },
+};
+const STAGE_COLORS: Record<string, string> = {
+  new: "#1ab7c9", lapsed: "#ff801a", connected: "#1ac980",
+  activated: "#ff3d4d", engaged: "#801aff", inspired: "#ff3d4d",
+};
+
+function mapDbAgents(
+  agents: { id: string; name: string; description?: string | null; status: string; funnelStage: string }[]
+): ControlAgent[] {
+  return agents.map((a) => ({
+    id: a.id,
+    name: a.name,
+    description: a.description ?? "",
+    icon: "Bot",
+    color: STAGE_COLORS[a.funnelStage] ?? "#ff3d4d",
+    defaultEnabled: a.status === "active",
+    impactWeights: STAGE_WEIGHTS[a.funnelStage] ?? { responseRate: 0.5, revenue: 0.3, churnReduction: 0.3, funnelProgression: 0.4 },
+  }));
 }
 
 export default function ControlTowerPage() {
   const [pageState, setPageState] = useState<PageState>("configure");
-  const [enabledAgents, setEnabledAgents] = useState<Record<string, boolean>>(buildDefaultEnabled);
+  const [agentPool, setAgentPool] = useState<ControlAgent[]>(controlAgents);
+  const [enabledAgents, setEnabledAgents] = useState<Record<string, boolean>>(() =>
+    Object.fromEntries(controlAgents.map((a) => [a.id, a.defaultEnabled]))
+  );
   const [config, setConfig] = useState<OptimizationConfig>(buildDefaultConfig);
   const [scanProgress, setScanProgress] = useState(0);
   const [scanPhase, setScanPhase] = useState("");
@@ -37,6 +64,25 @@ export default function ControlTowerPage() {
   const { isDemo } = useDataMode();
 
   const timeoutsRef = useRef<ReturnType<typeof setTimeout>[]>([]);
+
+  // Fetch real agents from DB to replace mock toggle grid
+  useEffect(() => {
+    if (isDemo) {
+      setAgentPool(controlAgents);
+      setEnabledAgents(Object.fromEntries(controlAgents.map((a) => [a.id, a.defaultEnabled])));
+      return;
+    }
+    fetch("/api/agents")
+      .then((r) => r.json())
+      .then((data: unknown) => {
+        const agents = Array.isArray(data) ? data as { id: string; name: string; description?: string | null; status: string; funnelStage: string }[] : [];
+        if (agents.length === 0) return; // keep mock fallback
+        const pool = mapDbAgents(agents);
+        setAgentPool(pool);
+        setEnabledAgents(Object.fromEntries(pool.map((a) => [a.id, a.defaultEnabled])));
+      })
+      .catch(() => {/* keep mock fallback */});
+  }, [isDemo]);
 
   useEffect(() => {
     if (isDemo) { setStats(null); return; }
@@ -92,7 +138,7 @@ export default function ControlTowerPage() {
             stats && stats.totalDecisions > 0
               ? (stats.totalConversions / stats.totalDecisions) * 100
               : undefined;
-          setPredictions(computePredictions(enabledIds, config, { convRate: realConvRate }));
+          setPredictions(computePredictions(enabledIds, config, { convRate: realConvRate }, agentPool));
           setPageState("results");
         }, elapsed);
         timeoutsRef.current.push(t3);
@@ -182,11 +228,11 @@ export default function ControlTowerPage() {
             <div className="mb-3 flex items-center justify-between">
               <h2 className="text-sm font-semibold">AI Agents</h2>
               <span className="text-xs text-muted-foreground font-mono">
-                {enabledCount}/{controlAgents.length} active
+                {enabledCount}/{agentPool.length} active
               </span>
             </div>
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-              {controlAgents.map((agent) => (
+              {agentPool.map((agent) => (
                 <AgentToggleCard
                   key={agent.id}
                   agent={agent}

@@ -17,6 +17,7 @@ type SendRow = {
   personaColor: string | null;
   conversionAt: string | null;
   reward: number | null;
+  decisionContext: unknown | null;
 };
 
 const DEFAULT_LIMIT = 50;
@@ -85,6 +86,7 @@ export async function GET(
         personaColor: persona?.color ?? null,
         conversionAt: d.conversionAt ? d.conversionAt.toISOString() : null,
         reward: d.reward ?? null,
+        decisionContext: d.decisionContext ?? null,
       };
     });
 

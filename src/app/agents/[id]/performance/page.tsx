@@ -38,6 +38,72 @@ export default async function AgentPerformancePage({
   });
   if (!agent) notFound();
 
+  // Per-persona arm stats (for breakdown section)
+  const armStats = await prisma.personaArmStats.findMany({
+    where: { agentId: id },
+    select: { personaId: true, variantId: true, alpha: true, beta: true, tries: true, wins: true },
+  });
+  // Collect unique IDs for batch lookups
+  const uniquePersonaIds = [...new Set(armStats.map((a) => a.personaId))];
+  const uniqueVariantIds = [...new Set(armStats.map((a) => a.variantId))];
+  const [personaRows, variantRows] = await Promise.all([
+    uniquePersonaIds.length > 0
+      ? prisma.persona.findMany({
+          where: { id: { in: uniquePersonaIds } },
+          select: { id: true, name: true, color: true },
+        })
+      : Promise.resolve([]),
+    uniqueVariantIds.length > 0
+      ? prisma.messageVariant.findMany({
+          where: { id: { in: uniqueVariantIds } },
+          select: { id: true, name: true },
+        })
+      : Promise.resolve([]),
+  ]);
+  const personaById = new Map(personaRows.map((p) => [p.id, p]));
+  const variantById = new Map(variantRows.map((v) => [v.id, v]));
+
+  type PersonaBreakdownRow = {
+    personaId: string;
+    name: string;
+    color: string;
+    tries: number;
+    wins: number;
+    convRate: number;
+    bestVariantName: string | null;
+    bestVariantMean: number;
+  };
+  const personaBreakdown: PersonaBreakdownRow[] = [];
+  const byPersona = new Map<string, typeof armStats>();
+  for (const arm of armStats) {
+    const arr = byPersona.get(arm.personaId) ?? [];
+    arr.push(arm);
+    byPersona.set(arm.personaId, arr);
+  }
+  for (const [pid, arms] of byPersona) {
+    const totalTries = arms.reduce((s, a) => s + a.tries, 0);
+    const totalWins = arms.reduce((s, a) => s + a.wins, 0);
+    const bestArm = arms.reduce(
+      (best, a) => {
+        const mean = a.alpha / (a.alpha + a.beta);
+        return mean > best.mean ? { mean, variantId: a.variantId } : best;
+      },
+      { mean: -1, variantId: "" },
+    );
+    const persona = personaById.get(pid);
+    personaBreakdown.push({
+      personaId: pid,
+      name: persona?.name ?? pid,
+      color: persona?.color ?? "gray",
+      tries: totalTries,
+      wins: totalWins,
+      convRate: totalTries > 0 ? (totalWins / totalTries) * 100 : 0,
+      bestVariantName: variantById.get(bestArm.variantId)?.name ?? null,
+      bestVariantMean: bestArm.mean,
+    });
+  }
+  personaBreakdown.sort((a, b) => b.convRate - a.convRate);
+
   const now = new Date();
   const thirtyDaysAgo = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
 
@@ -251,6 +317,60 @@ export default async function AgentPerformancePage({
             <TimingHeatmap data={timingHeatmap} />
           </CardContent>
         </Card>
+
+        {personaBreakdown.length > 0 && (
+          <Card>
+            <CardHeader>
+              <CardTitle className="text-sm font-semibold">Per-Persona Breakdown</CardTitle>
+            </CardHeader>
+            <CardContent className="p-0">
+              <table className="w-full text-sm">
+                <thead>
+                  <tr className="border-b text-xs text-muted-foreground">
+                    <th className="text-left px-4 py-2 font-medium">Persona</th>
+                    <th className="text-right px-4 py-2 font-medium">Sends</th>
+                    <th className="text-right px-4 py-2 font-medium">Conv. Rate</th>
+                    <th className="text-left px-4 py-2 font-medium">Leading Variant</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {personaBreakdown.map((row) => (
+                    <tr key={row.personaId} className="border-b last:border-0 hover:bg-muted/30">
+                      <td className="px-4 py-2.5">
+                        <div className="flex items-center gap-2">
+                          <span
+                            className={`h-2 w-2 rounded-full shrink-0 bg-${row.color}-500`}
+                          />
+                          <span className="font-medium">{row.name}</span>
+                        </div>
+                      </td>
+                      <td className="px-4 py-2.5 text-right tabular-nums text-muted-foreground">
+                        {formatNumber(row.tries)}
+                      </td>
+                      <td className="px-4 py-2.5 text-right tabular-nums">
+                        <span className={row.convRate >= convRate ? "text-green-600 font-medium" : "text-muted-foreground"}>
+                          {row.convRate.toFixed(1)}%
+                        </span>
+                      </td>
+                      <td className="px-4 py-2.5 text-muted-foreground">
+                        {row.bestVariantName ? (
+                          <span className="text-xs">
+                            {row.bestVariantName}
+                            <span className="ml-1.5 text-muted-foreground/60">
+                              ({(row.bestVariantMean * 100).toFixed(0)}% est.)
+                            </span>
+                          </span>
+                        ) : (
+                          "—"
+                        )}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </CardContent>
+          </Card>
+        )}
       </div>
     </>
   );

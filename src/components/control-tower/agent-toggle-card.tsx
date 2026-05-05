@@ -7,6 +7,7 @@ import {
   ShieldCheck,
   DollarSign,
   Rocket,
+  Bot,
   type LucideIcon,
 } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
@@ -21,6 +22,7 @@ const ICON_MAP: Record<string, LucideIcon> = {
   ShieldCheck,
   DollarSign,
   Rocket,
+  Bot,
 };
 
 interface AgentToggleCardProps {

@@ -173,9 +173,11 @@ export function buildDefaultConfig(): OptimizationConfig {
 export function computePredictions(
   enabledAgentIds: string[],
   config: OptimizationConfig,
-  realBaselines?: { convRate?: number }
+  realBaselines?: { convRate?: number },
+  agentPool?: ControlAgent[]
 ): PredictionResult[] {
-  const enabledAgents = controlAgents.filter((a) => enabledAgentIds.includes(a.id));
+  const pool = agentPool ?? controlAgents;
+  const enabledAgents = pool.filter((a) => enabledAgentIds.includes(a.id));
 
   // Substitute real baseline for responseRate when available
   const params = optimizationParams.map((p) =>
@@ -193,8 +195,8 @@ export function computePredictions(
       0
     );
 
-    // Normalize impact (max possible is 6 agents × 1.0 = 6.0)
-    const normalizedImpact = Math.min(totalImpact / controlAgents.length, 1);
+    // Normalize impact (max possible is pool.length agents × 1.0)
+    const normalizedImpact = Math.min(totalImpact / Math.max(pool.length, 1), 1);
 
     // Primary gets full optimization weight; non-primary metrics get passive spillover (0.2)
     const effectiveImpact = normalizedImpact * (isPrimary ? 1.0 : 0.2);

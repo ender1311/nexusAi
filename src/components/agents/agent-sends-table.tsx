@@ -23,6 +23,7 @@ type SendRow = {
   personaColor: string | null;
   conversionAt: string | null;
   reward: number | null;
+  decisionContext: unknown | null;
 };
 
 type Props = { agentId: string };
@@ -96,6 +97,37 @@ function ExpandedContent({ row }: { row: SendRow }) {
           <p className="text-xs text-muted-foreground font-mono truncate">{row.variantDeeplink}</p>
         </div>
       )}
+      {(() => {
+        const ctx = row.decisionContext as { selectedVariantId?: string; variantScores?: Record<string, number> } | null;
+        const scores = ctx?.variantScores;
+        if (!scores || Object.keys(scores).length === 0) return null;
+        const sorted = Object.entries(scores).sort(([, a], [, b]) => b - a);
+        const maxScore = sorted[0]?.[1] ?? 1;
+        return (
+          <div>
+            <p className="text-[10px] font-medium text-muted-foreground uppercase tracking-wide mb-2">
+              Arm probabilities at decide-time
+            </p>
+            <div className="space-y-1">
+              {sorted.map(([vid, score]) => {
+                const isSelected = vid === ctx?.selectedVariantId;
+                const pct = maxScore > 0 ? (score / maxScore) * 100 : 0;
+                return (
+                  <div key={vid} className="flex items-center gap-2">
+                    <span className={cn("text-[10px] font-mono w-16 shrink-0", isSelected && "text-primary font-semibold")}>
+                      {isSelected ? "★ " : "  "}{vid.slice(-6)}
+                    </span>
+                    <div className="flex-1 h-1.5 rounded-full bg-muted overflow-hidden">
+                      <div className={cn("h-full rounded-full", isSelected ? "bg-primary" : "bg-muted-foreground/30")} style={{ width: `${pct}%` }} />
+                    </div>
+                    <span className="text-[10px] font-mono text-muted-foreground w-8 text-right">{(score * 100).toFixed(0)}%</span>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        );
+      })()}
       <div className="flex flex-wrap gap-4 pt-1 border-t border-dashed">
         {row.brazeSendId && (
           <div>
