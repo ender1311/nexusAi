@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Header } from "@/components/layout/header";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -8,7 +8,9 @@ import { Input } from "@/components/ui/input";
 import { Slider } from "@/components/ui/slider";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
-import { CheckCircle2, Loader2, Sparkles } from "lucide-react";
+import { CheckCircle2, Loader2, Sparkles, UserPlus, Trash2, FlaskConical } from "lucide-react";
+
+type TestUser = { externalId: string; name: string; personaId: string | null; createdAt: string };
 
 export default function SettingsPage() {
   const [saved, setSaved] = useState(false);
@@ -17,6 +19,62 @@ export default function SettingsPage() {
   const [discoveryResult, setDiscoveryResult] = useState<null | { ok: boolean; message?: string; k?: number; personasCreated?: number; personasUpdated?: number; usersAssigned?: number; silhouetteScore?: number }>(null);
   const [minInteractions, setMinInteractions] = useState(20);
   const [confidenceThreshold, setConfidenceThreshold] = useState(75);
+
+  // Test users
+  const [testUsers, setTestUsers] = useState<TestUser[]>([]);
+  const [newUserName, setNewUserName] = useState("");
+  const [newUserExternalId, setNewUserExternalId] = useState("");
+  const [addingUser, setAddingUser] = useState(false);
+  const [addUserError, setAddUserError] = useState<string | null>(null);
+  const [removingUserId, setRemovingUserId] = useState<string | null>(null);
+
+  useEffect(() => {
+    fetch("/api/test-users")
+      .then((r) => r.json())
+      .then((d) => setTestUsers(d.data ?? []))
+      .catch(() => {});
+  }, []);
+
+  const handleAddUser = async () => {
+    if (!newUserName.trim() || !newUserExternalId.trim()) return;
+    setAddingUser(true);
+    setAddUserError(null);
+    try {
+      const res = await fetch("/api/test-users", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ name: newUserName.trim(), externalId: newUserExternalId.trim() }),
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        setAddUserError(data.error ?? "Failed to add user");
+        return;
+      }
+      setTestUsers((prev) => {
+        const existing = prev.findIndex((u) => u.externalId === data.data.externalId);
+        if (existing >= 0) {
+          const next = [...prev];
+          next[existing] = data.data;
+          return next;
+        }
+        return [...prev, data.data];
+      });
+      setNewUserName("");
+      setNewUserExternalId("");
+    } finally {
+      setAddingUser(false);
+    }
+  };
+
+  const handleRemoveUser = async (externalId: string) => {
+    setRemovingUserId(externalId);
+    try {
+      await fetch(`/api/test-users?externalId=${encodeURIComponent(externalId)}`, { method: "DELETE" });
+      setTestUsers((prev) => prev.filter((u) => u.externalId !== externalId));
+    } finally {
+      setRemovingUserId(null);
+    }
+  };
 
   // Global defaults
   const [defaultFreqCap, setDefaultFreqCap] = useState(3);
@@ -188,6 +246,78 @@ export default function SettingsPage() {
                   <p className="text-red-700">{discoveryResult.message ?? "Not enough data to run discovery yet. Accumulate more user interactions first."}</p>
                 )}
               </div>
+            )}
+          </CardContent>
+        </Card>
+
+        {/* Test Users */}
+        <Card>
+          <CardHeader>
+            <div className="flex items-center justify-between">
+              <CardTitle className="text-sm font-semibold flex items-center gap-1.5">
+                <FlaskConical className="h-4 w-4" />
+                Test Users
+              </CardTitle>
+              <Badge variant="outline" className="text-xs">Dev</Badge>
+            </div>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <p className="text-xs text-muted-foreground">
+              Named Braze users for end-to-end send testing. These are real external IDs that receive live pushes.
+            </p>
+
+            {/* Add form */}
+            <div className="flex gap-2">
+              <Input
+                placeholder="Name"
+                value={newUserName}
+                onChange={(e) => setNewUserName(e.target.value)}
+                className="w-40 text-sm"
+                onKeyDown={(e) => e.key === "Enter" && handleAddUser()}
+              />
+              <Input
+                placeholder="Braze external ID"
+                value={newUserExternalId}
+                onChange={(e) => setNewUserExternalId(e.target.value)}
+                className="flex-1 text-sm font-mono"
+                onKeyDown={(e) => e.key === "Enter" && handleAddUser()}
+              />
+              <Button
+                size="sm"
+                onClick={handleAddUser}
+                disabled={addingUser || !newUserName.trim() || !newUserExternalId.trim()}
+                className="gap-1.5 shrink-0"
+              >
+                {addingUser ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <UserPlus className="h-3.5 w-3.5" />}
+                Add
+              </Button>
+            </div>
+            {addUserError && <p className="text-xs text-red-600">{addUserError}</p>}
+
+            {/* List */}
+            {testUsers.length > 0 && (
+              <div className="divide-y border rounded-lg">
+                {testUsers.map((u) => (
+                  <div key={u.externalId} className="flex items-center justify-between px-3 py-2">
+                    <div>
+                      <p className="text-sm font-medium">{u.name}</p>
+                      <p className="text-xs text-muted-foreground font-mono">{u.externalId}</p>
+                    </div>
+                    <button
+                      onClick={() => handleRemoveUser(u.externalId)}
+                      disabled={removingUserId === u.externalId}
+                      className="text-muted-foreground hover:text-red-500 transition-colors disabled:opacity-40 p-1"
+                    >
+                      {removingUserId === u.externalId
+                        ? <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                        : <Trash2 className="h-3.5 w-3.5" />}
+                    </button>
+                  </div>
+                ))}
+              </div>
+            )}
+            {testUsers.length === 0 && (
+              <p className="text-xs text-muted-foreground italic">No test users yet.</p>
             )}
           </CardContent>
         </Card>
