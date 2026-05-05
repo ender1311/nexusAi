@@ -9,8 +9,14 @@ type SendRow = {
   scheduledFor: string | null;
   variantId: string | null;
   variantName: string | null;
+  variantTitle: string | null;
   variantBody: string;
+  variantDeeplink: string | null;
   brazeSendId: string | null;
+  personaName: string | null;
+  personaColor: string | null;
+  conversionAt: string | null;
+  reward: number | null;
 };
 
 const DEFAULT_LIMIT = 50;
@@ -37,23 +43,50 @@ export async function GET(
 
     const decisions = await prisma.userDecision.findMany({
       where: { agentId: id },
-      include: { variant: { select: { id: true, name: true, body: true } } },
+      include: {
+        variant: { select: { id: true, name: true, body: true, title: true, deeplink: true } },
+      },
       orderBy: [{ sentAt: "desc" }, { id: "desc" }],
       take: limit,
       ...(cursor !== undefined ? { cursor: { id: cursor }, skip: 1 } : {}),
     });
 
-    const rows: SendRow[] = decisions.map((d) => ({
-      id: d.id,
-      userId: d.userId,
-      channel: d.channel,
-      sentAt: d.sentAt.toISOString(),
-      scheduledFor: d.scheduledFor ? d.scheduledFor.toISOString() : null,
-      variantId: d.variant?.id ?? null,
-      variantName: d.variant?.name ?? null,
-      variantBody: d.variant?.body ?? "",
-      brazeSendId: d.brazeSendId ?? null,
-    }));
+    // Batch-fetch persona info for all unique user IDs in this page
+    const uniqueUserIds = [...new Set(decisions.map((d) => d.userId))];
+    const trackedUsers = uniqueUserIds.length > 0
+      ? await prisma.trackedUser.findMany({
+          where: { externalId: { in: uniqueUserIds } },
+          select: {
+            externalId: true,
+            persona: { select: { name: true, color: true } },
+          },
+        })
+      : [];
+
+    const personaByUserId = new Map(
+      trackedUsers.map((u) => [u.externalId, u.persona]),
+    );
+
+    const rows: SendRow[] = decisions.map((d) => {
+      const persona = personaByUserId.get(d.userId) ?? null;
+      return {
+        id: d.id,
+        userId: d.userId,
+        channel: d.channel,
+        sentAt: d.sentAt.toISOString(),
+        scheduledFor: d.scheduledFor ? d.scheduledFor.toISOString() : null,
+        variantId: d.variant?.id ?? null,
+        variantName: d.variant?.name ?? null,
+        variantTitle: d.variant?.title ?? null,
+        variantBody: d.variant?.body ?? "",
+        variantDeeplink: d.variant?.deeplink ?? null,
+        brazeSendId: d.brazeSendId ?? null,
+        personaName: persona?.name ?? null,
+        personaColor: persona?.color ?? null,
+        conversionAt: d.conversionAt ? d.conversionAt.toISOString() : null,
+        reward: d.reward ?? null,
+      };
+    });
 
     return NextResponse.json({ data: rows });
   } catch (error) {
