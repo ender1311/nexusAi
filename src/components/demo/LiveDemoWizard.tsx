@@ -1,6 +1,7 @@
 "use client";
 
-import { useState, useCallback } from "react";
+import { useState, useCallback, useRef } from "react";
+import { useRouter } from "next/navigation";
 import {
   Zap,
   Users,
@@ -8,10 +9,11 @@ import {
   CheckCircle2,
   XCircle,
   ChevronRight,
-  Bell,
   ArrowLeft,
   Loader2,
   Smartphone,
+  BookmarkPlus,
+  X as XIcon,
 } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -111,42 +113,47 @@ function StepIndicator({ current }: { current: number }) {
   );
 }
 
-function PhoneNotification({
-  title,
-  body,
-  personaColor,
-}: {
-  title: string | null;
-  body: string;
-  personaColor: string;
-}) {
-  const colors = getPersonaColor(personaColor);
+function BibleAppIcon() {
   return (
-    <div className="rounded-2xl bg-neutral-900 p-3 shadow-xl w-full">
+    <svg viewBox="0 0 36 36" fill="none" xmlns="http://www.w3.org/2000/svg" className="w-full h-full">
+      <rect width="36" height="36" rx="7" fill="#1B3A5C" />
+      <path d="M18 9C14.5 9 10.5 10.2 10.5 10.2L10.5 26.2C10.5 26.2 14.5 25 18 25C21.5 25 25.5 26.2 25.5 26.2L25.5 10.2C25.5 10.2 21.5 9 18 9Z" fill="white" />
+      <line x1="18" y1="9" x2="18" y2="25" stroke="#1B3A5C" strokeWidth="1.2" />
+      <line x1="12" y1="14" x2="17" y2="13.4" stroke="#1B3A5C" strokeWidth="0.75" strokeOpacity="0.35" />
+      <line x1="12" y1="17.5" x2="17" y2="16.9" stroke="#1B3A5C" strokeWidth="0.75" strokeOpacity="0.35" />
+      <line x1="12" y1="21" x2="17" y2="20.4" stroke="#1B3A5C" strokeWidth="0.75" strokeOpacity="0.35" />
+      <line x1="24" y1="14" x2="19" y2="13.4" stroke="#1B3A5C" strokeWidth="0.75" strokeOpacity="0.35" />
+      <line x1="24" y1="17.5" x2="19" y2="16.9" stroke="#1B3A5C" strokeWidth="0.75" strokeOpacity="0.35" />
+      <line x1="24" y1="21" x2="19" y2="20.4" stroke="#1B3A5C" strokeWidth="0.75" strokeOpacity="0.35" />
+    </svg>
+  );
+}
+
+function PhoneNotification({ title, body }: { title: string | null; body: string }) {
+  return (
+    <div className="rounded-2xl bg-gray-100 p-3 shadow-sm w-full border border-gray-200">
       {/* Status bar */}
       <div className="flex justify-between items-center px-1 mb-3">
-        <span className="text-neutral-400 text-[10px] font-medium">9:41 AM</span>
+        <span className="text-gray-500 text-[10px] font-medium">9:41 AM</span>
         <div className="flex gap-1">
-          <div className="w-3 h-1.5 bg-neutral-400 rounded-sm" />
-          <div className="w-1 h-1.5 bg-neutral-400 rounded-sm" />
+          <div className="w-3 h-1.5 bg-gray-400 rounded-sm" />
+          <div className="w-1 h-1.5 bg-gray-400 rounded-sm" />
         </div>
       </div>
       {/* Notification card */}
-      <div className="rounded-xl bg-neutral-800 p-3 flex gap-2.5">
-        <div
-          className={`w-8 h-8 rounded-lg ${colors.bg} flex items-center justify-center shrink-0`}
-        >
-          <Bell className={`w-4 h-4 ${colors.text}`} />
+      <div className="rounded-xl bg-white/90 p-3 flex gap-2.5 shadow-sm">
+        <div className="w-8 h-8 rounded-lg shrink-0 overflow-hidden">
+          <BibleAppIcon />
         </div>
         <div className="flex-1 min-w-0">
           <div className="flex items-baseline justify-between gap-1 mb-0.5">
-            <span className="text-[10px] text-neutral-400 font-medium">YouVersion</span>
-            <span className="text-[9px] text-neutral-500">now</span>
+            <span className="text-[10px] text-gray-500 font-semibold">YouVersion</span>
+            <span className="text-[9px] text-gray-400">now</span>
           </div>
-          <p className="text-white text-[11px] font-semibold leading-tight mb-0.5 truncate">
+          <p className="text-gray-900 text-[11px] font-semibold leading-tight mb-0.5 truncate">
             {title ? `[Name] — ${title}` : "[Name] — Today's verse"}
           </p>
-          <p className="text-neutral-300 text-[10px] leading-snug line-clamp-2">{body}</p>
+          <p className="text-gray-600 text-[10px] leading-snug line-clamp-2">{body}</p>
         </div>
       </div>
     </div>
@@ -180,7 +187,6 @@ function UserAssignmentCard({ assignment }: { assignment: DemoAssignment }) {
         <PhoneNotification
           title={assignment.variant.title}
           body={assignment.variant.body}
-          personaColor={assignment.persona.color}
         />
 
         {/* Variant name */}
@@ -219,6 +225,44 @@ function UserAssignmentCard({ assignment }: { assignment: DemoAssignment }) {
 
 // ─── Steps ──────────────────────────────────────────────────────────────────────
 
+const GROUPS_KEY = "nexus_demo_user_groups";
+
+type SavedGroup = { name: string; ids: string[] };
+
+function readGroups(): SavedGroup[] {
+  try {
+    const stored = localStorage.getItem(GROUPS_KEY);
+    return stored ? (JSON.parse(stored) as SavedGroup[]) : [];
+  } catch {
+    return [];
+  }
+}
+
+function useSavedGroups() {
+  const [groups, setGroups] = useState<SavedGroup[]>(() => {
+    if (typeof window === "undefined") return [];
+    return readGroups();
+  });
+
+  const save = useCallback((name: string, ids: string[]) => {
+    setGroups((prev) => {
+      const next = [{ name, ids }, ...prev.filter((g) => g.name !== name)].slice(0, 10);
+      localStorage.setItem(GROUPS_KEY, JSON.stringify(next));
+      return next;
+    });
+  }, []);
+
+  const remove = useCallback((name: string) => {
+    setGroups((prev) => {
+      const next = prev.filter((g) => g.name !== name);
+      localStorage.setItem(GROUPS_KEY, JSON.stringify(next));
+      return next;
+    });
+  }, []);
+
+  return { groups, save, remove };
+}
+
 function SetupStep({
   agents,
   onPreview,
@@ -230,6 +274,10 @@ function SetupStep({
   const [rawIds, setRawIds] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const { groups, save: saveGroup, remove: removeGroup } = useSavedGroups();
+  const [savingGroup, setSavingGroup] = useState(false);
+  const [groupName, setGroupName] = useState("");
+  const groupNameRef = useRef<HTMLInputElement>(null);
 
   const handlePreview = useCallback(async () => {
     setError(null);
@@ -335,26 +383,94 @@ function SetupStep({
         </div>
 
         {/* User IDs */}
-        <div>
-          <label className="text-sm font-medium block mb-2">
-            Test User IDs{" "}
-            <span className="text-muted-foreground font-normal">(one per line or comma-separated, max 20)</span>
-          </label>
+        <div className="space-y-2">
+          <div className="flex items-center justify-between gap-2">
+            <label className="text-sm font-medium">
+              Test User IDs{" "}
+              <span className="text-muted-foreground font-normal">(one per line or comma-separated, max 20)</span>
+            </label>
+            {/* Save group button */}
+            {!savingGroup ? (
+              <button
+                type="button"
+                onClick={() => {
+                  setSavingGroup(true);
+                  setTimeout(() => groupNameRef.current?.focus(), 0);
+                }}
+                className="flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground transition-colors shrink-0"
+              >
+                <BookmarkPlus className="w-3.5 h-3.5" />
+                Save group
+              </button>
+            ) : (
+              <div className="flex items-center gap-1.5 shrink-0">
+                <input
+                  ref={groupNameRef}
+                  type="text"
+                  placeholder="Group name…"
+                  value={groupName}
+                  onChange={(e) => setGroupName(e.target.value)}
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter" && groupName.trim()) {
+                      const ids = rawIds.split(/[\n,]+/).map((s) => s.trim()).filter(Boolean);
+                      if (ids.length) { saveGroup(groupName.trim(), ids); setGroupName(""); setSavingGroup(false); }
+                    }
+                    if (e.key === "Escape") { setSavingGroup(false); setGroupName(""); }
+                  }}
+                  className="text-xs border rounded-lg px-2 py-1 w-32 focus:outline-none focus:ring-2 focus:ring-[#57a16c]/40 bg-background"
+                />
+                <button
+                  type="button"
+                  onClick={() => {
+                    const ids = rawIds.split(/[\n,]+/).map((s) => s.trim()).filter(Boolean);
+                    if (ids.length && groupName.trim()) { saveGroup(groupName.trim(), ids); setGroupName(""); setSavingGroup(false); }
+                  }}
+                  className="text-xs bg-[#57a16c] text-white rounded-lg px-2 py-1 hover:bg-[#4a8f5d]"
+                >
+                  Save
+                </button>
+                <button type="button" onClick={() => { setSavingGroup(false); setGroupName(""); }} className="text-muted-foreground hover:text-foreground">
+                  <XIcon className="w-3.5 h-3.5" />
+                </button>
+              </div>
+            )}
+          </div>
+
+          {/* Saved groups chips */}
+          {groups.length > 0 && (
+            <div className="flex flex-wrap gap-1.5">
+              {groups.map((g) => (
+                <div key={g.name} className="flex items-center gap-1 rounded-full border bg-muted/40 pl-2.5 pr-1 py-0.5 text-xs">
+                  <button
+                    type="button"
+                    onClick={() => setRawIds(g.ids.join("\n"))}
+                    className="font-medium hover:text-[#57a16c] transition-colors"
+                  >
+                    {g.name}
+                    <span className="text-muted-foreground ml-1 font-normal">({g.ids.length})</span>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => removeGroup(g.name)}
+                    className="text-muted-foreground hover:text-destructive ml-0.5"
+                    aria-label={`Remove ${g.name}`}
+                  >
+                    <XIcon className="w-3 h-3" />
+                  </button>
+                </div>
+              ))}
+            </div>
+          )}
+
           <textarea
             className="w-full rounded-xl border bg-muted/30 p-3 text-sm font-mono resize-none focus:outline-none focus:ring-2 focus:ring-[#57a16c]/40"
             rows={6}
-            placeholder={"183037114\n452901823\n..."  }
+            placeholder={"183037114\n452901823\n..."}
             value={rawIds}
             onChange={(e) => setRawIds(e.target.value)}
           />
-          <p className="text-xs text-muted-foreground mt-1">
-            {
-              rawIds
-                .split(/[\n,]+/)
-                .map((s) => s.trim())
-                .filter(Boolean).length
-            }{" "}
-            user IDs entered
+          <p className="text-xs text-muted-foreground">
+            {rawIds.split(/[\n,]+/).map((s) => s.trim()).filter(Boolean).length} user IDs entered
           </p>
         </div>
 
@@ -611,7 +727,7 @@ function ResultsStep({
             <strong className="text-foreground">Liquid personalization</strong> — each notification
             title was sent with{" "}
             <code className="bg-muted px-1 py-0.5 rounded text-[11px]">
-              {`{% if \${first_name} == blank %}Hi there{% else %}{{ \${first_name} | default: '' }}{% endif %}`}
+              {`{first_name} token`}
             </code>
             . Braze resolves this at delivery time using each user&apos;s stored profile.
           </p>
@@ -630,6 +746,7 @@ export function LiveDemoWizard({ agents }: Props) {
   const [agentName, setAgentName] = useState<string>("");
   const [sendResults, setSendResults] = useState<DemoSendResponse | null>(null);
   const [sendError, setSendError] = useState<string | null>(null);
+  const router = useRouter();
 
   const handlePreview = useCallback(
     async (selectedAgentId: string, userIds: string[]) => {
@@ -641,11 +758,12 @@ export function LiveDemoWizard({ agents }: Props) {
       const data: DemoPreviewResponse = await res.json();
       if (!res.ok) throw new Error((data as unknown as { error: string }).error);
       setAgentId(selectedAgentId);
+      router.replace(`?agent=${selectedAgentId}`, { scroll: false });
       setAgentName(data.agentName);
       setAssignments(data.assignments);
       setStep(2);
     },
-    []
+    [router]
   );
 
   const handleSetupPreview = useCallback(

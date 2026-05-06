@@ -1,5 +1,7 @@
+import { Suspense } from "react";
 import { prisma } from "@/lib/db";
 import { LiveDemoWizard } from "@/components/demo/LiveDemoWizard";
+import { RewardIntelligencePanel } from "@/components/demo/RewardIntelligencePanel";
 
 export default async function LiveDemoPage() {
   const [agents, personas] = await Promise.all([
@@ -36,8 +38,11 @@ export default async function LiveDemoPage() {
   ]);
 
   return (
-    <div className="max-w-5xl mx-auto px-4 py-8">
+    <div className="max-w-5xl mx-auto px-4 py-8 space-y-8">
       <LiveDemoWizard agents={agents} personas={personas} />
+      <Suspense>
+        <RewardIntelligencePanel />
+      </Suspense>
     </div>
   );
 }
