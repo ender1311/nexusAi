@@ -57,8 +57,10 @@ describe("GET /api/demo/arm-stats", () => {
     expect(stat.wins).toBe(8);
     expect(stat.personaName).toBe("Morning Reader");
     expect(stat.personaColor).toBeDefined();
+    expect(stat.personaIcon).toBeDefined();
     expect(stat.variantName).toBe("Variant A");
     expect(stat.variantBody).toBeDefined();
+    expect(body.agentName).toBeDefined();
   });
 
   it("returns empty armStats array when agent has no arm stats yet", async () => {
