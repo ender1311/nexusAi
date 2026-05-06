@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import {
   Cpu,
   Target,
@@ -241,6 +242,32 @@ function FlywheelDiagram() {
 export default function DemoPage() {
   return (
     <div className="max-w-5xl mx-auto px-4 py-8 space-y-10">
+      {/* Live demo entry point */}
+      <Link href="/demo/live" className="block">
+        <Card className="border-2 border-[#57a16c] hover:shadow-md transition-shadow cursor-pointer">
+          <CardContent className="pt-5 pb-5">
+            <div className="flex items-center justify-between gap-4">
+              <div className="flex items-center gap-4">
+                <div className="w-12 h-12 rounded-full bg-[#57a16c] flex items-center justify-center shrink-0">
+                  <Send className="w-6 h-6 text-white" />
+                </div>
+                <div>
+                  <div className="flex items-center gap-2">
+                    <h2 className="text-lg font-bold">Live Send Demo</h2>
+                    <Badge className="bg-[#57a16c] text-white border-0 text-[10px]">NEW</Badge>
+                  </div>
+                  <p className="text-sm text-muted-foreground">
+                    Enter real Braze user IDs → Nexus assigns personas, selects optimal variants,
+                    personalizes with Liquid, and sends live push notifications
+                  </p>
+                </div>
+              </div>
+              <div className="text-muted-foreground shrink-0">→</div>
+            </div>
+          </CardContent>
+        </Card>
+      </Link>
+
       {/* Hero */}
       <Card className="border-l-4 border-l-[#57a16c]">
         <CardContent className="pt-6">
