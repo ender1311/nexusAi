@@ -39,8 +39,12 @@ function logBeta(a: number, b: number): number {
 export type PDFPoint = { x: number; y: number };
 
 /**
- * Compute 50 (x, y) points for the Beta(alpha, beta) PDF over (0, 1).
- * Returns normalised points suitable for Recharts AreaChart.
+ * Compute n (x, y) points for the Beta(alpha, beta) PDF over (0, 1).
+ * Returns points suitable for Recharts AreaChart.
+ *
+ * @param alpha - Shape parameter α. Must be ≥ 1 (Thompson Sampling initializes at α=1).
+ * @param beta  - Shape parameter β. Must be ≥ 1 (Thompson Sampling initializes at β=30).
+ * @param n     - Number of sample points (default 50).
  */
 export function betaPDFPoints(alpha: number, beta: number, n = 50): PDFPoint[] {
   const lb = logBeta(alpha, beta);
@@ -51,6 +55,7 @@ export function betaPDFPoints(alpha: number, beta: number, n = 50): PDFPoint[] {
     const x = 0.01 + (0.98 * i) / (n - 1);
     const logY = (alpha - 1) * Math.log(x) + (beta - 1) * Math.log(1 - x) - lb;
     const y = Math.exp(logY);
+    // Unreachable for α,β ≥ 1; defensive guard for UI safety
     points.push({ x, y: isFinite(y) ? y : 0 });
   }
 

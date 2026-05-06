@@ -27,7 +27,7 @@ describe("betaPDFPoints", () => {
   it("Beta(1,1) is approximately uniform — max y close to 1", () => {
     const pts = betaPDFPoints(1, 1);
     const maxY = Math.max(...pts.map((p) => p.y));
-    // Beta(1,1) PDF = 1 everywhere; with normalization max should be near 1
+    // Beta(1,1) PDF = 1 everywhere; all y values should be exactly 1.0
     expect(maxY).toBeGreaterThan(0.9);
     expect(maxY).toBeLessThan(1.1);
   });
