@@ -47,15 +47,16 @@ export class ThompsonSampling {
     return Math.sqrt(-2 * Math.log(u1)) * Math.cos(2 * Math.PI * u2);
   }
 
-  select(arms: BanditArm[]): DecisionResult {
+  select(arms: BanditArm[], recencyPenalties?: Record<string, number>): DecisionResult {
     if (arms.length === 0) throw new Error("No arms to select from");
 
     let bestArm = arms[0];
     let bestSample = -Infinity;
-    const samples = arms.map((arm) => ({
-      arm,
-      sample: this.sampleBeta(arm.stats.alpha, arm.stats.beta),
-    }));
+    const samples = arms.map((arm) => {
+      const raw = this.sampleBeta(arm.stats.alpha, arm.stats.beta);
+      const multiplier = recencyPenalties?.[arm.id] ?? 1.0;
+      return { arm, sample: raw * multiplier };
+    });
 
     for (const { arm, sample } of samples) {
       if (sample > bestSample) {

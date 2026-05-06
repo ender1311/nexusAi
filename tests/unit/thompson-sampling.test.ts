@@ -69,4 +69,43 @@ describe("ThompsonSampling", () => {
       expect(r.explore).toBe(true);
     }
   });
+
+  it("recency penalty reduces selection probability of penalised arm", () => {
+    // With penalty 0.1 on "winner", "loser" should win far more often
+    const arms = [
+      { id: "winner", stats: { alpha: 90, beta: 10, tries: 100, wins: 90 } },
+      { id: "loser",  stats: { alpha: 10, beta: 90, tries: 100, wins: 10 } },
+    ];
+    const penalties = { winner: 0.1 }; // heavy penalty on the normally-dominant arm
+    let loserCount = 0;
+    for (let i = 0; i < 1000; i++) {
+      if (ts.select(arms, penalties).variantId === "loser") loserCount++;
+    }
+    // Without penalty, loser wins <20% of the time. With penalty on winner, loser should win >50%.
+    expect(loserCount).toBeGreaterThan(500);
+  });
+
+  it("select without recencyPenalties behaves identically to original (no regression)", () => {
+    const arms = [
+      { id: "v1", stats: { alpha: 80, beta: 20, tries: 100, wins: 80 } },
+      { id: "v2", stats: { alpha: 20, beta: 80, tries: 100, wins: 20 } },
+    ];
+    let v1Count = 0;
+    for (let i = 0; i < 1000; i++) {
+      if (ts.select(arms).variantId === "v1") v1Count++;
+    }
+    expect(v1Count).toBeGreaterThan(800);
+  });
+
+  it("penalty of 1.0 has no effect on selection", () => {
+    const arms = [
+      { id: "winner", stats: { alpha: 90, beta: 10, tries: 100, wins: 90 } },
+      { id: "loser",  stats: { alpha: 10, beta: 90, tries: 100, wins: 10 } },
+    ];
+    let winnerCount = 0;
+    for (let i = 0; i < 1000; i++) {
+      if (ts.select(arms, { winner: 1.0 }).variantId === "winner") winnerCount++;
+    }
+    expect(winnerCount).toBeGreaterThan(800);
+  });
 });
