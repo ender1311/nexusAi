@@ -140,20 +140,33 @@ export async function POST(req: NextRequest) {
     const assignments: DemoAssignment[] = ids.map((userId, i) => {
       const persona = personas[i % personas.length];
 
-      // Find variant with highest deterministic mean (alpha / (alpha + beta))
-      // Use mean rather than sampling so the preview is stable and explainable
+      // Find variant with highest deterministic mean (alpha / (alpha + beta)).
+      // Use mean rather than sampling so the preview is stable and explainable.
+      // When a persona has no arm stats yet, all variants share the same default
+      // prior (Beta(1,30) ≈ 3.2%) so every persona would tie-break to variant[0].
+      // Instead, rotate through variants by user index so the demo shows the
+      // concept that different users get different messages.
       const personaStats = statsByPersonaVariant[persona.id] ?? {};
-      let bestVariant = allVariants[0];
-      let bestMean = -1;
+      const hasAnyStats = Object.keys(personaStats).length > 0;
 
-      for (const variant of allVariants) {
-        const stats = personaStats[variant.id];
-        const mean = stats
-          ? stats.alpha / (stats.alpha + stats.beta)
-          : 1 / (1 + 30); // default pessimistic init Beta(1,30)
-        if (mean > bestMean) {
-          bestMean = mean;
-          bestVariant = variant;
+      let bestVariant: (typeof allVariants)[0];
+      let bestMean: number;
+
+      if (!hasAnyStats) {
+        bestVariant = allVariants[i % allVariants.length];
+        bestMean = 1 / 31; // pessimistic Beta(1,30) prior
+      } else {
+        bestVariant = allVariants[0];
+        bestMean = -1;
+        for (const variant of allVariants) {
+          const stats = personaStats[variant.id];
+          const mean = stats
+            ? stats.alpha / (stats.alpha + stats.beta)
+            : 1 / 31; // default pessimistic init Beta(1,30)
+          if (mean > bestMean) {
+            bestMean = mean;
+            bestVariant = variant;
+          }
         }
       }
 

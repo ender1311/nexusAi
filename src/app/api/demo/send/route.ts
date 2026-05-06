@@ -18,7 +18,7 @@ export type DemoSendResponse = {
 
 // Liquid greeting prefix: personalizes by first name if available in Braze profile
 const LIQUID_GREETING =
-  "{% if ${first_name} == blank %}Hi there{% else %}{{ ${first_name} | default: '' }}{% endif %}";
+  "{first_name} token";
 
 function buildPersonalizedTitle(variantTitle: string | null): string {
   const baseTitle = variantTitle?.trim() || "";

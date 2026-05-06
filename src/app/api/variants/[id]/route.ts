@@ -62,3 +62,27 @@ export async function PATCH(
 
   return NextResponse.json({ data: updated, clonesUpdated });
 }
+
+export async function DELETE(
+  _req: NextRequest,
+  { params }: { params: Promise<{ id: string }> }
+) {
+  const { id } = await params;
+
+  try {
+    const existing = await prisma.messageVariant.findUnique({
+      where: { id },
+      select: { id: true },
+    });
+    if (!existing) {
+      return NextResponse.json({ error: "Variant not found" }, { status: 404 });
+    }
+
+    await prisma.messageVariant.delete({
+      where: { id },
+    });
+    return NextResponse.json({ data: { id } });
+  } catch {
+    return NextResponse.json({ error: "Delete failed" }, { status: 500 });
+  }
+}
