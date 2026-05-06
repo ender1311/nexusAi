@@ -60,17 +60,17 @@ export function VariantDiffTable({ variants }: VariantDiffTableProps) {
             if (!hasAnyValue) return null;
 
             return (
-              <tr key={key} className={cn("border-b last:border-0", differs && "bg-amber-50/50")}>
+              <tr key={key} className={cn("border-b last:border-0", differs && "bg-amber-50/50 dark:bg-amber-900/20")}>
                 <td className="py-2 pr-4 text-xs text-muted-foreground font-medium">
                   {label}
-                  {differs && <span className="ml-1 text-amber-600">*</span>}
+                  {differs && <span className="ml-1 text-amber-600 dark:text-amber-400">*</span>}
                 </td>
                 {variants.map((v, i) => (
                   <td
                     key={v.id}
                     className={cn(
                       "py-2 px-2 text-xs",
-                      differs && values[i] !== values[0] && "font-medium text-amber-700"
+                      differs && values[i] !== values[0] && "font-medium text-amber-700 dark:text-amber-400"
                     )}
                   >
                     {formatValue(key, values[i])}
@@ -86,7 +86,7 @@ export function VariantDiffTable({ variants }: VariantDiffTableProps) {
         const unique = new Set(values.map((val) => JSON.stringify(val)));
         return unique.size > 1;
       }) && (
-        <p className="text-xs text-amber-600 mt-2">* Fields marked with * differ across variants</p>
+        <p className="text-xs text-amber-600 dark:text-amber-400 mt-2">* Fields marked with * differ across variants</p>
       )}
     </div>
   );

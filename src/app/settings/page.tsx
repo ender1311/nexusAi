@@ -231,19 +231,19 @@ export default function SettingsPage() {
             {discoveryResult && (
               <div className={`rounded-lg border p-3 text-xs space-y-1 ${
                 discoveryResult.ok
-                  ? "bg-emerald-50 border-emerald-200"
-                  : "bg-red-50 border-red-200"
+                  ? "bg-emerald-50 border-emerald-200 dark:bg-emerald-900/20 dark:border-emerald-800"
+                  : "bg-red-50 border-red-200 dark:bg-red-900/20 dark:border-red-800"
               }`}>
                 {discoveryResult.ok ? (
                   <>
-                    <p className="font-semibold text-green-700">Discovery complete</p>
+                    <p className="font-semibold text-green-700 dark:text-green-400">Discovery complete</p>
                     <p>Clusters found: {discoveryResult.k}</p>
                     <p>Personas created: {discoveryResult.personasCreated} · updated: {discoveryResult.personasUpdated}</p>
                     <p>Users assigned: {discoveryResult.usersAssigned}</p>
                     <p>Cluster quality: {discoveryResult.silhouetteScore !== undefined ? `${(discoveryResult.silhouetteScore * 100).toFixed(1)}%` : "—"} (higher = more distinct segments)</p>
                   </>
                 ) : (
-                  <p className="text-red-700">{discoveryResult.message ?? "Not enough data to run discovery yet. Accumulate more user interactions first."}</p>
+                  <p className="text-red-700 dark:text-red-400">{discoveryResult.message ?? "Not enough data to run discovery yet. Accumulate more user interactions first."}</p>
                 )}
               </div>
             )}
@@ -332,7 +332,7 @@ export default function SettingsPage() {
             ) : "Save Settings"}
           </Button>
           {saved && (
-            <div className="flex items-center gap-1.5 text-green-600 text-sm">
+            <div className="flex items-center gap-1.5 text-green-600 dark:text-green-400 text-sm">
               <CheckCircle2 className="h-4 w-4" />
               Saved!
             </div>

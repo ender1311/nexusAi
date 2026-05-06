@@ -20,14 +20,15 @@ import { PersonaTargetManager } from "@/components/agents/persona-target-manager
 import { FallbackSendTimeEditor } from "@/components/agents/fallback-send-time-editor";
 import { AudienceCapEditor } from "@/components/agents/audience-cap-editor";
 import { AgentSendsTable } from "@/components/agents/agent-sends-table";
+import { AgentNameEditor } from "@/components/agents/agent-name-editor";
 
 const TIER_COLORS: Record<string, string> = {
-  best: "bg-green-100 text-green-700 border-green-200",
-  very_good: "bg-green-50 text-green-600 border-green-100",
-  good: "bg-blue-100 text-blue-700 border-blue-200",
-  bad: "bg-yellow-100 text-yellow-700 border-yellow-200",
-  very_bad: "bg-orange-100 text-orange-700 border-orange-200",
-  worst: "bg-red-100 text-red-700 border-red-200",
+  best:      "bg-green-100 text-green-700 border-green-200 dark:bg-green-900/30 dark:text-green-400 dark:border-green-800",
+  very_good: "bg-green-50 text-green-600 border-green-100 dark:bg-green-900/20 dark:text-green-500 dark:border-green-900",
+  good:      "bg-blue-100 text-blue-700 border-blue-200 dark:bg-blue-900/30 dark:text-blue-400 dark:border-blue-800",
+  bad:       "bg-yellow-100 text-yellow-700 border-yellow-200 dark:bg-yellow-900/30 dark:text-yellow-400 dark:border-yellow-800",
+  very_bad:  "bg-orange-100 text-orange-700 border-orange-200 dark:bg-orange-900/30 dark:text-orange-400 dark:border-orange-800",
+  worst:     "bg-red-100 text-red-700 border-red-200 dark:bg-red-900/30 dark:text-red-400 dark:border-red-800",
 };
 
 const algorithmLabels: Record<string, string> = {
@@ -118,7 +119,11 @@ export default async function AgentDetailPage({ params }: { params: Promise<{ id
 
   return (
     <>
-      <Header title={agent.name} description={agent.description ?? undefined} />
+      <Header
+        title={agent.name}
+        titleNode={<AgentNameEditor agentId={agent.id} initialName={agent.name} />}
+        description={agent.description ?? undefined}
+      />
       <div className="p-4 sm:p-6 space-y-4">
         {/* Top bar */}
         <div className="flex flex-wrap items-center justify-between gap-2">
@@ -191,15 +196,15 @@ export default async function AgentDetailPage({ params }: { params: Promise<{ id
               ];
               const nextStep = steps.find((s) => !s.done);
               return (
-                <div className="rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 space-y-2.5">
+                <div className="rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 space-y-2.5 dark:border-amber-800 dark:bg-amber-900/20">
                   <div className="flex items-center justify-between gap-3">
                     <div className="flex items-center gap-2">
                       <div className="h-2 w-2 rounded-full bg-amber-400 shrink-0" />
-                      <span className="text-sm font-medium text-amber-900">Draft — complete setup before activating</span>
+                      <span className="text-sm font-medium text-amber-900 dark:text-amber-300">Draft — complete setup before activating</span>
                     </div>
                     {nextStep && (
                       <Link href={nextStep.href}>
-                        <Button size="sm" variant="outline" className="border-amber-300 text-amber-800 hover:bg-amber-100 shrink-0 h-7 text-xs">
+                        <Button size="sm" variant="outline" className="border-amber-300 text-amber-800 hover:bg-amber-100 shrink-0 h-7 text-xs dark:border-amber-700 dark:text-amber-400 dark:hover:bg-amber-900/30">
                           {nextStep.label.replace(/^\w/, (c) => c.toUpperCase())} →
                         </Button>
                       </Link>
@@ -211,7 +216,7 @@ export default async function AgentDetailPage({ params }: { params: Promise<{ id
                         <span className={cn("text-base leading-none", done ? "text-green-600" : "text-amber-400")}>
                           {done ? "✓" : "○"}
                         </span>
-                        <span className={cn(done ? "text-green-700" : "text-amber-800")}>{label}</span>
+                        <span className={cn(done ? "text-green-700 dark:text-green-400" : "text-amber-800 dark:text-amber-400")}>{label}</span>
                       </Link>
                     ))}
                   </div>
@@ -340,7 +345,7 @@ export default async function AgentDetailPage({ params }: { params: Promise<{ id
                                 </div>
                                 <Badge
                                   variant="outline"
-                                  className={cn("text-xs ml-2 shrink-0", v.status === "active" ? "text-green-700 bg-green-50" : "text-yellow-700 bg-yellow-50")}
+                                  className={cn("text-xs ml-2 shrink-0", v.status === "active" ? "text-green-700 bg-green-50 dark:text-green-400 dark:bg-green-900/30" : "text-yellow-700 bg-yellow-50 dark:text-yellow-400 dark:bg-yellow-900/30")}
                                 >
                                   {v.status}
                                 </Badge>
@@ -443,10 +448,10 @@ export default async function AgentDetailPage({ params }: { params: Promise<{ id
                     className={cn(
                       "text-xs capitalize",
                       healthStatus === "healthy"
-                        ? "text-green-700 bg-green-50 border-green-200"
+                        ? "text-green-700 bg-green-50 border-green-200 dark:text-green-400 dark:bg-green-900/20 dark:border-green-800"
                         : healthStatus === "warning"
-                          ? "text-amber-700 bg-amber-50 border-amber-200"
-                          : "text-red-700 bg-red-50 border-red-200",
+                          ? "text-amber-700 bg-amber-50 border-amber-200 dark:text-amber-400 dark:bg-amber-900/20 dark:border-amber-800"
+                          : "text-red-700 bg-red-50 border-red-200 dark:text-red-400 dark:bg-red-900/20 dark:border-red-800",
                     )}
                   >
                     {healthStatus}
@@ -488,7 +493,7 @@ export default async function AgentDetailPage({ params }: { params: Promise<{ id
                           {v.inWarmup && (
                             <Badge
                               variant="outline"
-                              className="text-xs text-amber-700 bg-amber-50 border-amber-200"
+                              className="text-xs text-amber-700 bg-amber-50 border-amber-200 dark:text-amber-400 dark:bg-amber-900/30 dark:border-amber-800"
                             >
                               warmup
                             </Badge>

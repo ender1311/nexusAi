@@ -48,16 +48,16 @@ type Props = {
 // ─── Color helpers ──────────────────────────────────────────────────────────────
 
 const PERSONA_COLORS: Record<string, { bg: string; text: string; ring: string }> = {
-  blue:   { bg: "bg-blue-100",   text: "text-blue-800",   ring: "ring-blue-300" },
-  green:  { bg: "bg-green-100",  text: "text-green-800",  ring: "ring-green-300" },
-  purple: { bg: "bg-purple-100", text: "text-purple-800", ring: "ring-purple-300" },
-  orange: { bg: "bg-orange-100", text: "text-orange-800", ring: "ring-orange-300" },
-  teal:   { bg: "bg-teal-100",   text: "text-teal-800",   ring: "ring-teal-300" },
-  red:    { bg: "bg-red-100",    text: "text-red-800",    ring: "ring-red-300" },
-  pink:   { bg: "bg-pink-100",   text: "text-pink-800",   ring: "ring-pink-300" },
-  indigo: { bg: "bg-indigo-100", text: "text-indigo-800", ring: "ring-indigo-300" },
-  yellow: { bg: "bg-yellow-100", text: "text-yellow-800", ring: "ring-yellow-300" },
-  gray:   { bg: "bg-gray-100",   text: "text-gray-800",   ring: "ring-gray-300" },
+  blue:   { bg: "bg-blue-100 dark:bg-blue-900/30",    text: "text-blue-800 dark:text-blue-300",    ring: "ring-blue-300 dark:ring-blue-700" },
+  green:  { bg: "bg-green-100 dark:bg-green-900/30",   text: "text-green-800 dark:text-green-300",   ring: "ring-green-300 dark:ring-green-700" },
+  purple: { bg: "bg-purple-100 dark:bg-purple-900/30", text: "text-purple-800 dark:text-purple-300", ring: "ring-purple-300 dark:ring-purple-700" },
+  orange: { bg: "bg-orange-100 dark:bg-orange-900/30", text: "text-orange-800 dark:text-orange-300", ring: "ring-orange-300 dark:ring-orange-700" },
+  teal:   { bg: "bg-teal-100 dark:bg-teal-900/30",    text: "text-teal-800 dark:text-teal-300",    ring: "ring-teal-300 dark:ring-teal-700" },
+  red:    { bg: "bg-red-100 dark:bg-red-900/30",      text: "text-red-800 dark:text-red-300",      ring: "ring-red-300 dark:ring-red-700" },
+  pink:   { bg: "bg-pink-100 dark:bg-pink-900/30",    text: "text-pink-800 dark:text-pink-300",    ring: "ring-pink-300 dark:ring-pink-700" },
+  indigo: { bg: "bg-indigo-100 dark:bg-indigo-900/30", text: "text-indigo-800 dark:text-indigo-300", ring: "ring-indigo-300 dark:ring-indigo-700" },
+  yellow: { bg: "bg-yellow-100 dark:bg-yellow-900/30", text: "text-yellow-800 dark:text-yellow-300", ring: "ring-yellow-300 dark:ring-yellow-700" },
+  gray:   { bg: "bg-gray-100 dark:bg-gray-800",        text: "text-gray-800 dark:text-gray-300",    ring: "ring-gray-300 dark:ring-gray-600" },
 };
 
 function getPersonaColor(color: string) {
@@ -132,6 +132,7 @@ function BibleAppIcon() {
 function PhoneNotification({ title, body }: { title: string | null; body: string }) {
   return (
     <div className="rounded-2xl bg-gray-100 p-3 shadow-sm w-full border border-gray-200">
+      {/* Phone chrome intentionally stays light — represents a real device frame */}
       {/* Status bar */}
       <div className="flex justify-between items-center px-1 mb-3">
         <span className="text-gray-500 text-[10px] font-medium">9:41 AM</span>
@@ -823,7 +824,7 @@ export function LiveDemoWizard({ agents }: Props) {
       <StepIndicator current={step} />
 
       {sendError && (
-        <div className="rounded-xl border border-red-200 bg-red-50 p-4 text-sm text-red-700 flex items-center gap-2 mb-4">
+        <div className="rounded-xl border border-red-200 bg-red-50 p-4 text-sm text-red-700 flex items-center gap-2 mb-4 dark:border-red-800 dark:bg-red-950/30 dark:text-red-400">
           <XCircle className="w-4 h-4 shrink-0" />
           {sendError}
         </div>

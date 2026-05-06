@@ -3,6 +3,7 @@ import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
 import { Sidebar, MobileNav } from "@/components/layout/sidebar";
 import { DataModeProvider } from "@/components/layout/data-mode-provider";
+import { ThemeProvider } from "next-themes";
 import { withAuth } from "@workos-inc/authkit-nextjs";
 
 const geistSans = Geist({
@@ -36,21 +37,23 @@ export default async function RootLayout({
     : null;
 
   return (
-    <html lang="en">
+    <html lang="en" suppressHydrationWarning>
       <body className={`${geistSans.variable} ${geistMono.variable} antialiased`}>
-        {user ? (
-          <DataModeProvider>
-            <div className="flex h-screen overflow-hidden bg-background">
-              <Sidebar user={sidebarUser} />
-              <main className="flex-1 overflow-y-auto pb-16 lg:pb-0">
-                {children}
-              </main>
-            </div>
-            <MobileNav />
-          </DataModeProvider>
-        ) : (
-          <>{children}</>
-        )}
+        <ThemeProvider attribute="class" defaultTheme="system" enableSystem disableTransitionOnChange>
+          {user ? (
+            <DataModeProvider>
+              <div className="flex h-screen overflow-hidden bg-background">
+                <Sidebar user={sidebarUser} />
+                <main className="flex-1 overflow-y-auto pb-16 lg:pb-0">
+                  {children}
+                </main>
+              </div>
+              <MobileNav />
+            </DataModeProvider>
+          ) : (
+            <>{children}</>
+          )}
+        </ThemeProvider>
       </body>
     </html>
   );

@@ -12,9 +12,9 @@ import { TestedVariablesBadges } from "@/components/agents/tested-variables-badg
 import { prisma } from "@/lib/db";
 
 const channelColors: Record<Channel, string> = {
-  push: "bg-blue-100 text-blue-700",
-  email: "bg-purple-100 text-purple-700",
-  sms: "bg-green-100 text-green-700",
+  push:  "bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400",
+  email: "bg-purple-100 text-purple-700 dark:bg-purple-900/30 dark:text-purple-400",
+  sms:   "bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400",
 };
 
 const channelIcons: Record<Channel, LucideIcon> = {
@@ -129,7 +129,7 @@ export default async function MessagesPage() {
                               variant="outline"
                               className={cn(
                                 "text-xs ml-2 shrink-0",
-                                v.status === "active" ? "text-green-700 bg-green-50" : "text-yellow-700 bg-yellow-50"
+                                v.status === "active" ? "text-green-700 bg-green-50 dark:text-green-400 dark:bg-green-900/30" : "text-yellow-700 bg-yellow-50 dark:text-yellow-400 dark:bg-yellow-900/30"
                               )}
                             >
                               {v.status}
