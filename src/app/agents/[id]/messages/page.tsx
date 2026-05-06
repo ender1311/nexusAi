@@ -1,12 +1,10 @@
 export const dynamic = "force-dynamic";
 
 import { Header } from "@/components/layout/header";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
 import { prisma } from "@/lib/db";
 import { notFound } from "next/navigation";
-import { cn } from "@/lib/utils";
-import { PushVariantPreviewCard } from "@/components/agents/push-variant-preview-card";
+import { AgentMessageManager } from "@/components/agents/agent-message-manager";
+import { FrequencyCap } from "@/types/agent";
 
 export default async function MessagesPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
@@ -25,46 +23,44 @@ export default async function MessagesPage({ params }: { params: Promise<{ id: s
 
   if (!agent) notFound();
 
+  const initialMessages = agent.messages.map((message) => ({
+    id: message.id,
+    name: message.name,
+    channel: message.channel,
+    brazeCampaignId: message.brazeCampaignId,
+    variants: message.variants.map((variant) => ({
+      id: variant.id,
+      name: variant.name,
+      title: variant.title,
+      body: variant.body,
+      deeplink: variant.deeplink,
+      iconImageUrl: variant.iconImageUrl,
+      preferredHour: variant.preferredHour,
+      preferredDayOfWeek: variant.preferredDayOfWeek,
+      frequencyCapOverride:
+        variant.frequencyCapOverride &&
+        typeof variant.frequencyCapOverride === "object" &&
+        !Array.isArray(variant.frequencyCapOverride) &&
+        typeof (variant.frequencyCapOverride as Record<string, unknown>).maxSends === "number" &&
+        ["day", "week", "biweek", "month"].includes(
+          String((variant.frequencyCapOverride as Record<string, unknown>).period),
+        )
+          ? ({
+              maxSends: Number((variant.frequencyCapOverride as Record<string, unknown>).maxSends),
+              period: String((variant.frequencyCapOverride as Record<string, unknown>).period) as FrequencyCap["period"],
+            } satisfies FrequencyCap)
+          : null,
+      status: variant.status,
+      brazeVariantId: variant.brazeVariantId,
+      warmupUntil: variant.warmupUntil ? variant.warmupUntil.toISOString() : null,
+    })),
+  }));
+
   return (
     <>
       <Header title="Messages & Variants" description={agent.name} />
-      <div className="p-4 sm:p-6 max-w-3xl space-y-4 sm:space-y-6">
-        {agent.messages.length === 0 ? (
-          <div className="text-center py-16 text-muted-foreground border-2 border-dashed rounded-xl">
-            <p className="font-medium">No messages configured</p>
-            <p className="text-sm mt-1">Messages are managed via the seed script or Settings.</p>
-          </div>
-        ) : (
-          agent.messages.map((msg) => (
-            <Card key={msg.id}>
-              <CardHeader>
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-2 flex-wrap">
-                    <CardTitle className="text-sm font-semibold">{msg.name}</CardTitle>
-                    <Badge variant="outline" className={cn(
-                      "text-xs capitalize",
-                      msg.channel === "push" && "bg-blue-100 text-blue-700",
-                      msg.channel === "email" && "bg-purple-100 text-purple-700",
-                    )}>
-                      {msg.channel}
-                    </Badge>
-                    {msg.brazeCampaignId && (
-                      <Badge variant="outline" className="text-xs font-mono">
-                        campaign: {msg.brazeCampaignId.slice(0, 8)}…
-                      </Badge>
-                    )}
-                  </div>
-                  <span className="text-xs text-muted-foreground">{msg.variants.length} variants</span>
-                </div>
-              </CardHeader>
-              <CardContent className="space-y-4">
-                {msg.variants.map((v) => (
-                  <PushVariantPreviewCard key={v.id} variant={v} channel={msg.channel} />
-                ))}
-              </CardContent>
-            </Card>
-          ))
-        )}
+      <div className="p-4 sm:p-6 max-w-4xl">
+        <AgentMessageManager agentId={agent.id} initialMessages={initialMessages} />
       </div>
     </>
   );
