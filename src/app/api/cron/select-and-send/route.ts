@@ -9,6 +9,7 @@ import { isTimingMatch } from "@/lib/engine/send-timing";
 import { ThompsonSampling } from "@/lib/engine/thompson-sampling";
 import { EpsilonGreedy } from "@/lib/engine/epsilon-greedy";
 import type { BanditArm } from "@/lib/engine/types";
+import { recencyMultiplier } from "@/lib/engine/beta-pdf";
 
 // Allow up to 300s execution time on Vercel
 export const maxDuration = 300;
@@ -513,7 +514,7 @@ export async function POST(req: NextRequest) {
         ? new Date(now.getTime() - (lotteryPeriodMs[freqCap!.period ?? "week"] ?? lotteryPeriodMs.week))
         : null;
 
-      const [lotteryRecentDecisions, sentTodayRows] = await Promise.all([
+      const [lotteryRecentDecisions, sentTodayRows, recentSendsByUser] = await Promise.all([
         hasLotteryFreqCap
           ? prisma.userDecision.groupBy({
               by: ["userId"],
@@ -534,6 +535,17 @@ export async function POST(req: NextRequest) {
           },
           select:   { userId: true },
           distinct: ["userId"],
+        }),
+        // Recency penalty: most recent send per (userId, variantId) in last 7 days
+        prisma.userDecision.findMany({
+          where: {
+            agentId:  agent.id,
+            userId:   { in: userExternalIds },
+            sentAt:   { gte: new Date(now.getTime() - 7 * 86_400_000) },
+            messageVariantId: { not: null },
+          },
+          select: { userId: true, messageVariantId: true, sentAt: true },
+          orderBy: { sentAt: "desc" },
         }),
       ]);
 
@@ -638,10 +650,20 @@ export async function POST(req: NextRequest) {
             .filter(Boolean) as BanditArm[];
           if (arms.length === 0) continue;
 
+          // Build recency penalty map for this user
+          const userRecent = recentSendsByUser.filter((r) => r.userId === user.externalId);
+          const recencyPenalties: Record<string, number> = {};
+          for (const r of userRecent) {
+            const vid = r.messageVariantId;
+            if (!vid || recencyPenalties[vid] !== undefined) continue; // keep most recent only
+            const daysSince = (now.getTime() - r.sentAt.getTime()) / 86_400_000;
+            recencyPenalties[vid] = recencyMultiplier(daysSince);
+          }
+
           const selectedVariantId =
             agent.algorithm === "epsilon_greedy"
               ? new EpsilonGreedy(agent.epsilon).select(arms).variantId
-              : new ThompsonSampling().select(arms).variantId;
+              : new ThompsonSampling().select(arms, recencyPenalties).variantId;
 
           const { scheduledAt, inLocalTime: isFallback } = computeScheduledAt(
             user.preferredSendHour ?? null,
@@ -793,7 +815,7 @@ export async function POST(req: NextRequest) {
         ? new Date(now.getTime() - (periodMs[windowFreqCap!.period ?? "week"] ?? periodMs.week))
         : null;
 
-      const [recentDecisionsForFreq, sentTodayWindowRows] = await Promise.all([
+      const [recentDecisionsForFreq, sentTodayWindowRows, windowRecentSends] = await Promise.all([
         hasFreqCap
           ? prisma.userDecision.groupBy({
               by: ["userId"],
@@ -812,6 +834,16 @@ export async function POST(req: NextRequest) {
           },
           select:   { userId: true },
           distinct: ["userId"],
+        }),
+        prisma.userDecision.findMany({
+          where: {
+            agentId:  agent.id,
+            userId:   { in: inWindowUserIdsForAgent },
+            sentAt:   { gte: new Date(now.getTime() - 7 * 86_400_000) },
+            messageVariantId: { not: null },
+          },
+          select: { userId: true, messageVariantId: true, sentAt: true },
+          orderBy: { sentAt: "desc" },
         }),
       ]);
 
@@ -897,10 +929,20 @@ export async function POST(req: NextRequest) {
             .filter(Boolean) as BanditArm[];
           if (arms.length === 0) continue;
 
+          // Build recency penalty map for this user
+          const windowUserRecent = windowRecentSends.filter((r) => r.userId === user.externalId);
+          const windowRecencyPenalties: Record<string, number> = {};
+          for (const r of windowUserRecent) {
+            const vid = r.messageVariantId;
+            if (!vid || windowRecencyPenalties[vid] !== undefined) continue;
+            const daysSince = (now.getTime() - r.sentAt.getTime()) / 86_400_000;
+            windowRecencyPenalties[vid] = recencyMultiplier(daysSince);
+          }
+
           const selectedVariantId =
             agent.algorithm === "epsilon_greedy"
               ? new EpsilonGreedy(agent.epsilon).select(arms).variantId
-              : new ThompsonSampling().select(arms).variantId;
+              : new ThompsonSampling().select(arms, windowRecencyPenalties).variantId;
 
           const { scheduledAt, inLocalTime: isFallback } = computeScheduledAt(
             user.preferredSendHour ?? null,

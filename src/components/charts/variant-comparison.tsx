@@ -9,9 +9,9 @@ interface VariantComparisonProps {
 }
 
 const channelColors: Record<string, string> = {
-  push: "bg-blue-100 text-blue-700",
-  email: "bg-purple-100 text-purple-700",
-  sms: "bg-green-100 text-green-700",
+  push:  "bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400",
+  email: "bg-purple-100 text-purple-700 dark:bg-purple-900/30 dark:text-purple-400",
+  sms:   "bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400",
 };
 
 export function VariantComparison({ variants }: VariantComparisonProps) {
@@ -30,7 +30,7 @@ export function VariantComparison({ variants }: VariantComparisonProps) {
                   {v.channel}
                 </Badge>
                 {isTop && variants.length > 1 && (
-                  <Badge className="text-xs bg-green-100 text-green-700 border-0">Top</Badge>
+                  <Badge className="text-xs bg-green-100 text-green-700 border-0 dark:bg-green-900/30 dark:text-green-400">Top</Badge>
                 )}
               </div>
               <span className="font-semibold text-sm">{v.conversionRate.toFixed(2)}%</span>

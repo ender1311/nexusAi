@@ -14,7 +14,7 @@ interface VariantRow {
   deeplink: string | null;
   status: string;
   brazeVariantId: string | null;
-  warmupUntil: Date | null;
+  warmupUntil: Date | string | null;
 }
 
 interface PushVariantPreviewCardProps {
@@ -23,7 +23,9 @@ interface PushVariantPreviewCardProps {
 }
 
 export function PushVariantPreviewCard({ variant, channel }: PushVariantPreviewCardProps) {
-  const [warmupUntil, setWarmupUntil] = useState<Date | null>(variant.warmupUntil);
+  const [warmupUntil, setWarmupUntil] = useState<Date | null>(
+    variant.warmupUntil ? new Date(variant.warmupUntil) : null,
+  );
   const [saving, setSaving] = useState(false);
 
   const isInWarmup = warmupUntil !== null && warmupUntil > new Date();
@@ -66,7 +68,7 @@ export function PushVariantPreviewCard({ variant, channel }: PushVariantPreviewC
           variant="outline"
           className={cn(
             "text-xs",
-            variant.status === "active" ? "text-green-700 bg-green-50" : "text-yellow-700 bg-yellow-50"
+            variant.status === "active" ? "text-green-700 bg-green-50 dark:text-green-400 dark:bg-green-900/30" : "text-yellow-700 bg-yellow-50 dark:text-yellow-400 dark:bg-yellow-900/30"
           )}
         >
           {variant.status}
@@ -96,7 +98,7 @@ export function PushVariantPreviewCard({ variant, channel }: PushVariantPreviewC
           </button>
         )}
         {isInWarmup && (
-          <Badge variant="outline" className="text-xs text-amber-700 bg-amber-50 border-amber-200">
+          <Badge variant="outline" className="text-xs text-amber-700 bg-amber-50 border-amber-200 dark:text-amber-400 dark:bg-amber-900/30 dark:border-amber-800">
             active
           </Badge>
         )}
