@@ -22,12 +22,12 @@ const GOAL_TIERS: Array<{ value: GoalTier; label: string; color: string; weight:
 ];
 
 const TIER_COLORS: Record<string, string> = {
-  best: "bg-green-100 text-green-700 border-green-200",
-  very_good: "bg-green-50 text-green-600 border-green-100",
-  good: "bg-blue-100 text-blue-700 border-blue-200",
-  bad: "bg-yellow-100 text-yellow-700 border-yellow-200",
-  very_bad: "bg-orange-100 text-orange-700 border-orange-200",
-  worst: "bg-red-100 text-red-700 border-red-200",
+  best:      "bg-green-100 text-green-700 border-green-200 dark:bg-green-900/30 dark:text-green-400 dark:border-green-800",
+  very_good: "bg-green-50 text-green-600 border-green-100 dark:bg-green-900/20 dark:text-green-500 dark:border-green-900",
+  good:      "bg-blue-100 text-blue-700 border-blue-200 dark:bg-blue-900/30 dark:text-blue-400 dark:border-blue-800",
+  bad:       "bg-yellow-100 text-yellow-700 border-yellow-200 dark:bg-yellow-900/30 dark:text-yellow-400 dark:border-yellow-800",
+  very_bad:  "bg-orange-100 text-orange-700 border-orange-200 dark:bg-orange-900/30 dark:text-orange-400 dark:border-orange-800",
+  worst:     "bg-red-100 text-red-700 border-red-200 dark:bg-red-900/30 dark:text-red-400 dark:border-red-800",
 };
 
 type GoalDraft = Omit<Goal, "id" | "agentId"> & { id?: string };
@@ -253,7 +253,7 @@ export default function GoalsPage({ params }: { params: Promise<{ id: string }> 
           </Button>
           <Button size="sm" variant="outline" onClick={() => window.history.back()}>Cancel</Button>
           {saved && (
-            <div className="flex items-center gap-1.5 text-green-600 text-sm">
+            <div className="flex items-center gap-1.5 text-green-600 dark:text-green-400 text-sm">
               <CheckCircle2 className="h-4 w-4" />
               Saved!
             </div>

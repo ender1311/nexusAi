@@ -22,10 +22,10 @@ export function GoalPresetPicker({ onSelect }: GoalPresetPickerProps) {
               className={cn(
                 "px-3 py-1.5 text-xs rounded-full border font-medium transition-colors",
                 goal.tier === "best"
-                  ? "border-green-300 bg-green-50 text-green-700 hover:bg-green-100"
+                  ? "border-green-300 bg-green-50 text-green-700 hover:bg-green-100 dark:border-green-700 dark:bg-green-900/30 dark:text-green-400 dark:hover:bg-green-900/50"
                   : goal.tier === "very_good"
-                  ? "border-green-200 bg-green-50/50 text-green-600 hover:bg-green-100"
-                  : "border-blue-200 bg-blue-50 text-blue-700 hover:bg-blue-100"
+                  ? "border-green-200 bg-green-50/50 text-green-600 hover:bg-green-100 dark:border-green-800 dark:bg-green-900/20 dark:text-green-500 dark:hover:bg-green-900/40"
+                  : "border-blue-200 bg-blue-50 text-blue-700 hover:bg-blue-100 dark:border-blue-700 dark:bg-blue-900/30 dark:text-blue-400 dark:hover:bg-blue-900/50"
               )}
             >
               {goal.label}
@@ -42,7 +42,7 @@ export function GoalPresetPicker({ onSelect }: GoalPresetPickerProps) {
               type="button"
               onClick={() => onSelect(goal)}
               title={goal.description}
-              className="px-3 py-1.5 text-xs rounded-full border font-medium transition-colors border-red-200 bg-red-50 text-red-700 hover:bg-red-100"
+              className="px-3 py-1.5 text-xs rounded-full border font-medium transition-colors border-red-200 bg-red-50 text-red-700 hover:bg-red-100 dark:border-red-800 dark:bg-red-900/30 dark:text-red-400 dark:hover:bg-red-900/50"
             >
               {goal.label}
             </button>

@@ -20,6 +20,7 @@ import { cn } from "@/lib/utils";
 import { useState } from "react";
 import { SignOutButton } from "@/components/layout/sign-out-button";
 import { useDataMode } from "@/components/layout/data-mode-provider";
+import { ThemeToggle } from "@/components/layout/theme-toggle";
 
 type SidebarUser = {
   email: string;
@@ -163,6 +164,10 @@ export function Sidebar({ user }: { user: SidebarUser | null }) {
             </div>
           </div>
         )}
+      </div>
+
+      <div className="border-t px-3 py-2.5">
+        <ThemeToggle collapsed={collapsed} />
       </div>
 
       <div className="border-t p-2">
