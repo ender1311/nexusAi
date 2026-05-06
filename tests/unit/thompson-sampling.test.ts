@@ -76,7 +76,10 @@ describe("ThompsonSampling", () => {
       { id: "winner", stats: { alpha: 90, beta: 10, tries: 100, wins: 90 } },
       { id: "loser",  stats: { alpha: 10, beta: 90, tries: 100, wins: 10 } },
     ];
-    const penalties = { winner: 0.1 }; // heavy penalty on the normally-dominant arm
+    // 0.1 penalty is required here, not 0.5. At 0.5, winner's adjusted mean ≈ 0.9×0.5=0.45,
+    // still far above loser's mean of ~0.1. Only at 0.1 does the adjustment reliably
+    // invert selection. In production, recencyMultiplier() floors at 0.2 (day=0 → 0.74).
+    const penalties = { winner: 0.1 };
     let loserCount = 0;
     for (let i = 0; i < 1000; i++) {
       if (ts.select(arms, penalties).variantId === "loser") loserCount++;

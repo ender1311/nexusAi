@@ -47,6 +47,16 @@ export class ThompsonSampling {
     return Math.sqrt(-2 * Math.log(u1)) * Math.cos(2 * Math.PI * u2);
   }
 
+  /**
+   * Select the best arm using Thompson Sampling.
+   * Samples θ_k ~ Beta(α_k, β_k) for each arm and picks the highest adjusted value.
+   *
+   * @param arms - Array of bandit arms with Beta distribution stats.
+   * @param recencyPenalties - Optional multipliers per arm ID applied after sampling.
+   *   Valid range: [0.2, 1.0]. Values below 0.2 can starve arms into near-zero selection
+   *   probability; negative values invert ordering. Use `recencyMultiplier()` from
+   *   `@/lib/engine/beta-pdf` to derive compliant values from `daysSinceSent`.
+   */
   select(arms: BanditArm[], recencyPenalties?: Record<string, number>): DecisionResult {
     if (arms.length === 0) throw new Error("No arms to select from");
 
