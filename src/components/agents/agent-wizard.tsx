@@ -631,14 +631,14 @@ export function AgentWizard({ personas }: { personas: Persona[] }) {
 
             <div className="border rounded-lg p-4 space-y-3">
               <h3 className="text-sm font-semibold">Quiet Hours</h3>
-              <div className="flex items-center gap-3">
+              <div className="flex flex-col sm:flex-row sm:items-center gap-3">
                 <div>
                   <label className="text-xs text-muted-foreground">Start</label>
                   <Input
                     type="time"
                     value={form.quietStart}
                     onChange={(e) => update("quietStart", e.target.value)}
-                    className="mt-1 w-32"
+                    className="mt-1 w-full sm:w-32"
                   />
                 </div>
                 <div>
@@ -647,7 +647,7 @@ export function AgentWizard({ personas }: { personas: Persona[] }) {
                     type="time"
                     value={form.quietEnd}
                     onChange={(e) => update("quietEnd", e.target.value)}
-                    className="mt-1 w-32"
+                    className="mt-1 w-full sm:w-32"
                   />
                 </div>
                 <div className="flex-1">

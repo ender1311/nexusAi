@@ -147,9 +147,9 @@ export default async function PerformancePage() {
   return (
     <>
       <Header title="Performance" description="Global Nexus metrics" />
-      <div className="p-6 space-y-6">
+      <div className="p-4 sm:p-6 space-y-4 sm:space-y-6">
         {/* KPIs */}
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-3 sm:gap-4">
           <MetricCard
             title="Total Sends (30d)"
             value={formatNumber(allDecisions.length)}
@@ -207,16 +207,17 @@ export default async function PerformancePage() {
             <CardTitle className="text-sm font-semibold">Agent Breakdown</CardTitle>
           </CardHeader>
           <CardContent>
+            <div className="overflow-x-auto">
             <Table>
               <TableHeader>
                 <TableRow>
                   <TableHead className="font-semibold">Agent</TableHead>
-                  <TableHead className="font-semibold">Status</TableHead>
+                  <TableHead className="font-semibold hidden sm:table-cell">Status</TableHead>
                   <TableHead className="text-right font-semibold">Sends</TableHead>
-                  <TableHead className="text-right font-semibold">Conversions</TableHead>
+                  <TableHead className="text-right font-semibold hidden sm:table-cell">Conversions</TableHead>
                   <TableHead className="text-right font-semibold">Conv. Rate</TableHead>
-                  <TableHead className="text-right font-semibold">Lift vs Avg</TableHead>
-                  <TableHead className="text-right font-semibold">Explore %</TableHead>
+                  <TableHead className="text-right font-semibold hidden md:table-cell">Lift vs Avg</TableHead>
+                  <TableHead className="text-right font-semibold hidden md:table-cell">Explore %</TableHead>
                   <TableHead />
                 </TableRow>
               </TableHeader>
@@ -224,18 +225,18 @@ export default async function PerformancePage() {
                 {agentMetricsReal.map((m) => (
                   <TableRow key={m.agentId}>
                     <TableCell className="font-medium">{m.agentName}</TableCell>
-                    <TableCell>
+                    <TableCell className="hidden sm:table-cell">
                       <AgentStatusBadge status={m.status as AgentStatus} />
                     </TableCell>
                     <TableCell className="text-right">{formatNumber(m.sends)}</TableCell>
-                    <TableCell className="text-right">{formatNumber(m.conversions)}</TableCell>
+                    <TableCell className="text-right hidden sm:table-cell">{formatNumber(m.conversions)}</TableCell>
                     <TableCell className="text-right font-semibold text-primary">
                       {formatPercent(m.conversionRate)}
                     </TableCell>
-                    <TableCell className="text-right">
+                    <TableCell className="text-right hidden md:table-cell">
                       <LiftBadge lift={m.liftVsControl} />
                     </TableCell>
-                    <TableCell className="text-right text-muted-foreground">{m.exploreRatio}%</TableCell>
+                    <TableCell className="text-right text-muted-foreground hidden md:table-cell">{m.exploreRatio}%</TableCell>
                     <TableCell>
                       <Link href={`/agents/${m.agentId}/performance`}>
                         <Button variant="outline" size="sm" className="h-7 text-xs">View</Button>
@@ -252,6 +253,7 @@ export default async function PerformancePage() {
                 )}
               </TableBody>
             </Table>
+            </div>
           </CardContent>
         </Card>
 

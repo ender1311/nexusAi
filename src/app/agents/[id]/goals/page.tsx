@@ -103,7 +103,7 @@ export default function GoalsPage({ params }: { params: Promise<{ id: string }> 
   return (
     <>
       <Header title="Goals Configuration" description={agentName} />
-      <div className="p-6 max-w-2xl space-y-6">
+      <div className="p-4 sm:p-6 max-w-2xl space-y-4 sm:space-y-6">
         <Card>
           <CardHeader>
             <CardTitle className="text-sm font-semibold">Add Conversion Goal</CardTitle>

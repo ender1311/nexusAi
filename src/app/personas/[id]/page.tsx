@@ -135,7 +135,7 @@ export default async function PersonaDetailPage({ params }: { params: Promise<{ 
   return (
     <>
       <Header title={persona.name} description={persona.description ?? undefined} />
-      <div className="p-6 space-y-4">
+      <div className="p-4 sm:p-6 space-y-4">
         {/* Identity header */}
         <div className="flex items-center gap-4">
           <div className={cn("h-16 w-16 rounded-2xl flex items-center justify-center shrink-0", colors.iconBg)}>

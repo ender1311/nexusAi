@@ -119,10 +119,10 @@ export default async function AgentDetailPage({ params }: { params: Promise<{ id
   return (
     <>
       <Header title={agent.name} description={agent.description ?? undefined} />
-      <div className="p-6 space-y-4">
+      <div className="p-4 sm:p-6 space-y-4">
         {/* Top bar */}
-        <div className="flex items-center justify-between">
-          <div className="flex items-center gap-3">
+        <div className="flex flex-wrap items-center justify-between gap-2">
+          <div className="flex flex-wrap items-center gap-2">
             <AgentStatusBadge status={agent.status as AgentStatus} />
             <Badge variant="outline" className="text-xs">{algorithmLabels[agent.algorithm] ?? agent.algorithm}</Badge>
             <Badge variant="outline" className="text-xs text-muted-foreground">
@@ -146,7 +146,8 @@ export default async function AgentDetailPage({ params }: { params: Promise<{ id
 
         {/* Tabs */}
         <Tabs defaultValue="overview">
-          <TabsList>
+          <div className="overflow-x-auto -mx-4 px-4 sm:mx-0 sm:px-0">
+          <TabsList className="w-max sm:w-auto">
             <TabsTrigger value="overview">
               <LayoutDashboard className="h-3.5 w-3.5 mr-1.5" />
               Overview
@@ -176,6 +177,7 @@ export default async function AgentDetailPage({ params }: { params: Promise<{ id
               Sends
             </TabsTrigger>
           </TabsList>
+          </div>
 
           <TabsContent value="overview" className="space-y-4 mt-4">
             {agent.status === "draft" && (() => {

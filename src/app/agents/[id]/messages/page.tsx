@@ -28,7 +28,7 @@ export default async function MessagesPage({ params }: { params: Promise<{ id: s
   return (
     <>
       <Header title="Messages & Variants" description={agent.name} />
-      <div className="p-6 max-w-3xl space-y-6">
+      <div className="p-4 sm:p-6 max-w-3xl space-y-4 sm:space-y-6">
         {agent.messages.length === 0 ? (
           <div className="text-center py-16 text-muted-foreground border-2 border-dashed rounded-xl">
             <p className="font-medium">No messages configured</p>

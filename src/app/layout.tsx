@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
-import { Sidebar } from "@/components/layout/sidebar";
+import { Sidebar, MobileNav } from "@/components/layout/sidebar";
 import { DataModeProvider } from "@/components/layout/data-mode-provider";
 import { withAuth } from "@workos-inc/authkit-nextjs";
 
@@ -42,10 +42,11 @@ export default async function RootLayout({
           <DataModeProvider>
             <div className="flex h-screen overflow-hidden bg-background">
               <Sidebar user={sidebarUser} />
-              <main className="flex-1 overflow-y-auto">
+              <main className="flex-1 overflow-y-auto pb-16 lg:pb-0">
                 {children}
               </main>
             </div>
+            <MobileNav />
           </DataModeProvider>
         ) : (
           <>{children}</>

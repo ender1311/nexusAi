@@ -242,17 +242,17 @@ export function AgentSendsTable({ agentId }: Props) {
   const groups = groupByDate(rows);
 
   return (
-    <div className="space-y-4">
+    <div className="space-y-4 overflow-x-auto">
       <Table>
         <TableHeader>
           <TableRow>
             <TableHead className="w-8" />
-            <TableHead className="w-[130px]">User</TableHead>
+            <TableHead className="w-[100px] sm:w-[130px]">User</TableHead>
             <TableHead>Variant / Message</TableHead>
-            <TableHead className="w-[120px]">Persona</TableHead>
-            <TableHead className="w-[80px]">Conv.</TableHead>
-            <TableHead className="w-[90px]">Channel</TableHead>
-            <TableHead className="w-[160px]">Delivers</TableHead>
+            <TableHead className="w-[110px] hidden sm:table-cell">Persona</TableHead>
+            <TableHead className="w-[60px] sm:w-[80px]">Conv.</TableHead>
+            <TableHead className="w-[80px] hidden sm:table-cell">Channel</TableHead>
+            <TableHead className="w-[130px] sm:w-[160px] hidden md:table-cell">Delivers</TableHead>
           </TableRow>
         </TableHeader>
         <TableBody>
@@ -306,7 +306,7 @@ export function AgentSendsTable({ agentId }: Props) {
                       </TableCell>
 
                       {/* Persona */}
-                      <TableCell>
+                      <TableCell className="hidden sm:table-cell">
                         {row.personaName ? (
                           <div className="flex items-center gap-1.5">
                             <span className={cn("h-2 w-2 rounded-full shrink-0", personaDot(row.personaColor))} />
@@ -329,14 +329,14 @@ export function AgentSendsTable({ agentId }: Props) {
                       </TableCell>
 
                       {/* Channel */}
-                      <TableCell>
+                      <TableCell className="hidden sm:table-cell">
                         <Badge variant="outline" className="text-xs capitalize">
                           {row.channel}
                         </Badge>
                       </TableCell>
 
                       {/* Delivers */}
-                      <TableCell className="text-sm text-muted-foreground">
+                      <TableCell className="text-sm text-muted-foreground hidden md:table-cell">
                         {row.scheduledFor ? formatDateTime(row.scheduledFor) : "—"}
                       </TableCell>
                     </TableRow>

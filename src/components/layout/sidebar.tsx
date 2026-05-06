@@ -54,7 +54,7 @@ export function Sidebar({ user }: { user: SidebarUser | null }) {
   return (
     <aside
       className={cn(
-        "flex flex-col border-r bg-sidebar transition-all duration-300 shrink-0",
+        "hidden lg:flex flex-col border-r bg-sidebar transition-all duration-300 shrink-0",
         collapsed ? "w-16" : "w-60"
       )}
     >
@@ -189,5 +189,34 @@ export function Sidebar({ user }: { user: SidebarUser | null }) {
         <SignOutButton collapsed={collapsed} />
       </div>
     </aside>
+  );
+}
+
+const mobileNavItems = navItems.filter((item) =>
+  ["/", "/agents", "/personas", "/performance", "/settings"].includes(item.href)
+);
+
+export function MobileNav() {
+  const pathname = usePathname();
+  return (
+    <nav className="fixed bottom-0 left-0 right-0 z-50 flex lg:hidden border-t bg-sidebar">
+      {mobileNavItems.map((item) => {
+        const active =
+          item.href === "/" ? pathname === "/" : pathname.startsWith(item.href);
+        return (
+          <Link
+            key={item.href}
+            href={item.href}
+            className={cn(
+              "flex flex-1 flex-col items-center gap-1 py-2 text-[10px] font-medium transition-colors",
+              active ? "text-primary" : "text-muted-foreground"
+            )}
+          >
+            <item.icon className={cn("h-5 w-5", active && "text-primary")} />
+            <span>{item.label}</span>
+          </Link>
+        );
+      })}
+    </nav>
   );
 }

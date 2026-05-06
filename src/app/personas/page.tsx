@@ -50,8 +50,8 @@ export default async function PersonasPage() {
   return (
     <>
       <Header title="Personas" description={description} />
-      <div className="p-6 space-y-6">
-        <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+      <div className="p-4 sm:p-6 space-y-4 sm:space-y-6">
+        <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
           <MetricCard
             title="Total Personas"
             value={personas.length}

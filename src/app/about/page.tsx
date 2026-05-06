@@ -66,7 +66,7 @@ export default function AboutPage() {
         <div className="relative z-10">
 
           {/* ── Hero — split ──────────────────────────────────────────── */}
-          <section className="px-16 pt-24 pb-20 grid grid-cols-2 gap-18 items-center">
+          <section className="px-4 sm:px-16 pt-12 sm:pt-24 pb-12 sm:pb-20 grid grid-cols-1 lg:grid-cols-2 gap-10 lg:gap-18 items-center">
             <div>
               <div
                 className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full border text-xs text-muted-foreground bg-muted/50"
@@ -75,18 +75,18 @@ export default function AboutPage() {
                 Persona-aware bandit · now in production
               </div>
               <h1
-                className="mt-6 font-semibold leading-[1.02] tracking-tight"
-                style={{ fontSize: 64, letterSpacing: "-0.035em" }}
+                className="mt-6 font-semibold leading-[1.05] tracking-tight text-4xl sm:text-5xl lg:text-[64px] lg:leading-[1.02]"
+                style={{ letterSpacing: "-0.035em" }}
               >
                 Send the right message<br />
                 to the right person,<br />
                 <span className="text-muted-foreground">every time.</span>
               </h1>
-              <p className="mt-6 text-lg leading-relaxed text-muted-foreground max-w-lg">
+              <p className="mt-6 text-base sm:text-lg leading-relaxed text-muted-foreground max-w-lg">
                 Sower replaces broadcast sends with a learning loop. Write the messages — Sower decides
                 who gets which one, watches what works, and steers the next round toward what bears fruit.
               </p>
-              <div className="mt-8 pt-8 border-t flex gap-10">
+              <div className="mt-8 pt-8 border-t flex gap-6 sm:gap-10 flex-wrap">
                 {[["+34%", "lift vs broadcast"], ["2.4M", "decisions / month"], ["28", "seeds in rotation"]].map(
                   ([n, l]) => (
                     <div key={l}>
@@ -165,26 +165,26 @@ export default function AboutPage() {
           </section>
 
           {/* ── Integration logos ─────────────────────────────────────── */}
-          <section className="px-16 pb-16">
+          <section className="px-4 sm:px-16 pb-10 sm:pb-16">
             <p className="text-[11px] font-mono tracking-widest uppercase text-muted-foreground text-center mb-5">
               Plays nicely with your stack
             </p>
-            <div className="flex justify-around items-center py-6 border-y">
+            <div className="flex flex-wrap justify-around items-center py-6 border-y gap-4">
               {["Braze", "Iterable", "Twilio", "Segment", "Snowflake", "Amplitude"].map((n) => (
-                <span key={n} className="text-lg font-semibold text-muted-foreground/60 tracking-tight">{n}</span>
+                <span key={n} className="text-base sm:text-lg font-semibold text-muted-foreground/60 tracking-tight">{n}</span>
               ))}
             </div>
           </section>
 
           {/* ── Feature grid ─────────────────────────────────────────── */}
-          <section className="px-16 pb-24">
-            <div className="max-w-3xl mb-12">
+          <section className="px-4 sm:px-16 pb-12 sm:pb-24">
+            <div className="max-w-3xl mb-8 sm:mb-12">
               <div className="text-[11px] font-mono tracking-widest uppercase mb-3" style={{ color: RED }}>WHAT IT DOES</div>
-              <h2 className="text-4xl font-semibold tracking-tight leading-tight">
+              <h2 className="text-2xl sm:text-4xl font-semibold tracking-tight leading-tight">
                 Six things you stop doing the day Sower goes live.
               </h2>
             </div>
-            <div className="grid grid-cols-3 gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
               {FEATURES.map((f) => (
                 <div key={f.t} className="p-7 bg-card border rounded-xl">
                   <div className="w-9 h-9 rounded-lg bg-muted grid place-items-center text-lg" style={{ color: RED }}>
@@ -198,11 +198,11 @@ export default function AboutPage() {
           </section>
 
           {/* ── How it works ─────────────────────────────────────────── */}
-          <section className="px-16 py-20 bg-muted/30 border-y">
-            <div className="grid gap-16" style={{ gridTemplateColumns: "360px 1fr" }}>
+          <section className="px-4 sm:px-16 py-12 sm:py-20 bg-muted/30 border-y">
+            <div className="grid grid-cols-1 lg:grid-cols-[360px_1fr] gap-8 lg:gap-16">
               <div>
                 <div className="text-[11px] font-mono tracking-widest uppercase mb-3" style={{ color: RED }}>HOW IT WORKS</div>
-                <h2 className="text-4xl font-semibold tracking-tight leading-tight">Four moves, on a loop.</h2>
+                <h2 className="text-2xl sm:text-4xl font-semibold tracking-tight leading-tight">Four moves, on a loop.</h2>
                 <p className="text-sm text-muted-foreground leading-relaxed mt-5">
                   Sower never stops learning. Each decision sharpens the next, so the longer it runs,
                   the better it gets at finding the right message for each person.
@@ -227,14 +227,15 @@ export default function AboutPage() {
           </section>
 
           {/* ── Vocabulary table ─────────────────────────────────────── */}
-          <section className="px-16 py-24">
-            <div className="mb-12">
+          <section className="px-4 sm:px-16 py-12 sm:py-24">
+            <div className="mb-8 sm:mb-12">
               <div className="text-[11px] font-mono tracking-widest uppercase mb-3" style={{ color: RED }}>VOCABULARY</div>
-              <h2 className="text-4xl font-semibold tracking-tight leading-tight">The language of the field.</h2>
+              <h2 className="text-2xl sm:text-4xl font-semibold tracking-tight leading-tight">The language of the field.</h2>
             </div>
-            <div className="w-full">
+            <div className="w-full overflow-x-auto">
+              <div className="min-w-[480px]">
               <div
-                className="grid gap-8 py-3.5 border-b text-[11px] font-mono tracking-widest uppercase text-muted-foreground"
+                className="grid gap-4 sm:gap-8 py-3.5 border-b text-[11px] font-mono tracking-widest uppercase text-muted-foreground"
                 style={{ gridTemplateColumns: "1.2fr 1.4fr 2fr" }}
               >
                 <div>Sower vocabulary</div>
@@ -244,26 +245,28 @@ export default function AboutPage() {
               {VOCAB.map(([s, c, m]) => (
                 <div
                   key={s}
-                  className="grid gap-8 py-6 border-b items-baseline"
+                  className="grid gap-4 sm:gap-8 py-5 sm:py-6 border-b items-baseline"
                   style={{ gridTemplateColumns: "1.2fr 1.4fr 2fr" }}
                 >
-                  <div className="text-2xl font-semibold italic tracking-tight">{s}</div>
+                  <div className="text-xl sm:text-2xl font-semibold italic tracking-tight">{s}</div>
                   <div className="text-sm font-mono" style={{ color: RED }}>{c}</div>
                   <div className="text-sm text-muted-foreground leading-relaxed">{m}</div>
                 </div>
               ))}
+              </div>
             </div>
           </section>
 
           {/* ── Comparison table ─────────────────────────────────────── */}
-          <section className="px-16 pb-24">
-            <div className="text-center mb-12">
+          <section className="px-4 sm:px-16 pb-12 sm:pb-24">
+            <div className="text-center mb-8 sm:mb-12">
               <div className="text-[11px] font-mono tracking-widest uppercase mb-3" style={{ color: RED }}>WHY SWITCH</div>
-              <h2 className="text-4xl font-semibold tracking-tight leading-tight">Sower vs. how we do it now.</h2>
+              <h2 className="text-2xl sm:text-4xl font-semibold tracking-tight leading-tight">Sower vs. how we do it now.</h2>
             </div>
-            <div className="border rounded-xl overflow-hidden max-w-5xl mx-auto">
+            <div className="border rounded-xl overflow-hidden max-w-5xl mx-auto overflow-x-auto">
+              <div className="min-w-[480px]">
               <div
-                className="grid px-6 py-4.5 bg-muted/50 border-b text-[11px] font-mono tracking-widest uppercase text-muted-foreground"
+                className="grid px-4 sm:px-6 py-3 sm:py-4 bg-muted/50 border-b text-[11px] font-mono tracking-widest uppercase text-muted-foreground"
                 style={{ gridTemplateColumns: "1.4fr 1fr 1fr 1fr" }}
               >
                 <div>Capability</div>
@@ -274,7 +277,7 @@ export default function AboutPage() {
               {COMPARISON.map(([cap, a, b, c]) => (
                 <div
                   key={cap}
-                  className="grid px-6 py-5 border-t items-center text-sm"
+                  className="grid px-4 sm:px-6 py-4 sm:py-5 border-t items-center text-sm"
                   style={{ gridTemplateColumns: "1.4fr 1fr 1fr 1fr" }}
                 >
                   <div className="font-medium">{cap}</div>
@@ -286,14 +289,14 @@ export default function AboutPage() {
                   </div>
                 </div>
               ))}
+              </div>
             </div>
           </section>
 
           {/* ── Live preview / API example ──────────────────────────── */}
-          <section className="px-16 pb-24">
+          <section className="px-4 sm:px-16 pb-12 sm:pb-24">
             <div
-              className="grid gap-12 p-14 bg-card border rounded-2xl items-center"
-              style={{ gridTemplateColumns: "1fr 1.2fr" }}
+              className="grid grid-cols-1 lg:grid-cols-[1fr_1.2fr] gap-8 lg:gap-12 p-6 sm:p-14 bg-card border rounded-2xl items-center"
             >
               <div>
                 <div className="text-[11px] font-mono tracking-widest uppercase mb-3" style={{ color: RED }}>LIVE PREVIEW</div>

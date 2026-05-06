@@ -8,7 +8,7 @@ export default async function NewAgentPage() {
   return (
     <>
       <Header title="Create Agent" description="Configure a new Nexus agent" />
-      <div className="p-6">
+      <div className="p-4 sm:p-6">
         <AgentWizard personas={personas} />
       </div>
     </>

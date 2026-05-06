@@ -39,14 +39,14 @@ export default function AgentsPage() {
   return (
     <>
       <Header title="Agents" description="Manage your Nexus agents" />
-      <div className="p-6 space-y-4">
-        <div className="flex items-center justify-between gap-4">
-          <div className="flex items-center gap-2">
+      <div className="p-4 sm:p-6 space-y-4">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+          <div className="flex flex-col sm:flex-row sm:items-center gap-2">
             <div className="relative">
               <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
               <Input
                 placeholder="Search agents..."
-                className="pl-8 w-64 h-9"
+                className="pl-8 w-full sm:w-64 h-9"
                 value={search}
                 onChange={(e) => setSearch(e.target.value)}
               />

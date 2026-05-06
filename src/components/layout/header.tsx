@@ -8,7 +8,7 @@ type HeaderProps = {
 
 export function Header({ title, description, children }: HeaderProps) {
   return (
-    <header className="h-16 border-b flex items-center justify-between px-6 bg-background">
+    <header className="min-h-14 border-b flex items-center justify-between px-4 sm:px-6 bg-background gap-3 py-3 sm:py-0 sm:h-16 flex-wrap sm:flex-nowrap">
       <div>
         <h1 className="text-lg font-semibold">{title}</h1>
         {description && (
