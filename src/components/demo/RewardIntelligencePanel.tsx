@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useReducer, useState } from "react";
 import { useSearchParams } from "next/navigation";
 import {
   AreaChart,
@@ -78,26 +78,38 @@ const SIGNALS = [
 const CURVE_COLORS = ["#57a16c", "#8b5cf6", "#f97316", "#06b6d4", "#ec4899", "#eab308"];
 
 // ─── Arm stats fetch hook ────────────────────────────────────────────────────
+type ArmStatsState = { data: ArmStatsResponse | null; loading: boolean };
+type ArmStatsAction =
+  | { type: "fetch_start" }
+  | { type: "fetch_done"; payload: ArmStatsResponse }
+  | { type: "fetch_error" }
+  | { type: "reset" };
+
+function armStatsReducer(state: ArmStatsState, action: ArmStatsAction): ArmStatsState {
+  switch (action.type) {
+    case "fetch_start": return { data: state.data, loading: true };
+    case "fetch_done":  return { data: action.payload, loading: false };
+    case "fetch_error": return { data: state.data, loading: false };
+    case "reset":       return { data: null, loading: false };
+  }
+}
+
 function useArmStats(agentId: string | null) {
-  const [data, setData] = useState<ArmStatsResponse | null>(null);
-  const [loading, setLoading] = useState(false);
+  const [state, dispatch] = useReducer(armStatsReducer, { data: null, loading: false });
 
   useEffect(() => {
     if (!agentId) {
-      setData(null);
+      dispatch({ type: "reset" });
       return;
     }
-    setLoading(true);
+    dispatch({ type: "fetch_start" });
     fetch(`/api/demo/arm-stats?agentId=${agentId}`)
       .then((r) => r.json())
-      .then((json: ArmStatsResponse) => {
-        setData(json);
-        setLoading(false);
-      })
-      .catch(() => setLoading(false));
+      .then((json: ArmStatsResponse) => dispatch({ type: "fetch_done", payload: json }))
+      .catch(() => dispatch({ type: "fetch_error" }));
   }, [agentId]);
 
-  return { data, loading };
+  return { data: state.data, loading: state.loading };
 }
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
