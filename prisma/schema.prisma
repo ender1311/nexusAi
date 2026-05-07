@@ -115,11 +115,13 @@ model UserDecision {
   messageVariantId String?
   channel          String
   sentAt           DateTime  @default(now())
-  brazeSendId      String?
-  scheduledFor     DateTime?  // when Braze is scheduled to deliver this message (null = immediate)
-  conversionEvent  String?
-  conversionAt     DateTime?
-  reward           Float?
+  brazeSendId             String?
+  brazeScheduleId         String?   // schedule_id returned by /messages/schedule/create
+  scheduledFor            DateTime? // when Braze is scheduled to deliver this message (null = immediate)
+  conversionEvent         String?
+  conversionAt            DateTime?
+  reward                  Float?
+  brazeAnalyticsFetchedAt DateTime? // when /sends/data_series was last polled (used for daily 900-sendId cap)
   // Context snapshot at decide-time — used for offline analysis and oracle training
   // { giver_tier?, streak_status?, streak_days?, recency_days?, trigger_event? }
   decisionContext  Json?

@@ -99,11 +99,24 @@ async function sendVariantGroup(
     }
 
     const res = await brazeClient!.post(endpoint, payload);
-    if (res.ok && sendId) {
-      await prisma.userDecision.updateMany({
-        where: { id: { in: batchDecisionIds } },
-        data: { brazeSendId: sendId },
-      });
+    if (res.ok) {
+      // Parse schedule_id for scheduled sends (returned by /messages/schedule/create)
+      let brazeScheduleId: string | null = null;
+      if (group.scheduledAt) {
+        try {
+          const json = await res.json() as { schedule_id?: string };
+          brazeScheduleId = json.schedule_id ?? null;
+        } catch { /* ignore parse errors */ }
+      }
+      const updateData: Record<string, string> = {};
+      if (sendId) updateData.brazeSendId = sendId;
+      if (brazeScheduleId) updateData.brazeScheduleId = brazeScheduleId;
+      if (Object.keys(updateData).length > 0) {
+        await prisma.userDecision.updateMany({
+          where: { id: { in: batchDecisionIds } },
+          data: updateData,
+        });
+      }
     }
     if (onSuccessfulBatch) {
       onSuccessfulBatch(batchUserIds);
