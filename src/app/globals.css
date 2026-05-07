@@ -48,6 +48,10 @@
   --radius-4xl: calc(var(--radius) * 2.6);
 }
 
+html {
+  font-size: 17px;
+}
+
 :root {
   /* Editorial type families */
   --font-serif: 'Newsreader', 'Untitled Serif', Georgia, 'Times New Roman', serif;

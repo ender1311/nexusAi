@@ -16,7 +16,7 @@ export default async function DashboardPage() {
   const twentyFourHoursAgo = new Date(now.getTime() - 24 * 60 * 60 * 1000);
   const sevenDaysAgo = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
 
-  const [agents, recentDecisionsRaw, personasRaw, sentLast24h, totalDecisions, totalConversions] = await Promise.all([
+  const [agents, recentDecisionsRaw, personasRaw, sentLast24h, totalDecisions, totalConversions, trackedUsers] = await Promise.all([
     prisma.agent.findMany({
       select: { id: true, name: true, status: true, _count: { select: { decisions: true } } },
       orderBy: { updatedAt: "desc" },
@@ -39,6 +39,7 @@ export default async function DashboardPage() {
     prisma.userDecision.count({ where: { sentAt: { gte: twentyFourHoursAgo } } }),
     prisma.userDecision.count(),
     prisma.userDecision.count({ where: { conversionAt: { not: null } } }),
+    prisma.trackedUser.count(),
   ]);
 
   // Time series: last 7 days
@@ -98,7 +99,13 @@ export default async function DashboardPage() {
     <>
       <Header title="Dashboard" description="Nexus platform overview" />
       <div className="p-4 sm:p-6 space-y-4 sm:space-y-6">
-        <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
+        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3 sm:gap-4">
+          <MetricCard
+            title="Tracked Users"
+            value={formatNumber(trackedUsers)}
+            description="synced from Hightouch"
+            icon={Users}
+          />
           <MetricCard
             title="Active Agents"
             value={activeAgents}
@@ -122,7 +129,7 @@ export default async function DashboardPage() {
             title="Total Sends"
             value={formatNumber(totalDecisions)}
             description="lifetime total"
-            icon={Users}
+            icon={Send}
           />
         </div>
 
