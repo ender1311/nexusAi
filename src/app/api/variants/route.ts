@@ -3,11 +3,14 @@ import { prisma } from "@/lib/db";
 
 export async function GET(req: NextRequest) {
   try {
-    const category = new URL(req.url).searchParams.get("category");
+    const params = new URL(req.url).searchParams;
+    const category = params.get("category");
+    const subcategory = params.get("subcategory");
     const variants = await prisma.messageVariant.findMany({
       where: {
         status: "active",
         ...(category ? { category } : {}),
+        ...(subcategory ? { subcategory } : {}),
       },
       select: {
         id: true,
@@ -17,6 +20,7 @@ export async function GET(req: NextRequest) {
         deeplink: true,
         cta: true,
         category: true,
+        subcategory: true,
         sourceTemplateId: true,
         message: { select: { channel: true, name: true } },
       },

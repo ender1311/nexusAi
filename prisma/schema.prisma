@@ -82,6 +82,7 @@ model MessageVariant {
   frequencyCapOverride Json?
   warmupUntil          DateTime?
   category             String?
+  subcategory          String?   // sub-goal within the category
   sourceTemplateId     String?
   // Semantic descriptor of the message — enables oracle generalization across variants
   // { tone: "empathy"|"urgency"|"question"|"milestone", hasPersonalization: bool,
@@ -93,6 +94,18 @@ model MessageVariant {
   sourceTemplate MessageVariant? @relation("TemplateClones", fields: [sourceTemplateId], references: [id], onDelete: SetNull)
   clones         MessageVariant[] @relation("TemplateClones")
   decisions      UserDecision[]
+}
+
+model Deeplink {
+  id          String  @id @default(cuid())
+  wayfinderId String  @unique
+  category    String  // reader | plans | votd | guided-scripture | guided-prayer
+  subcategory String  // open-bible | find-plans | my-plans | votd-page | todays-story | prayer-list | guided-prayer | etc.
+  label       String
+  description String?
+  urlTemplate String
+  example     String?
+  sortOrder   Int     @default(0)
 }
 
 model UserDecision {
