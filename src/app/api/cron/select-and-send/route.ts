@@ -48,10 +48,11 @@ async function sendVariantGroup(
   onSuccessfulBatch?: (userIds: string[]) => void,
 ): Promise<{ sent: number; errors: number }> {
   try {
-    // Fall back to env-based campaign ID when the DB field is not set
+    // Fall back to env-based campaign ID when the DB field is not set.
+    // All channels share the same Braze campaign (push/email/content-card are variants
+    // within BRAZE_NEXUS_EMAIL_CAMPAIGN_ID), so use it as a universal fallback.
     const resolvedCampaignId =
-      group.brazeCampaignId ??
-      (group.channel === "email" ? process.env.BRAZE_NEXUS_EMAIL_CAMPAIGN_ID : undefined);
+      group.brazeCampaignId ?? process.env.BRAZE_NEXUS_EMAIL_CAMPAIGN_ID;
 
     const sendId = resolvedCampaignId
       ? await brazeClient!.createSendId(resolvedCampaignId)
