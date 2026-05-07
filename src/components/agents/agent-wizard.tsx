@@ -46,6 +46,30 @@ const FREQ_PERIODS = [
   { value: "month", label: "Month" },
 ];
 
+const ALGORITHM_OPTIONS = [
+  {
+    value: "thompson",
+    label: "Thompson Sampling",
+    badge: "Recommended",
+    description:
+      "Automatically balances sending proven winners vs. exploring new variants. Learns which messages resonate with each persona segment over time and shifts more sends toward the best performers — without requiring manual A/B test management.",
+  },
+  {
+    value: "epsilon_greedy",
+    label: "Epsilon-Greedy",
+    badge: null,
+    description:
+      "Sends the current best-performing variant most of the time, and randomly tries other variants a small percentage of the time (controlled by epsilon). Simpler than Thompson Sampling but less adaptive — you control how much exploration happens.",
+  },
+  {
+    value: "contextual",
+    label: "Contextual Bandit",
+    badge: "Coming soon",
+    description:
+      "Uses real-time user context (time of day, device, recent activity) to pick the optimal variant for each individual send — not just their persona segment. More powerful but requires richer feature data.",
+  },
+];
+
 interface GoalDraft {
   eventName: string;
   tier: GoalTier;
@@ -214,6 +238,33 @@ export function AgentWizard({ personas }: { personas: Persona[] }) {
         ))}
       </div>
 
+      {/* Top navigation */}
+      <div className="flex items-center justify-between mb-6 pb-4 border-b">
+        <Button
+          variant="outline"
+          size="sm"
+          onClick={() => setStep((s) => Math.max(1, s - 1))}
+          disabled={step === 1}
+        >
+          Back
+        </Button>
+        {step < 5 ? (
+          <Button
+            size="sm"
+            onClick={() => setStep((s) => Math.min(5, s + 1))}
+            disabled={step === 1 && (!form.name.trim() || !form.funnelStage)}
+          >
+            Next
+            <ChevronRight className="h-4 w-4 ml-1" />
+          </Button>
+        ) : (
+          <Button size="sm" onClick={handleSubmit} disabled={saving || !form.name.trim()}>
+            {saving ? "Saving..." : "Launch Agent"}
+            <Rocket className="h-4 w-4 ml-1" />
+          </Button>
+        )}
+      </div>
+
       {/* Step 1: Basic Info */}
       {step === 1 && (
         <div className="space-y-4">
@@ -240,18 +291,34 @@ export function AgentWizard({ personas }: { personas: Persona[] }) {
             <div>
               <label className="text-sm font-medium">Algorithm</label>
               <Select value={form.algorithm} onValueChange={(v) => update("algorithm", v)}>
-                <SelectTrigger className="mt-1">
-                  <SelectValue />
+                <SelectTrigger className="mt-1 w-full">
+                  <span className="flex-1 text-left text-sm truncate">
+                    {ALGORITHM_OPTIONS.find((a) => a.value === form.algorithm)?.label ?? form.algorithm}
+                  </span>
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="thompson">Thompson Sampling (recommended)</SelectItem>
-                  <SelectItem value="epsilon_greedy">Epsilon-Greedy</SelectItem>
-                  <SelectItem value="contextual">Contextual Bandit</SelectItem>
+                  {ALGORITHM_OPTIONS.map((algo) => (
+                    <SelectItem key={algo.value} value={algo.value}>
+                      <span className="flex items-center gap-2">
+                        {algo.label}
+                        {algo.badge && (
+                          <span className="text-[10px] bg-primary/10 text-primary rounded px-1.5 py-0.5 font-medium">
+                            {algo.badge}
+                          </span>
+                        )}
+                      </span>
+                    </SelectItem>
+                  ))}
                 </SelectContent>
               </Select>
-              <p className="text-xs text-muted-foreground mt-1">
-                Thompson Sampling naturally balances exploration and delivery via Beta distributions.
-              </p>
+              {(() => {
+                const algo = ALGORITHM_OPTIONS.find((a) => a.value === form.algorithm);
+                return algo ? (
+                  <p className="text-xs text-muted-foreground mt-1.5 leading-relaxed">
+                    {algo.description}
+                  </p>
+                ) : null;
+              })()}
             </div>
             {form.algorithm === "epsilon_greedy" && (
               <div>
@@ -708,7 +775,7 @@ export function AgentWizard({ personas }: { personas: Persona[] }) {
               <h3 className="text-sm font-semibold">Basic Info</h3>
               <p className="text-sm"><span className="text-muted-foreground">Name:</span> {form.name || "—"}</p>
               <p className="text-sm"><span className="text-muted-foreground">Funnel Stage:</span> {form.funnelStage ? FUNNEL_STAGE_META[form.funnelStage].label : "—"}</p>
-              <p className="text-sm"><span className="text-muted-foreground">Algorithm:</span> {form.algorithm}</p>
+              <p className="text-sm"><span className="text-muted-foreground">Algorithm:</span> {ALGORITHM_OPTIONS.find((a) => a.value === form.algorithm)?.label ?? form.algorithm}</p>
               {form.description && <p className="text-sm"><span className="text-muted-foreground">Description:</span> {form.description}</p>}
               {form.targetPersonaIds.length > 0 && (
                 <div>

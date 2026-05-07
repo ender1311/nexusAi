@@ -578,10 +578,32 @@ export default function DemoPage() {
         <StepHeader
           step={3}
           title="Variant Selection"
-          subtitle="Thompson Sampling draws from each variant's Beta distribution to pick the best arm"
+          subtitle="Nexus has learned how each message performs for Evening Engagers — it bets on the best proven option while staying open to challengers"
         />
         <Card>
           <CardContent className="pt-6 space-y-6">
+            {/* Thompson Sampling explainer */}
+            <div className="rounded-lg border bg-muted/30 px-4 py-4 space-y-2">
+              <p className="text-sm font-semibold">What is Thompson Sampling?</p>
+              <p className="text-sm text-muted-foreground leading-relaxed">
+                A traditional A/B test splits users evenly across all variants for weeks —
+                sending weak messages to 25% of your audience just to collect data. Thompson
+                Sampling learns in real time: it automatically sends better-performing messages
+                more often while still occasionally testing underperformers in case they improve.
+              </p>
+              <p className="text-sm text-muted-foreground leading-relaxed">
+                Think of it like a chef who learns which dishes get compliments. At first she
+                rotates through the full menu. As feedback comes in, crowd-pleasers appear
+                more often — but she still occasionally features lesser-known dishes in case
+                they surprise her.
+              </p>
+              <p className="text-sm text-muted-foreground leading-relaxed">
+                Technically: each variant holds a <strong>Beta distribution</strong> — a
+                confidence range built from past results. Every send, Nexus draws one random
+                score per variant. The highest draw wins. Consistently strong variants draw
+                high scores reliably and get sent more. The system never fully stops exploring.
+              </p>
+            </div>
             {/* Variant cards */}
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               {[
@@ -642,7 +664,7 @@ export default function DemoPage() {
                   <p className="text-xs text-muted-foreground leading-relaxed">{body}</p>
                   <div className="flex items-center justify-between">
                     <div className="text-xs text-muted-foreground">
-                      α={alpha} β={beta} · E[r]={((alpha) / (alpha + beta)).toFixed(2)}
+                      Est. rate: {((alpha / (alpha + beta)) * 100).toFixed(0)}% · {alpha + beta} observations
                     </div>
                     <BetaCurve alpha={alpha} beta={beta} sample={sample} highlight={winner} />
                   </div>
@@ -654,9 +676,9 @@ export default function DemoPage() {
             <div className="rounded-lg bg-[#57a16c]/10 border border-[#57a16c]/30 px-4 py-3 flex items-center gap-3">
               <Brain className="h-5 w-5 text-[#57a16c] shrink-0" />
               <div className="flex-1">
-                <span className="font-semibold text-sm">EXPLOIT</span>
+                <span className="font-semibold text-sm">Best Bet</span>
                 <span className="text-sm text-muted-foreground ml-2">
-                  Variant B has the most data and was sampled highest (0.83)
+                  Variant B has the strongest track record for Evening Engagers and drew the highest score today (0.83)
                 </span>
               </div>
               <Badge variant="outline" className="shrink-0">
@@ -847,21 +869,21 @@ export default function DemoPage() {
 
             {/* Before/After Beta curves */}
             <div>
-              <h3 className="text-sm font-semibold mb-4">Beta Distribution Update — Variant B</h3>
+              <h3 className="text-sm font-semibold mb-4">Confidence Update — Variant B</h3>
               <div className="flex items-center gap-6 flex-wrap">
                 <div className="text-center">
-                  <div className="text-xs text-muted-foreground mb-2">Before</div>
+                  <div className="text-xs text-muted-foreground mb-2">Before conversion</div>
                   <BetaCurve alpha={38} beta={8} sample={0.83} highlight={false} />
-                  <div className="text-xs text-muted-foreground mt-1">Beta(38, 8)</div>
+                  <div className="text-xs text-muted-foreground mt-1">α=38 β=8</div>
                 </div>
                 <div className="flex flex-col items-center gap-1 text-muted-foreground">
                   <span className="text-lg">→</span>
-                  <span className="text-[10px]">α: 38 → 38.7</span>
+                  <span className="text-[10px]">confidence rises</span>
                 </div>
                 <div className="text-center">
-                  <div className="text-xs text-muted-foreground mb-2">After</div>
+                  <div className="text-xs text-muted-foreground mb-2">After conversion</div>
                   <BetaCurve alpha={38.7} beta={8} sample={0.84} highlight={true} />
-                  <div className="text-xs text-muted-foreground mt-1">Beta(38.7, 8)</div>
+                  <div className="text-xs text-muted-foreground mt-1">α=38.7 β=8</div>
                 </div>
               </div>
             </div>
@@ -876,8 +898,8 @@ export default function DemoPage() {
                     <tr className="bg-muted/50 text-muted-foreground">
                       <th className="text-left px-3 py-2 font-medium">Event</th>
                       <th className="text-left px-3 py-2 font-medium">Tier</th>
-                      <th className="text-right px-3 py-2 font-medium">α change</th>
-                      <th className="text-right px-3 py-2 font-medium">β change</th>
+                      <th className="text-right px-3 py-2 font-medium">Confidence ↑</th>
+                      <th className="text-right px-3 py-2 font-medium">Confidence ↓</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y">
@@ -905,7 +927,7 @@ export default function DemoPage() {
                   </tbody>
                 </table>
                 <div className="px-3 py-2 bg-muted/30 text-[10px] text-muted-foreground">
-                  * After temporal decay: α = 1 + (α−1)×0.99, β = 1 + (β−1)×0.99 — applied before each update
+                  * Confidence scores decay slightly with each update (×0.99) — keeping the model receptive to new information rather than locking in on old winners
                 </div>
               </div>
             </div>
@@ -914,36 +936,36 @@ export default function DemoPage() {
 
             {/* Four learning mechanisms */}
             <div>
-              <h3 className="text-sm font-semibold mb-3">Why the System Gets Better Over Time</h3>
+              <h3 className="text-sm font-semibold mb-3">Why Nexus Gets Smarter Over Time</h3>
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 {[
                   {
-                    title: "Pessimistic prior Beta(1, 30)",
+                    title: "New messages start unproven",
                     color: "border-blue-300 bg-blue-500/5",
                     badge: "bg-blue-100 text-blue-700",
-                    label: "~3.2% expected reward",
-                    body: "Every new variant starts at Beta(1, 30) — 97% chance of non-conversion. This prevents the system from over-exploiting an arm before it has real evidence. Arms must earn trust.",
+                    label: "must earn trust first",
+                    body: "Every new message enters with a 97% assumed failure rate (Beta(1, 30) prior). Nexus won't bet heavily on unproven copy — a variant needs roughly 30 real sends before it builds real credibility.",
                   },
                   {
-                    title: "Temporal decay ×0.99 per update",
+                    title: "Old winners fade if they stop performing",
                     color: "border-purple-300 bg-purple-500/5",
                     badge: "bg-purple-100 text-purple-700",
-                    label: "prevents winner lock-in",
-                    body: "Before each update, α and β decay toward 1 and 30 respectively. A variant that won 3 months ago but has gone stale gradually loses confidence, allowing re-exploration.",
+                    label: "prevents stale lock-in",
+                    body: "Past results slowly lose weight with each update (×0.99 decay). A message that drove great results 3 months ago won't coast forever — Nexus stays open to better options as audiences and content evolve.",
                   },
                   {
-                    title: "Persona-segmented arms",
+                    title: "Each audience segment learns independently",
                     color: "border-teal-300 bg-teal-500/5",
                     badge: "bg-teal-100 text-teal-700",
-                    label: "independent per cluster",
-                    body: "Each persona × agent × variant has its own arm. \"Evening Engager\" users train a completely separate model from \"Morning Devotee\" users — the right message per archetype.",
+                    label: "persona-segmented",
+                    body: "The Evening Engager model is completely separate from the Morning Devotee model. What works for night readers may not work for early risers — Nexus optimizes for each persona independently.",
                   },
                   {
-                    title: "push_disabled = hard negative",
+                    title: "Opt-outs trigger a heavy penalty",
                     color: "border-red-300 bg-red-500/5",
                     badge: "bg-red-100 text-red-700",
-                    label: "β += 10 across all arms",
-                    body: "When a user disables push, all arms in that agent take a −10 penalty across the last 90 days of decisions. The system learns which content leads to opt-outs and suppresses it.",
+                    label: "hard negative signal",
+                    body: "When a user disables push notifications, every message sent to them over the past 90 days takes a −10 confidence penalty. Nexus learns which content patterns lead to opt-outs and suppresses them.",
                   },
                 ].map(({ title, color, badge, label, body }) => (
                   <div key={title} className={`rounded-lg border ${color} p-4`}>
