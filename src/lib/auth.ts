@@ -19,3 +19,20 @@ export async function getSessionUser() {
     lastName: user.lastName ?? null,
   };
 }
+
+/** Returns session user + admin flag in one call. */
+export async function getAuth(): Promise<{
+  user: { id: string; email: string; firstName: string | null; lastName: string | null } | null;
+  isAdmin: boolean;
+}> {
+  const auth = await withAuth();
+  const user = auth.user
+    ? {
+        id: auth.user.id,
+        email: auth.user.email,
+        firstName: auth.user.firstName ?? null,
+        lastName: auth.user.lastName ?? null,
+      }
+    : null;
+  return { user, isAdmin: auth.roles?.includes("admin") ?? false };
+}
