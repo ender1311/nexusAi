@@ -141,8 +141,9 @@ export async function POST(req: NextRequest) {
 
     const planId = brazeAttrs.plan_day_last_plan_id ?? null;
     const planTags = planId ? (planTagMap.get(planId) ?? []) : [];
-    const personaLabel = classifyPersona(brazeAttrs, planTags);
-    const personaId = personaLabel ? (personaByLabel.get(personaLabel) ?? null) : null;
+    // Default to "word-driven" when classifier has insufficient data
+    const personaLabel = classifyPersona(brazeAttrs, planTags) ?? "word-driven";
+    const personaId = personaByLabel.get(personaLabel) ?? null;
 
     const personaData = personaId
       ? { personaId, personaConfidence: 0.8, personaAssignedAt: new Date() }

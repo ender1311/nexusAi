@@ -54,7 +54,7 @@ const VARIANTS = [
   },
   {
     name: "D — Plan (personalized)",
-    title: "{{${first_name} | default: 'Friend'}}, your plan is waiting",
+    title: "{{${first_name} | default: ''}}, your plan is waiting",
     body: "Jump back into your reading plan today ➡️",
     deeplink: "youversion://bible",
     cta: "Continue Plan",

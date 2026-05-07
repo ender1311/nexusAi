@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
+import { ThompsonSampling } from "@/lib/engine/thompson-sampling";
 
 export type DemoPersona = {
   id: string;
@@ -136,41 +137,22 @@ export async function POST(req: NextRequest) {
         ? { eventName: agent.goals[0].eventName, tier: agent.goals[0].tier }
         : null;
 
-    // Build assignments: round-robin personas, pick best variant per persona
+    // Build assignments: round-robin personas, Thompson-sample variant per persona
+    const ts = new ThompsonSampling();
     const assignments: DemoAssignment[] = ids.map((userId, i) => {
       const persona = personas[i % personas.length];
-
-      // Find variant with highest deterministic mean (alpha / (alpha + beta)).
-      // Use mean rather than sampling so the preview is stable and explainable.
-      // When a persona has no arm stats yet, all variants share the same default
-      // prior (Beta(1,30) ≈ 3.2%) so every persona would tie-break to variant[0].
-      // Instead, rotate through variants by user index so the demo shows the
-      // concept that different users get different messages.
       const personaStats = statsByPersonaVariant[persona.id] ?? {};
-      const hasAnyStats = Object.keys(personaStats).length > 0;
 
-      let bestVariant: (typeof allVariants)[0];
-      let bestMean: number;
+      // Build arms for Thompson sampling — fall back to pessimistic Beta(1,30) prior
+      const arms = allVariants.map((v) => {
+        const s = personaStats[v.id];
+        const stats = s ? { ...s, tries: 0, wins: 0 } : { alpha: 1, beta: 30, tries: 0, wins: 0 };
+        return { id: v.id, stats };
+      });
 
-      if (!hasAnyStats) {
-        bestVariant = allVariants[i % allVariants.length];
-        bestMean = 1 / 31; // pessimistic Beta(1,30) prior
-      } else {
-        bestVariant = allVariants[0];
-        bestMean = -1;
-        for (const variant of allVariants) {
-          const stats = personaStats[variant.id];
-          const mean = stats
-            ? stats.alpha / (stats.alpha + stats.beta)
-            : 1 / 31; // default pessimistic init Beta(1,30)
-          if (mean > bestMean) {
-            bestMean = mean;
-            bestVariant = variant;
-          }
-        }
-      }
-
-      const predictedReward = bestMean > 0 ? bestMean : 1 / 31;
+      const result = ts.select(arms);
+      const bestVariant = allVariants.find((v) => v.id === result.variantId) ?? allVariants[0];
+      const predictedReward = result.predictedReward > 0 ? result.predictedReward : 1 / 31;
 
       return {
         userId,

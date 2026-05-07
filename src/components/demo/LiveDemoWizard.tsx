@@ -725,10 +725,9 @@ function ResultsStep({
       <Card className="border-dashed">
         <CardContent className="pt-4 pb-4">
           <p className="text-xs text-muted-foreground leading-relaxed">
-            <strong className="text-foreground">Liquid personalization</strong> — each notification
-            title was sent with{" "}
+            <strong className="text-foreground">Liquid personalization</strong> — each title was prefixed with{" "}
             <code className="bg-muted px-1 py-0.5 rounded text-[11px]">
-              {`{first_name} token`}
+              {`{{${"{first_name}"}}}, `}
             </code>
             . Braze resolves this at delivery time using each user&apos;s stored profile.
           </p>

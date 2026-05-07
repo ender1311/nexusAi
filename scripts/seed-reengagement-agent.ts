@@ -95,7 +95,7 @@ const VARIANTS = [
   },
   {
     name: "D — Next Step (personalized)",
-    title: "{{${first_name} | default: 'Friend'}}, what's your next step?",
+    title: "{{${first_name} | default: ''}}, what's your next step?",
     body: "Open your Bible App today!",
     deeplink: "youversion://bible",
     cta: "Open Bible App",

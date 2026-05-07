@@ -306,26 +306,21 @@ export function TemplatePicker({ agentId, onSaved }: TemplatePickerProps) {
                   key={v.id}
                   onClick={() => handleVariantToggle(v.id)}
                   className={cn(
-                    "relative cursor-pointer rounded-lg border p-3 transition-colors",
+                    "relative cursor-pointer rounded-lg border p-2.5 transition-colors",
                     selected
                       ? "border-primary bg-primary/5 ring-1 ring-primary"
                       : "border-border bg-background hover:border-primary/40",
                   )}
                 >
                   {selected && (
-                    <div className="absolute right-2 top-2 flex h-5 w-5 items-center justify-center rounded-full bg-primary text-primary-foreground">
-                      <Check className="h-3 w-3" />
+                    <div className="absolute right-2 top-2 flex h-4 w-4 items-center justify-center rounded-full bg-primary text-primary-foreground">
+                      <Check className="h-2.5 w-2.5" />
                     </div>
                   )}
-                  <p className="mb-1 pr-6 text-sm font-semibold leading-snug">{v.name}</p>
-                  <p className="mb-2 text-xs leading-relaxed text-muted-foreground line-clamp-3">
+                  <p className="mb-0.5 pr-5 text-xs font-semibold leading-snug">{v.name}</p>
+                  <p className="text-xs leading-snug text-muted-foreground line-clamp-1">
                     {v.body}
                   </p>
-                  {v.deeplink && (
-                    <p className="truncate font-mono text-[10px] text-muted-foreground/70">
-                      {v.deeplink}
-                    </p>
-                  )}
                 </div>
               );
             })}
