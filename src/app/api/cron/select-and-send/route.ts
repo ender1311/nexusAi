@@ -1116,3 +1116,8 @@ export async function POST(req: NextRequest) {
     }
   }
 }
+
+// vercel crons run sends GET; alias to POST so manual triggers work
+export async function GET(req: NextRequest) {
+  return POST(req);
+}
