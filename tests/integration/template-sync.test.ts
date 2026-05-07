@@ -6,7 +6,7 @@ import { PATCH } from "@/app/api/variants/[id]/route";
 import { buildRequest } from "../helpers/request";
 import { GET as syncCron } from "@/app/api/cron/sync-template-variants/route";
 
-const LIBRARY_AGENT_NAME = "__push-copy-library__";
+const LIBRARY_AGENT_NAME = "Push Copy Library";
 
 beforeEach(async () => { await truncateAll(); });
 afterEach(async () => { await truncateAll(); });

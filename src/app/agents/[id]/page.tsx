@@ -8,7 +8,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Target, MessageSquare, Calendar, BarChart3, Settings, Play, Pause, Users2, GitCompare, Send, LayoutDashboard } from "lucide-react";
+import { Target, MessageSquare, Calendar, BarChart3, Settings, Users2, GitCompare, Send, LayoutDashboard } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { TestedVariablesBadges } from "@/components/agents/tested-variables-badges";
 import { VariantDiffTable } from "@/components/agents/variant-diff-table";
@@ -21,6 +21,7 @@ import { FallbackSendTimeEditor } from "@/components/agents/fallback-send-time-e
 import { AudienceCapEditor } from "@/components/agents/audience-cap-editor";
 import { AgentSendsTable } from "@/components/agents/agent-sends-table";
 import { AgentNameEditor } from "@/components/agents/agent-name-editor";
+import { AgentStatusToggle } from "@/components/agents/agent-status-toggle";
 
 const TIER_COLORS: Record<string, string> = {
   best:      "bg-green-100 text-green-700 border-green-200 dark:bg-green-900/30 dark:text-green-400 dark:border-green-800",
@@ -135,17 +136,7 @@ export default async function AgentDetailPage({ params }: { params: Promise<{ id
             </Badge>
           </div>
           <div className="flex gap-2">
-            {(agent.status as AgentStatus) === "active" ? (
-              <Button variant="outline" size="sm" className="hover:bg-destructive/10 hover:text-destructive hover:border-destructive/30">
-                <Pause className="h-3.5 w-3.5 mr-1.5" />
-                Pause
-              </Button>
-            ) : (
-              <Button size="sm">
-                <Play className="h-3.5 w-3.5 mr-1.5" />
-                Activate
-              </Button>
-            )}
+            <AgentStatusToggle agentId={agent.id} status={agent.status} />
           </div>
         </div>
 

@@ -23,7 +23,7 @@ mock.module("@workos-inc/authkit-nextjs", () => ({
 const { GET, POST } = await import("@/app/api/push-library/route");
 const { DELETE } = await import("@/app/api/push-library/[id]/route");
 
-const LIBRARY_AGENT_NAME = "__push-copy-library__";
+const LIBRARY_AGENT_NAME = "Push Copy Library";
 
 beforeEach(async () => {
   await truncateAll();

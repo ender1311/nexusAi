@@ -1,7 +1,7 @@
 import { prisma } from "@/lib/db";
 
 /** Agent name used as the copy template library container. */
-export const LIBRARY_AGENT_NAME = "__push-copy-library__";
+export const LIBRARY_AGENT_NAME = "Push Copy Library";
 
 /** Fields that sync from template to clones. All other fields are clone-owned. */
 export const TEMPLATE_COPY_FIELDS = [

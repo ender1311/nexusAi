@@ -1,21 +1,13 @@
 export const dynamic = "force-dynamic";
 
 import { Header } from "@/components/layout/header";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
-import { Channel, TestedVariable } from "@/types/agent";
-import { cn } from "@/lib/utils";
+import { Card, CardContent } from "@/components/ui/card";
+import { Channel } from "@/types/agent";
 import Link from "next/link";
-import { Bot, Mail, MessageSquare, Plus, Smartphone, type LucideIcon } from "lucide-react";
-import { TestedVariablesBadges } from "@/components/agents/tested-variables-badges";
+import { Bot, Mail, MessageSquare, Smartphone, type LucideIcon } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { CollapsibleAgentCard } from "@/components/messages/collapsible-agent-card";
 import { prisma } from "@/lib/db";
-
-const channelColors: Record<Channel, string> = {
-  push:  "bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400",
-  email: "bg-purple-100 text-purple-700 dark:bg-purple-900/30 dark:text-purple-400",
-  sms:   "bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400",
-};
 
 const channelIcons: Record<Channel, LucideIcon> = {
   push: Smartphone,
@@ -84,65 +76,7 @@ export default async function MessagesPage() {
 
         {/* Messages grouped by agent */}
         {agents.map((agent) => (
-          <Card key={agent.id}>
-            <CardHeader className="flex flex-row items-center justify-between">
-              <div>
-                <CardTitle className="text-sm font-semibold">{agent.name}</CardTitle>
-                <p className="text-xs text-muted-foreground mt-0.5">{agent.messages.length} messages</p>
-              </div>
-              <Link href={`/agents/${agent.id}/messages`}>
-                <Button size="sm" variant="outline">
-                  <Plus className="h-3.5 w-3.5 mr-1.5" />
-                  Add Message
-                </Button>
-              </Link>
-            </CardHeader>
-            <CardContent>
-              <div className="space-y-3">
-                {agent.messages.map((msg) => {
-                  const testedVars = (msg.testedVariables ?? []) as TestedVariable[];
-                  return (
-                    <div key={msg.id} className="border rounded-lg p-3 bg-card">
-                      <div className="flex items-center justify-between mb-2">
-                        <div className="flex items-center gap-2 flex-wrap">
-                          <p className="text-sm font-medium">{msg.name}</p>
-                          <Badge variant="outline" className={cn("text-xs capitalize", channelColors[msg.channel as Channel] ?? "")}>
-                            {msg.channel}
-                          </Badge>
-                          {testedVars.length > 0 && (
-                            <TestedVariablesBadges variables={testedVars} />
-                          )}
-                        </div>
-                        <span className="text-xs text-muted-foreground shrink-0 ml-2">{msg.variants.length} variants</span>
-                      </div>
-                      <div className="space-y-1">
-                        {msg.variants.map((v) => (
-                          <div key={v.id} className="flex items-center justify-between p-2 bg-muted/40 rounded-md">
-                            <div className="flex-1 min-w-0">
-                              <span className="text-xs font-medium">{v.name}</span>
-                              {msg.channel === "push" && v.title && (
-                                <span className="text-xs text-muted-foreground ml-2">· {v.title}</span>
-                              )}
-                              <p className="text-xs text-muted-foreground line-clamp-2 mt-0.5">{v.body}</p>
-                            </div>
-                            <Badge
-                              variant="outline"
-                              className={cn(
-                                "text-xs ml-2 shrink-0",
-                                v.status === "active" ? "text-green-700 bg-green-50 dark:text-green-400 dark:bg-green-900/30" : "text-yellow-700 bg-yellow-50 dark:text-yellow-400 dark:bg-yellow-900/30"
-                              )}
-                            >
-                              {v.status}
-                            </Badge>
-                          </div>
-                        ))}
-                      </div>
-                    </div>
-                  );
-                })}
-              </div>
-            </CardContent>
-          </Card>
+          <CollapsibleAgentCard key={agent.id} agent={agent} />
         ))}
       </div>
     </>
