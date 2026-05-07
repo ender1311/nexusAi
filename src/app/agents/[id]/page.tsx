@@ -91,6 +91,16 @@ export default async function AgentDetailPage({ params }: { params: Promise<{ id
     : [];
   const userCountByPersona = new Map(userCountRows.map((r) => [r.personaId, r._count.personaId]));
 
+  // Preview: first N users from target personas (up to audienceCap) for the Audience tab
+  const audienceCap = agent.audienceCap ?? 5;
+  const previewUsers = targetPersonaIds.length > 0
+    ? await prisma.trackedUser.findMany({
+        where: { personaId: { in: targetPersonaIds } },
+        select: { externalId: true, personaId: true, attributes: true },
+        take: audienceCap,
+      })
+    : [];
+
   const freqCap = agent.schedulingRule?.frequencyCap as FrequencyCap | null;
   const quietHours = agent.schedulingRule?.quietHours as QuietHours | null;
   const blackoutDates = (agent.schedulingRule?.blackoutDates ?? []) as string[];
@@ -571,6 +581,42 @@ export default async function AgentDetailPage({ params }: { params: Promise<{ id
                 />
               </CardContent>
             </Card>
+            {previewUsers.length > 0 && (
+              <Card>
+                <CardHeader>
+                  <div className="flex items-center justify-between">
+                    <CardTitle className="text-sm font-semibold">Next Send Preview</CardTitle>
+                    <span className="text-xs text-muted-foreground">First {previewUsers.length} eligible (audience cap: {audienceCap})</span>
+                  </div>
+                </CardHeader>
+                <CardContent className="p-0">
+                  <table className="w-full text-sm">
+                    <thead>
+                      <tr className="border-b text-xs text-muted-foreground">
+                        <th className="px-4 py-2 text-left font-medium">External ID</th>
+                        <th className="px-4 py-2 text-left font-medium">Name</th>
+                        <th className="px-4 py-2 text-left font-medium">Email</th>
+                        <th className="px-4 py-2 text-left font-medium">Persona</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {previewUsers.map((u) => {
+                        const attrs = (u.attributes ?? {}) as Record<string, unknown>;
+                        const personaName = agent.personaTargets.find((pt) => pt.personaId === u.personaId)?.persona.name ?? "—";
+                        return (
+                          <tr key={u.externalId} className="border-b last:border-0 hover:bg-muted/40">
+                            <td className="px-4 py-2 font-mono text-xs">{u.externalId}</td>
+                            <td className="px-4 py-2">{String(attrs.first_name ?? "—")}</td>
+                            <td className="px-4 py-2 text-muted-foreground">{String(attrs.email ?? "—")}</td>
+                            <td className="px-4 py-2">{personaName}</td>
+                          </tr>
+                        );
+                      })}
+                    </tbody>
+                  </table>
+                </CardContent>
+              </Card>
+            )}
           </TabsContent>
 
           <TabsContent value="sends" className="mt-4">
