@@ -9,6 +9,46 @@
  * @param now       Optional — current time. Defaults to new Date(). Pass an
  *                  explicit value in tests to avoid real-clock dependency.
  */
+/**
+ * Computes the scheduled delivery time for a push notification.
+ *
+ * When the user has a preferred send time, schedules 10 minutes before that UTC time today.
+ * The 10-minute offset accounts for last_seen_at being session-end (sessions ~3-10 min),
+ * so we arrive just before the user's next typical session start.
+ * If that time has already passed, falls back to the agent's fallbackSendHour delivered in
+ * local time via Braze in_local_time.
+ *
+ * @param preferredHour    User's preferred send hour (UTC), or null for fallback.
+ * @param preferredMinute  User's preferred send minute (UTC), or null (treated as 0).
+ * @param agentFallbackHour Agent-configured fallback hour (UTC) used when preferred is absent/past.
+ * @param now              Current time (pass explicitly in tests to avoid real-clock dependency).
+ */
+export function computeScheduledAt(
+  preferredHour: number | null,
+  preferredMinute: number | null,
+  agentFallbackHour: number,
+  now: Date,
+): { scheduledAt: Date; inLocalTime: boolean } {
+  if (preferredHour !== null) {
+    const candidate = new Date(now);
+    // Computes a 10-minute offset using total-minutes arithmetic to handle cross-hour boundaries correctly
+    const totalMinutes = preferredHour * 60 + (preferredMinute ?? 0) - 10;
+    const offsetHour   = Math.floor(totalMinutes / 60);
+    const offsetMinute = ((totalMinutes % 60) + 60) % 60;
+    candidate.setUTCHours(offsetHour, offsetMinute, 0, 0);
+    if (candidate > now) {
+      return { scheduledAt: candidate, inLocalTime: false };
+    }
+  }
+  // Fallback: deliver at the agent's configured hour in each user's local timezone via Braze in_local_time
+  const fallback = new Date(now);
+  fallback.setUTCHours(agentFallbackHour, 0, 0, 0);
+  if (fallback <= now) {
+    fallback.setUTCDate(fallback.getUTCDate() + 1);
+  }
+  return { scheduledAt: fallback, inLocalTime: true };
+}
+
 export function getTodayStartUTC(timezone: string, now: Date = new Date()): Date {
   // Step 1: What date is "today" in the target timezone? (en-CA gives YYYY-MM-DD)
   const todayStr = new Intl.DateTimeFormat("en-CA", {

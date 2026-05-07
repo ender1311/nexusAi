@@ -22,6 +22,8 @@ import { AudienceCapEditor } from "@/components/agents/audience-cap-editor";
 import { AgentSendsTable } from "@/components/agents/agent-sends-table";
 import { AgentNameEditor } from "@/components/agents/agent-name-editor";
 import { AgentStatusToggle } from "@/components/agents/agent-status-toggle";
+import { AgentEditSheet } from "@/components/agents/agent-edit-sheet";
+import { AgentDeleteButton } from "@/components/agents/agent-delete-button";
 
 const TIER_COLORS: Record<string, string> = {
   best:      "bg-green-100 text-green-700 border-green-200 dark:bg-green-900/30 dark:text-green-400 dark:border-green-800",
@@ -77,6 +79,17 @@ export default async function AgentDetailPage({ params }: { params: Promise<{ id
   ]);
 
   if (!agent) notFound();
+
+  // Count users per target persona for the Audience tab
+  const targetPersonaIds = agent.personaTargets.map((pt) => pt.personaId);
+  const userCountRows = targetPersonaIds.length > 0
+    ? await prisma.trackedUser.groupBy({
+        by: ["personaId"],
+        where: { personaId: { in: targetPersonaIds } },
+        _count: { personaId: true },
+      })
+    : [];
+  const userCountByPersona = new Map(userCountRows.map((r) => [r.personaId, r._count.personaId]));
 
   const freqCap = agent.schedulingRule?.frequencyCap as FrequencyCap | null;
   const quietHours = agent.schedulingRule?.quietHours as QuietHours | null;
@@ -136,7 +149,16 @@ export default async function AgentDetailPage({ params }: { params: Promise<{ id
             </Badge>
           </div>
           <div className="flex gap-2">
+            <AgentEditSheet
+              agentId={agent.id}
+              initialName={agent.name}
+              initialDescription={agent.description ?? null}
+              initialAlgorithm={agent.algorithm}
+              initialEpsilon={agent.epsilon}
+              initialFunnelStage={agent.funnelStage as FunnelStage}
+            />
             <AgentStatusToggle agentId={agent.id} status={agent.status} />
+            <AgentDeleteButton agentId={agent.id} agentName={agent.name} />
           </div>
         </div>
 
@@ -504,13 +526,21 @@ export default async function AgentDetailPage({ params }: { params: Promise<{ id
           <TabsContent value="audience" className="mt-4 space-y-4">
             <Card>
               <CardHeader>
-                <CardTitle className="text-sm font-semibold">Target Personas</CardTitle>
+                <div className="flex items-center justify-between">
+                  <CardTitle className="text-sm font-semibold">Target Personas</CardTitle>
+                  {targetPersonaIds.length > 0 && (
+                    <span className="text-sm text-muted-foreground">
+                      {[...userCountByPersona.values()].reduce((s, n) => s + n, 0).toLocaleString()} eligible users
+                    </span>
+                  )}
+                </div>
               </CardHeader>
               <CardContent>
                 <PersonaTargetManager
                   agentId={agent.id}
                   initialTargets={agent.personaTargets.map((pt) => ({
                     id: pt.id,
+                    userCount: userCountByPersona.get(pt.personaId) ?? 0,
                     persona: {
                       id: pt.persona.id,
                       name: pt.persona.name,

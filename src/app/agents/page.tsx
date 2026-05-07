@@ -134,6 +134,7 @@ export default function AgentsPage() {
               <AgentCard
                 key={agent.id}
                 agent={agent}
+                onDelete={(id) => setAgents((prev) => prev.filter((a) => a.id !== id))}
               />
             ))}
           </div>

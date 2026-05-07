@@ -4,7 +4,7 @@ import { createBrazeClient } from "@/lib/braze/client";
 import { PayloadFactory } from "@/lib/braze/payload-factory";
 import { evaluateTargetFilter, buildComputedKeys } from "@/lib/engine/target-filter";
 import { buildAgentLottery } from "@/lib/engine/agent-lottery";
-import { getTodayStartUTC }  from "@/lib/engine/scheduling";
+import { getTodayStartUTC, computeScheduledAt }  from "@/lib/engine/scheduling";
 import { isTimingMatch } from "@/lib/engine/send-timing";
 import { ThompsonSampling } from "@/lib/engine/thompson-sampling";
 import { EpsilonGreedy } from "@/lib/engine/epsilon-greedy";
@@ -34,42 +34,6 @@ type VariantSendGroup = {
   externalUserIds: string[];
   decisionIds: string[];
 };
-
-/**
- * Returns a scheduled delivery time and whether local-time delivery is in use.
- *
- * When the user has a preferred send time, schedules 10 minutes before that UTC time today.
- * The 10-minute offset accounts for last_seen_at being session-end (sessions ~3-10 min),
- * so we arrive just before the user's next typical session start.
- * If that time has already passed, falls back to the agent's fallbackSendHour delivered in
- * local time via Braze in_local_time.
- * When using the fallback hour, inLocalTime is true so Braze delivers in each user's local timezone.
- */
-function computeScheduledAt(
-  preferredHour: number | null,
-  preferredMinute: number | null,
-  agentFallbackHour: number,
-  now: Date,
-): { scheduledAt: Date; inLocalTime: boolean } {
-  if (preferredHour !== null) {
-    const candidate = new Date(now);
-    // Computes a 10-minute offset using total-minutes arithmetic to handle cross-hour boundaries correctly
-    const totalMinutes = preferredHour * 60 + (preferredMinute ?? 0) - 10;
-    const offsetHour   = Math.floor(totalMinutes / 60);
-    const offsetMinute = ((totalMinutes % 60) + 60) % 60;
-    candidate.setUTCHours(offsetHour, offsetMinute, 0, 0);
-    if (candidate > now) {
-      return { scheduledAt: candidate, inLocalTime: false };
-    }
-  }
-  // Fallback: deliver at the agent's configured hour in each user's local timezone via Braze in_local_time
-  const fallback = new Date(now);
-  fallback.setUTCHours(agentFallbackHour, 0, 0, 0);
-  if (fallback <= now) {
-    fallback.setUTCDate(fallback.getUTCDate() + 1);
-  }
-  return { scheduledAt: fallback, inLocalTime: true };
-}
 
 // Local helper to send a batch of users for a variant group.
 // Encapsulates channel switch, payload building, Braze POST, and brazeSendId update.

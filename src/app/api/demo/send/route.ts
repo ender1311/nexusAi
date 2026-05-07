@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
 import { createBrazeClient } from "@/lib/braze/client";
 import { PayloadFactory } from "@/lib/braze/payload-factory";
+import { buildDemoTitle } from "@/lib/braze/demo-utils";
 import type { DemoAssignment } from "../preview/route";
 
 export type DemoSendResult = {
@@ -15,16 +16,6 @@ export type DemoSendResponse = {
   sent: number;
   errors: number;
 };
-
-// Liquid greeting prefix: personalizes by first name if available in Braze profile
-const LIQUID_GREETING =
-  "{first_name} token";
-
-function buildPersonalizedTitle(variantTitle: string | null): string {
-  const baseTitle = variantTitle?.trim() || "";
-  if (!baseTitle) return LIQUID_GREETING;
-  return `${LIQUID_GREETING} — ${baseTitle}`;
-}
 
 export async function POST(req: NextRequest) {
   try {
@@ -68,7 +59,7 @@ export async function POST(req: NextRequest) {
       }
 
       try {
-        const personalizedTitle = buildPersonalizedTitle(variant.title);
+        const personalizedTitle = buildDemoTitle(variant.title);
 
         // Build push payload — no campaign_id for demo (transactional send)
         const payload = factory.buildPushPayload(

@@ -8,6 +8,7 @@ import { cn } from "@/lib/utils";
 
 type LinkedPersona = {
   id: string;
+  userCount?: number;
   persona: { id: string; name: string; icon: string; color: string; description: string | null };
 };
 
@@ -85,7 +86,7 @@ export function PersonaTargetManager({ agentId, initialTargets, allPersonas }: P
       {/* Linked personas */}
       {targets.length > 0 ? (
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
-          {targets.map(({ persona }) => {
+          {targets.map(({ persona, userCount }) => {
             const colors = PERSONA_COLORS[persona.color] ?? PERSONA_COLORS.blue;
             const Icon = PERSONA_ICON_MAP[persona.icon];
             return (
@@ -115,6 +116,11 @@ export function PersonaTargetManager({ agentId, initialTargets, allPersonas }: P
                     <X className="h-3.5 w-3.5" />
                   </button>
                 </div>
+                {userCount !== undefined && (
+                  <p className={cn("text-xs font-medium", colors.text)}>
+                    {userCount.toLocaleString()} user{userCount !== 1 ? "s" : ""}
+                  </p>
+                )}
               </div>
             );
           })}
