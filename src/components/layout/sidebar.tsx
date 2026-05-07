@@ -5,7 +5,6 @@ import { usePathname } from "next/navigation";
 import {
   LayoutDashboard,
   Bot,
-  MessageSquare,
   BookOpen,
   BarChart3,
   Settings,
@@ -31,8 +30,7 @@ type SidebarUser = {
 const navItems = [
   { href: "/", label: "Dashboard", icon: LayoutDashboard },
   { href: "/agents", label: "Agents", icon: Bot },
-  { href: "/messages", label: "Messages", icon: MessageSquare },
-  { href: "/push-library", label: "Push Library", icon: BookOpen },
+  { href: "/messages", label: "Messages", icon: BookOpen },
   { href: "/personas", label: "Personas", icon: Users2 },
   { href: "/performance", label: "Performance", icon: BarChart3 },
   { href: "/control-tower", label: "Control Tower", icon: Radar },
