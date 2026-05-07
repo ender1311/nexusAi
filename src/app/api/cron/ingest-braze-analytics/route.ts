@@ -7,6 +7,22 @@ import { upsertArmStats } from "@/lib/arm-stats";
 // Allow up to 300s execution time on Vercel
 export const maxDuration = 300;
 
+// ── Short-term analytics budget ───────────────────────────────────────────────
+// Until Hightouch or another source provides campaign analytics at scale,
+// we pull per-send stats from Braze /sends/data_series. Braze retains this
+// data for 14 days and the API allows 250k req/hour, but we self-impose a
+// conservative daily cap to avoid burning through send_id registrations.
+// TODO: replace with Hightouch campaign analytics when available.
+const DAILY_SEND_ID_LIMIT = 900;
+
+// Reward weights: click = success signal, open-only or no-engage = punish
+// click_rate from BrazeAnalytics.normalizeMetrics() is 0–100 (percentage).
+// Scale: 20% CTR → max reward (0.8). Formula: min(0.8, click_rate_pct × 0.04)
+const CLICK_REWARD_SCALE = 0.04;     // click_rate_pct × scale, capped at CLICK_REWARD_MAX
+const CLICK_REWARD_MAX   = 0.8;
+const OPEN_NO_CLICK_PENALTY = 0.15;  // saw it but didn't act — mild negative signal
+const NO_ENGAGE_PENALTY     = 0.35;  // didn't open at all — stronger negative signal
+
 function verifyAuth(req: NextRequest): boolean {
   const token = req.headers.get("authorization")?.replace("Bearer ", "");
   const secret = process.env.CRON_SECRET;
@@ -24,6 +40,30 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ ok: true, processed: 0, skipped: "Braze not configured" });
   }
 
+  // ── Daily budget check ────────────────────────────────────────────────────
+  const startOfDay = new Date();
+  startOfDay.setUTCHours(0, 0, 0, 0);
+
+  const fetchedTodayRows = await prisma.userDecision.findMany({
+    where: { brazeAnalyticsFetchedAt: { gte: startOfDay }, brazeSendId: { not: null } },
+    select: { brazeSendId: true },
+    distinct: ["brazeSendId"],
+  });
+  const usedBudget = fetchedTodayRows.length;
+  const remainingBudget = DAILY_SEND_ID_LIMIT - usedBudget;
+
+  if (remainingBudget <= 0) {
+    return NextResponse.json({
+      ok: true,
+      processed: 0,
+      skipped: "daily_send_id_limit_reached",
+      limit: DAILY_SEND_ID_LIMIT,
+      used: usedBudget,
+    });
+  }
+
+  // ── Fetch decisions eligible for analytics ────────────────────────────────
+  // Window: sent 24–72h ago, no reward set yet (not already handled by events ingest)
   const cutoff24h = new Date(Date.now() - 24 * 60 * 60 * 1000);
   const cutoff72h = new Date(Date.now() - 72 * 60 * 60 * 1000);
 
@@ -32,6 +72,7 @@ export async function POST(req: NextRequest) {
       brazeSendId: { not: null },
       reward: null,
       conversionAt: null,
+      brazeAnalyticsFetchedAt: null,
       sentAt: { gte: cutoff72h, lte: cutoff24h },
       messageVariantId: { not: null },
     },
@@ -48,7 +89,7 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ ok: true, processed: 0 });
   }
 
-  // Group decisions by brazeSendId
+  // Group by brazeSendId
   const bySendId = new Map<string, typeof decisions>();
   for (const decision of decisions) {
     const sendId = decision.brazeSendId!;
@@ -56,8 +97,15 @@ export async function POST(req: NextRequest) {
     bySendId.get(sendId)!.push(decision);
   }
 
-  // Batch-fetch TrackedUser personaIds for all userIds across all groups (one query)
-  const allUserIds = [...new Set(decisions.map((d) => d.userId))];
+  // Apply daily budget cap
+  const sendIdsToProcess = [...bySendId.keys()].slice(0, remainingBudget);
+
+  // Batch-fetch TrackedUser personaIds for all users in scope (one query)
+  const allUserIds = [
+    ...new Set(
+      sendIdsToProcess.flatMap((sid) => bySendId.get(sid)!.map((d) => d.userId))
+    ),
+  ];
   const trackedUsers = await prisma.trackedUser.findMany({
     where: { externalId: { in: allUserIds } },
     select: { externalId: true, personaId: true },
@@ -71,8 +119,10 @@ export async function POST(req: NextRequest) {
   const analyticsClient = new BrazeAnalytics(brazeClient);
   let totalDecisions = 0;
   let totalUpdated = 0;
+  const now = new Date();
 
-  for (const [brazeSendId, groupDecisions] of bySendId) {
+  for (const brazeSendId of sendIdsToProcess) {
+    const groupDecisions = bySendId.get(brazeSendId)!;
     const brazeCampaignId = groupDecisions[0].variant?.message?.brazeCampaignId ?? null;
     if (!brazeCampaignId) continue;
 
@@ -87,18 +137,36 @@ export async function POST(req: NextRequest) {
     if (!analyticsResult) continue;
 
     const clickRate = analyticsResult.click_rate ?? 0;
-    const openRate = analyticsResult.open_rate ?? 0;
-    // Map to a fractional reward: clicks are stronger signal than opens
-    const analyticsReward = Math.min(0.8, clickRate * 0.6 + openRate * 0.1);
+    const openRate  = analyticsResult.open_rate  ?? 0;
+
+    // ── Click-based reward / punishment ───────────────────────────────────
+    // Reward: user clicked → positive signal for Thompson arm
+    // Punish: user ignored (opened but no click) or didn't open at all
+    let reward: number;
+    let deltaAlpha: number;
+    let deltaBeta: number;
+
+    if (clickRate > 0) {
+      reward     = Math.min(CLICK_REWARD_MAX, clickRate * CLICK_REWARD_SCALE);
+      deltaAlpha = reward;
+      deltaBeta  = 0;
+    } else if (openRate > 0) {
+      // Opened but didn't click — mild punishment
+      reward     = -OPEN_NO_CLICK_PENALTY;
+      deltaAlpha = 0;
+      deltaBeta  = OPEN_NO_CLICK_PENALTY;
+    } else {
+      // No engagement at all — stronger punishment
+      reward     = -NO_ENGAGE_PENALTY;
+      deltaAlpha = 0;
+      deltaBeta  = NO_ENGAGE_PENALTY;
+    }
 
     totalDecisions += groupDecisions.length;
 
-    if (analyticsReward <= 0) continue;
-
-    // Load existing arm stats for all (agentId, variantId, personaId) combos in this group
     const agentVariantPersonaCombos = groupDecisions
       .map((d) => ({
-        agentId: d.agentId,
+        agentId:   d.agentId,
         variantId: d.messageVariantId!,
         personaId: personaByUserId.get(d.userId),
       }))
@@ -106,7 +174,6 @@ export async function POST(req: NextRequest) {
         c.personaId !== undefined
       );
 
-    // Deduplicate combos for arm stats lookup
     const uniqueCombos = [
       ...new Map(
         agentVariantPersonaCombos.map((c) => [
@@ -118,21 +185,21 @@ export async function POST(req: NextRequest) {
 
     if (uniqueCombos.length === 0) continue;
 
-    // Atomically apply decay + reward for each unique (persona, agent, variant) combo
+    // Apply decay + reward/punishment for each unique (persona, agent, variant)
     await Promise.all(
-      agentVariantPersonaCombos.map(({ agentId, variantId, personaId }) =>
+      uniqueCombos.map(({ agentId, variantId, personaId }) =>
         upsertArmStats({
           personaId,
           agentId,
           variantId,
-          deltaAlpha: analyticsReward,
-          deltaBeta: 0,
-          deltaWins: 1,
+          deltaAlpha,
+          deltaBeta,
+          deltaWins: clickRate > 0 ? 1 : 0,
         })
       )
     );
 
-    // Mark each decision in the group as processed
+    // Mark decisions as processed: set reward + brazeAnalyticsFetchedAt
     const decisionIdsToUpdate = groupDecisions
       .filter((d) => personaByUserId.has(d.userId))
       .map((d) => d.id);
@@ -140,11 +207,19 @@ export async function POST(req: NextRequest) {
     if (decisionIdsToUpdate.length > 0) {
       await prisma.userDecision.updateMany({
         where: { id: { in: decisionIdsToUpdate } },
-        data: { reward: analyticsReward },
+        data: { reward, brazeAnalyticsFetchedAt: now },
       });
       totalUpdated += decisionIdsToUpdate.length;
     }
   }
 
-  return NextResponse.json({ ok: true, processed: totalDecisions, updated: totalUpdated });
+  return NextResponse.json({
+    ok: true,
+    processed: totalDecisions,
+    updated: totalUpdated,
+    sendIds: sendIdsToProcess.length,
+    budgetUsed: usedBudget + sendIdsToProcess.length,
+    budgetRemaining: remainingBudget - sendIdsToProcess.length,
+    budgetLimit: DAILY_SEND_ID_LIMIT,
+  });
 }
