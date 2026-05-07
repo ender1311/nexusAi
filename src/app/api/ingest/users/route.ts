@@ -141,8 +141,8 @@ export async function POST(req: NextRequest) {
 
     const planId = brazeAttrs.plan_day_last_plan_id ?? null;
     const planTags = planId ? (planTagMap.get(planId) ?? []) : [];
-    // Default to "word-driven" when classifier has insufficient data
-    const personaLabel = classifyPersona(brazeAttrs, planTags) ?? "word-driven";
+    // Default to "Bible-first" (Word-driven persona) when classifier has insufficient data
+    const personaLabel = classifyPersona(brazeAttrs, planTags) ?? "Bible-first";
     const personaId = personaByLabel.get(personaLabel) ?? null;
 
     const personaData = personaId
