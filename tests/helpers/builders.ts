@@ -62,6 +62,7 @@ export async function createVariant(
     status?: string;
     deeplink?: string | null;
     category?: string | null;
+    subcategory?: string | null;
     sourceTemplateId?: string | null;
   } = {}
 ) {
