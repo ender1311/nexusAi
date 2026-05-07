@@ -6,6 +6,7 @@ import { Settings } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Slider } from "@/components/ui/slider";
+import { Switch } from "@/components/ui/switch";
 import {
   Select,
   SelectContent,
@@ -34,6 +35,7 @@ type Props = {
   initialAlgorithm: string;
   initialEpsilon: number;
   initialFunnelStage: FunnelStage;
+  initialLanguageFilter: string;
 };
 
 export function AgentEditSheet({
@@ -43,6 +45,7 @@ export function AgentEditSheet({
   initialAlgorithm,
   initialEpsilon,
   initialFunnelStage,
+  initialLanguageFilter,
 }: Props) {
   const router = useRouter();
   const [open, setOpen] = useState(false);
@@ -51,6 +54,7 @@ export function AgentEditSheet({
   const [algorithm, setAlgorithm] = useState(initialAlgorithm);
   const [epsilon, setEpsilon] = useState(initialEpsilon);
   const [funnelStage, setFunnelStage] = useState<FunnelStage>(initialFunnelStage);
+  const [englishOnly, setEnglishOnly] = useState(initialLanguageFilter === "en");
   const [saving, setSaving] = useState(false);
 
   async function save() {
@@ -66,6 +70,7 @@ export function AgentEditSheet({
           algorithm,
           epsilon,
           funnelStage,
+          languageFilter: englishOnly ? "en" : "all",
         }),
       });
       setOpen(false);
@@ -160,6 +165,14 @@ export function AgentEditSheet({
                 ))}
               </SelectContent>
             </Select>
+          </div>
+
+          <div className="flex items-center justify-between py-1">
+            <div>
+              <p className="text-sm font-medium">English only</p>
+              <p className="text-xs text-muted-foreground">Restrict sends to users with language_tag starting with &quot;en&quot;</p>
+            </div>
+            <Switch checked={englishOnly} onCheckedChange={setEnglishOnly} />
           </div>
 
           <div className="flex gap-2 pt-2">

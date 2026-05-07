@@ -166,6 +166,7 @@ export default async function AgentDetailPage({ params }: { params: Promise<{ id
               initialAlgorithm={agent.algorithm}
               initialEpsilon={agent.epsilon}
               initialFunnelStage={agent.funnelStage as FunnelStage}
+              initialLanguageFilter={agent.languageFilter ?? "all"}
             />
             <AgentStatusToggle agentId={agent.id} status={agent.status} />
             <AgentDeleteButton agentId={agent.id} agentName={agent.name} />

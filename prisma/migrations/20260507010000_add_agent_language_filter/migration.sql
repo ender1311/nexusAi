@@ -1,0 +1,1 @@
+ALTER TABLE "Agent" ADD COLUMN IF NOT EXISTS "languageFilter" TEXT NOT NULL DEFAULT 'all';

@@ -216,8 +216,11 @@ export async function POST(req: NextRequest) {
           eligibleUsersByAgent.set(agent.id, []);
           return;
         }
+        const langFilter = agent.languageFilter && agent.languageFilter !== "all"
+          ? { attributes: { path: ["language_tag"], string_starts_with: agent.languageFilter } }
+          : {};
         const rows = await prisma.trackedUser.findMany({
-          where:  { personaId: { in: personaIds } },
+          where:  { personaId: { in: personaIds }, ...langFilter },
           select: { externalId: true },
         });
         eligibleUsersByAgent.set(agent.id, rows.map((r) => r.externalId));
@@ -272,15 +275,19 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    // Build eligible agent list per user
+    // Build eligible agent list per user (respects per-agent language filter)
     const eligibleAgentsByUser = new Map<string, string[]>();
     for (const user of explorationUsers) {
       if (!user.personaId) continue;
       const eligible: string[] = [];
       for (const agent of explorationAgents) {
-        if (agentPersonaSets.get(agent.id)?.has(user.personaId)) {
-          eligible.push(agent.id);
+        if (!agentPersonaSets.get(agent.id)?.has(user.personaId)) continue;
+        // Language filter: skip user if their language_tag doesn't start with the filter prefix
+        if (agent.languageFilter && agent.languageFilter !== "all") {
+          const lang = (user.attributes as Record<string, unknown>)?.language_tag as string | undefined;
+          if (!lang?.startsWith(agent.languageFilter)) continue;
         }
+        eligible.push(agent.id);
       }
       if (eligible.length > 0) eligibleAgentsByUser.set(user.externalId, eligible);
     }

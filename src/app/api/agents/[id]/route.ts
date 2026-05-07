@@ -58,6 +58,12 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
       }
     }
 
+    if (body.languageFilter !== undefined) {
+      if (typeof body.languageFilter !== "string" || body.languageFilter.trim() === "") {
+        return NextResponse.json({ error: "languageFilter must be a non-empty string" }, { status: 400 });
+      }
+    }
+
     const agent = await prisma.agent.update({
       where: { id },
       data: {
@@ -70,6 +76,7 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
         ...(body.targetFilter !== undefined ? { targetFilter: body.targetFilter } : {}),
         ...(body.fallbackSendHour !== undefined ? { fallbackSendHour: body.fallbackSendHour } : {}),
         ...(body.audienceCap !== undefined ? { audienceCap: body.audienceCap } : {}),
+        ...(body.languageFilter !== undefined ? { languageFilter: body.languageFilter } : {}),
       },
     });
     return NextResponse.json(agent);
