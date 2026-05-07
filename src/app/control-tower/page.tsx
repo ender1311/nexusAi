@@ -19,7 +19,6 @@ import {
   type OptimizationConfig,
 } from "@/lib/mock/control-tower";
 import type { StatsData } from "@/app/api/stats/route";
-import { useDataMode } from "@/components/layout/data-mode-provider";
 
 type PageState = "configure" | "scanning" | "results";
 
@@ -61,17 +60,11 @@ export default function ControlTowerPage() {
   const [scanPhase, setScanPhase] = useState("");
   const [predictions, setPredictions] = useState<PredictionResult[]>([]);
   const [stats, setStats] = useState<StatsData | null>(null);
-  const { isDemo } = useDataMode();
 
   const timeoutsRef = useRef<ReturnType<typeof setTimeout>[]>([]);
 
   // Fetch real agents from DB to replace mock toggle grid
   useEffect(() => {
-    if (isDemo) {
-      setAgentPool(controlAgents);
-      setEnabledAgents(Object.fromEntries(controlAgents.map((a) => [a.id, a.defaultEnabled])));
-      return;
-    }
     fetch("/api/agents")
       .then((r) => r.json())
       .then((data: unknown) => {
@@ -82,15 +75,14 @@ export default function ControlTowerPage() {
         setEnabledAgents(Object.fromEntries(pool.map((a) => [a.id, a.defaultEnabled])));
       })
       .catch(() => {/* keep mock fallback */});
-  }, [isDemo]);
+  }, []);
 
   useEffect(() => {
-    if (isDemo) { setStats(null); return; }
     fetch("/api/stats")
       .then((r) => r.json())
       .then((d: StatsData) => setStats(d))
       .catch(() => {/* non-critical */});
-  }, [isDemo]);
+  }, []);
 
   // Clear all pending timeouts
   const clearTimeouts = () => {
@@ -180,12 +172,7 @@ export default function ControlTowerPage() {
 
       {/* Live database stats bar */}
       <div className="border-b bg-muted/30 px-4 sm:px-6 py-2 sm:py-2.5 flex items-center gap-4 sm:gap-6 text-sm shrink-0 overflow-x-auto">
-        {isDemo && (
-          <span className="rounded bg-amber-100 px-2 py-0.5 text-xs font-semibold text-amber-700 dark:bg-amber-900/30 dark:text-amber-400">
-            Demo
-          </span>
-        )}
-        <span className="flex items-center gap-1.5 text-muted-foreground">
+<span className="flex items-center gap-1.5 text-muted-foreground">
           <Users className="h-3.5 w-3.5" />
           <span className="font-medium text-foreground">
             {stats ? stats.trackedUsers.toLocaleString() : "—"}
