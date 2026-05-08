@@ -48,11 +48,14 @@ async function sendVariantGroup(
   onSuccessfulBatch?: (userIds: string[]) => void,
 ): Promise<{ sent: number; errors: number }> {
   try {
-    // Fall back to env-based campaign ID when the DB field is not set.
-    // All channels share the same Braze campaign (push/email/content-card are variants
-    // within BRAZE_NEXUS_EMAIL_CAMPAIGN_ID), so use it as a universal fallback.
+    // BRAZE_NEXUS_CAMPAIGN_ID is the authoritative single Nexus campaign.
+    // It takes precedence over per-message DB values so all sends flow through
+    // one campaign and can be tracked in aggregate in Braze. send_id differentiates
+    // each variant batch for per-variant analytics.
     const resolvedCampaignId =
-      group.brazeCampaignId ?? process.env.BRAZE_NEXUS_EMAIL_CAMPAIGN_ID;
+      process.env.BRAZE_NEXUS_CAMPAIGN_ID ??
+      group.brazeCampaignId ??
+      process.env.BRAZE_NEXUS_EMAIL_CAMPAIGN_ID;
 
     const sendId = resolvedCampaignId
       ? await brazeClient!.createSendId(resolvedCampaignId)

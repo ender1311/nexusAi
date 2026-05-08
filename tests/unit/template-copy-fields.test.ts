@@ -22,7 +22,7 @@ describe("TEMPLATE_COPY_FIELDS", () => {
       "actionFeatures",
     ]);
 
-    const actual = new Set(TEMPLATE_COPY_FIELDS);
+    const actual = new Set<string>(TEMPLATE_COPY_FIELDS);
     expect(actual).toEqual(expected);
   });
 
