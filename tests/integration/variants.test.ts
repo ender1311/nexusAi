@@ -38,10 +38,10 @@ describe("GET /api/variants", () => {
     expect(body.every((v: { category: string }) => v.category === "bible-verse")).toBe(true);
   });
 
-  it("returns category and sourceTemplateId in response", async () => {
+  it("excludes clones (sourceTemplateId set) — only library templates appear", async () => {
     const agent = await createAgent();
     const msg = await createMessage(agent.id);
-    const template = await createVariant(msg.id, { name: "Tmpl", category: "general" });
+    const template = await createVariant(msg.id, { name: "Template", category: "general" });
     await createVariant(msg.id, {
       name: "Clone",
       category: "general",
@@ -52,9 +52,26 @@ describe("GET /api/variants", () => {
     const res = await GET(req);
     const body = await res.json();
 
-    const clone = body.find((v: { name: string }) => v.name === "Clone");
-    expect(clone.category).toBe("general");
-    expect(clone.sourceTemplateId).toBe(template.id);
+    // Only the library template (sourceTemplateId: null) should appear
+    expect(body).toHaveLength(1);
+    expect(body[0].name).toBe("Template");
+    expect(body[0].sourceTemplateId).toBeNull();
+  });
+
+  it("filters variants by channel", async () => {
+    const agent = await createAgent();
+    const pushMsg = await createMessage(agent.id, { channel: "push" });
+    const emailMsg = await createMessage(agent.id, { channel: "email" });
+    await createVariant(pushMsg.id, { name: "Push V1" });
+    await createVariant(emailMsg.id, { name: "Email V1" });
+
+    const req = new Request("http://localhost/api/variants?channel=push") as NextRequest;
+    const res = await GET(req);
+    const body = await res.json();
+
+    expect(res.status).toBe(200);
+    expect(body).toHaveLength(1);
+    expect(body[0].name).toBe("Push V1");
   });
 
   it("excludes inactive variants", async () => {

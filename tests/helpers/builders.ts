@@ -22,6 +22,7 @@ export async function createAgent(overrides: {
 
 export async function createPersona(overrides: {
   name?: string;
+  label?: string | null;
   isActive?: boolean;
   clusterSize?: number;
   source?: string;
@@ -62,6 +63,7 @@ export async function createVariant(
     deeplink?: string | null;
     category?: string | null;
     subcategory?: string | null;
+    iconImageUrl?: string | null;
     sourceTemplateId?: string | null;
   } = {}
 ) {

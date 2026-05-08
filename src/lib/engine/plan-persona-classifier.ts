@@ -95,7 +95,8 @@ export function classifyPersona(
   }
 
   // 9. Low engagement new user → Searching fallback
-  if (lifetimeFinishes === 0 && yearCount < 5 && monthCount < 3) {
+  // Require explicit engagement data — if plan_finish_lifetime_count is absent, no signal
+  if (attrs.plan_finish_lifetime_count != null && lifetimeFinishes === 0 && yearCount < 5 && monthCount < 3) {
     return "Seeker";
   }
 

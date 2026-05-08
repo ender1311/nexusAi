@@ -65,8 +65,8 @@ describe("PATCH /api/variants/[id]", () => {
       deeplink: "youversion://bible",
       category: "general",
       sourceTemplateId: template.id,
-      brazeVariantId: "braze-123",     // should NOT be overwritten
-      status: "active",                  // should NOT be overwritten
+      brazeVariantId: "braze-123",     // NOT in TEMPLATE_COPY_FIELDS — never overwritten
+      status: "active",                  // synced from template (both are "active"; value unchanged)
     });
 
     const agent2 = await createAgent({ name: "Agent 2" });
@@ -103,6 +103,60 @@ describe("PATCH /api/variants/[id]", () => {
 
     const c2After = await prisma.messageVariant.findUnique({ where: { id: clone2.id } });
     expect(c2After!.title).toBe("updated title");
+  });
+
+  it("propagates paused status from template to all clones", async () => {
+    const libAgent = await createAgent({ name: LIBRARY_AGENT_NAME, status: "draft" });
+    const libMsg = await createMessage(libAgent.id);
+    const template = await createVariant(libMsg.id, {
+      name: "Tmpl",
+      body: "body",
+      status: "active",
+    });
+
+    const agent = await createAgent();
+    const msg = await createMessage(agent.id);
+    const clone = await createVariant(msg.id, {
+      name: "Clone",
+      body: "body",
+      status: "active",
+      sourceTemplateId: template.id,
+    });
+
+    const req = buildRequest("PATCH", { status: "paused" }) as NextRequest;
+    const res = await PATCH(req, { params: Promise.resolve({ id: template.id }) });
+    expect(res.status).toBe(200);
+
+    const cloneAfter = await prisma.messageVariant.findUnique({ where: { id: clone.id } });
+    expect(cloneAfter!.status).toBe("paused");
+  });
+
+  it("syncs iconImageUrl to clones on template update", async () => {
+    const libAgent = await createAgent({ name: LIBRARY_AGENT_NAME, status: "draft" });
+    const libMsg = await createMessage(libAgent.id);
+    const template = await createVariant(libMsg.id, {
+      name: "Tmpl",
+      body: "body",
+      iconImageUrl: "https://cdn.example.com/old.png",
+    });
+
+    const agent = await createAgent();
+    const msg = await createMessage(agent.id);
+    const clone = await createVariant(msg.id, {
+      name: "Clone",
+      body: "body",
+      iconImageUrl: "https://cdn.example.com/old.png",
+      sourceTemplateId: template.id,
+    });
+
+    const req = buildRequest("PATCH", { iconImageUrl: "https://cdn.example.com/new.png" }) as NextRequest;
+    const res = await PATCH(req, { params: Promise.resolve({ id: template.id }) });
+    const body = await res.json();
+    expect(res.status).toBe(200);
+    expect(body.clonesUpdated).toBe(1);
+
+    const cloneAfter = await prisma.messageVariant.findUnique({ where: { id: clone.id } });
+    expect(cloneAfter!.iconImageUrl).toBe("https://cdn.example.com/new.png");
   });
 });
 
@@ -169,5 +223,67 @@ describe("GET /api/cron/sync-template-variants", () => {
 
     expect(res.status).toBe(200);
     expect(body.clonesUpdated).toBe(0);
+  });
+
+  it("syncs paused templates to clones (processes all statuses, not just active)", async () => {
+    // This guards against the old bug where the cron filtered status: "active" templates only,
+    // meaning a paused library template would never propagate its paused status to clones.
+    const libAgent = await createAgent({ name: LIBRARY_AGENT_NAME, status: "draft" });
+    const libMsg = await createMessage(libAgent.id);
+    const template = await createVariant(libMsg.id, {
+      name: "Tmpl",
+      body: "canonical body",
+      status: "paused", // template is paused
+    });
+
+    const agent = await createAgent();
+    const msg = await createMessage(agent.id);
+    const clone = await createVariant(msg.id, {
+      name: "Clone",
+      body: "drifted body",
+      status: "active", // clone drifted — should become paused
+      sourceTemplateId: template.id,
+    });
+
+    const req = new Request("http://localhost/api/cron/sync-template-variants", {
+      headers: { Authorization: "Bearer test_cron_secret" },
+    }) as NextRequest;
+    const res = await syncCron(req);
+    const body = await res.json();
+
+    expect(res.status).toBe(200);
+    expect(body.clonesUpdated).toBeGreaterThanOrEqual(1);
+
+    const cloneAfter = await prisma.messageVariant.findUnique({ where: { id: clone.id } });
+    expect(cloneAfter!.status).toBe("paused");
+    expect(cloneAfter!.body).toBe("canonical body");
+  });
+
+  it("syncs subcategory from template to drifted clones via cron", async () => {
+    const libAgent = await createAgent({ name: LIBRARY_AGENT_NAME, status: "draft" });
+    const libMsg = await createMessage(libAgent.id);
+    const template = await createVariant(libMsg.id, {
+      name: "Tmpl",
+      body: "body",
+      subcategory: "gospel",
+    });
+
+    const agent = await createAgent();
+    const msg = await createMessage(agent.id);
+    const clone = await createVariant(msg.id, {
+      name: "Clone",
+      body: "body",
+      subcategory: "old-sub", // drifted
+      sourceTemplateId: template.id,
+    });
+
+    const req = new Request("http://localhost/api/cron/sync-template-variants", {
+      headers: { Authorization: "Bearer test_cron_secret" },
+    }) as NextRequest;
+    const res = await syncCron(req);
+    expect(res.status).toBe(200);
+
+    const cloneAfter = await prisma.messageVariant.findUnique({ where: { id: clone.id } });
+    expect(cloneAfter!.subcategory).toBe("gospel");
   });
 });
