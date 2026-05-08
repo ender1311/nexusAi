@@ -114,6 +114,14 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "Invalid payload" }, { status: 400 });
   }
 
+  // Guard against oversized batches that could exhaust memory or DB connections
+  if (rawEvents.length > 1000) {
+    return NextResponse.json(
+      { error: "Batch too large: maximum 1000 events per request" },
+      { status: 400 }
+    );
+  }
+
   // Deduplicate by event id within the batch
   const seen = new Set<string>();
   const events = rawEvents.filter((e) => {

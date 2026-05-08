@@ -50,6 +50,14 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "Invalid payload: expected { external_user_id, attributes } or { users: [...] }" }, { status: 400 });
   }
 
+  // Guard against oversized batches that could exhaust memory or DB connections
+  if (users.length > 1000) {
+    return NextResponse.json(
+      { error: "Batch too large: maximum 1000 users per request" },
+      { status: 400 }
+    );
+  }
+
   // Anonymous users (no external_user_id) can't be targeted — skip them silently
   const skippedAnon = users.filter((u) => !u.external_user_id).length;
   const identified = users.filter((u) => !!u.external_user_id);
