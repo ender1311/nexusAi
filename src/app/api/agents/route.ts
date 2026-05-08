@@ -8,9 +8,7 @@ export async function GET() {
   try {
     const agents = await prisma.agent.findMany({
       include: {
-        goals: true,
-        messages: true,          // variants omitted — list view only needs message count
-        _count: { select: { decisions: true } },
+        _count: { select: { goals: true, messages: true, decisions: true } },
       },
       orderBy: { updatedAt: "desc" },
     });
