@@ -7,15 +7,6 @@ datasource db {
   provider = "postgresql"
 }
 
-enum FunnelStage {
-  new
-  lapsed
-  connected
-  activated
-  engaged
-  inspired
-}
-
 model Agent {
   id          String      @id @default(cuid())
   name        String
@@ -23,7 +14,7 @@ model Agent {
   status      String      @default("draft")
   algorithm   String      @default("thompson")
   epsilon     Float       @default(0.1)
-  funnelStage      FunnelStage @default(connected)
+  funnelStage      String      @default("wau")
   targetFilter     Json?
   fallbackSendHour Int?        // 0-23 UTC-naive hour; Braze delivers at this hour in user's local timezone via in_local_time
   audienceCap      Int?        // max users reached per cron run; null = unlimited

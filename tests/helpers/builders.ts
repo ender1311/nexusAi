@@ -1,12 +1,11 @@
 import { prisma } from "@/lib/db";
-import type { FunnelStage } from "@/generated/prisma/client";
 
 export async function createAgent(overrides: {
   name?: string;
   algorithm?: string;
   epsilon?: number;
   status?: string;
-  funnelStage?: FunnelStage;
+  funnelStage?: string;
   targetFilter?: object;
 } = {}) {
   return prisma.agent.create({
@@ -15,7 +14,7 @@ export async function createAgent(overrides: {
       algorithm: "thompson",
       epsilon: 0.1,
       status: "active",
-      funnelStage: "engaged",
+      funnelStage: "wau",
       ...overrides,
     },
   });
