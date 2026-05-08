@@ -223,3 +223,7 @@ export async function POST(req: NextRequest) {
     budgetLimit: DAILY_SEND_ID_LIMIT,
   });
 }
+
+export async function GET(req: NextRequest) {
+  return POST(req);
+}

@@ -32,3 +32,7 @@ export async function POST(req: NextRequest) {
     usersReassigned,
   });
 }
+
+export async function GET(req: NextRequest) {
+  return POST(req);
+}
