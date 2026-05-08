@@ -9,19 +9,24 @@ import type { VariantWithMessage } from "@/types/agent";
 interface PushVariantPickerProps {
   selectedVariantIds: string[];
   category?: string;
+  subcategory?: string;
   onToggle: (variant: VariantWithMessage) => void;
+  onBulkSelect?: (variants: VariantWithMessage[]) => void;
 }
 
 type FetchState =
   | { status: "loading" }
-  | { status: "done"; variants: VariantWithMessage[]; fetchedCategory: string | undefined };
+  | { status: "done"; variants: VariantWithMessage[]; fetchedCategory: string | undefined; fetchedSubcategory: string | undefined };
 
-export function PushVariantPicker({ selectedVariantIds, category, onToggle }: PushVariantPickerProps) {
+export function PushVariantPicker({ selectedVariantIds, category, subcategory, onToggle, onBulkSelect }: PushVariantPickerProps) {
   const [state, setState] = useState<FetchState>({ status: "loading" });
 
   useEffect(() => {
     let cancelled = false;
-    const url = category ? `/api/variants?category=${encodeURIComponent(category)}` : "/api/variants";
+    const params = new URLSearchParams();
+    if (category) params.set("category", category);
+    if (subcategory) params.set("subcategory", subcategory);
+    const url = params.size ? `/api/variants?${params.toString()}` : "/api/variants";
     fetch(url)
       .then((r) => {
         if (!r.ok) throw new Error(`HTTP ${r.status}`);
@@ -33,16 +38,19 @@ export function PushVariantPicker({ selectedVariantIds, category, onToggle }: Pu
             status: "done",
             variants: data.filter((v) => v.message.channel === "push"),
             fetchedCategory: category,
+            fetchedSubcategory: subcategory,
           });
         }
       })
       .catch(() => {
-        if (!cancelled) setState({ status: "done", variants: [], fetchedCategory: category });
+        if (!cancelled) setState({ status: "done", variants: [], fetchedCategory: category, fetchedSubcategory: subcategory });
       });
     return () => { cancelled = true; };
-  }, [category]);
+  }, [category, subcategory]);
 
-  const loading = state.status === "loading" || (state.status === "done" && state.fetchedCategory !== category);
+  const loading =
+    state.status === "loading" ||
+    (state.status === "done" && (state.fetchedCategory !== category || state.fetchedSubcategory !== subcategory));
   const variants = state.status === "done" ? state.variants : [];
 
   if (loading) {
@@ -59,8 +67,21 @@ export function PushVariantPicker({ selectedVariantIds, category, onToggle }: Pu
     );
   }
 
+  const allSelected = variants.length > 0 && variants.every((v) => selectedVariantIds.includes(v.id));
+
   return (
     <div className="space-y-2">
+      {onBulkSelect && variants.length > 0 && (
+        <div className="flex justify-end">
+          <button
+            type="button"
+            onClick={() => onBulkSelect(allSelected ? [] : variants)}
+            className="text-xs text-primary hover:underline font-medium"
+          >
+            {allSelected ? "Deselect all" : `Select all (${variants.length})`}
+          </button>
+        </div>
+      )}
       {variants.map((v) => {
         const selected = selectedVariantIds.includes(v.id);
         return (

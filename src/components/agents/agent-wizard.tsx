@@ -39,6 +39,16 @@ const GOAL_TIERS: Array<{ value: GoalTier; label: string; color: string; weight:
 
 const CHANNELS: Channel[] = ["push", "email", "sms"];
 
+const PUSH_DESTINATIONS = [
+  { key: "reader",           label: "General Reader",   category: "reader",           subcategory: "open-bible"     },
+  { key: "bible-verse",      label: "Bible Verse",      category: "reader",           subcategory: "specific-verse" },
+  { key: "audio-bible",      label: "Audio Bible",      category: "reader",           subcategory: "audio-bible"    },
+  { key: "plans",            label: "Plans",            category: "plans",            subcategory: undefined        },
+  { key: "votd",             label: "VOTD",             category: "votd",             subcategory: undefined        },
+  { key: "guided-scripture", label: "Guided Scripture", category: "guided-scripture", subcategory: undefined        },
+  { key: "guided-prayer",    label: "Guided Prayer",    category: "guided-prayer",    subcategory: undefined        },
+];
+
 const FREQ_PERIODS = [
   { value: "day", label: "Day" },
   { value: "week", label: "Week" },
@@ -157,7 +167,7 @@ export function AgentWizard({ personas }: { personas: Persona[] }) {
   });
   // For push channel: selected DB variant options (id, title, body, deeplink, etc.)
   const [selectedPushVariants, setSelectedPushVariants] = useState<VariantWithMessage[]>([]);
-  const [selectedCategory, setSelectedCategory] = useState<string>("");
+  const [selectedDestKey, setSelectedDestKey] = useState<string>("");
   const [saving, setSaving] = useState(false);
 
   const update = (key: keyof FormData, value: unknown) => setForm((f) => ({ ...f, [key]: value }));
@@ -187,7 +197,7 @@ export function AgentWizard({ personas }: { personas: Persona[] }) {
     update("messages", [...form.messages, { ...newMsg, variants: variantsToSave }]);
     setNewMsg({ name: "", channel: "push", variants: [{ ...emptyVariant(), name: "V1" }] });
     setSelectedPushVariants([]);
-    setSelectedCategory("");
+    setSelectedDestKey("");
   };
 
   const removeMessage = (i: number) => update("messages", form.messages.filter((_, idx) => idx !== i));
@@ -572,7 +582,7 @@ export function AgentWizard({ personas }: { personas: Persona[] }) {
               <Select value={newMsg.channel} onValueChange={(v) => {
                 setNewMsg((m) => ({ ...m, channel: v as Channel }));
                 setSelectedPushVariants([]);
-                setSelectedCategory("");
+                setSelectedDestKey("");
               }}>
                 <SelectTrigger className="w-28">
                   <SelectValue />
@@ -589,52 +599,51 @@ export function AgentWizard({ personas }: { personas: Persona[] }) {
                 <div>
                   <p className="text-xs font-medium text-muted-foreground mb-2">Destination</p>
                   <div className="flex gap-2 flex-wrap">
-                    {(["bible-verse", "guided-scripture", "plans", "general"] as const).map((cat) => {
-                      const labels: Record<string, string> = {
-                        "bible-verse": "Bible Verse",
-                        "guided-scripture": "Guided Scripture",
-                        "plans": "Plans",
-                        "general": "General",
-                      };
-                      return (
-                        <button
-                          key={cat}
-                          type="button"
-                          onClick={() => {
-                            setSelectedCategory(cat);
-                            setSelectedPushVariants([]);
-                          }}
-                          className={cn(
-                            "px-3 py-1.5 rounded-full text-xs font-medium border transition-colors",
-                            selectedCategory === cat
-                              ? "border-primary bg-primary text-primary-foreground"
-                              : "border-border bg-background hover:border-primary/50"
-                          )}
-                        >
-                          {labels[cat]}
-                        </button>
-                      );
-                    })}
+                    {PUSH_DESTINATIONS.map((dest) => (
+                      <button
+                        key={dest.key}
+                        type="button"
+                        onClick={() => {
+                          setSelectedDestKey(dest.key);
+                          setSelectedPushVariants([]);
+                        }}
+                        className={cn(
+                          "px-3 py-1.5 rounded-full text-xs font-medium border transition-colors",
+                          selectedDestKey === dest.key
+                            ? "border-primary bg-primary text-primary-foreground"
+                            : "border-border bg-background hover:border-primary/50"
+                        )}
+                      >
+                        {dest.label}
+                      </button>
+                    ))}
                   </div>
                 </div>
-                <div>
-                  <p className="text-xs font-medium text-muted-foreground mb-2">Select approved push variants</p>
-                  <PushVariantPicker
-                    selectedVariantIds={selectedPushVariants.map((v) => v.id)}
-                    category={selectedCategory || undefined}
-                    onToggle={(v) => {
-                      setSelectedPushVariants((prev) => {
-                        const exists = prev.some((p) => p.id === v.id);
-                        return exists ? prev.filter((p) => p.id !== v.id) : [...prev, v];
-                      });
-                    }}
-                  />
-                  {selectedPushVariants.length > 0 && (
-                    <p className="text-xs text-green-700 font-medium">
-                      {selectedPushVariants.length} variant(s) selected
-                    </p>
-                  )}
-                </div>
+                {selectedDestKey && (() => {
+                  const dest = PUSH_DESTINATIONS.find((d) => d.key === selectedDestKey);
+                  return (
+                    <div>
+                      <p className="text-xs font-medium text-muted-foreground mb-2">Select approved push variants</p>
+                      <PushVariantPicker
+                        selectedVariantIds={selectedPushVariants.map((v) => v.id)}
+                        category={dest?.category}
+                        subcategory={dest?.subcategory}
+                        onToggle={(v) => {
+                          setSelectedPushVariants((prev) => {
+                            const exists = prev.some((p) => p.id === v.id);
+                            return exists ? prev.filter((p) => p.id !== v.id) : [...prev, v];
+                          });
+                        }}
+                        onBulkSelect={(variants) => setSelectedPushVariants(variants)}
+                      />
+                      {selectedPushVariants.length > 0 && (
+                        <p className="text-xs text-green-700 font-medium mt-1">
+                          {selectedPushVariants.length} variant(s) selected
+                        </p>
+                      )}
+                    </div>
+                  );
+                })()}
               </div>
             ) : (
               <>
