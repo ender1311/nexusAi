@@ -1,5 +1,6 @@
 export const dynamic = "force-dynamic";
 
+import { Suspense } from "react";
 import { notFound } from "next/navigation";
 import Link from "next/link";
 import { Header } from "@/components/layout/header";
@@ -15,8 +16,10 @@ import { VariantDiffTable } from "@/components/agents/variant-diff-table";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { TestedVariable, MessageVariant, AgentStatus, FunnelStage } from "@/types/agent";
 import { prisma } from "@/lib/db";
+import { Skeleton } from "@/components/ui/skeleton";
 import { AgentFunnelConfig } from "@/components/agents/agent-funnel-config";
 import { PersonaTargetManager } from "@/components/agents/persona-target-manager";
+import { ArmHealthSection } from "./arm-health-section";
 import { FallbackSendTimeEditor } from "@/components/agents/fallback-send-time-editor";
 import { AudienceCapEditor } from "@/components/agents/audience-cap-editor";
 import { AgentSendsTable } from "@/components/agents/agent-sends-table";
@@ -43,20 +46,10 @@ const algorithmLabels: Record<string, string> = {
 type FrequencyCap = { maxSends: number; period: string };
 type QuietHours = { start: string; end: string; timezone: string };
 
-type VariantHealthEntry = {
-  variantId: string;
-  variantName: string;
-  hasStats: boolean;
-  totalTries: number;
-  inWarmup: boolean;
-};
-
-type HealthStatus = "healthy" | "warning" | "critical";
-
 export default async function AgentDetailPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
 
-  const [agent, armHealthData, allPersonas] = await Promise.all([
+  const [agent, allPersonas] = await Promise.all([
     prisma.agent.findUnique({
       where: { id },
       include: {
@@ -66,11 +59,6 @@ export default async function AgentDetailPage({ params }: { params: Promise<{ id
         personaTargets: { include: { persona: true } },
         _count: { select: { decisions: true } },
       },
-    }),
-    prisma.personaArmStats.findMany({
-      where: { agentId: id },
-      orderBy: { id: "desc" },
-      take: 500,
     }),
     prisma.persona.findMany({
       where: { isActive: true },
@@ -112,35 +100,6 @@ export default async function AgentDetailPage({ params }: { params: Promise<{ id
       .filter((v) => v.status === "active")
       .map((v) => ({ id: v.id, name: v.name, warmupUntil: v.warmupUntil })),
   );
-
-  const now = new Date();
-
-  // Accumulate max tries across all personas per variant
-  const triesByVariant = new Map<string, number>();
-  for (const row of armHealthData) {
-    const current = triesByVariant.get(row.variantId) ?? 0;
-    if (row.tries > current) triesByVariant.set(row.variantId, row.tries);
-  }
-
-  const variantHealth: VariantHealthEntry[] = activeVariants.map((v) => ({
-    variantId: v.id,
-    variantName: v.name,
-    totalTries: triesByVariant.get(v.id) ?? 0,
-    hasStats: (triesByVariant.get(v.id) ?? 0) > 0,
-    inWarmup: v.warmupUntil !== null && v.warmupUntil > now,
-  }));
-
-  const variantsWithStats = variantHealth.filter((v) => v.hasStats).length;
-  const variantsInWarmup = variantHealth.filter((v) => v.inWarmup).length;
-
-  let healthStatus: HealthStatus;
-  if (activeVariants.length === 0 || variantsWithStats === 0) {
-    healthStatus = "critical";
-  } else if (variantsWithStats / activeVariants.length < 0.5) {
-    healthStatus = "warning";
-  } else {
-    healthStatus = "healthy";
-  }
 
   return (
     <>
@@ -463,76 +422,9 @@ export default async function AgentDetailPage({ params }: { params: Promise<{ id
           </TabsContent>
 
           <TabsContent value="performance" className="mt-4 space-y-4">
-            {/* Arm health summary */}
-            <Card>
-              <CardHeader>
-                <div className="flex items-center justify-between">
-                  <CardTitle className="text-sm font-semibold">Variant Health</CardTitle>
-                  <Badge
-                    variant="outline"
-                    className={cn(
-                      "text-xs capitalize",
-                      healthStatus === "healthy"
-                        ? "text-green-700 bg-green-50 border-green-200 dark:text-green-400 dark:bg-green-900/20 dark:border-green-800"
-                        : healthStatus === "warning"
-                          ? "text-amber-700 bg-amber-50 border-amber-200 dark:text-amber-400 dark:bg-amber-900/20 dark:border-amber-800"
-                          : "text-red-700 bg-red-50 border-red-200 dark:text-red-400 dark:bg-red-900/20 dark:border-red-800",
-                    )}
-                  >
-                    {healthStatus}
-                  </Badge>
-                </div>
-              </CardHeader>
-              <CardContent>
-                <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 mb-4">
-                  {[
-                    { label: "Active Variants", value: activeVariants.length },
-                    { label: "With Stats", value: variantsWithStats },
-                    { label: "In Warmup", value: variantsInWarmup },
-                    { label: "No Stats", value: activeVariants.length - variantsWithStats },
-                  ].map(({ label, value }) => (
-                    <div key={label} className="text-center">
-                      <p className="text-xl font-bold">{value}</p>
-                      <p className="text-xs text-muted-foreground mt-0.5">{label}</p>
-                    </div>
-                  ))}
-                </div>
-
-                {variantHealth.length === 0 ? (
-                  <p className="text-sm text-muted-foreground text-center py-2">No active variants.</p>
-                ) : (
-                  <div className="space-y-2">
-                    {variantHealth.map((v) => (
-                      <div
-                        key={v.variantId}
-                        className="flex items-center justify-between p-2 border rounded-md"
-                      >
-                        <div className="flex items-center gap-2">
-                          <div
-                            className={cn(
-                              "h-2 w-2 rounded-full",
-                              v.hasStats ? "bg-green-500" : "bg-muted-foreground/30",
-                            )}
-                          />
-                          <span className="text-sm">{v.variantName}</span>
-                          {v.inWarmup && (
-                            <Badge
-                              variant="outline"
-                              className="text-xs text-amber-700 bg-amber-50 border-amber-200 dark:text-amber-400 dark:bg-amber-900/30 dark:border-amber-800"
-                            >
-                              warmup
-                            </Badge>
-                          )}
-                        </div>
-                        <span className="text-xs text-muted-foreground font-mono">
-                          {v.totalTries} tries
-                        </span>
-                      </div>
-                    ))}
-                  </div>
-                )}
-              </CardContent>
-            </Card>
+            <Suspense fallback={<Skeleton className="h-40 rounded-xl" />}>
+              <ArmHealthSection agentId={id} activeVariants={activeVariants} />
+            </Suspense>
           </TabsContent>
 
           <TabsContent value="audience" className="mt-4 space-y-4">

@@ -6,14 +6,12 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { MetricCard } from "@/components/charts/metric-card";
-import { TimeSeriesChart } from "@/components/charts/time-series-chart";
-import { DailySendsChart } from "@/components/charts/bar-chart";
 import { VariantComparison } from "@/components/charts/variant-comparison";
-import { TimingHeatmap } from "@/components/charts/timing-heatmap";
 import { AgentStatusBadge } from "@/components/agents/agent-status-badge";
+import { ChartsSection } from "./charts-section";
 import { prisma } from "@/lib/db";
 import { formatNumber, formatPercent } from "@/lib/utils";
-import { TimeSeriesPoint, AgentMetric, VariantMetric, TimingHeatmapCell } from "@/types/metrics";
+import { AgentMetric, VariantMetric } from "@/types/metrics";
 import Link from "next/link";
 import { TrendingUp, TrendingDown, Minus, Send, Zap, GitCompare } from "lucide-react";
 import { AgentStatus } from "@/types/agent";
@@ -81,31 +79,6 @@ export default async function PerformancePage() {
     };
   });
 
-  // Lean row fetch for time-series, variant stats, and heatmap — only the columns each aggregation needs
-  const timeseriesRows = await prisma.userDecision.findMany({
-    where: { sentAt: { gte: thirtyDaysAgo } },
-    select: { sentAt: true, conversionAt: true },
-    take: 50000,
-  });
-
-  // 30-day time series
-  const byDate = new Map<string, { sends: number; conversions: number }>();
-  for (const d of timeseriesRows) {
-    const key = d.sentAt.toISOString().slice(0, 10);
-    const e = byDate.get(key) ?? { sends: 0, conversions: 0 };
-    e.sends++;
-    if (d.conversionAt) e.conversions++;
-    byDate.set(key, e);
-  }
-  const last30Days: TimeSeriesPoint[] = [];
-  for (let i = 29; i >= 0; i--) {
-    const d = new Date(now);
-    d.setDate(d.getDate() - i);
-    const key = d.toISOString().slice(0, 10);
-    const { sends, conversions } = byDate.get(key) ?? { sends: 0, conversions: 0 };
-    last30Days.push({ date: key, sends, conversions, conversionRate: sends > 0 ? (conversions / sends) * 100 : 0 });
-  }
-  const last7Days = last30Days.slice(-7);
 
   // Top variants — aggregate sends/conversions/reward per variant in the DB, then join names
   const [variantSends, variantConversions, variantRewards] = await Promise.all([
@@ -157,21 +130,6 @@ export default async function PerformancePage() {
     .sort((a, b) => b.sends - a.sends)
     .slice(0, 10);
 
-  // Timing heatmap — derived from the same lean rows already fetched for time-series
-  const heatmapCounts = new Map<string, number>();
-  for (const d of timeseriesRows) {
-    const hour = d.sentAt.getUTCHours();
-    const day = d.sentAt.getUTCDay();
-    const key = `${hour}:${day}`;
-    heatmapCounts.set(key, (heatmapCounts.get(key) ?? 0) + 1);
-  }
-  const timingHeatmapData: TimingHeatmapCell[] = [];
-  for (let hour = 0; hour < 24; hour++) {
-    for (let day = 0; day < 7; day++) {
-      timingHeatmapData.push({ hour, day, value: heatmapCounts.get(`${hour}:${day}`) ?? 0 });
-    }
-  }
-
   const bestLift = agentMetricsReal.length > 0
     ? Math.max(0, ...agentMetricsReal.map((m) => m.liftVsControl))
     : 0;
@@ -212,26 +170,8 @@ export default async function PerformancePage() {
           </Card>
         )}
 
-        {/* Charts */}
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-          <Card>
-            <CardHeader className="flex flex-row items-center justify-between">
-              <CardTitle className="text-sm font-semibold">Conversion Rate Trend (30 days)</CardTitle>
-              <Badge variant="outline" className="text-xs">All Agents</Badge>
-            </CardHeader>
-            <CardContent>
-              <TimeSeriesChart data={last30Days} height={240} />
-            </CardContent>
-          </Card>
-          <Card>
-            <CardHeader>
-              <CardTitle className="text-sm font-semibold">Daily Send Volume</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <DailySendsChart data={last7Days} height={240} />
-            </CardContent>
-          </Card>
-        </div>
+        {/* Charts — streamed in via Suspense to unblock KPIs and agent table */}
+        <ChartsSection />
 
         {/* Per-agent table */}
         <Card>
@@ -299,15 +239,6 @@ export default async function PerformancePage() {
           </CardContent>
         </Card>
 
-        {/* Timing heatmap */}
-        <Card>
-          <CardHeader>
-            <CardTitle className="text-sm font-semibold">Best Send Times (Discovered)</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <TimingHeatmap data={timingHeatmapData} />
-          </CardContent>
-        </Card>
       </div>
     </>
   );

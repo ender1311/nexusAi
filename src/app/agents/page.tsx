@@ -1,5 +1,3 @@
-export const dynamic = "force-dynamic";
-
 import Link from "next/link";
 import { Header } from "@/components/layout/header";
 import { AgentCard } from "@/components/agents/agent-card";
@@ -9,15 +7,31 @@ import { AgentStatus, FunnelStage, FUNNEL_STAGES, Agent } from "@/types/agent";
 import { Bot, Plus, Search } from "lucide-react";
 import { prisma } from "@/lib/db";
 
+const PAGE_SIZE = 20;
+
+function buildPageUrl(
+  base: { search: string; status: string; stage?: FunnelStage },
+  page: number,
+): string {
+  const params = new URLSearchParams();
+  if (base.search) params.set("search", base.search);
+  if (base.status !== "all") params.set("status", base.status);
+  if (base.stage) params.set("stage", base.stage);
+  if (page > 0) params.set("page", String(page));
+  const qs = params.toString();
+  return qs ? `/agents?${qs}` : "/agents";
+}
+
 const VALID_STATUSES = new Set<AgentStatus>(["active", "paused", "draft"]);
 const VALID_STAGES = new Set<FunnelStage>(FUNNEL_STAGES);
 
 export default async function AgentsPage({
   searchParams,
 }: {
-  searchParams: Promise<{ search?: string; status?: string; stage?: string }>;
+  searchParams: Promise<{ search?: string; status?: string; stage?: string; page?: string }>;
 }) {
-  const { search = "", status = "all", stage } = await searchParams;
+  const { search = "", status = "all", stage, page } = await searchParams;
+  const pageNum = Math.max(0, parseInt(page ?? "0", 10) || 0);
 
   const safeStatus: AgentStatus | undefined =
     status !== "all" && VALID_STATUSES.has(status as AgentStatus)
@@ -29,24 +43,33 @@ export default async function AgentsPage({
       ? (stage as FunnelStage)
       : undefined;
 
-  const dbAgents = await prisma.agent.findMany({
-    where: {
-      ...(search
-        ? {
-            OR: [
-              { name: { contains: search, mode: "insensitive" } },
-              { description: { contains: search, mode: "insensitive" } },
-            ],
-          }
-        : {}),
-      ...(safeStatus ? { status: safeStatus } : {}),
-      ...(safeStage ? { funnelStage: safeStage } : {}),
-    },
-    include: {
-      _count: { select: { goals: true, messages: true, decisions: true } },
-    },
-    orderBy: { updatedAt: "desc" },
-  });
+  const where = {
+    ...(search
+      ? {
+          OR: [
+            { name: { contains: search, mode: "insensitive" as const } },
+            { description: { contains: search, mode: "insensitive" as const } },
+          ],
+        }
+      : {}),
+    ...(safeStatus ? { status: safeStatus } : {}),
+    ...(safeStage ? { funnelStage: safeStage } : {}),
+  };
+
+  const [dbAgents, totalCount] = await Promise.all([
+    prisma.agent.findMany({
+      where,
+      include: { _count: { select: { goals: true, messages: true, decisions: true } } },
+      orderBy: { updatedAt: "desc" },
+      take: PAGE_SIZE,
+      skip: pageNum * PAGE_SIZE,
+    }),
+    prisma.agent.count({ where }),
+  ]);
+
+  const totalPages = Math.ceil(totalCount / PAGE_SIZE);
+  const hasNext = pageNum < totalPages - 1;
+  const hasPrev = pageNum > 0;
 
   // Determine whether any filters are active (for empty-state messaging)
   const hasFilters = search !== "" || status !== "all" || stage !== undefined;
@@ -114,11 +137,32 @@ export default async function AgentsPage({
             </div>
           )
         ) : (
-          <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
-            {agents.map((agent) => (
-              <AgentCard key={agent.id} agent={agent} />
-            ))}
-          </div>
+          <>
+            <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
+              {agents.map((agent) => (
+                <AgentCard key={agent.id} agent={agent} />
+              ))}
+            </div>
+            {totalPages > 1 && (
+              <div className="flex items-center justify-between pt-2">
+                <span className="text-sm text-muted-foreground">
+                  {pageNum * PAGE_SIZE + 1}–{Math.min((pageNum + 1) * PAGE_SIZE, totalCount)} of {totalCount} agents
+                </span>
+                <div className="flex gap-2">
+                  {hasPrev && (
+                    <Link href={buildPageUrl({ search, status, stage: safeStage }, pageNum - 1)}>
+                      <Button variant="outline" size="sm">Previous</Button>
+                    </Link>
+                  )}
+                  {hasNext && (
+                    <Link href={buildPageUrl({ search, status, stage: safeStage }, pageNum + 1)}>
+                      <Button variant="outline" size="sm">Next</Button>
+                    </Link>
+                  )}
+                </div>
+              </div>
+            )}
+          </>
         )}
       </div>
     </>
