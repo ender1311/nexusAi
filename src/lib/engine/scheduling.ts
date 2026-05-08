@@ -40,12 +40,14 @@ export function computeScheduledAt(
       return { scheduledAt: candidate, inLocalTime: false };
     }
   }
-  // Fallback: deliver at the agent's configured hour in each user's local timezone via Braze in_local_time
+  // Fallback: deliver at the agent's configured hour in each user's local timezone via Braze in_local_time.
+  // We pass today's date — do NOT advance to tomorrow based on UTC clock.
+  // Braze's in_local_time re-interprets the hour in each user's local timezone and automatically
+  // moves to the next day for users whose local 8am has already passed.
+  // Advancing server-side would push ALL users to tomorrow, which is wrong for US timezones
+  // when the cron runs after 8am UTC but before 8am local time.
   const fallback = new Date(now);
   fallback.setUTCHours(agentFallbackHour, 0, 0, 0);
-  if (fallback <= now) {
-    fallback.setUTCDate(fallback.getUTCDate() + 1);
-  }
   return { scheduledAt: fallback, inLocalTime: true };
 }
 
