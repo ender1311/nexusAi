@@ -1,5 +1,6 @@
 "use client";
 
+import dynamic from "next/dynamic";
 import Link from "next/link";
 import {
   Cpu,
@@ -21,6 +22,21 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
 import { Separator } from "@/components/ui/separator";
+
+const BetaCurve = dynamic(() => import("@/components/demo/BetaCurve"), {
+  loading: () => <div className="w-[160px] h-16 rounded border border-border bg-muted/30 animate-pulse" />,
+  ssr: false,
+});
+
+const PhoneMockup = dynamic(() => import("@/components/demo/PhoneMockup"), {
+  loading: () => <div className="w-52 h-[320px] rounded-[2.5rem] bg-muted/30 animate-pulse mx-auto" />,
+  ssr: false,
+});
+
+const FlywheelDiagram = dynamic(() => import("@/components/demo/FlywheelDiagram"), {
+  loading: () => <div className="w-full max-w-md h-64 rounded-lg bg-muted/30 animate-pulse mx-auto" />,
+  ssr: false,
+});
 
 // ─── Color palette ─────────────────────────────────────────────────────────────
 const STEP_COLORS = [
@@ -68,171 +84,6 @@ function StepHeader({
         <h2 className="text-xl font-semibold">{title}</h2>
         <p className="text-sm text-muted-foreground mt-0.5">{subtitle}</p>
       </div>
-    </div>
-  );
-}
-
-function BetaCurve({
-  alpha,
-  beta,
-  sample,
-  highlight,
-}: {
-  alpha: number;
-  beta: number;
-  sample: number;
-  highlight: boolean;
-}) {
-  const mode = (alpha - 1) / (alpha + beta - 2);
-  const sigma = 1 / Math.sqrt(alpha + beta);
-
-  const points: string[] = [];
-  for (let i = 0; i <= 100; i++) {
-    const x = i / 100;
-    const z = (x - mode) / sigma;
-    const y = Math.exp(-0.5 * z * z);
-    const px = 10 + i * 1.4;
-    const py = 55 - y * 48;
-    points.push(`${px},${py}`);
-  }
-  const polyline = points.join(" ");
-  const sampleX = 10 + sample * 140;
-
-  return (
-    <svg
-      width="160"
-      height="64"
-      className={`rounded border ${highlight ? "border-[#57a16c] bg-[#57a16c]/5" : "border-border bg-muted/30"}`}
-    >
-      <polyline
-        points={polyline}
-        fill="none"
-        stroke={highlight ? "#57a16c" : "hsl(var(--muted-foreground))"}
-        strokeWidth="2"
-      />
-      <line
-        x1={sampleX}
-        y1="8"
-        x2={sampleX}
-        y2="56"
-        stroke={highlight ? "#57a16c" : "hsl(var(--muted-foreground))"}
-        strokeWidth="1.5"
-        strokeDasharray="3,2"
-      />
-      <text x={sampleX + 3} y="16" fontSize="8" fill={highlight ? "#57a16c" : "hsl(var(--muted-foreground))"}>
-        {sample.toFixed(2)}
-      </text>
-    </svg>
-  );
-}
-
-function PhoneMockup() {
-  return (
-    <div className="flex justify-center">
-      <div className="relative w-52 bg-gray-900 rounded-[2.5rem] p-3 shadow-2xl border-4 border-gray-700">
-        {/* Notch */}
-        <div className="absolute top-0 left-1/2 -translate-x-1/2 w-20 h-5 bg-gray-900 rounded-b-xl z-10" />
-        {/* Status bar */}
-        <div className="flex justify-between px-3 pt-4 pb-1 text-gray-400 text-[8px]">
-          <span>9:41</span>
-          <span>●●●</span>
-        </div>
-        {/* Screen */}
-        <div className="bg-gray-800 rounded-2xl min-h-[260px] p-2 space-y-2">
-          {/* Wallpaper hint */}
-          <div className="h-16 bg-gradient-to-br from-gray-700 to-gray-800 rounded-xl" />
-          {/* Push notification card — YouVersion/Holy Bible style */}
-          <div className="bg-white rounded-2xl p-3 text-gray-900 shadow-lg border border-gray-100">
-            <div className="flex items-start gap-2">
-              {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img
-                src="https://air-prod.imgix.net/836ed311-f54b-4463-a1f4-b1628a91ca30.jpg?w=97&h=97&fm=png&fit=crop"
-                alt="Bible App"
-                className="w-10 h-10 rounded-[10px] shrink-0"
-              />
-              <div className="flex-1 min-w-0">
-                <div className="flex items-center justify-between gap-1 mb-0.5">
-                  <p className="text-[11px] font-bold text-gray-900 leading-tight">
-                    Great job! 👏
-                  </p>
-                  <span className="text-[9px] text-gray-500 shrink-0">now</span>
-                </div>
-                <p className="text-[10px] text-gray-800 leading-snug">
-                  You&apos;re doing amazing! Continue your whole Bible Plan ➡️
-                </p>
-              </div>
-            </div>
-          </div>
-        </div>
-        {/* Home indicator */}
-        <div className="flex justify-center mt-2">
-          <div className="w-20 h-1 bg-gray-600 rounded-full" />
-        </div>
-      </div>
-    </div>
-  );
-}
-
-function FlywheelDiagram() {
-  const muted = "hsl(var(--muted-foreground))";
-  const border = "hsl(var(--border))";
-
-  return (
-    <div className="flex justify-center w-full overflow-visible">
-      <svg
-        viewBox="0 0 360 260"
-        className="w-full max-w-md"
-        preserveAspectRatio="xMidYMid meet"
-      >
-        <defs>
-          <marker id="flywheel-arrow" markerWidth="8" markerHeight="8" refX="4" refY="4" orient="auto">
-            <path d="M0,0 L0,8 L8,4 z" fill={muted} />
-          </marker>
-        </defs>
-
-        {/* Center: AI decisioning loop */}
-        <text x="180" y="128" textAnchor="middle" fontSize="12" fontWeight="600" fill={muted}>
-          AI decisioning loop
-        </text>
-
-        {/* Top: Nexus */}
-        <rect x="140" y="8" width="80" height="36" rx="8" fill="#8b5cf6" fillOpacity="0.15" stroke="#8b5cf6" strokeWidth="2" />
-        <text x="180" y="30" textAnchor="middle" fontSize="11" fontWeight="700" fill="#8b5cf6">Nexus</text>
-
-        {/* Right: Marketing automation platform */}
-        <rect x="268" y="88" width="84" height="36" rx="8" fill="#f97316" fillOpacity="0.15" stroke="#f97316" strokeWidth="2" />
-        <text x="310" y="105" textAnchor="middle" fontSize="9" fontWeight="600" fill="#f97316">Marketing</text>
-        <text x="310" y="116" textAnchor="middle" fontSize="9" fontWeight="600" fill="#f97316">automation</text>
-
-        {/* Bottom: Identified customers */}
-        <rect x="140" y="216" width="80" height="36" rx="8" fill="#22c55e" fillOpacity="0.15" stroke="#22c55e" strokeWidth="2" />
-        <text x="180" y="236" textAnchor="middle" fontSize="10" fontWeight="600" fill="#22c55e">Identified</text>
-        <text x="180" y="247" textAnchor="middle" fontSize="10" fontWeight="600" fill="#22c55e">customers</text>
-
-        {/* Left: Warehouse or CDP */}
-        <rect x="8" y="88" width="84" height="36" rx="8" fill="#a855f7" fillOpacity="0.15" stroke="#a855f7" strokeWidth="2" />
-        <text x="50" y="105" textAnchor="middle" fontSize="9" fontWeight="600" fill="#a855f7">Warehouse</text>
-        <text x="50" y="116" textAnchor="middle" fontSize="9" fontWeight="600" fill="#a855f7">or CDP</text>
-
-        {/* Arrows with labels */}
-        {/* Nexus → Marketing automation */}
-        <path d="M 180 44 L 180 70 L 268 106" fill="none" stroke={border} strokeWidth="1.5" markerEnd="url(#flywheel-arrow)" />
-        <text x="200" y="75" fontSize="8" fill={muted}>Daily customer-level</text>
-        <text x="200" y="84" fontSize="8" fill={muted}>decisions</text>
-
-        {/* Marketing automation → Identified customers */}
-        <path d="M 310 124 L 310 170 L 180 216" fill="none" stroke={border} strokeWidth="1.5" markerEnd="url(#flywheel-arrow)" />
-        <text x="280" y="155" fontSize="8" fill={muted}>Communications</text>
-
-        {/* Identified customers → Warehouse or CDP */}
-        <path d="M 180 216 L 50 124" fill="none" stroke={border} strokeWidth="1.5" markerEnd="url(#flywheel-arrow)" />
-        <text x="100" y="185" fontSize="8" fill={muted}>Interactions</text>
-
-        {/* Warehouse or CDP → Nexus */}
-        <path d="M 50 106 L 50 70 L 140 44" fill="none" stroke={border} strokeWidth="1.5" markerEnd="url(#flywheel-arrow)" />
-        <text x="50" y="55" fontSize="8" fill={muted}>First-party data</text>
-        <text x="50" y="64" fontSize="8" fill={muted}>(daily feed)</text>
-      </svg>
     </div>
   );
 }
