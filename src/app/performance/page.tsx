@@ -38,36 +38,34 @@ export default async function PerformancePage() {
   const now = new Date();
   const thirtyDaysAgo = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
 
-  const [agents, allDecisions] = await Promise.all([
+  // Per-agent send/conversion counts — aggregated in the DB, not in JS
+  const [agents, sendsByAgent, conversionsByAgent] = await Promise.all([
     prisma.agent.findMany({
       select: { id: true, name: true, status: true },
       orderBy: { updatedAt: "desc" },
     }),
-    prisma.userDecision.findMany({
+    prisma.userDecision.groupBy({
+      by: ["agentId"],
       where: { sentAt: { gte: thirtyDaysAgo } },
-      select: {
-        id: true, agentId: true, sentAt: true, conversionAt: true, reward: true, channel: true,
-        messageVariantId: true,
-        variant: { select: { name: true } },
-      },
+      _count: { id: true },
+    }),
+    prisma.userDecision.groupBy({
+      by: ["agentId"],
+      where: { sentAt: { gte: thirtyDaysAgo }, conversionAt: { not: null } },
+      _count: { id: true },
     }),
   ]);
 
-  // Per-agent metrics
-  const decisionsByAgent = new Map<string, typeof allDecisions>();
-  for (const d of allDecisions) {
-    const arr = decisionsByAgent.get(d.agentId) ?? [];
-    arr.push(d);
-    decisionsByAgent.set(d.agentId, arr);
-  }
-  const fleetConvRate = allDecisions.length > 0
-    ? (allDecisions.filter((d) => d.conversionAt).length / allDecisions.length) * 100
-    : 0;
+  const sendCountByAgent = new Map(sendsByAgent.map((r) => [r.agentId, r._count.id]));
+  const convCountByAgent = new Map(conversionsByAgent.map((r) => [r.agentId, r._count.id]));
+
+  const fleetSendsTotal = sendsByAgent.reduce((s, r) => s + r._count.id, 0);
+  const fleetConversionsTotal = conversionsByAgent.reduce((s, r) => s + r._count.id, 0);
+  const fleetConvRate = fleetSendsTotal > 0 ? (fleetConversionsTotal / fleetSendsTotal) * 100 : 0;
 
   const agentMetricsReal: AgentMetric[] = agents.map((a) => {
-    const decisions = decisionsByAgent.get(a.id) ?? [];
-    const sends = decisions.length;
-    const conversions = decisions.filter((d) => d.conversionAt).length;
+    const sends = sendCountByAgent.get(a.id) ?? 0;
+    const conversions = convCountByAgent.get(a.id) ?? 0;
     const convRate = sends > 0 ? (conversions / sends) * 100 : 0;
     return {
       agentId: a.id,
@@ -81,9 +79,15 @@ export default async function PerformancePage() {
     };
   });
 
+  // Lean row fetch for time-series, variant stats, and heatmap — only the columns each aggregation needs
+  const timeseriesRows = await prisma.userDecision.findMany({
+    where: { sentAt: { gte: thirtyDaysAgo } },
+    select: { sentAt: true, conversionAt: true },
+  });
+
   // 30-day time series
   const byDate = new Map<string, { sends: number; conversions: number }>();
-  for (const d of allDecisions) {
+  for (const d of timeseriesRows) {
     const key = d.sentAt.toISOString().slice(0, 10);
     const e = byDate.get(key) ?? { sends: 0, conversions: 0 };
     e.sends++;
@@ -100,34 +104,59 @@ export default async function PerformancePage() {
   }
   const last7Days = last30Days.slice(-7);
 
-  // Top variants
-  const variantMap = new Map<string, { name: string; channel: string; agentId: string; sends: number; conversions: number; reward: number }>();
-  for (const d of allDecisions) {
-    if (!d.messageVariantId || !d.variant) continue;
-    const v = variantMap.get(d.messageVariantId) ?? { name: d.variant.name, channel: d.channel, agentId: d.agentId, sends: 0, conversions: 0, reward: 0 };
-    v.sends++;
-    if (d.conversionAt) v.conversions++;
-    v.reward += d.reward ?? 0;
-    variantMap.set(d.messageVariantId, v);
-  }
-  const topVariants: VariantMetric[] = Array.from(variantMap.entries())
-    .map(([variantId, v]) => ({
-      variantId,
-      variantName: v.name,
-      channel: v.channel,
-      sends: v.sends,
-      conversions: v.conversions,
-      conversionRate: v.sends > 0 ? (v.conversions / v.sends) * 100 : 0,
-      ciLow: 0,
-      ciHigh: 0,
-      reward: v.reward,
-    }))
+  // Top variants — aggregate sends/conversions/reward per variant in the DB, then join names
+  const [variantSends, variantConversions, variantRewards] = await Promise.all([
+    prisma.userDecision.groupBy({
+      by: ["messageVariantId", "channel"],
+      where: { sentAt: { gte: thirtyDaysAgo }, messageVariantId: { not: null } },
+      _count: { id: true },
+    }),
+    prisma.userDecision.groupBy({
+      by: ["messageVariantId"],
+      where: { sentAt: { gte: thirtyDaysAgo }, messageVariantId: { not: null }, conversionAt: { not: null } },
+      _count: { id: true },
+    }),
+    prisma.userDecision.groupBy({
+      by: ["messageVariantId"],
+      where: { sentAt: { gte: thirtyDaysAgo }, messageVariantId: { not: null } },
+      _sum: { reward: true },
+    }),
+  ]);
+
+  const variantIds = [...new Set(variantSends.map((r) => r.messageVariantId as string))];
+  const variantNameRows = variantIds.length > 0
+    ? await prisma.messageVariant.findMany({
+        where: { id: { in: variantIds } },
+        select: { id: true, name: true },
+      })
+    : [];
+  const variantNameById = new Map(variantNameRows.map((v) => [v.id, v.name]));
+  const convByVariant = new Map(variantConversions.map((r) => [r.messageVariantId as string, r._count.id]));
+  const rewardByVariant = new Map(variantRewards.map((r) => [r.messageVariantId as string, r._sum.reward ?? 0]));
+
+  const topVariants: VariantMetric[] = variantSends
+    .map((r) => {
+      const vid = r.messageVariantId as string;
+      const sends = r._count.id;
+      const conversions = convByVariant.get(vid) ?? 0;
+      return {
+        variantId: vid,
+        variantName: variantNameById.get(vid) ?? vid,
+        channel: r.channel,
+        sends,
+        conversions,
+        conversionRate: sends > 0 ? (conversions / sends) * 100 : 0,
+        ciLow: 0,
+        ciHigh: 0,
+        reward: rewardByVariant.get(vid) ?? 0,
+      };
+    })
     .sort((a, b) => b.sends - a.sends)
     .slice(0, 10);
 
-  // Timing heatmap
+  // Timing heatmap — derived from the same lean rows already fetched for time-series
   const heatmapCounts = new Map<string, number>();
-  for (const d of allDecisions) {
+  for (const d of timeseriesRows) {
     const hour = d.sentAt.getUTCHours();
     const day = d.sentAt.getUTCDay();
     const key = `${hour}:${day}`;
@@ -152,7 +181,7 @@ export default async function PerformancePage() {
         <div className="grid grid-cols-2 md:grid-cols-4 gap-3 sm:gap-4">
           <MetricCard
             title="Total Sends (30d)"
-            value={formatNumber(allDecisions.length)}
+            value={formatNumber(fleetSendsTotal)}
             icon={Send}
           />
           <MetricCard
@@ -172,7 +201,7 @@ export default async function PerformancePage() {
           />
         </div>
 
-        {allDecisions.length === 0 && (
+        {fleetSendsTotal === 0 && (
           <Card>
             <CardContent className="py-12 text-center">
               <p className="text-sm text-muted-foreground">No sends in the last 30 days. Data will appear here once agents start sending messages.</p>

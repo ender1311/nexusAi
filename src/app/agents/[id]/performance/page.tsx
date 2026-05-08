@@ -116,10 +116,22 @@ export default async function AgentPerformancePage({
       reward: true,
       channel: true,
       messageVariantId: true,
-      variant: { select: { name: true } },
     },
     orderBy: { sentAt: "asc" },
+    // Safety cap: prevents unbounded memory growth for high-volume agents.
+    // At typical send rates this window holds well under 5 000 rows.
+    take: 5000,
   });
+
+  // Fetch variant names separately to avoid a per-row JOIN in the main query
+  const decidedVariantIds = [...new Set(decisions.map((d) => d.messageVariantId).filter((v): v is string => v !== null))];
+  const variantNameRows = decidedVariantIds.length > 0
+    ? await prisma.messageVariant.findMany({
+        where: { id: { in: decidedVariantIds } },
+        select: { id: true, name: true },
+      })
+    : [];
+  const variantNameById = new Map(variantNameRows.map((v) => [v.id, v.name]));
 
   if (decisions.length === 0) {
     return (
@@ -154,7 +166,7 @@ export default async function AgentPerformancePage({
   for (const d of decisions) {
     const vid = d.messageVariantId ?? "unknown";
     const entry = variantMap.get(vid) ?? {
-      name: d.variant?.name ?? "Unknown",
+      name: (d.messageVariantId ? variantNameById.get(d.messageVariantId) : undefined) ?? "Unknown",
       channel: d.channel,
       sends: 0,
       conversions: 0,
