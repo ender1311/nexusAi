@@ -1,3 +1,5 @@
+export const revalidate = 60;
+
 import { Header } from "@/components/layout/header";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -83,6 +85,7 @@ export default async function PerformancePage() {
   const timeseriesRows = await prisma.userDecision.findMany({
     where: { sentAt: { gte: thirtyDaysAgo } },
     select: { sentAt: true, conversionAt: true },
+    take: 50000,
   });
 
   // 30-day time series

@@ -70,6 +70,7 @@ export default async function AgentDetailPage({ params }: { params: Promise<{ id
     prisma.personaArmStats.findMany({
       where: { agentId: id },
       orderBy: { id: "desc" },
+      take: 500,
     }),
     prisma.persona.findMany({
       where: { isActive: true },
