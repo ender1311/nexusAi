@@ -262,7 +262,18 @@ export function AgentWizard({ personas }: { personas: Persona[] }) {
         {step < 5 ? (
           <Button
             size="sm"
-            onClick={() => setStep((s) => Math.min(5, s + 1))}
+            onClick={() => {
+              if (step === 3) {
+                // Auto-commit pending message if user filled it in but didn't click "Add Message"
+                const hasVariants = newMsg.channel === "push"
+                  ? selectedPushVariants.length > 0
+                  : newMsg.variants.length > 0;
+                if (newMsg.name.trim() && hasVariants) {
+                  addMessage();
+                }
+              }
+              setStep((s) => Math.min(5, s + 1));
+            }}
             disabled={step === 1 && (!form.name.trim() || !form.funnelStage)}
           >
             Next
