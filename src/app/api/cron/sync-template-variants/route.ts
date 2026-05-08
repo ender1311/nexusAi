@@ -14,25 +14,32 @@ export async function GET(req: NextRequest) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
+  // Fetch ALL library templates regardless of status — paused/retired templates
+  // must propagate their status to clones so agent variants stop being sent.
   const templates = await prisma.messageVariant.findMany({
     where: {
-      status: "active",
       message: { agent: { name: LIBRARY_AGENT_NAME } },
     },
   });
 
-  let templatesChecked = 0;
-  let clonesUpdated = 0;
+  // Sync all templates in parallel — each call is an updateMany (O(1) round trips per template)
+  const results = await Promise.allSettled(
+    templates.map((template) => {
+      const copyData = Object.fromEntries(
+        TEMPLATE_COPY_FIELDS.map((f) => [f, (template as Record<string, unknown>)[f]])
+      );
+      return syncClonesFromTemplate(template.id, copyData);
+    })
+  );
 
-  for (const template of templates) {
-    templatesChecked++;
-    const copyData = Object.fromEntries(
-      TEMPLATE_COPY_FIELDS.map((f) => [f, (template as Record<string, unknown>)[f]])
-    );
-    const updated = await syncClonesFromTemplate(template.id, copyData);
-    clonesUpdated += updated;
+  const templatesChecked = templates.length;
+  let clonesUpdated = 0;
+  let errors = 0;
+  for (const r of results) {
+    if (r.status === "fulfilled") clonesUpdated += r.value;
+    else errors++;
   }
 
-  console.log(`[cron/sync-template-variants] checked=${templatesChecked} clonesUpdated=${clonesUpdated}`);
-  return NextResponse.json({ ok: true, templatesChecked, clonesUpdated });
+  console.log(`[cron/sync-template-variants] checked=${templatesChecked} clonesUpdated=${clonesUpdated} errors=${errors}`);
+  return NextResponse.json({ ok: true, templatesChecked, clonesUpdated, errors });
 }

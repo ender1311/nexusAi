@@ -17,7 +17,7 @@ export async function GET() {
     }
 
     const variants = await prisma.messageVariant.findMany({
-      where: { message: { agentId: agent.id }, status: "active" },
+      where: { message: { agentId: agent.id } },
       select: {
         id: true,
         name: true,
@@ -25,6 +25,7 @@ export async function GET() {
         body: true,
         deeplink: true,
         cta: true,
+        status: true,
         category: true,
         subcategory: true,
       },
@@ -50,7 +51,9 @@ export async function GET() {
       }))
     );
 
-    return NextResponse.json({ data });
+    const res = NextResponse.json({ data });
+    res.headers.set("Cache-Control", "public, s-maxage=30, stale-while-revalidate=60");
+    return res;
   } catch (error) {
     console.error("GET /api/push-library error:", error);
     return NextResponse.json({ error: "Failed to fetch templates" }, { status: 500 });

@@ -26,13 +26,15 @@ export async function GET(): Promise<NextResponse<StatsData | { error: string }>
       where: { conversionAt: { not: null } },
     });
 
-    return NextResponse.json({
+    const res = NextResponse.json({
       trackedUsers,
       personas,
       agents,
       totalDecisions: decisions._count.id,
       totalConversions,
     });
+    res.headers.set("Cache-Control", "public, s-maxage=60, stale-while-revalidate=120");
+    return res;
   } catch {
     return NextResponse.json({ error: "Failed to load stats" }, { status: 500 });
   }

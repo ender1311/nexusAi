@@ -20,7 +20,7 @@ export async function GET(): Promise<NextResponse<{ data: CronRunData[] }>> {
     take: 20,
   });
 
-  return NextResponse.json({
+  const res = NextResponse.json({
     data: runs.map((r) => ({
       id: r.id,
       cronName: r.cronName,
@@ -34,4 +34,6 @@ export async function GET(): Promise<NextResponse<{ data: CronRunData[] }>> {
       errorMsg: r.errorMsg,
     })),
   });
+  res.headers.set("Cache-Control", "public, s-maxage=15, stale-while-revalidate=30");
+  return res;
 }

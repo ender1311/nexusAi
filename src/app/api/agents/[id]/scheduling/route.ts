@@ -1,6 +1,29 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
 
+/** Lean GET — returns only what the scheduling UI needs (name + rule).
+ *  Avoids fetching the full agent payload (messages, variants, goals). */
+export async function GET(
+  _req: NextRequest,
+  { params }: { params: Promise<{ id: string }> },
+) {
+  const { id } = await params;
+  try {
+    const agent = await prisma.agent.findUnique({
+      where: { id },
+      select: {
+        name: true,
+        schedulingRule: true,
+      },
+    });
+    if (!agent) return NextResponse.json({ error: "Not found" }, { status: 404 });
+    return NextResponse.json(agent);
+  } catch (error) {
+    console.error(`GET /api/agents/${id}/scheduling error:`, error);
+    return NextResponse.json({ error: "Failed to fetch scheduling" }, { status: 500 });
+  }
+}
+
 export async function PUT(
   req: NextRequest,
   { params }: { params: Promise<{ id: string }> },

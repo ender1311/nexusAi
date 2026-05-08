@@ -18,7 +18,9 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ id:
       },
     });
     if (!agent) return NextResponse.json({ error: "Not found" }, { status: 404 });
-    return NextResponse.json(agent);
+    const res = NextResponse.json(agent);
+    res.headers.set("Cache-Control", "public, s-maxage=30, stale-while-revalidate=60");
+    return res;
   } catch (error) {
     console.error(`GET /api/agents/${id} error:`, error);
     return NextResponse.json({ error: "Failed to fetch agent" }, { status: 500 });

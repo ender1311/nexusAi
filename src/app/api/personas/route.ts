@@ -66,7 +66,9 @@ export async function GET() {
     orderBy: [{ source: "asc" }, { createdAt: "asc" }],
   });
 
-  return NextResponse.json(personas.map(toApiPersona));
+  const res = NextResponse.json(personas.map(toApiPersona));
+  res.headers.set("Cache-Control", "public, s-maxage=30, stale-while-revalidate=60");
+  return res;
 }
 
 export async function POST(req: NextRequest) {
