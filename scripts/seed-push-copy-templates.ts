@@ -54,9 +54,11 @@ type VariantDef = {
 
 // Reward variants are triggered after a user reads (celebrate the action).
 // They are paused until the reward send pipeline is configured.
+// "daily-reward-PUSH-N" = post-read reward; "daily-reward-remind-REMIND-N" = re-engagement remind (not a reward).
 function isRewardVariant(v: VariantDef): boolean {
   const src = v.actionFeatures.sourceFile;
-  if (src.includes("daily-reward")) return true;
+  // Open-bible reward variants: sourceFile contains "daily-reward-PUSH-" (not "daily-reward-remind")
+  if (/daily-reward-PUSH-\d+/.test(src)) return true;
   // BiOY reward variants use PUSH-2 through PUSH-20; remind variants use PUSH-22+
   const bioyMatch = src.match(/bioy-workflow-PUSH-(\d+)/);
   if (bioyMatch) return parseInt(bioyMatch[1]) <= 20;
