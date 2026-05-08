@@ -672,6 +672,53 @@ export default function DemoPage() {
               ))}
             </div>
 
+            {/* Arm probabilities explainer */}
+            <div className="rounded-lg border bg-muted/20 p-4 space-y-3">
+              <div className="flex items-center gap-2">
+                <Brain className="h-4 w-4 text-muted-foreground shrink-0" />
+                <p className="text-sm font-semibold">Arm Probabilities at Decide-Time</p>
+              </div>
+              <p className="text-sm text-muted-foreground leading-relaxed">
+                The random score drawn from each variant&apos;s Beta distribution at the moment of a send is called its{" "}
+                <strong className="text-foreground">arm probability</strong>. These are recorded alongside every decision and are visible
+                in the Sends tab when you expand any row — letting you see exactly how competitive each variant was
+                at the moment it was (or wasn&apos;t) chosen.
+              </p>
+              {/* Mini replica of Sends table expanded view */}
+              <div className="rounded-md border bg-background px-3 py-2.5 space-y-1.5">
+                <p className="text-[10px] font-medium text-muted-foreground uppercase tracking-wide mb-2">
+                  Arm probabilities at decide-time
+                </p>
+                {[
+                  { id: "B", label: "Evening Devotional", score: 0.83, selected: true },
+                  { id: "A", label: "Daily Verse", score: 0.61, selected: false },
+                  { id: "C", label: "Plan Progress", score: 0.52, selected: false },
+                  { id: "D", label: "Community Prompt", score: 0.48, selected: false },
+                ].map(({ id, label, score, selected }) => {
+                  const pct = (score / 0.83) * 100;
+                  return (
+                    <div key={id} className="flex items-center gap-2">
+                      <span className={`text-[10px] font-mono w-28 shrink-0 truncate ${selected ? "text-primary font-semibold" : "text-muted-foreground"}`}>
+                        {selected ? "★ " : "  "}{label}
+                      </span>
+                      <div className="flex-1 h-1.5 rounded-full bg-muted overflow-hidden">
+                        <div
+                          className={`h-full rounded-full ${selected ? "bg-primary" : "bg-muted-foreground/30"}`}
+                          style={{ width: `${pct}%` }}
+                        />
+                      </div>
+                      <span className="text-[10px] font-mono text-muted-foreground w-8 text-right">
+                        {(score * 100).toFixed(0)}%
+                      </span>
+                    </div>
+                  );
+                })}
+              </div>
+              <p className="text-xs text-muted-foreground">
+                The bars are <em>relative</em> — the winner is always 100%, others are shown proportionally. A close race means the model is still uncertain; a dominant winner means it&apos;s converged.
+              </p>
+            </div>
+
             {/* Decision bar */}
             <div className="rounded-lg bg-[#57a16c]/10 border border-[#57a16c]/30 px-4 py-3 flex items-center gap-3">
               <Brain className="h-5 w-5 text-[#57a16c] shrink-0" />
