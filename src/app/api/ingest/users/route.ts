@@ -140,8 +140,11 @@ export async function POST(req: NextRequest) {
 
     const planId = brazeAttrs.plan_day_last_plan_id ?? null;
     const planTags = planId ? (planTagMap.get(planId) ?? []) : [];
+
+    // Funnel-stage persona override: lapsed users → Returning (Re-engager persona)
+    const isLapsed = user.funnel_stage === "lapsed" || user.funnel_stage === "lapsed_mau";
     // Default to "Bible-first" (Word-driven persona) when classifier has insufficient data
-    const personaLabel = classifyPersona(brazeAttrs, planTags) ?? "Bible-first";
+    const personaLabel = isLapsed ? "Re-engager" : (classifyPersona(brazeAttrs, planTags) ?? "Bible-first");
     const personaId = personaByLabel.get(personaLabel) ?? null;
 
     const personaData = personaId

@@ -26,6 +26,7 @@
 | Hightouch column | Payload field |
 |---|---|
 | `USER_ID` | `external_user_id` (required) |
+| `funnel_stage` | `funnel_stage` (top-level — drives persona assignment override) |
 | `first_name` | `attributes.first_name` |
 | `last_name` | `attributes.last_name` |
 | `email` | `attributes.email` |
@@ -66,6 +67,14 @@ See `hightouch-ingest-users-payload.json` in this directory.
     ]
   }
   ```
+
+## Funnel Stage → Persona Rules
+
+| `funnel_stage` value | Persona assigned |
+|---|---|
+| `lapsed` | Returning (Re-engager) — overrides classifier |
+| `lapsed_mau` | Returning (Re-engager) — overrides classifier |
+| any other value | Determined by `classifyPersona()` based on plan history |
 
 ## Notes
 
