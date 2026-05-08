@@ -1,0 +1,10 @@
+- generic [active] [ref=e1]:
+  - generic [ref=e5]:
+    - generic [ref=e6]:
+      - img "Logo" [ref=e7]
+      - heading "Sign in" [level=1] [ref=e8]
+    - link "Continue with Google" [ref=e14] [cursor=pointer]:
+      - /url: api/login?provider=GoogleOAuth&state=Fe26.2%2A1%2A511a775e8cb8f072de8d3215c75e81627c2cfca46ffd84158beb598a398b6ceb%2A3EW8b7kMGqMQOn9cFjeTiQ%2AGMD3sMjn8BNyPEX9vyOZ8Q-dqoYfm0eKzD_ttQdWIKoz83lwMPfclkVE1VX5voZ1orJIJxtEc20Ss5r1R_eZgY0Caob6IKuT3QPGNiBrO9N259kF1rhRxsK2uou9h9wRmJrUaMqebaDlNcoR2hKSyA%2A1778034669484%2A6aab201cdd3eb8804f0add7af5f18ab5b336f5023da60f37c9137092d7e21ed5%2AZQ1PKFrl3eCPD6eAvrw9l640YRKmW1eLgfnqHddRFnI~2&redirect_uri=http%3A%2F%2Flocalhost%3A3000%2Fcallback&client_id=client_01K2F9H3XGE83Z60BF0HJETF7Y&source=signin&authorization_session_id=01KQXHDM5K9DNNW9ATQF91X1FN
+      - img [ref=e15]
+      - generic [ref=e21]: Continue with Google
+  - alert [ref=e22]

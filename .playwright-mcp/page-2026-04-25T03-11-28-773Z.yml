@@ -1,0 +1,311 @@
+- generic [active] [ref=e1]:
+  - generic [ref=e37]:
+    - complementary [ref=e97]:
+      - generic [ref=e98]:
+        - generic "Navigation header" [ref=e99]:
+          - link "Home" [ref=e100] [cursor=pointer]:
+            - /url: /youversion/
+            - img [ref=e102]
+          - button "Close navigation sidebar" [ref=e106] [cursor=pointer]:
+            - img [ref=e107]
+        - button "Select workspace" [ref=e111] [cursor=pointer]:
+          - generic [ref=e112]:
+            - generic [ref=e113]: YouVersion
+            - img [ref=e114]
+      - navigation "Main navigation" [ref=e116]:
+        - generic [ref=e117]:
+          - link "Home" [ref=e118] [cursor=pointer]:
+            - /url: /youversion/home
+            - generic [ref=e119]:
+              - img [ref=e120]
+              - generic [ref=e122]: Home
+          - link "Agents" [ref=e123] [cursor=pointer]:
+            - /url: /youversion/agents
+            - generic [ref=e124]:
+              - img [ref=e125]
+              - generic [ref=e130]: Agents
+          - generic [ref=e131]:
+            - link "Activation" [ref=e132] [cursor=pointer]:
+              - /url: /youversion/syncs
+              - generic [ref=e133]:
+                - img [ref=e134]
+                - generic [ref=e136]: Activation
+            - generic [ref=e138]:
+              - link "Syncs" [ref=e141] [cursor=pointer]:
+                - /url: /youversion/syncs
+                - generic [ref=e143]: Syncs
+              - link "Models" [ref=e146] [cursor=pointer]:
+                - /url: /youversion/models
+                - generic [ref=e148]: Models
+              - link "Sequences" [ref=e150] [cursor=pointer]:
+                - /url: /youversion/sequences
+                - generic [ref=e152]: Sequences
+          - link "Customer Studio" [ref=e154] [cursor=pointer]:
+            - /url: /youversion/audiences
+            - generic [ref=e155]:
+              - img [ref=e156]
+              - generic [ref=e158]: Customer Studio
+          - link "AI Decisioning" [ref=e159] [cursor=pointer]:
+            - /url: /youversion/ai
+            - generic [ref=e160]:
+              - img [ref=e161]
+              - generic [ref=e163]: AI Decisioning
+          - link "Intelligence" [ref=e165] [cursor=pointer]:
+            - /url: /youversion/analytics
+            - generic [ref=e166]:
+              - img [ref=e167]
+              - generic [ref=e169]: Intelligence
+          - link "Identity Resolution" [ref=e170] [cursor=pointer]:
+            - /url: /youversion/idr
+            - generic [ref=e171]:
+              - img [ref=e172]
+              - generic [ref=e174]: Identity Resolution
+          - link "Integrations" [ref=e176] [cursor=pointer]:
+            - /url: /youversion/destinations
+            - generic [ref=e177]:
+              - img [ref=e178]
+              - generic [ref=e180]: Integrations
+        - generic [ref=e182]:
+          - link "Settings" [ref=e184] [cursor=pointer]:
+            - /url: /youversion/settings
+            - generic [ref=e185]:
+              - img [ref=e186]
+              - generic [ref=e188]: Settings
+          - button "Docs + Support" [ref=e189] [cursor=pointer]:
+            - img [ref=e190]
+            - generic [ref=e192]: Docs + Support
+          - button "Dan Luk dan.luk@youversion.com" [ref=e193] [cursor=pointer]:
+            - img "Dan Luk" [ref=e195]: DL
+            - generic [ref=e196]: dan.luk@youversion.com
+    - generic [ref=e199]:
+      - generic [ref=e200]:
+        - link "All models" [ref=e201] [cursor=pointer]:
+          - /url: /youversion/models
+          - generic [ref=e202]:
+            - img [ref=e203]
+            - generic [ref=e206]: All models
+        - generic [ref=e207]: /
+        - link "Identity Resolution" [ref=e208] [cursor=pointer]:
+          - /url: /youversion/models?folder=6dbc4e85-9806-4b59-9be3-867adea164ab
+          - generic [ref=e211]: Identity Resolution
+      - generic [ref=e212]:
+        - generic [ref=e214]:
+          - generic [ref=e215]:
+            - group "Editable input" [ref=e216]:
+              - generic [ref=e217] [cursor=pointer]:
+                - heading "Identifying NAF Events" [level=2] [ref=e218]
+                - img [ref=e220]
+            - generic [ref=e222]:
+              - button "Refresh columns" [ref=e223] [cursor=pointer]:
+                - img [ref=e224]
+              - link "Add sync" [ref=e226] [cursor=pointer]:
+                - /url: /youversion/syncs/new
+              - button "deploy" [ref=e227] [cursor=pointer]:
+                - img [ref=e228]
+              - button "Actions" [ref=e230] [cursor=pointer]:
+                - img [ref=e231]
+          - group "Editable textarea" [ref=e234]:
+            - generic [ref=e236] [cursor=pointer]:
+              - generic [ref=e237]: Filtered list of NAF events for Hightouch to accurately construct user sessions and ownership.
+              - img [ref=e239]
+          - generic [ref=e241]:
+            - generic [ref=e242]:
+              - img "BigQuery" [ref=e243]
+              - link "youversion-hightouch" [ref=e244] [cursor=pointer]:
+                - /url: /youversion/sources/40089
+            - generic [ref=e245]:
+              - generic [ref=e246]: "Last updated:"
+              - generic [ref=e247]:
+                - text: 03/27/26
+                - generic [ref=e248]: by
+                - img "Josh Jameson" [ref=e250]: JJ
+            - generic [ref=e251]:
+              - generic [ref=e252]: "Slug:"
+              - generic [ref=e253]:
+                - generic [ref=e254]: identifying-naf-events
+                - button "Copy to clipboard" [ref=e255] [cursor=pointer]:
+                  - img [ref=e256]
+        - navigation [ref=e259]:
+          - list [ref=e260]:
+            - listitem [ref=e261]:
+              - link "Configuration" [ref=e262] [cursor=pointer]:
+                - /url: /youversion/models/4172146/configuration
+                - generic [ref=e264]: Configuration
+            - listitem [ref=e265]:
+              - link "Syncs 0" [ref=e266] [cursor=pointer]:
+                - /url: /youversion/models/4172146/syncs
+                - generic [ref=e267]:
+                  - generic [ref=e268]: Syncs
+                  - generic [ref=e271]: "0"
+            - listitem [ref=e272]:
+              - link "Activity" [ref=e273] [cursor=pointer]:
+                - /url: /youversion/models/4172146/activity
+                - generic [ref=e275]: Activity
+            - listitem [ref=e276]:
+              - link "Columns" [ref=e277] [cursor=pointer]:
+                - /url: /youversion/models/4172146/columns
+                - generic [ref=e279]: Columns
+            - listitem [ref=e281]:
+              - link "Match Booster" [ref=e282] [cursor=pointer]:
+                - /url: /youversion/models/4172146/match-booster
+                - generic [ref=e284]: Match Booster
+        - generic [ref=e286]:
+          - generic [ref=e290]:
+            - generic:
+              - img
+            - searchbox "Search columns..." [ref=e291]
+          - table [ref=e292]:
+            - rowgroup [ref=e293]:
+              - row "Name Type Description" [ref=e294]:
+                - columnheader "Name" [ref=e295] [cursor=pointer]:
+                  - text: Name
+                  - img [ref=e298]
+                - columnheader "Type" [ref=e301] [cursor=pointer]:
+                  - text: Type
+                  - img [ref=e304]
+                - columnheader "Description" [ref=e307]
+            - rowgroup [ref=e308]:
+              - row "app_and_installation_id Editable textarea" [ref=e309]:
+                - cell "app_and_installation_id" [ref=e310]:
+                  - generic [ref=e312]: app_and_installation_id
+                - cell [ref=e313]:
+                  - combobox "Number (Default), press to show options" [ref=e315] [cursor=pointer]:
+                    - generic [ref=e316]: Number (Default)
+                    - img [ref=e317]
+                - cell "Editable textarea" [ref=e319]:
+                  - group "Editable textarea" [ref=e320]:
+                    - generic [ref=e322] [cursor=pointer]:
+                      - generic [ref=e323]: Unique hash of application_id and installation_id, used to uniquely identify an installation using a specific application.
+                      - img [ref=e325]
+              - row "braze_device_id Editable textarea" [ref=e327]:
+                - cell "braze_device_id" [ref=e328]:
+                  - generic [ref=e330]: braze_device_id
+                - cell [ref=e331]:
+                  - combobox "String (Default), press to show options" [ref=e333] [cursor=pointer]:
+                    - generic [ref=e334]: String (Default)
+                    - img [ref=e335]
+                - cell "Editable textarea" [ref=e337]:
+                  - group "Editable textarea" [ref=e338]:
+                    - generic [ref=e340] [cursor=pointer]:
+                      - generic [ref=e341]: Unique identifier issued by the Braze SDK.
+                      - img [ref=e343]
+              - row "device_id Editable textarea" [ref=e345]:
+                - cell "device_id" [ref=e346]:
+                  - generic [ref=e348]: device_id
+                - cell [ref=e349]:
+                  - combobox "String (Default), press to show options" [ref=e351] [cursor=pointer]:
+                    - generic [ref=e352]: String (Default)
+                    - img [ref=e353]
+                - cell "Editable textarea" [ref=e355]:
+                  - group "Editable textarea" [ref=e356]:
+                    - generic [ref=e358] [cursor=pointer]:
+                      - generic [ref=e359]: Derived from IDFV for iOS and firebase_id for Android.
+                      - img [ref=e361]
+              - row "device_merge Editable textarea" [ref=e363]:
+                - cell "device_merge" [ref=e364]:
+                  - generic [ref=e366]: device_merge
+                - cell [ref=e367]:
+                  - combobox "Number (Default), press to show options" [ref=e369] [cursor=pointer]:
+                    - generic [ref=e370]: Number (Default)
+                    - img [ref=e371]
+                - cell "Editable textarea" [ref=e373]:
+                  - group "Editable textarea" [ref=e374]:
+                    - generic [ref=e376] [cursor=pointer]:
+                      - generic [ref=e377]: Stable merge key for linking unknown-device and known-device profiles in Hightouch IDR.
+                      - img [ref=e379]
+              - row "event_id Editable textarea" [ref=e381]:
+                - cell "event_id" [ref=e382]:
+                  - generic [ref=e384]: event_id
+                - cell [ref=e385]:
+                  - combobox "String (Default), press to show options" [ref=e387] [cursor=pointer]:
+                    - generic [ref=e388]: String (Default)
+                    - img [ref=e389]
+                - cell "Editable textarea" [ref=e391]:
+                  - group "Editable textarea" [ref=e392]:
+                    - generic [ref=e394] [cursor=pointer]:
+                      - generic [ref=e395]: Client-generated unique ID for each event. Uses the Firebase Push ID algorithm.
+                      - img [ref=e397]
+              - row "guest_id_derived Editable textarea" [ref=e399]:
+                - cell "guest_id_derived" [ref=e400]:
+                  - generic [ref=e402]: guest_id_derived
+                - cell [ref=e403]:
+                  - combobox "String (Default), press to show options" [ref=e405] [cursor=pointer]:
+                    - generic [ref=e406]: String (Default)
+                    - img [ref=e407]
+                - cell "Editable textarea" [ref=e409]:
+                  - group "Editable textarea" [ref=e410]:
+                    - generic [ref=e412] [cursor=pointer]:
+                      - generic [ref=e413]: Concatenation of app_and_installation_id, device_id, and session start timestamp for a user "guest" session.
+                      - img [ref=e415]
+              - row "installation_id Editable textarea" [ref=e417]:
+                - cell "installation_id" [ref=e418]:
+                  - generic [ref=e420]: installation_id
+                - cell [ref=e421]:
+                  - combobox "String (Default), press to show options" [ref=e423] [cursor=pointer]:
+                    - generic [ref=e424]: String (Default)
+                    - img [ref=e425]
+                - cell "Editable textarea" [ref=e427]:
+                  - group "Editable textarea" [ref=e428]:
+                    - generic [ref=e430] [cursor=pointer]:
+                      - generic [ref=e431]: YV-generated ID assigned by the Installations service.
+                      - img [ref=e433]
+              - row "occurred_timestamp Editable textarea" [ref=e435]:
+                - cell "occurred_timestamp" [ref=e436]:
+                  - generic [ref=e438]: occurred_timestamp
+                - cell [ref=e439]:
+                  - combobox "Timestamp (Default), press to show options" [ref=e441] [cursor=pointer]:
+                    - generic [ref=e442]: Timestamp (Default)
+                    - img [ref=e443]
+                - cell "Editable textarea" [ref=e445]:
+                  - group "Editable textarea" [ref=e446]:
+                    - generic [ref=e448] [cursor=pointer]:
+                      - generic [ref=e449]: "PLACEHOLDER DESCRIPTION: occurred_timestamp."
+                      - img [ref=e451]
+              - row "queued_timestamp Editable textarea" [ref=e453]:
+                - cell "queued_timestamp" [ref=e454]:
+                  - generic [ref=e456]: queued_timestamp
+                - cell [ref=e457]:
+                  - combobox "Timestamp (Default), press to show options" [ref=e459] [cursor=pointer]:
+                    - generic [ref=e460]: Timestamp (Default)
+                    - img [ref=e461]
+                - cell "Editable textarea" [ref=e463]:
+                  - group "Editable textarea" [ref=e464]:
+                    - generic [ref=e466] [cursor=pointer]:
+                      - generic [ref=e467]: "PLACEHOLDER DESCRIPTION: queued_timestamp."
+                      - img [ref=e469]
+              - row "session_id Editable textarea" [ref=e471]:
+                - cell "session_id" [ref=e472]:
+                  - generic [ref=e474]: session_id
+                - cell [ref=e475]:
+                  - combobox "String (Default), press to show options" [ref=e477] [cursor=pointer]:
+                    - generic [ref=e478]: String (Default)
+                    - img [ref=e479]
+                - cell "Editable textarea" [ref=e481]:
+                  - group "Editable textarea" [ref=e482]:
+                    - generic [ref=e484] [cursor=pointer]:
+                      - generic [ref=e485]: Firebase GA session identifier.
+                      - img [ref=e487]
+          - generic [ref=e490]:
+            - generic [ref=e491]: 11 columns
+            - button "Previous" [disabled] [ref=e492]
+            - button "1" [disabled] [ref=e493]
+            - button "2" [ref=e494] [cursor=pointer]
+            - button "Next" [ref=e495] [cursor=pointer]
+  - generic:
+    - region
+    - region
+    - region
+    - region
+    - region
+    - region
+  - iframe
+  - generic:
+    - generic:
+      - generic:
+        - generic:
+          - generic:
+            - iframe
+          - iframe [ref=e497]:
+            - button "Open customer support" [ref=f46e4]:
+              - img [ref=f46e6]
+  - status [ref=e498]

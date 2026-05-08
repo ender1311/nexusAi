@@ -1,0 +1,317 @@
+- generic [ref=e1]:
+  - generic [ref=e37]:
+    - complementary [ref=e97]:
+      - generic [ref=e98]:
+        - generic "Navigation header" [ref=e99]:
+          - link "Home" [ref=e100] [cursor=pointer]:
+            - /url: /youversion/
+            - img [ref=e102]
+          - button "Close navigation sidebar" [ref=e106] [cursor=pointer]:
+            - img [ref=e107]
+        - button "Select workspace" [ref=e111] [cursor=pointer]:
+          - generic [ref=e112]:
+            - generic [ref=e113]: YouVersion
+            - img [ref=e114]
+      - navigation "Main navigation" [ref=e116]:
+        - generic [ref=e117]:
+          - link "Home" [ref=e118] [cursor=pointer]:
+            - /url: /youversion/home
+            - generic [ref=e119]:
+              - img [ref=e120]
+              - generic [ref=e122]: Home
+          - link "Agents" [ref=e123] [cursor=pointer]:
+            - /url: /youversion/agents
+            - generic [ref=e124]:
+              - img [ref=e125]
+              - generic [ref=e130]: Agents
+          - generic [ref=e131]:
+            - link "Activation" [ref=e132] [cursor=pointer]:
+              - /url: /youversion/syncs
+              - generic [ref=e133]:
+                - img [ref=e134]
+                - generic [ref=e136]: Activation
+            - generic [ref=e138]:
+              - link "Syncs" [ref=e141] [cursor=pointer]:
+                - /url: /youversion/syncs
+                - generic [ref=e143]: Syncs
+              - link "Models" [ref=e146] [cursor=pointer]:
+                - /url: /youversion/models
+                - generic [ref=e148]: Models
+              - link "Sequences" [ref=e150] [cursor=pointer]:
+                - /url: /youversion/sequences
+                - generic [ref=e152]: Sequences
+          - link "Customer Studio" [ref=e154] [cursor=pointer]:
+            - /url: /youversion/audiences
+            - generic [ref=e155]:
+              - img [ref=e156]
+              - generic [ref=e158]: Customer Studio
+          - link "AI Decisioning" [ref=e159] [cursor=pointer]:
+            - /url: /youversion/ai
+            - generic [ref=e160]:
+              - img [ref=e161]
+              - generic [ref=e163]: AI Decisioning
+          - link "Intelligence" [ref=e165] [cursor=pointer]:
+            - /url: /youversion/analytics
+            - generic [ref=e166]:
+              - img [ref=e167]
+              - generic [ref=e169]: Intelligence
+          - link "Identity Resolution" [ref=e170] [cursor=pointer]:
+            - /url: /youversion/idr
+            - generic [ref=e171]:
+              - img [ref=e172]
+              - generic [ref=e174]: Identity Resolution
+          - link "Integrations" [ref=e176] [cursor=pointer]:
+            - /url: /youversion/destinations
+            - generic [ref=e177]:
+              - img [ref=e178]
+              - generic [ref=e180]: Integrations
+        - generic [ref=e182]:
+          - link "Settings" [ref=e184] [cursor=pointer]:
+            - /url: /youversion/settings
+            - generic [ref=e185]:
+              - img [ref=e186]
+              - generic [ref=e188]: Settings
+          - button "Docs + Support" [ref=e189] [cursor=pointer]:
+            - img [ref=e190]
+            - generic [ref=e192]: Docs + Support
+          - button "Dan Luk dan.luk@youversion.com" [ref=e193] [cursor=pointer]:
+            - img "Dan Luk" [ref=e195]: DL
+            - generic [ref=e196]: dan.luk@youversion.com
+    - generic [ref=e509]:
+      - generic [ref=e510]:
+        - link "All models" [ref=e511] [cursor=pointer]:
+          - /url: /youversion/models
+          - generic [ref=e512]:
+            - img [ref=e513]
+            - generic [ref=e516]: All models
+        - generic [ref=e517]: /
+        - link "Identity Resolution" [ref=e518] [cursor=pointer]:
+          - /url: /youversion/models?folder=6dbc4e85-9806-4b59-9be3-867adea164ab
+          - generic [ref=e521]: Identity Resolution
+      - generic [ref=e522]:
+        - generic [ref=e524]:
+          - generic [ref=e525]:
+            - group "Editable input" [ref=e526]:
+              - generic [ref=e527] [cursor=pointer]:
+                - heading "Users" [level=2] [ref=e528]
+                - img [ref=e530]
+            - generic [ref=e532]:
+              - button "Refresh columns" [ref=e533] [cursor=pointer]:
+                - img [ref=e534]
+              - link "Add sync" [ref=e536] [cursor=pointer]:
+                - /url: /youversion/syncs/new
+              - button "deploy" [ref=e537] [cursor=pointer]:
+                - img [ref=e538]
+              - button "Actions" [ref=e540] [cursor=pointer]:
+                - img [ref=e541]
+          - group "Editable textarea" [ref=e544]:
+            - generic [ref=e546] [cursor=pointer]:
+              - generic [ref=e547]: YouVersion known users
+              - img [ref=e549]
+          - generic [ref=e551]:
+            - generic [ref=e552]:
+              - img "BigQuery" [ref=e553]
+              - link "youversion-hightouch" [ref=e554] [cursor=pointer]:
+                - /url: /youversion/sources/40089
+            - generic [ref=e555]:
+              - generic [ref=e556]: "Last updated:"
+              - generic [ref=e557]:
+                - text: 03/24/26
+                - generic [ref=e558]: by
+                - img "Chris Pence" [ref=e560]: CP
+            - generic [ref=e561]:
+              - generic [ref=e562]: "Slug:"
+              - generic [ref=e563]:
+                - generic [ref=e564]: users
+                - button "Copy to clipboard" [ref=e565] [cursor=pointer]:
+                  - img [ref=e566]
+        - navigation [ref=e569]:
+          - list [ref=e570]:
+            - listitem [ref=e571]:
+              - link "Configuration" [ref=e572] [cursor=pointer]:
+                - /url: /youversion/models/4172142/configuration
+                - generic [ref=e574]: Configuration
+            - listitem [ref=e576]:
+              - link "Syncs 0" [ref=e577] [cursor=pointer]:
+                - /url: /youversion/models/4172142/syncs
+                - generic [ref=e578]:
+                  - generic [ref=e579]: Syncs
+                  - generic [ref=e582]: "0"
+            - listitem [ref=e583]:
+              - link "Activity" [ref=e584] [cursor=pointer]:
+                - /url: /youversion/models/4172142/activity
+                - generic [ref=e586]: Activity
+            - listitem [ref=e587]:
+              - link "Columns" [active] [ref=e588] [cursor=pointer]:
+                - /url: /youversion/models/4172142/columns
+                - generic [ref=e590]: Columns
+            - listitem [ref=e591]:
+              - link "Match Booster" [ref=e592] [cursor=pointer]:
+                - /url: /youversion/models/4172142/match-booster
+                - generic [ref=e594]: Match Booster
+        - generic [ref=e641]:
+          - generic [ref=e645]:
+            - generic:
+              - img
+            - searchbox "Search columns..." [ref=e646]
+          - table [ref=e647]:
+            - rowgroup [ref=e648]:
+              - row "Name Type Description" [ref=e649]:
+                - columnheader "Name" [ref=e650] [cursor=pointer]:
+                  - text: Name
+                  - img [ref=e653]
+                - columnheader "Type" [ref=e656] [cursor=pointer]:
+                  - text: Type
+                  - img [ref=e659]
+                - columnheader "Description" [ref=e662]
+            - rowgroup [ref=e663]:
+              - row "avatar_image_exists Editable textarea" [ref=e664]:
+                - cell "avatar_image_exists" [ref=e665]:
+                  - generic [ref=e667]: avatar_image_exists
+                - cell [ref=e668]:
+                  - combobox "Boolean (Default), press to show options" [ref=e670] [cursor=pointer]:
+                    - generic [ref=e671]: Boolean (Default)
+                    - img [ref=e672]
+                - cell "Editable textarea" [ref=e674]:
+                  - group "Editable textarea" [ref=e675]:
+                    - generic [ref=e677] [cursor=pointer]:
+                      - generic [ref=e678]: Does an avatar image exist?
+                      - img [ref=e680]
+              - row "badges_email_enabled Editable textarea" [ref=e682]:
+                - cell "badges_email_enabled" [ref=e683]:
+                  - generic [ref=e685]: badges_email_enabled
+                - cell [ref=e686]:
+                  - combobox "Boolean (Default), press to show options" [ref=e688] [cursor=pointer]:
+                    - generic [ref=e689]: Boolean (Default)
+                    - img [ref=e690]
+                - cell "Editable textarea" [ref=e692]:
+                  - group "Editable textarea" [ref=e693]:
+                    - generic [ref=e695] [cursor=pointer]:
+                      - generic [ref=e696]: Badges email notifications enabled
+                      - img [ref=e698]
+              - row "badges_push_enabled Editable textarea" [ref=e700]:
+                - cell "badges_push_enabled" [ref=e701]:
+                  - generic [ref=e703]: badges_push_enabled
+                - cell [ref=e704]:
+                  - combobox "Boolean (Default), press to show options" [ref=e706] [cursor=pointer]:
+                    - generic [ref=e707]: Boolean (Default)
+                    - img [ref=e708]
+                - cell "Editable textarea" [ref=e710]:
+                  - group "Editable textarea" [ref=e711]:
+                    - generic [ref=e713] [cursor=pointer]:
+                      - generic [ref=e714]: Badges push notifications enabled
+                      - img [ref=e716]
+              - row "bio_exists Editable textarea" [ref=e718]:
+                - cell "bio_exists" [ref=e719]:
+                  - generic [ref=e721]: bio_exists
+                - cell [ref=e722]:
+                  - combobox "Boolean (Default), press to show options" [ref=e724] [cursor=pointer]:
+                    - generic [ref=e725]: Boolean (Default)
+                    - img [ref=e726]
+                - cell "Editable textarea" [ref=e728]:
+                  - group "Editable textarea" [ref=e729]:
+                    - generic [ref=e731] [cursor=pointer]:
+                      - generic [ref=e732]: Has a bio been provided?
+                      - img [ref=e734]
+              - row "comments_email_enabled Editable textarea" [ref=e736]:
+                - cell "comments_email_enabled" [ref=e737]:
+                  - generic [ref=e739]: comments_email_enabled
+                - cell [ref=e740]:
+                  - combobox "Boolean (Default), press to show options" [ref=e742] [cursor=pointer]:
+                    - generic [ref=e743]: Boolean (Default)
+                    - img [ref=e744]
+                - cell "Editable textarea" [ref=e746]:
+                  - group "Editable textarea" [ref=e747]:
+                    - generic [ref=e749] [cursor=pointer]:
+                      - generic [ref=e750]: Comments email notifications enabled
+                      - img [ref=e752]
+              - row "comments_push_enabled Editable textarea" [ref=e754]:
+                - cell "comments_push_enabled" [ref=e755]:
+                  - generic [ref=e757]: comments_push_enabled
+                - cell [ref=e758]:
+                  - combobox "Boolean (Default), press to show options" [ref=e760] [cursor=pointer]:
+                    - generic [ref=e761]: Boolean (Default)
+                    - img [ref=e762]
+                - cell "Editable textarea" [ref=e764]:
+                  - group "Editable textarea" [ref=e765]:
+                    - generic [ref=e767] [cursor=pointer]:
+                      - generic [ref=e768]: Comments push notifications enabled
+                      - img [ref=e770]
+              - row "contact_joins_email_enabled Editable textarea" [ref=e772]:
+                - cell "contact_joins_email_enabled" [ref=e773]:
+                  - generic [ref=e775]: contact_joins_email_enabled
+                - cell [ref=e776]:
+                  - combobox "Boolean (Default), press to show options" [ref=e778] [cursor=pointer]:
+                    - generic [ref=e779]: Boolean (Default)
+                    - img [ref=e780]
+                - cell "Editable textarea" [ref=e782]:
+                  - group "Editable textarea" [ref=e783]:
+                    - generic [ref=e785] [cursor=pointer]:
+                      - generic [ref=e786]: Contact joins email notifications enabled
+                      - img [ref=e788]
+              - row "contact_joins_push_enabled Editable textarea" [ref=e790]:
+                - cell "contact_joins_push_enabled" [ref=e791]:
+                  - generic [ref=e793]: contact_joins_push_enabled
+                - cell [ref=e794]:
+                  - combobox "Boolean (Default), press to show options" [ref=e796] [cursor=pointer]:
+                    - generic [ref=e797]: Boolean (Default)
+                    - img [ref=e798]
+                - cell "Editable textarea" [ref=e800]:
+                  - group "Editable textarea" [ref=e801]:
+                    - generic [ref=e803] [cursor=pointer]:
+                      - generic [ref=e804]: Contact joins push notifications enabled
+                      - img [ref=e806]
+              - row "created_timestamp Editable textarea" [ref=e808]:
+                - cell "created_timestamp" [ref=e809]:
+                  - generic [ref=e811]: created_timestamp
+                - cell [ref=e812]:
+                  - combobox "Timestamp (Default), press to show options" [ref=e814] [cursor=pointer]:
+                    - generic [ref=e815]: Timestamp (Default)
+                    - img [ref=e816]
+                - cell "Editable textarea" [ref=e818]:
+                  - group "Editable textarea" [ref=e819]:
+                    - generic [ref=e821] [cursor=pointer]:
+                      - generic [ref=e822]: User account creation timestamp
+                      - img [ref=e824]
+              - row "email Editable textarea" [ref=e826]:
+                - cell "email" [ref=e827]:
+                  - generic [ref=e829]: email
+                - cell [ref=e830]:
+                  - combobox "String (Default), press to show options" [ref=e832] [cursor=pointer]:
+                    - generic [ref=e833]: String (Default)
+                    - img [ref=e834]
+                - cell "Editable textarea" [ref=e836]:
+                  - group "Editable textarea" [ref=e837]:
+                    - generic [ref=e839] [cursor=pointer]:
+                      - generic [ref=e840]: User email address
+                      - img [ref=e842]
+          - generic [ref=e845]:
+            - generic [ref=e846]: 82 columns
+            - button "Previous" [disabled] [ref=e847]
+            - button "1" [disabled] [ref=e848]
+            - button "2" [ref=e849] [cursor=pointer]
+            - button "3" [ref=e850] [cursor=pointer]
+            - button "4" [ref=e851] [cursor=pointer]
+            - button "5" [ref=e852] [cursor=pointer]
+            - button "..." [ref=e854] [cursor=pointer]:
+              - generic [ref=e855]: ...
+            - button "9" [ref=e856] [cursor=pointer]
+            - button "Next" [ref=e857] [cursor=pointer]
+  - generic:
+    - region
+    - region
+    - region
+    - region
+    - region
+    - region
+  - iframe
+  - generic:
+    - generic:
+      - generic:
+        - generic:
+          - generic:
+            - iframe
+          - iframe [ref=e495]:
+            - button "Open customer support" [ref=f24e4]:
+              - img [ref=f24e6]
+  - status [ref=e639]

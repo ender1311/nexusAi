@@ -1,0 +1,10 @@
+[      59ms] [WARNING] [LaunchDarkly] Error on stream connection: {"isTrusted":true}, will continue retrying after 792 milliseconds. @ https://app.hightouch.com/assets/vendor-D_59HmS1.js:21
+[      59ms] [INFO] [LaunchDarkly] Closing stream connection @ https://app.hightouch.com/assets/vendor-D_59HmS1.js:21
+[     581ms] [WARNING] [LaunchDarkly] The waitForInitialization function was called without a timeout specified. In a future version a default timeout will be applied. @ https://app.hightouch.com/assets/vendor-D_59HmS1.js:21
+[     589ms] [INFO] [LaunchDarkly] LaunchDarkly client initialized @ https://app.hightouch.com/assets/vendor-D_59HmS1.js:21
+[     589ms] [INFO] [LaunchDarkly] Opening stream connection to https://clientstream.launchdarkly.com/eval/61f349d48eda47179a415676/eyJraW5kIjoibXVsdGkiLCJ1c2VyIjp7ImtleSI6InVzZXItMTMyNDUyIiwibmFtZSI6IkRhbiBMdWsiLCJlbWFpbCI6ImRhbi5sdWtAeW91dmVyc2lvbi5jb20iLCJ3b3Jrc3BhY2VJZCI6ODI1NDQsIm9yZ2FuaXphdGlvbklkIjo0NjI5Nn0sIndvcmtzcGFjZSI6eyJrZXkiOiJ3b3Jrc3BhY2UtODI1NDQiLCJpZCI6ODI1NDQsIm5hbWUiOiJZb3VWZXJzaW9uIiwic2x1ZyI6InlvdXZlcnNpb24iLCJyZWdpb24iOiJnY3AtdXMtZWFzdDQiLCJvcmdhbml6YXRpb25JZCI6NDYyOTZ9fQ @ https://app.hightouch.com/assets/vendor-D_59HmS1.js:21
+[     604ms] [LOG] The global variable `chmln` is already defined.
+Please make sure you're not adding Chameleon to the page other than with this library. Alternatively, you can use the forceOverride option to remove any previous declaration.
+
+e.g.   chmln.init('token', { forceOverride: true }); @ https://app.hightouch.com/assets/vendor-D_59HmS1.js:21
+[     702ms] [ERROR] Failed to load resource: the server responded with a status of 404 () @ https://cdn.getkoala.com/v1/pk_4b7deacc464cf7736f29732ef90d8e92a40e/sdk.js:0

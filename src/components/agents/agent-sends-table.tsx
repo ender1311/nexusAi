@@ -54,6 +54,20 @@ const formatDateTime = (dateStr: string): string =>
     hour12: true,
   }).format(new Date(dateStr));
 
+// scheduledFor is stored as UTC but represents the user's local delivery time
+// (Braze inLocalTime=true). Display the UTC value as-is with a "(local)" label.
+const formatLocalDelivery = (dateStr: string): string => {
+  const formatted = new Intl.DateTimeFormat("en-US", {
+    month: "short",
+    day: "numeric",
+    hour: "numeric",
+    minute: "2-digit",
+    hour12: true,
+    timeZone: "UTC",
+  }).format(new Date(dateStr));
+  return `${formatted} (local)`;
+};
+
 const formatDateGroup = (dateStr: string): string =>
   new Intl.DateTimeFormat("en-US", {
     weekday: "long",
@@ -337,7 +351,7 @@ export function AgentSendsTable({ agentId }: Props) {
 
                       {/* Delivers */}
                       <TableCell className="text-sm text-muted-foreground hidden md:table-cell">
-                        {row.scheduledFor ? formatDateTime(row.scheduledFor) : "—"}
+                        {row.scheduledFor ? formatLocalDelivery(row.scheduledFor) : "—"}
                       </TableCell>
                     </TableRow>
 

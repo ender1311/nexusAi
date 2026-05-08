@@ -155,6 +155,9 @@ model TrackedUser {
   featureVector     Json?
   featureVectorAt   DateTime?
 
+  // Funnel stage — synced from Hightouch audience membership (optional)
+  funnelStage       String?   // "lapsed" | "connected" | "new_user" | etc; null = unknown
+
   // Persona assignment
   personaId         String?
   personaConfidence Float?

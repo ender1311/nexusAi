@@ -37,7 +37,7 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "Invalid JSON" }, { status: 400 });
   }
 
-  type UserRecord = { external_user_id?: string; idempotency_key?: string; attributes?: Record<string, unknown> };
+  type UserRecord = { external_user_id?: string; idempotency_key?: string; funnel_stage?: string; attributes?: Record<string, unknown> };
 
   let users: UserRecord[];
   if (Array.isArray(body)) {
@@ -148,17 +148,21 @@ export async function POST(req: NextRequest) {
       ? { personaId, personaConfidence: 0.8, personaAssignedAt: new Date() }
       : {};
 
+    const funnelStageData = user.funnel_stage ? { funnelStage: user.funnel_stage } : {};
+
     await prisma.trackedUser.upsert({
       where: { externalId },
       create: {
         externalId,
         attributes,
         ...(preferredSendHour !== undefined && { preferredSendHour, preferredSendMinute }),
+        ...funnelStageData,
         ...personaData,
       },
       update: {
         attributes,
         ...(preferredSendHour !== undefined && { preferredSendHour, preferredSendMinute }),
+        ...funnelStageData,
         ...personaData,
       },
     });

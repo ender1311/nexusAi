@@ -219,8 +219,11 @@ export async function POST(req: NextRequest) {
         const langFilter = agent.languageFilter && agent.languageFilter !== "all"
           ? { attributes: { path: ["language_tag"], string_starts_with: agent.languageFilter } }
           : {};
+        const funnelFilter = agent.funnelStage
+          ? { funnelStage: agent.funnelStage }
+          : {};
         const rows = await prisma.trackedUser.findMany({
-          where:  { personaId: { in: personaIds }, ...langFilter },
+          where:  { personaId: { in: personaIds }, ...langFilter, ...funnelFilter },
           select: { externalId: true },
         });
         eligibleUsersByAgent.set(agent.id, rows.map((r) => r.externalId));
@@ -282,11 +285,13 @@ export async function POST(req: NextRequest) {
       const eligible: string[] = [];
       for (const agent of explorationAgents) {
         if (!agentPersonaSets.get(agent.id)?.has(user.personaId)) continue;
-        // Language filter: skip user if their language_tag doesn't start with the filter prefix
+        // Language filter
         if (agent.languageFilter && agent.languageFilter !== "all") {
           const lang = (user.attributes as Record<string, unknown>)?.language_tag as string | undefined;
           if (!lang?.startsWith(agent.languageFilter)) continue;
         }
+        // Funnel stage filter: skip user if their funnelStage doesn't match the agent's
+        if (agent.funnelStage && user.funnelStage !== agent.funnelStage) continue;
         eligible.push(agent.id);
       }
       if (eligible.length > 0) eligibleAgentsByUser.set(user.externalId, eligible);

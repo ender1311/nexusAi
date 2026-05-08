@@ -1,0 +1,159 @@
+- generic [active] [ref=e1]:
+  - complementary [ref=e97]:
+    - generic [ref=e98]:
+      - generic [ref=e99]:
+        - link [ref=e100] [cursor=pointer]:
+          - /url: /youversion/
+          - img [ref=e102]
+        - button [ref=e106] [cursor=pointer]:
+          - img [ref=e107]
+      - button [ref=e111] [cursor=pointer]:
+        - generic [ref=e112]:
+          - generic [ref=e113]: YouVersion
+          - img [ref=e114]
+    - navigation [ref=e116]:
+      - generic [ref=e117]:
+        - link [ref=e118] [cursor=pointer]:
+          - /url: /youversion/home
+          - generic [ref=e119]:
+            - img [ref=e120]
+            - generic [ref=e122]: Home
+        - link [ref=e123] [cursor=pointer]:
+          - /url: /youversion/agents
+          - generic [ref=e124]:
+            - img [ref=e125]
+            - generic [ref=e130]: Agents
+        - link [ref=e132] [cursor=pointer]:
+          - /url: /youversion/syncs
+          - generic [ref=e133]:
+            - img [ref=e134]
+            - generic [ref=e136]: Activation
+        - link [ref=e138] [cursor=pointer]:
+          - /url: /youversion/audiences
+          - generic [ref=e139]:
+            - img [ref=e140]
+            - generic [ref=e142]: Customer Studio
+        - link [ref=e143] [cursor=pointer]:
+          - /url: /youversion/ai
+          - generic [ref=e144]:
+            - img [ref=e145]
+            - generic [ref=e147]: AI Decisioning
+        - link [ref=e149] [cursor=pointer]:
+          - /url: /youversion/analytics
+          - generic [ref=e150]:
+            - img [ref=e151]
+            - generic [ref=e153]: Intelligence
+        - link [ref=e154] [cursor=pointer]:
+          - /url: /youversion/idr
+          - generic [ref=e155]:
+            - img [ref=e156]
+            - generic [ref=e158]: Identity Resolution
+        - generic [ref=e159]:
+          - link [ref=e160] [cursor=pointer]:
+            - /url: /youversion/destinations
+            - generic [ref=e161]
+          - generic [ref=e166]:
+            - link [ref=e170] [cursor=pointer]:
+              - /url: /youversion/destinations
+            - link [ref=e174] [cursor=pointer]:
+              - /url: /youversion/sources
+            - link [ref=e178] [cursor=pointer]:
+              - /url: /youversion/extensions
+            - link [ref=e182] [cursor=pointer]:
+              - /url: /youversion/alerting
+      - generic [ref=e186]:
+        - link [ref=e188] [cursor=pointer]:
+          - /url: /youversion/settings
+          - generic [ref=e189]:
+            - img [ref=e190]
+            - generic [ref=e192]: Settings
+        - button [ref=e193] [cursor=pointer]:
+          - img [ref=e194]
+          - generic [ref=e196]: Docs + Support
+        - button [ref=e197] [cursor=pointer]:
+          - img [ref=e199]: DL
+          - generic [ref=e200]: dan.luk@youversion.com
+  - generic:
+    - region
+    - region
+    - region
+    - region
+    - region
+    - region
+  - dialog [ref=e204]:
+    - generic [ref=e205]:
+      - generic [ref=e207]:
+        - heading "Create destination" [level=3] [ref=e208]
+        - generic [ref=e209]:
+          - generic [ref=e212]: Select destination
+          - generic [ref=e216]: Connect destination
+          - generic [ref=e220]: Configure alerts
+          - generic [ref=e224]: Finalize destination
+        - button "Exit" [ref=e225] [cursor=pointer]
+      - heading "Select a destination" [level=2] [ref=e230]
+      - generic [ref=e244]:
+        - generic [ref=e246]:
+          - generic [ref=e247]:
+            - button "All"
+          - button "Advertising" [ref=e249] [cursor=pointer]:
+            - generic [ref=e250]: Advertising
+          - button "Analytics" [ref=e252] [cursor=pointer]:
+            - generic [ref=e253]: Analytics
+          - button "CRM" [ref=e255] [cursor=pointer]:
+            - generic [ref=e256]: CRM
+          - button "Content management" [ref=e258] [cursor=pointer]:
+            - generic [ref=e259]: Content management
+          - button "Conversions" [ref=e261] [cursor=pointer]:
+            - generic [ref=e262]: Conversions
+          - button "Customer success" [ref=e264] [cursor=pointer]:
+            - generic [ref=e265]: Customer success
+          - button "Databases" [ref=e267] [cursor=pointer]:
+            - generic [ref=e268]: Databases
+          - button "Developer tools" [ref=e270] [cursor=pointer]:
+            - generic [ref=e271]: Developer tools
+          - button "E-commerce" [ref=e273] [cursor=pointer]:
+            - generic [ref=e274]: E-commerce
+          - button "Email" [ref=e276] [cursor=pointer]:
+            - generic [ref=e277]: Email
+          - button "File storage" [ref=e279] [cursor=pointer]:
+            - generic [ref=e280]: File storage
+          - button "Finance & ERP" [ref=e282] [cursor=pointer]:
+            - generic [ref=e283]: Finance & ERP
+          - button "Internal notifications" [ref=e285] [cursor=pointer]:
+            - generic [ref=e286]: Internal notifications
+          - button "Live chat & help desk" [ref=e288] [cursor=pointer]:
+            - generic [ref=e289]: Live chat & help desk
+          - button "Payments" [ref=e291] [cursor=pointer]:
+            - generic [ref=e292]: Payments
+          - button "Product experience" [ref=e294] [cursor=pointer]:
+            - generic [ref=e295]: Product experience
+          - button "Productivity tools" [ref=e297] [cursor=pointer]:
+            - generic [ref=e298]: Productivity tools
+          - button "SMS & push" [ref=e300] [cursor=pointer]:
+            - generic [ref=e301]: SMS & push
+          - button "Sales" [ref=e303] [cursor=pointer]:
+            - generic [ref=e304]: Sales
+          - button "Spreadsheets" [ref=e306] [cursor=pointer]:
+            - generic [ref=e307]: Spreadsheets
+          - button "Surveys" [ref=e309] [cursor=pointer]:
+            - generic [ref=e310]: Surveys
+        - generic [ref=e311]:
+          - generic [ref=e313]:
+            - generic
+            - searchbox "Search destinations..." [ref=e314]
+          - generic [ref=e315]:
+            - list "Available destinations" [ref=e316]
+            - list "Not yet available destinations" [ref=e1889]
+      - button "Continue" [disabled] [ref=e238]:
+        - text: Continue
+        - img [ref=e240]
+  - iframe
+  - generic:
+    - generic:
+      - generic:
+        - generic:
+          - generic:
+            - iframe
+          - iframe [ref=e243]:
+            - button "Open customer support" [ref=f11e4]:
+              - img [ref=f11e6]
