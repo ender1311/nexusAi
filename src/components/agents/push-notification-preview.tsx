@@ -65,7 +65,7 @@ interface PushNotificationPreviewProps {
   previewName?: string;
 }
 
-export function PushNotificationPreview({ title, body, deeplink, previewName = "Friend" }: PushNotificationPreviewProps) {
+export function PushNotificationPreview({ title, body, deeplink, previewName = "Alex" }: PushNotificationPreviewProps) {
   const [tab, setTab] = useState<"personalized" | "fallback">("personalized");
 
   const t = title ?? "";
