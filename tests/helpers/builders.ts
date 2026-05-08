@@ -88,6 +88,7 @@ export async function createUser(
     totalConversions?: number;
     totalReward?: number;
     attributes?: object;
+    funnelStage?: string | null;
   } = {}
 ) {
   // Default personaConfidence to 1.0 so tests pass the MIN_PERSONA_CONFIDENCE filter

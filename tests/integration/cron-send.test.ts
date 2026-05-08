@@ -77,7 +77,7 @@ describe("POST /api/cron/select-and-send", () => {
     const agent = await createAgent();
     const msg = await createMessage(agent.id, { brazeCampaignId: "camp_123" });
     await createVariant(msg.id, { brazeVariantId: "var_abc" });
-    await createUser("usr_cron", { personaId: persona.id });
+    await createUser("usr_cron", { personaId: persona.id, funnelStage: "wau" });
     await linkAgentToPersona(agent.id, persona.id);
     await createSchedulingRule(agent.id);
 
@@ -97,7 +97,7 @@ describe("POST /api/cron/select-and-send", () => {
     const agent = await createAgent();
     const msg = await createMessage(agent.id, { brazeCampaignId: "camp_1" });
     await createVariant(msg.id);
-    await createUser("usr_braze", { personaId: persona.id });
+    await createUser("usr_braze", { personaId: persona.id, funnelStage: "wau" });
     await linkAgentToPersona(agent.id, persona.id);
     await createSchedulingRule(agent.id);
 
@@ -115,7 +115,7 @@ describe("POST /api/cron/select-and-send", () => {
     const agent = await createAgent();
     const msg = await createMessage(agent.id, { brazeCampaignId: "camp_2" });
     await createVariant(msg.id);
-    await createUser("usr_sid", { personaId: persona.id });
+    await createUser("usr_sid", { personaId: persona.id, funnelStage: "wau" });
     await linkAgentToPersona(agent.id, persona.id);
     await createSchedulingRule(agent.id);
 
@@ -131,7 +131,7 @@ describe("POST /api/cron/select-and-send", () => {
     const agent = await createAgent();
     const msg = await createMessage(agent.id);
     await createVariant(msg.id);
-    await createUser("usr_sup", { personaId: persona.id });
+    await createUser("usr_sup", { personaId: persona.id, funnelStage: "wau" });
     await linkAgentToPersona(agent.id, persona.id);
     await createSchedulingRule(agent.id, { frequencyCap: { maxSends: 0, period: "day" } });
 
@@ -155,7 +155,7 @@ describe("POST /api/cron/select-and-send", () => {
 
     // Create 55 users — should result in 2 Braze send calls (50 + 5)
     for (let i = 0; i < 55; i++) {
-      await createUser(`usr_batch_${i}`, { personaId: persona.id });
+      await createUser(`usr_batch_${i}`, { personaId: persona.id, funnelStage: "engaged" });
     }
 
     const req = buildRequest("POST", undefined, CRON_AUTH);
@@ -177,7 +177,7 @@ describe("Lottery: cross-agent user distribution", () => {
     const msgB     = await createMessage(agentB.id, { brazeCampaignId: "camp_B" });
     await createVariant(msgA.id, { brazeVariantId: "var_A" });
     await createVariant(msgB.id, { brazeVariantId: "var_B" });
-    await createUser("usr_shared", { personaId: persona.id });
+    await createUser("usr_shared", { personaId: persona.id, funnelStage: "wau" });
     await linkAgentToPersona(agentA.id, persona.id);
     await linkAgentToPersona(agentB.id, persona.id);
     await createSchedulingRule(agentA.id);
@@ -203,8 +203,8 @@ describe("Lottery: cross-agent user distribution", () => {
     const msgB     = await createMessage(agentB.id, { brazeCampaignId: "camp_B2" });
     await createVariant(msgA.id);
     await createVariant(msgB.id);
-    await createUser("usr_only_A", { personaId: personaA.id });
-    await createUser("usr_only_B", { personaId: personaB.id });
+    await createUser("usr_only_A", { personaId: personaA.id, funnelStage: "wau" });
+    await createUser("usr_only_B", { personaId: personaB.id, funnelStage: "wau" });
     await linkAgentToPersona(agentA.id, personaA.id);
     await linkAgentToPersona(agentB.id, personaB.id);
     await createSchedulingRule(agentA.id);
@@ -227,7 +227,7 @@ describe("Global daily cap", () => {
     const agent    = await createAgent();
     const msg      = await createMessage(agent.id, { brazeCampaignId: "camp_dailycap" });
     await createVariant(msg.id);
-    await createUser("usr_capped", { personaId: persona.id });
+    await createUser("usr_capped", { personaId: persona.id, funnelStage: "wau" });
     await linkAgentToPersona(agent.id, persona.id);
     await createSchedulingRule(agent.id);
 
@@ -248,7 +248,7 @@ describe("Global daily cap", () => {
     const agent    = await createAgent();
     const msg      = await createMessage(agent.id, { brazeCampaignId: "camp_yesterday" });
     await createVariant(msg.id);
-    await createUser("usr_yesterday", { personaId: persona.id });
+    await createUser("usr_yesterday", { personaId: persona.id, funnelStage: "wau" });
     await linkAgentToPersona(agent.id, persona.id);
     await createSchedulingRule(agent.id);
 
@@ -274,7 +274,7 @@ describe("Global daily cap", () => {
     const msgB     = await createMessage(agentB.id);
     await createVariant(msgA.id);
     await createVariant(msgB.id);
-    const user     = await createUser("usr_cross_cap", { personaId: persona.id });
+    const user     = await createUser("usr_cross_cap", { personaId: persona.id, funnelStage: "wau" });
     await linkAgentToPersona(agentA.id, persona.id);
     await linkAgentToPersona(agentB.id, persona.id);
     await createSchedulingRule(agentA.id);
@@ -305,7 +305,7 @@ describe("Phase 0: exploration window assignment", () => {
     const agent    = await createAgent({ funnelStage: "lapsed" });
     const msg      = await createMessage(agent.id, { brazeCampaignId: "camp_phase0" });
     await createVariant(msg.id);
-    await createUser("usr_new_lapsed", { personaId: persona.id });
+    await createUser("usr_new_lapsed", { personaId: persona.id, funnelStage: "lapsed" });
     await linkAgentToPersona(agent.id, persona.id);
     await createSchedulingRule(agent.id);
 
@@ -324,7 +324,7 @@ describe("Phase 0: exploration window assignment", () => {
     const agent    = await createAgent({ funnelStage: "connected" });
     const msg      = await createMessage(agent.id);
     await createVariant(msg.id);
-    await createUser("usr_connected", { personaId: persona.id });
+    await createUser("usr_connected", { personaId: persona.id, funnelStage: "connected" });
     await linkAgentToPersona(agent.id, persona.id);
     await createSchedulingRule(agent.id);
 
@@ -412,7 +412,7 @@ describe("Phase 0: exploration window assignment", () => {
     const agent    = await createAgent({ funnelStage: "lapsed" });
     const msg      = await createMessage(agent.id);
     await createVariant(msg.id);
-    const user     = await createUser("usr_expired_cooldown", { personaId: persona.id });
+    const user     = await createUser("usr_expired_cooldown", { personaId: persona.id, funnelStage: "lapsed" });
     await linkAgentToPersona(agent.id, persona.id);
     await createSchedulingRule(agent.id);
 
