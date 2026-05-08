@@ -46,6 +46,8 @@ export interface Agent {
   schedulingRule?: SchedulingRule | null;
   targetPersonaIds?: string[];
   _count?: {
+    goals?: number;
+    messages?: number;
     decisions: number;
   };
 }

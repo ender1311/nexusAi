@@ -28,6 +28,9 @@ model Agent {
   decisions      UserDecision[]
   metrics        ModelMetric[]
   personaTargets AgentPersonaTarget[]
+
+  @@index([updatedAt])
+  @@index([status])
 }
 
 model Goal {

@@ -21,7 +21,7 @@ describe("POST /api/agents", () => {
       name: "Test Campaign",
       algorithm: "thompson",
       epsilon: 0.1,
-      funnelStage: "connected",
+      funnelStage: "wau",
       goals: [],
       messages: [],
     });
@@ -96,11 +96,11 @@ describe("PATCH /api/agents/[id]", () => {
 
   it("updates funnelStage to a different valid value", async () => {
     const agent = await prisma.agent.create({ data: { name: "Stage Agent", algorithm: "thompson", epsilon: 0.1 } });
-    const req = buildRequest("PATCH", { funnelStage: "engaged" });
+    const req = buildRequest("PATCH", { funnelStage: "dau4" });
     const res = await patchAgent(req as NextRequest, { params: Promise.resolve({ id: agent.id }) });
     const body = await res.json();
     expect(res.status).toBe(200);
-    expect(body.funnelStage).toBe("engaged");
+    expect(body.funnelStage).toBe("dau4");
   });
 
   it("returns 400 for invalid funnelStage", async () => {
@@ -139,7 +139,7 @@ describe("POST /api/agents — funnelStage + targetFilter", () => {
       name: "Staged Agent",
       algorithm: "thompson",
       epsilon: 0.1,
-      funnelStage: "lapsed",
+      funnelStage: "lapsed_mau",
       targetFilter: filter,
       goals: [],
       messages: [],
@@ -147,7 +147,7 @@ describe("POST /api/agents — funnelStage + targetFilter", () => {
     const res = await postAgent(req as NextRequest);
     const body = await res.json();
     expect(res.status).toBe(201);
-    expect(body.funnelStage).toBe("lapsed");
+    expect(body.funnelStage).toBe("lapsed_mau");
     expect(body.targetFilter).toEqual(filter);
   });
 
@@ -182,7 +182,7 @@ describe("POST /api/agents — funnelStage + targetFilter", () => {
     const req = buildRequest("POST", {
       name: "Bad Filter Agent",
       algorithm: "thompson",
-      funnelStage: "connected",
+      funnelStage: "wau",
       targetFilter: [1, 2, 3],
       goals: [],
       messages: [],
@@ -209,7 +209,7 @@ describe("POST /api/agents — sourceTemplateId", () => {
 
     const body = {
       name: "Test Agent",
-      funnelStage: "connected",
+      funnelStage: "wau",
       messages: [
         {
           name: "Push Message",

@@ -82,11 +82,11 @@ export function AgentCard({ agent, conversionRate, onDelete }: AgentCardProps) {
               <div className="flex gap-4 text-xs text-muted-foreground">
                 <span className="flex items-center gap-1">
                   <Target className="h-3 w-3" />
-                  {agent.goals?.length ?? 0} goals
+                  {agent._count?.goals ?? agent.goals?.length ?? 0} goals
                 </span>
                 <span className="flex items-center gap-1">
                   <MessageSquare className="h-3 w-3" />
-                  {agent.messages?.length ?? 0} messages
+                  {agent._count?.messages ?? agent.messages?.length ?? 0} messages
                 </span>
               </div>
 
