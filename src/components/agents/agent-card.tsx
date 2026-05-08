@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { useState } from "react";
+import { useRouter } from "next/navigation";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Agent, FUNNEL_STAGE_META } from "@/types/agent";
@@ -32,6 +33,7 @@ const algorithmLabels: Record<string, string> = {
 };
 
 export function AgentCard({ agent, conversionRate, onDelete }: AgentCardProps) {
+  const router = useRouter();
   const [showDeleteDialog, setShowDeleteDialog] = useState(false);
   const [deleting, setDeleting] = useState(false);
 
@@ -40,6 +42,7 @@ export function AgentCard({ agent, conversionRate, onDelete }: AgentCardProps) {
     try {
       await fetch(`/api/agents/${agent.id}`, { method: "DELETE" });
       onDelete?.(agent.id);
+      router.refresh();
     } finally {
       setDeleting(false);
       setShowDeleteDialog(false);
