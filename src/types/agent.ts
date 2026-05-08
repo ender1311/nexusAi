@@ -1,16 +1,30 @@
-export type FunnelStage = "new" | "lapsed" | "connected" | "activated" | "engaged" | "inspired";
+export type FunnelStage =
+  | "new"          // First-time users, installed < N days ago
+  | "dau4"         // Daily active — opens 4+ days/week
+  | "wau"          // Weekly active — opens 1–3 days/week
+  | "mau"          // Monthly active — opens at least once/month
+  | "lapsed_dau4"  // Previously DAU4, now inactive
+  | "lapsed_wau"   // Previously WAU, now inactive
+  | "lapsed_mau";  // Previously MAU, now inactive
 
 export const FUNNEL_STAGES: FunnelStage[] = [
-  "new", "lapsed", "connected", "activated", "engaged", "inspired",
+  "new",
+  "dau4",
+  "wau",
+  "mau",
+  "lapsed_dau4",
+  "lapsed_wau",
+  "lapsed_mau",
 ];
 
 export const FUNNEL_STAGE_META: Record<FunnelStage, { label: string; description: string }> = {
-  new:       { label: "New",       description: "First installed < 28 days ago" },
-  lapsed:    { label: "Lapsed",    description: "Last app use > 28 days ago" },
-  connected: { label: "Connected", description: "MAU — monthly active users" },
-  activated: { label: "Activated", description: "WAU — weekly/daily active users" },
-  engaged:   { label: "Engaged",   description: "DEU — active 4+ days/week" },
-  inspired:  { label: "Inspired",  description: "Givers & evangelists" },
+  new:         { label: "New",          description: "New users — installed recently" },
+  dau4:        { label: "DAU4",         description: "Daily active — opens 4+ days/week" },
+  wau:         { label: "WAU",          description: "Weekly active — opens 1–3 days/week" },
+  mau:         { label: "MAU",          description: "Monthly active — opens at least once/month" },
+  lapsed_dau4: { label: "Lapsed DAU4",  description: "Was DAU4 — now gone quiet" },
+  lapsed_wau:  { label: "Lapsed WAU",   description: "Was WAU — now gone quiet" },
+  lapsed_mau:  { label: "Lapsed MAU",   description: "Was MAU — now gone quiet" },
 };
 
 export type AgentStatus = "draft" | "active" | "paused";
