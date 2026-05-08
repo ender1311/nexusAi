@@ -1,3 +1,4 @@
+import { Suspense } from "react";
 import { Header } from "@/components/layout/header";
 import { MetricCard } from "@/components/charts/metric-card";
 import { TimeSeriesChart } from "@/components/charts/time-series-chart";
@@ -5,31 +6,147 @@ import { PersonaDistributionChart } from "@/components/charts/persona-distributi
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { Skeleton } from "@/components/ui/skeleton";
 import { prisma } from "@/lib/db";
 import { formatNumber, formatDate } from "@/lib/utils";
 import { TimeSeriesPoint, DecisionLog } from "@/types/metrics";
 import { Bot, Send, TrendingUp, Users, Plus, CheckCircle2, XCircle } from "lucide-react";
 import Link from "next/link";
 
+// ---------------------------------------------------------------------------
+// Types shared between sub-components
+// ---------------------------------------------------------------------------
+
+type AgentSummary = {
+  id: string;
+  name: string;
+  status: string;
+  _count: { decisions: number };
+};
+
+// ---------------------------------------------------------------------------
+// Async sub-components
+// ---------------------------------------------------------------------------
+
+async function TimeSeriesSection() {
+  const now = new Date();
+  const sevenDaysAgo = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
+
+  const last7Decisions = await prisma.userDecision.findMany({
+    where: { sentAt: { gte: sevenDaysAgo } },
+    select: { sentAt: true, conversionAt: true },
+  });
+
+  const byDate = new Map<string, { sends: number; conversions: number }>();
+  for (const d of last7Decisions) {
+    const key = d.sentAt.toISOString().slice(0, 10);
+    const e = byDate.get(key) ?? { sends: 0, conversions: 0 };
+    e.sends++;
+    if (d.conversionAt) e.conversions++;
+    byDate.set(key, e);
+  }
+
+  const last7Days: TimeSeriesPoint[] = [];
+  for (let i = 6; i >= 0; i--) {
+    const d = new Date(now);
+    d.setDate(d.getDate() - i);
+    const key = d.toISOString().slice(0, 10);
+    const { sends, conversions } = byDate.get(key) ?? { sends: 0, conversions: 0 };
+    last7Days.push({ date: key, sends, conversions, conversionRate: sends > 0 ? (conversions / sends) * 100 : 0 });
+  }
+
+  return (
+    <Card className="lg:col-span-2">
+      <CardHeader className="flex flex-row items-center justify-between">
+        <CardTitle className="text-sm font-semibold">Conversion Rate (7 days)</CardTitle>
+        <Badge variant="outline" className="text-xs">All Agents</Badge>
+      </CardHeader>
+      <CardContent>
+        <TimeSeriesChart data={last7Days} height={220} showSends />
+      </CardContent>
+    </Card>
+  );
+}
+
+async function RecentSendsSection({ agents }: { agents: AgentSummary[] }) {
+  const recentDecisionsRaw = await prisma.userDecision.findMany({
+    select: {
+      id: true, userId: true, channel: true, sentAt: true, conversionAt: true, reward: true,
+      agentId: true,
+      variant: { select: { name: true } },
+    },
+    orderBy: { sentAt: "desc" },
+    take: 10,
+  });
+
+  const recentSends: DecisionLog[] = recentDecisionsRaw.map((d) => ({
+    id: d.id,
+    userId: d.userId,
+    agentName: agents.find((a) => a.id === d.agentId)?.name ?? "Unknown",
+    channel: d.channel,
+    variantName: d.variant?.name ?? "—",
+    sentAt: d.sentAt.toISOString(),
+    converted: d.conversionAt !== null,
+    reward: d.reward ?? undefined,
+  }));
+
+  return (
+    <Card className="lg:col-span-2">
+      <CardHeader className="flex flex-row items-center justify-between">
+        <CardTitle className="text-sm font-semibold">Recent Sends</CardTitle>
+        <Link href="/performance">
+          <Button variant="ghost" size="sm" className="h-7 text-xs">View all</Button>
+        </Link>
+      </CardHeader>
+      <CardContent>
+        {recentSends.length === 0 ? (
+          <p className="text-xs text-muted-foreground text-center py-6">No sends yet</p>
+        ) : (
+          <div className="space-y-1">
+            {recentSends.map((d) => (
+              <div
+                key={d.id}
+                className="flex items-center justify-between text-xs py-1.5 border-b last:border-0"
+              >
+                <div className="flex items-center gap-2 flex-1 min-w-0">
+                  {d.converted ? (
+                    <CheckCircle2 className="h-3.5 w-3.5 text-green-500 shrink-0" />
+                  ) : (
+                    <XCircle className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
+                  )}
+                  <div className="min-w-0 flex items-center gap-1.5">
+                    <span className="font-mono text-muted-foreground">{d.userId}</span>
+                    <span className="text-muted-foreground">·</span>
+                    <span className="font-medium truncate">{d.variantName}</span>
+                  </div>
+                </div>
+                <div className="flex items-center gap-2 ml-2 shrink-0">
+                  <Badge variant="outline" className="text-xs capitalize">{d.channel}</Badge>
+                  <span className="text-muted-foreground">{formatDate(d.sentAt)}</span>
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+      </CardContent>
+    </Card>
+  );
+}
+
+// ---------------------------------------------------------------------------
+// Main page
+// ---------------------------------------------------------------------------
+
 export default async function DashboardPage() {
   const now = new Date();
   const twentyFourHoursAgo = new Date(now.getTime() - 24 * 60 * 60 * 1000);
-  const sevenDaysAgo = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
 
-  const [agents, recentDecisionsRaw, personasRaw, sentLast24h, totalDecisions, totalConversions, trackedUsers] = await Promise.all([
+  // Fast queries — counts + lists needed for metric cards and sidebars.
+  // last7Decisions is intentionally excluded; TimeSeriesSection fetches it.
+  const [agents, personasRaw, sentLast24h, totalDecisions, totalConversions, trackedUsers] = await Promise.all([
     prisma.agent.findMany({
       select: { id: true, name: true, status: true, _count: { select: { decisions: true } } },
       orderBy: { updatedAt: "desc" },
-    }),
-    prisma.userDecision.findMany({
-      where: {},
-      select: {
-        id: true, userId: true, channel: true, sentAt: true, conversionAt: true, reward: true,
-        agentId: true,
-        variant: { select: { name: true } },
-      },
-      orderBy: { sentAt: "desc" },
-      take: 10,
     }),
     prisma.persona.findMany({
       where: { isActive: true },
@@ -42,29 +159,11 @@ export default async function DashboardPage() {
     prisma.trackedUser.count(),
   ]);
 
-  // Time series: last 7 days
-  const last7Decisions = await prisma.userDecision.findMany({
-    where: { sentAt: { gte: sevenDaysAgo } },
-    select: { sentAt: true, conversionAt: true },
-  });
-  const byDate = new Map<string, { sends: number; conversions: number }>();
-  for (const d of last7Decisions) {
-    const key = d.sentAt.toISOString().slice(0, 10);
-    const e = byDate.get(key) ?? { sends: 0, conversions: 0 };
-    e.sends++;
-    if (d.conversionAt) e.conversions++;
-    byDate.set(key, e);
-  }
-  const last7Days: TimeSeriesPoint[] = [];
-  for (let i = 6; i >= 0; i--) {
-    const d = new Date(now);
-    d.setDate(d.getDate() - i);
-    const key = d.toISOString().slice(0, 10);
-    const { sends, conversions } = byDate.get(key) ?? { sends: 0, conversions: 0 };
-    last7Days.push({ date: key, sends, conversions, conversionRate: sends > 0 ? (conversions / sends) * 100 : 0 });
-  }
+  // Derived metrics
+  const activeAgents = agents.filter((a) => a.status === "active").length;
+  const avgConvRate = totalDecisions > 0 ? (totalConversions / totalDecisions) * 100 : 0;
 
-  // Persona distribution
+  // Persona distribution (computed from fast data)
   const totalPersonaUsers = personasRaw.reduce((s, p) => s + p._count.trackedUsers, 0);
   const personaData = personasRaw
     .filter((p) => p._count.trackedUsers > 0)
@@ -76,29 +175,13 @@ export default async function DashboardPage() {
       color: p.color,
     }));
 
-  // Derived metrics
-  const activeAgents = agents.filter((a) => a.status === "active").length;
-  const avgConvRate = totalDecisions > 0 ? (totalConversions / totalDecisions) * 100 : 0;
-
-  // Recent sends log
-  const recentSends: DecisionLog[] = recentDecisionsRaw.map((d) => ({
-    id: d.id,
-    userId: d.userId,
-    agentName: agents.find((a) => a.id === d.agentId)?.name ?? "Unknown",
-    channel: d.channel,
-    variantName: d.variant?.name ?? "—",
-    sentAt: d.sentAt.toISOString(),
-    converted: d.conversionAt !== null,
-    reward: d.reward ?? undefined,
-  }));
-
-  // Top persona by user count
   const topPersona = personasRaw.slice().sort((a, b) => b._count.trackedUsers - a._count.trackedUsers)[0];
 
   return (
     <>
       <Header title="Dashboard" description="Nexus platform overview" />
       <div className="p-4 sm:p-6 space-y-4 sm:space-y-6">
+        {/* Metric cards — render immediately from fast count queries */}
         <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3 sm:gap-4">
           <MetricCard
             title="Tracked Users"
@@ -133,16 +216,25 @@ export default async function DashboardPage() {
           />
         </div>
 
+        {/* Time series chart (slow — 7-day aggregation) + agents sidebar */}
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 sm:gap-6">
-          <Card className="lg:col-span-2">
-            <CardHeader className="flex flex-row items-center justify-between">
-              <CardTitle className="text-sm font-semibold">Conversion Rate (7 days)</CardTitle>
-              <Badge variant="outline" className="text-xs">All Agents</Badge>
-            </CardHeader>
-            <CardContent>
-              <TimeSeriesChart data={last7Days} height={220} showSends />
-            </CardContent>
-          </Card>
+          <Suspense
+            fallback={
+              <div className="lg:col-span-2">
+                <Card className="lg:col-span-2">
+                  <CardHeader className="flex flex-row items-center justify-between">
+                    <Skeleton className="h-4 w-40" />
+                    <Skeleton className="h-5 w-20" />
+                  </CardHeader>
+                  <CardContent>
+                    <Skeleton className="h-[220px] w-full rounded-md" />
+                  </CardContent>
+                </Card>
+              </div>
+            }
+          >
+            <TimeSeriesSection />
+          </Suspense>
 
           <Card>
             <CardHeader className="flex flex-row items-center justify-between">
@@ -179,46 +271,29 @@ export default async function DashboardPage() {
           </Card>
         </div>
 
+        {/* Recent sends (medium — findMany take:10) + persona sidebar */}
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 sm:gap-6">
-          <Card className="lg:col-span-2">
-            <CardHeader className="flex flex-row items-center justify-between">
-              <CardTitle className="text-sm font-semibold">Recent Sends</CardTitle>
-              <Link href="/performance">
-                <Button variant="ghost" size="sm" className="h-7 text-xs">View all</Button>
-              </Link>
-            </CardHeader>
-            <CardContent>
-              {recentSends.length === 0 ? (
-                <p className="text-xs text-muted-foreground text-center py-6">No sends yet</p>
-              ) : (
-                <div className="space-y-1">
-                  {recentSends.map((d) => (
-                    <div
-                      key={d.id}
-                      className="flex items-center justify-between text-xs py-1.5 border-b last:border-0"
-                    >
-                      <div className="flex items-center gap-2 flex-1 min-w-0">
-                        {d.converted ? (
-                          <CheckCircle2 className="h-3.5 w-3.5 text-green-500 shrink-0" />
-                        ) : (
-                          <XCircle className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
-                        )}
-                        <div className="min-w-0 flex items-center gap-1.5">
-                          <span className="font-mono text-muted-foreground">{d.userId}</span>
-                          <span className="text-muted-foreground">·</span>
-                          <span className="font-medium truncate">{d.variantName}</span>
-                        </div>
-                      </div>
-                      <div className="flex items-center gap-2 ml-2 shrink-0">
-                        <Badge variant="outline" className="text-xs capitalize">{d.channel}</Badge>
-                        <span className="text-muted-foreground">{formatDate(d.sentAt)}</span>
-                      </div>
+          <Suspense
+            fallback={
+              <div className="lg:col-span-2">
+                <Card className="lg:col-span-2">
+                  <CardHeader className="flex flex-row items-center justify-between">
+                    <Skeleton className="h-4 w-28" />
+                    <Skeleton className="h-7 w-16" />
+                  </CardHeader>
+                  <CardContent>
+                    <div className="space-y-2">
+                      {[1, 2, 3, 4, 5].map((i) => (
+                        <Skeleton key={i} className="h-8 w-full" />
+                      ))}
                     </div>
-                  ))}
-                </div>
-              )}
-            </CardContent>
-          </Card>
+                  </CardContent>
+                </Card>
+              </div>
+            }
+          >
+            <RecentSendsSection agents={agents} />
+          </Suspense>
 
           <div className="space-y-4">
             <Card>
