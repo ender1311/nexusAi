@@ -5,6 +5,7 @@ import { Sidebar, MobileNav } from "@/components/layout/sidebar";
 import { DataModeProvider } from "@/components/layout/data-mode-provider";
 import { ThemeProvider } from "next-themes";
 import { withAuth } from "@workos-inc/authkit-nextjs";
+import NextTopLoader from "nextjs-toploader";
 
 const inter = Inter({
   variable: "--font-inter",
@@ -40,6 +41,7 @@ export default async function RootLayout({
   return (
     <html lang="en" suppressHydrationWarning>
       <body className={`${inter.variable} ${geistMono.variable} antialiased`}>
+        <NextTopLoader color="var(--primary)" showSpinner={false} height={2} />
         <ThemeProvider attribute="class" defaultTheme="system" enableSystem disableTransitionOnChange>
           {user ? (
             <DataModeProvider>
