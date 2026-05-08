@@ -9,13 +9,14 @@ export async function GET() {
     const agents = await prisma.agent.findMany({
       include: {
         goals: true,
-        messages: { include: { variants: true } },
-        schedulingRule: true,
+        messages: true,          // variants omitted — list view only needs message count
         _count: { select: { decisions: true } },
       },
       orderBy: { updatedAt: "desc" },
     });
-    return NextResponse.json(agents);
+    const res = NextResponse.json(agents);
+    res.headers.set("Cache-Control", "public, s-maxage=30, stale-while-revalidate=60");
+    return res;
   } catch (error) {
     console.error("GET /api/agents error:", error);
     return NextResponse.json({ error: "Failed to fetch agents" }, { status: 500 });

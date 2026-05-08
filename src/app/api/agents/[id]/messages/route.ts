@@ -81,7 +81,9 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ id:
       include: { variants: true },
       orderBy: { createdAt: "asc" },
     });
-    return NextResponse.json(messages);
+    const res = NextResponse.json(messages);
+    res.headers.set("Cache-Control", "public, s-maxage=30, stale-while-revalidate=60");
+    return res;
   } catch (error) {
     console.error("GET /api/agents/[id]/messages error:", error);
     return NextResponse.json({ error: "Failed to fetch messages" }, { status: 500 });

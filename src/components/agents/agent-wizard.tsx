@@ -10,7 +10,7 @@ import { Slider } from "@/components/ui/slider";
 import { Switch } from "@/components/ui/switch";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { cn } from "@/lib/utils";
-import { Check, ChevronRight, Bot, Target, MessageSquare, Calendar, Rocket } from "lucide-react";
+import { Check, ChevronRight, Bot, Target, MessageSquare, Calendar, Rocket, Pencil } from "lucide-react";
 import { GoalTier, Channel, FrequencyCap, FunnelStage, FUNNEL_STAGES, FUNNEL_STAGE_META } from "@/types/agent";
 import type { VariantWithMessage } from "@/types/agent";
 import type { Persona } from "@/types/persona";
@@ -137,6 +137,7 @@ export function AgentWizard({ personas }: { personas: Persona[] }) {
   const [step, setStep] = useState(1);
   const [form, setForm] = useState<FormData>(defaultForm);
   const [newGoal, setNewGoal] = useState<GoalDraft>({ eventName: "", tier: "best", valueWeight: 10, weightMode: "fixed", weightProperty: null, weightDefault: 1.0 });
+  const [editingGoalIdx, setEditingGoalIdx] = useState<number | null>(null);
   const emptyVariant = () => ({
     name: `V${1}`,
     body: "",
@@ -495,21 +496,50 @@ export function AgentWizard({ personas }: { personas: Persona[] }) {
             <div className="space-y-2">
               {form.goals.map((g, i) => {
                 const tierConf = GOAL_TIERS.find((t) => t.value === g.tier);
+                const isEditing = editingGoalIdx === i;
                 return (
-                  <div key={i} className="flex items-center justify-between p-3 border rounded-lg">
-                    <div className="flex items-center gap-3">
-                      <div className={cn("h-3 w-3 rounded-full", tierConf?.color)} />
-                      <div>
-                        <p className="text-sm font-medium">{g.eventName}</p>
-                        <p className="text-xs text-muted-foreground">
-                          {tierConf?.label} ·{" "}
-                          {g.weightMode === "property"
-                            ? `prop: ${g.weightProperty || "—"}`
-                            : `weight: ${g.valueWeight}`}
-                        </p>
+                  <div key={i} className="border rounded-lg p-3">
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-3">
+                        <div className={cn("h-3 w-3 rounded-full shrink-0", tierConf?.color)} />
+                        <div>
+                          <p className="text-sm font-medium">{g.eventName}</p>
+                          <p className="text-xs text-muted-foreground">
+                            {tierConf?.label} ·{" "}
+                            {g.weightMode === "property"
+                              ? `prop: ${g.weightProperty || "—"}`
+                              : `weight: ${g.valueWeight}`}
+                          </p>
+                        </div>
+                      </div>
+                      <div className="flex items-center gap-1">
+                        {g.weightMode === "fixed" && (
+                          <button
+                            onClick={() => setEditingGoalIdx(isEditing ? null : i)}
+                            className="h-7 w-7 flex items-center justify-center rounded-md text-muted-foreground hover:text-foreground hover:bg-muted transition-colors"
+                            aria-label="Edit weight"
+                          >
+                            <Pencil className="h-3.5 w-3.5" />
+                          </button>
+                        )}
+                        <Button variant="ghost" size="sm" onClick={() => { removeGoal(i); setEditingGoalIdx(null); }} className="h-7 text-xs text-destructive">Remove</Button>
                       </div>
                     </div>
-                    <Button variant="ghost" size="sm" onClick={() => removeGoal(i)} className="h-7 text-xs text-destructive">Remove</Button>
+                    {isEditing && (
+                      <div className="mt-3 pt-3 border-t">
+                        <label className="text-xs text-muted-foreground">Value weight: {g.valueWeight}</label>
+                        <Slider
+                          min={-10} max={10} step={0.5}
+                          value={[g.valueWeight]}
+                          onValueChange={(v) => {
+                            const updated = [...form.goals];
+                            updated[i] = { ...updated[i], valueWeight: Array.isArray(v) ? v[0] : v };
+                            update("goals", updated);
+                          }}
+                          className="mt-1"
+                        />
+                      </div>
+                    )}
                   </div>
                 );
               })}
