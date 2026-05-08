@@ -704,7 +704,7 @@ async function main() {
         algorithm: "thompson",
         epsilon: 0.1,
         status: "draft",
-        funnelStage: "connected",
+        funnelStage: "wau",
       },
     });
     console.log(`  + Created library agent (${agent.id})`);
