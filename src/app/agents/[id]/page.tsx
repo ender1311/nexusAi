@@ -82,24 +82,24 @@ export default async function AgentDetailPage({ params }: { params: Promise<{ id
 
   // Count users per target persona for the Audience tab
   const targetPersonaIds = agent.personaTargets.map((pt) => pt.personaId);
-  const userCountRows = targetPersonaIds.length > 0
-    ? await prisma.trackedUser.groupBy({
-        by: ["personaId"],
-        where: { personaId: { in: targetPersonaIds } },
-        _count: { personaId: true },
-      })
-    : [];
+  const [userCountRows, previewUsers] = await Promise.all([
+    targetPersonaIds.length > 0
+      ? prisma.trackedUser.groupBy({
+          by: ["personaId"],
+          where: { personaId: { in: targetPersonaIds } },
+          _count: { personaId: true },
+        })
+      : Promise.resolve([]),
+    // Preview: up to 20 users (display only — independent of audienceCap)
+    targetPersonaIds.length > 0
+      ? prisma.trackedUser.findMany({
+          where: { personaId: { in: targetPersonaIds } },
+          select: { externalId: true, personaId: true, attributes: true },
+          take: 20,
+        })
+      : Promise.resolve([]),
+  ]);
   const userCountByPersona = new Map(userCountRows.map((r) => [r.personaId, r._count.personaId]));
-
-  // Preview: first N users from target personas (up to audienceCap) for the Audience tab
-  const audienceCap = agent.audienceCap ?? 5;
-  const previewUsers = targetPersonaIds.length > 0
-    ? await prisma.trackedUser.findMany({
-        where: { personaId: { in: targetPersonaIds } },
-        select: { externalId: true, personaId: true, attributes: true },
-        take: audienceCap,
-      })
-    : [];
 
   const freqCap = agent.schedulingRule?.frequencyCap as FrequencyCap | null;
   const quietHours = agent.schedulingRule?.quietHours as QuietHours | null;
@@ -587,7 +587,7 @@ export default async function AgentDetailPage({ params }: { params: Promise<{ id
                 <CardHeader>
                   <div className="flex items-center justify-between">
                     <CardTitle className="text-sm font-semibold">Next Send Preview</CardTitle>
-                    <span className="text-xs text-muted-foreground">First {previewUsers.length} eligible (audience cap: {audienceCap})</span>
+                    <span className="text-xs text-muted-foreground">First {previewUsers.length} eligible users</span>
                   </div>
                 </CardHeader>
                 <CardContent className="p-0">

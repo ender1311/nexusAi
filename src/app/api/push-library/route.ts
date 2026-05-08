@@ -17,7 +17,7 @@ export async function GET() {
     }
 
     const variants = await prisma.messageVariant.findMany({
-      where: { message: { agentId: agent.id } },
+      where: { message: { agentId: agent.id }, status: { not: "archived" } },
       select: {
         id: true,
         name: true,
