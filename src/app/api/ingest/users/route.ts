@@ -50,16 +50,15 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "Invalid payload: expected { external_user_id, attributes } or { users: [...] }" }, { status: 400 });
   }
 
-  const invalid = users.filter((u) => !u.external_user_id);
-  if (invalid.length > 0) {
-    return NextResponse.json(
-      { error: "Each user record must have external_user_id", invalid_count: invalid.length },
-      { status: 400 }
-    );
+  // Anonymous users (no external_user_id) can't be targeted — skip them silently
+  const skippedAnon = users.filter((u) => !u.external_user_id).length;
+  const identified = users.filter((u) => !!u.external_user_id);
+  if (identified.length === 0) {
+    return NextResponse.json({ ok: true, upserted: 0, skipped_anonymous: skippedAnon });
   }
 
   const seen = new Set<string>();
-  const deduped = users.filter((u) => {
+  const deduped = identified.filter((u) => {
     const key = u.idempotency_key ?? u.external_user_id!;
     if (seen.has(key)) return false;
     seen.add(key);
@@ -172,7 +171,8 @@ export async function POST(req: NextRequest) {
     {
       ok: true,
       received: deduped.length,
-      deduplicated: users.length - deduped.length,
+      deduplicated: identified.length - deduped.length,
+      skipped_anonymous: skippedAnon,
       upserted,
       persona_assigned: assigned,
     },
