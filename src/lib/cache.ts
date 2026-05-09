@@ -157,15 +157,24 @@ export const getCachedVariantMetrics = unstable_cache(
  * Raw 30-day decision rows for timeseries/heatmap charts.
  * Most expensive query in the app — scans up to 50k rows.
  * 5-min TTL keeps chart rendering fast on cache miss windows.
+ *
+ * Dates are pre-serialized to ISO strings so that JSON cache serialization
+ * (unstable_cache stores via JSON.stringify) doesn't silently convert Date
+ * objects to strings that then break .toISOString() / .getUTCHours() calls
+ * in the consumer.
  */
 export const getCachedChartDecisions = unstable_cache(
-  () => {
+  async () => {
     const thirtyDaysAgo = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000);
-    return prisma.userDecision.findMany({
+    const rows = await prisma.userDecision.findMany({
       where: { sentAt: { gte: thirtyDaysAgo } },
       select: { sentAt: true, conversionAt: true },
       take: 50000,
     });
+    return rows.map((r) => ({
+      sentAt: r.sentAt.toISOString(),
+      conversionAt: r.conversionAt?.toISOString() ?? null,
+    }));
   },
   ["chart-decisions"],
   { tags: ["performance"], revalidate: 300 }

@@ -30,7 +30,9 @@ export async function ArmHealthSection({
     variantName: v.name,
     totalTries: triesByVariant.get(v.id) ?? 0,
     hasStats: (triesByVariant.get(v.id) ?? 0) > 0,
-    inWarmup: v.warmupUntil !== null && v.warmupUntil > now,
+    // warmupUntil may be a Date or an ISO string after unstable_cache serialization —
+    // coerce via new Date() so the comparison is always Date vs Date.
+    inWarmup: v.warmupUntil !== null && new Date(v.warmupUntil as unknown as string) > now,
   }));
 
   const variantsWithStats = variantHealth.filter((v) => v.hasStats).length;
