@@ -249,7 +249,9 @@ export function AgentMessageManager({ agentId, initialMessages }: AgentMessageMa
         </Dialog>
       </div>
 
-      {error && <p className="text-sm text-destructive">{error}</p>}
+      {error && !editingVariant && !addVariantForMessageId && (
+        <p className="text-sm text-destructive">{error}</p>
+      )}
 
       {messages.length === 0 ? (
         <div className="text-center py-16 text-muted-foreground border-2 border-dashed rounded-xl">
@@ -301,7 +303,11 @@ export function AgentMessageManager({ agentId, initialMessages }: AgentMessageMa
                         <DialogTitle>Add Variant to {msg.name}</DialogTitle>
                       </DialogHeader>
                       <PushVariantForm variant={newVariantDraft} onChange={setNewVariantDraft} />
-                      <DialogFooter showCloseButton>
+                      {error && <p className="text-sm text-destructive">{error}</p>}
+                      <DialogFooter>
+                        <Button variant="outline" onClick={() => { setAddVariantForMessageId(null); setError(null); }}>
+                          Cancel
+                        </Button>
                         <Button onClick={addVariant} disabled={!isValidVariant(newVariantDraft) || saving}>
                           Save Variant
                         </Button>
@@ -348,7 +354,11 @@ export function AgentMessageManager({ agentId, initialMessages }: AgentMessageMa
             <DialogTitle>Edit Variant</DialogTitle>
           </DialogHeader>
           <PushVariantForm variant={editingDraft} onChange={setEditingDraft} />
-          <DialogFooter showCloseButton>
+          {error && <p className="text-sm text-destructive">{error}</p>}
+          <DialogFooter>
+            <Button variant="outline" onClick={() => { setEditingVariant(null); setError(null); }}>
+              Cancel
+            </Button>
             <Button onClick={saveVariantEdit} disabled={!isValidVariant(editingDraft) || saving}>
               Save Changes
             </Button>
