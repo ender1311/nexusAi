@@ -7,6 +7,7 @@ type SendRow = {
   channel: string;
   sentAt: string;
   scheduledFor: string | null;
+  brazeScheduleId: string | null;
   variantId: string | null;
   variantName: string | null;
   variantTitle: string | null;
@@ -18,6 +19,7 @@ type SendRow = {
   conversionAt: string | null;
   reward: number | null;
   decisionContext: unknown | null;
+  failed: boolean;
 };
 
 const DEFAULT_LIMIT = 50;
@@ -42,15 +44,30 @@ export async function GET(
       ? Math.min(Math.max(1, parseInt(rawLimit, 10) || DEFAULT_LIMIT), MAX_LIMIT)
       : DEFAULT_LIMIT;
 
-    const decisions = await prisma.userDecision.findMany({
-      where: { agentId: id },
-      include: {
-        variant: { select: { id: true, name: true, body: true, title: true, deeplink: true } },
-      },
-      orderBy: [{ sentAt: "desc" }, { id: "desc" }],
-      take: limit,
-      ...(cursor !== undefined ? { cursor: { id: cursor }, skip: 1 } : {}),
-    });
+    const [decisions, failedSendRecords] = await Promise.all([
+      prisma.userDecision.findMany({
+        where: { agentId: id },
+        include: {
+          variant: { select: { id: true, name: true, body: true, title: true, deeplink: true } },
+        },
+        orderBy: [{ sentAt: "desc" }, { id: "desc" }],
+        take: limit,
+        ...(cursor !== undefined ? { cursor: { id: cursor }, skip: 1 } : {}),
+      }),
+      // Fetch all failure records for this agent to mark individual decisions
+      prisma.failedBrazeSend.findMany({
+        where: { agentId: id },
+        select: { decisionIds: true },
+      }),
+    ]);
+
+    // Build set of failed decision IDs from FailedBrazeSend.decisionIds JSON arrays
+    const failedDecisionIds = new Set<string>();
+    for (const f of failedSendRecords) {
+      for (const did of f.decisionIds as string[]) {
+        failedDecisionIds.add(did);
+      }
+    }
 
     // Batch-fetch persona info for all unique user IDs in this page
     const uniqueUserIds = [...new Set(decisions.map((d) => d.userId))];
@@ -76,6 +93,7 @@ export async function GET(
         channel: d.channel,
         sentAt: d.sentAt.toISOString(),
         scheduledFor: d.scheduledFor ? d.scheduledFor.toISOString() : null,
+        brazeScheduleId: d.brazeScheduleId ?? null,
         variantId: d.variant?.id ?? null,
         variantName: d.variant?.name ?? null,
         variantTitle: d.variant?.title ?? null,
@@ -87,6 +105,7 @@ export async function GET(
         conversionAt: d.conversionAt ? d.conversionAt.toISOString() : null,
         reward: d.reward ?? null,
         decisionContext: d.decisionContext ?? null,
+        failed: failedDecisionIds.has(d.id),
       };
     });
 

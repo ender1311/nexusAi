@@ -1,7 +1,7 @@
 "use client";
 
 import { Fragment, useEffect, useState } from "react";
-import { Loader2, Send, ChevronDown, ChevronRight, Link2 } from "lucide-react";
+import { Loader2, Send, ChevronDown, ChevronRight, Link2, Clock, CheckCircle2, XCircle } from "lucide-react";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -13,6 +13,7 @@ type SendRow = {
   channel: string;
   sentAt: string;
   scheduledFor: string | null;
+  brazeScheduleId: string | null;
   variantId: string | null;
   variantName: string | null;
   variantTitle: string | null;
@@ -24,6 +25,7 @@ type SendRow = {
   conversionAt: string | null;
   reward: number | null;
   decisionContext: unknown | null;
+  failed: boolean;
 };
 
 type Props = { agentId: string };
@@ -54,20 +56,6 @@ const formatDateTime = (dateStr: string): string =>
     hour12: true,
   }).format(new Date(dateStr));
 
-// scheduledFor is stored as UTC but represents the user's local delivery time
-// (Braze inLocalTime=true). Display the UTC value as-is with a "(local)" label.
-const formatLocalDelivery = (dateStr: string): string => {
-  const formatted = new Intl.DateTimeFormat("en-US", {
-    month: "short",
-    day: "numeric",
-    hour: "numeric",
-    minute: "2-digit",
-    hour12: true,
-    timeZone: "UTC",
-  }).format(new Date(dateStr));
-  return `${formatted} (local)`;
-};
-
 const formatDateGroup = (dateStr: string): string =>
   new Intl.DateTimeFormat("en-US", {
     weekday: "long",
@@ -77,6 +65,30 @@ const formatDateGroup = (dateStr: string): string =>
   }).format(new Date(dateStr));
 
 const toDateKey = (dateStr: string): string => new Date(dateStr).toLocaleDateString("en-CA");
+
+/**
+ * Formats the scheduled local delivery time as a short string like "8am" or "12pm".
+ * scheduledFor is stored as UTC but represents the user's local delivery hour
+ * because Braze uses in_local_time=true — so we read the UTC hour directly.
+ */
+function formatShortTime(isoStr: string): string {
+  const h = new Date(isoStr).getUTCHours();
+  const m = new Date(isoStr).getUTCMinutes();
+  const suffix = h >= 12 ? "pm" : "am";
+  const hour12 = h % 12 === 0 ? 12 : h % 12;
+  return m === 0 ? `${hour12}${suffix}` : `${hour12}:${String(m).padStart(2, "0")}${suffix}`;
+}
+
+/**
+ * Formats scheduled delivery as "May 10, 8am" — used for scheduled future sends
+ * where the date matters.
+ */
+function formatScheduledDelivery(isoStr: string): string {
+  const d = new Date(isoStr);
+  const month = d.toLocaleDateString("en-US", { month: "short", timeZone: "UTC" });
+  const day = d.getUTCDate();
+  return `${month} ${day}, ${formatShortTime(isoStr)}`;
+}
 
 type GroupedRows = { dateKey: string; label: string; rows: SendRow[] }[];
 
@@ -149,6 +161,12 @@ function ExpandedContent({ row }: { row: SendRow }) {
             <p className="text-xs font-mono text-muted-foreground">{row.brazeSendId}</p>
           </div>
         )}
+        {row.brazeScheduleId && (
+          <div>
+            <p className="text-[10px] font-medium text-muted-foreground uppercase tracking-wide mb-0.5">Braze Schedule ID</p>
+            <p className="text-xs font-mono text-muted-foreground">{row.brazeScheduleId}</p>
+          </div>
+        )}
         {row.conversionAt && (
           <div>
             <p className="text-[10px] font-medium text-muted-foreground uppercase tracking-wide mb-0.5">Converted</p>
@@ -165,7 +183,78 @@ function ExpandedContent({ row }: { row: SendRow }) {
           <p className="text-[10px] font-medium text-muted-foreground uppercase tracking-wide mb-0.5">User ID</p>
           <p className="text-xs font-mono text-muted-foreground">{row.userId}</p>
         </div>
+        {row.scheduledFor && (
+          <div>
+            <p className="text-[10px] font-medium text-muted-foreground uppercase tracking-wide mb-0.5">Scheduled for</p>
+            <p className="text-xs font-mono">{formatScheduledDelivery(row.scheduledFor)} local</p>
+          </div>
+        )}
       </div>
+    </div>
+  );
+}
+
+/** Scheduled (future) sends — compact card list above the main sent table */
+function ScheduledSection({ rows, expanded, onToggle }: {
+  rows: SendRow[];
+  expanded: Set<string>;
+  onToggle: (id: string) => void;
+}) {
+  if (rows.length === 0) return null;
+  return (
+    <div className="space-y-1">
+      <div className="flex items-center gap-2 mb-2">
+        <Clock className="h-3.5 w-3.5 text-amber-500" />
+        <span className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">
+          Scheduled — {rows.length} pending
+        </span>
+      </div>
+      {rows.map((row) => {
+        const isOpen = expanded.has(row.id);
+        return (
+          <div
+            key={row.id}
+            className={cn(
+              "rounded-lg border overflow-hidden",
+              row.failed
+                ? "border-red-200 bg-red-50 dark:border-red-800 dark:bg-red-950/20"
+                : "border-amber-200 bg-amber-50 dark:border-amber-800 dark:bg-amber-950/20",
+            )}
+          >
+            <button
+              className="w-full flex items-center gap-3 px-3 py-2.5 text-left hover:bg-black/5"
+              onClick={() => onToggle(row.id)}
+            >
+              {isOpen
+                ? <ChevronDown className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
+                : <ChevronRight className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
+              }
+              <div className="flex-1 min-w-0">
+                <div className="flex items-center gap-2 flex-wrap">
+                  <span className="text-sm font-medium">{row.variantName ?? "—"}</span>
+                  {row.personaName && (
+                    <span className="flex items-center gap-1 text-xs text-muted-foreground">
+                      <span className={cn("h-1.5 w-1.5 rounded-full shrink-0", personaDot(row.personaColor))} />
+                      {row.personaName}
+                    </span>
+                  )}
+                </div>
+                <p className="text-xs text-muted-foreground font-mono mt-0.5">
+                  {row.userId.length > 14 ? `${row.userId.slice(0, 14)}…` : row.userId}
+                </p>
+              </div>
+              <div className="flex items-center gap-2 shrink-0">
+                <Badge variant="outline" className="text-xs border-amber-300 text-amber-700 dark:border-amber-700 dark:text-amber-400">
+                  <Clock className="h-2.5 w-2.5 mr-1" />
+                  {row.scheduledFor ? formatScheduledDelivery(row.scheduledFor) : "—"}
+                </Badge>
+                <Badge variant="outline" className="text-xs capitalize hidden sm:inline-flex">{row.channel}</Badge>
+              </div>
+            </button>
+            {isOpen && <ExpandedContent row={row} />}
+          </div>
+        );
+      })}
     </div>
   );
 }
@@ -253,123 +342,150 @@ export function AgentSendsTable({ agentId }: Props) {
     );
   }
 
-  const groups = groupByDate(rows);
+  const now = new Date().toISOString();
+  // Scheduled = future scheduledFor (queued with Braze, not yet delivered)
+  const scheduledRows = rows.filter((r) => r.scheduledFor && r.scheduledFor > now);
+  // Sent = everything else (delivered or immediate)
+  const sentRows = rows.filter((r) => !r.scheduledFor || r.scheduledFor <= now);
+  const groups = groupByDate(sentRows);
 
   return (
-    <div className="space-y-4 overflow-x-auto">
-      <Table>
-        <TableHeader>
-          <TableRow>
-            <TableHead className="w-8" />
-            <TableHead className="w-[100px] sm:w-[130px]">User</TableHead>
-            <TableHead>Variant / Message</TableHead>
-            <TableHead className="w-[110px] hidden sm:table-cell">Persona</TableHead>
-            <TableHead className="w-[60px] sm:w-[80px]">Conv.</TableHead>
-            <TableHead className="w-[80px] hidden sm:table-cell">Channel</TableHead>
-            <TableHead className="w-[130px] sm:w-[160px] hidden md:table-cell">Delivers</TableHead>
-          </TableRow>
-        </TableHeader>
-        <TableBody>
-          {groups.map(({ dateKey, label, rows: groupRows }) => (
-            <Fragment key={dateKey}>
-              <TableRow className="hover:bg-transparent">
-                <TableCell
-                  colSpan={7}
-                  className="py-2 px-4 text-xs font-medium text-muted-foreground bg-muted/40 border-y"
-                >
-                  {label}
-                </TableCell>
-              </TableRow>
-              {groupRows.map((row) => {
-                const isOpen = expanded.has(row.id);
-                const converted = row.conversionAt !== null;
-                return (
-                  <Fragment key={row.id}>
-                    <TableRow
-                      className="cursor-pointer hover:bg-muted/40"
-                      onClick={() => toggleExpanded(row.id)}
-                    >
-                      {/* Expand chevron */}
-                      <TableCell className="pr-0 text-muted-foreground">
-                        {isOpen
-                          ? <ChevronDown className="h-3.5 w-3.5" />
-                          : <ChevronRight className="h-3.5 w-3.5" />
-                        }
-                      </TableCell>
+    <div className="space-y-6">
+      {/* Scheduled (future) sends */}
+      <ScheduledSection rows={scheduledRows} expanded={expanded} onToggle={toggleExpanded} />
 
-                      {/* User */}
-                      <TableCell className="font-mono text-xs text-muted-foreground">
-                        {row.userId.length > 12 ? `${row.userId.slice(0, 12)}…` : row.userId}
-                      </TableCell>
-
-                      {/* Variant + title preview */}
-                      <TableCell>
-                        <p className="text-sm font-medium leading-none">
-                          {row.variantName ?? <span className="text-muted-foreground">—</span>}
-                        </p>
-                        {row.variantTitle && (
-                          <p className="text-xs text-muted-foreground mt-0.5 truncate max-w-[260px]">
-                            {row.variantTitle}
-                          </p>
-                        )}
-                        {!row.variantTitle && row.variantBody && (
-                          <p className="text-xs text-muted-foreground mt-0.5 truncate max-w-[260px]">
-                            {row.variantBody}
-                          </p>
-                        )}
-                      </TableCell>
-
-                      {/* Persona */}
-                      <TableCell className="hidden sm:table-cell">
-                        {row.personaName ? (
-                          <div className="flex items-center gap-1.5">
-                            <span className={cn("h-2 w-2 rounded-full shrink-0", personaDot(row.personaColor))} />
-                            <span className="text-xs">{row.personaName}</span>
-                          </div>
-                        ) : (
-                          <span className="text-xs text-muted-foreground">—</span>
-                        )}
-                      </TableCell>
-
-                      {/* Conversion dot */}
-                      <TableCell>
-                        <span
-                          className={cn(
-                            "inline-flex h-2 w-2 rounded-full",
-                            converted ? "bg-green-500" : "bg-muted-foreground/25",
-                          )}
-                          title={converted ? `Converted ${formatDateTime(row.conversionAt!)}` : "No conversion yet"}
-                        />
-                      </TableCell>
-
-                      {/* Channel */}
-                      <TableCell className="hidden sm:table-cell">
-                        <Badge variant="outline" className="text-xs capitalize">
-                          {row.channel}
-                        </Badge>
-                      </TableCell>
-
-                      {/* Delivers */}
-                      <TableCell className="text-sm text-muted-foreground hidden md:table-cell">
-                        {row.scheduledFor ? formatLocalDelivery(row.scheduledFor) : "—"}
+      {/* Sent history */}
+      {sentRows.length > 0 && (
+        <div className="space-y-1">
+          {scheduledRows.length > 0 && (
+            <div className="flex items-center gap-2 mb-2">
+              <Send className="h-3.5 w-3.5 text-muted-foreground" />
+              <span className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">
+                Sent — {sentRows.length} decisions
+              </span>
+            </div>
+          )}
+          <div className="overflow-x-auto">
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead className="w-8" />
+                  <TableHead className="w-8" />
+                  <TableHead className="w-[100px] sm:w-[130px]">User</TableHead>
+                  <TableHead>Variant / Message</TableHead>
+                  <TableHead className="w-[110px] hidden sm:table-cell">Persona</TableHead>
+                  <TableHead className="w-[80px] hidden sm:table-cell">Channel</TableHead>
+                  <TableHead className="w-[70px]">Delivers</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {groups.map(({ dateKey, label, rows: groupRows }) => (
+                  <Fragment key={dateKey}>
+                    <TableRow className="hover:bg-transparent">
+                      <TableCell
+                        colSpan={7}
+                        className="py-2 px-4 text-xs font-medium text-muted-foreground bg-muted/40 border-y"
+                      >
+                        {label}
                       </TableCell>
                     </TableRow>
+                    {groupRows.map((row) => {
+                      const isOpen = expanded.has(row.id);
+                      return (
+                        <Fragment key={row.id}>
+                          <TableRow
+                            className={cn(
+                              "cursor-pointer",
+                              row.failed
+                                ? "bg-red-50 hover:bg-red-100 dark:bg-red-950/20 dark:hover:bg-red-950/30"
+                                : "bg-green-50/40 hover:bg-green-100/50 dark:bg-green-950/10 dark:hover:bg-green-950/20",
+                            )}
+                            onClick={() => toggleExpanded(row.id)}
+                          >
+                            {/* Expand chevron */}
+                            <TableCell className="pr-0 text-muted-foreground">
+                              {isOpen
+                                ? <ChevronDown className="h-3.5 w-3.5" />
+                                : <ChevronRight className="h-3.5 w-3.5" />
+                              }
+                            </TableCell>
 
-                    {/* Expanded detail row */}
-                    {isOpen && (
-                      <TableRow className="hover:bg-transparent">
-                        <TableCell colSpan={7} className="p-0">
-                          <ExpandedContent row={row} />
-                        </TableCell>
-                      </TableRow>
-                    )}
+                            {/* Status icon */}
+                            <TableCell className="pr-0">
+                              {row.failed
+                                ? <XCircle className="h-3.5 w-3.5 text-red-500" />
+                                : <CheckCircle2 className="h-3.5 w-3.5 text-green-500" />
+                              }
+                            </TableCell>
+
+                            {/* User */}
+                            <TableCell className="font-mono text-xs text-muted-foreground">
+                              {row.userId.length > 12 ? `${row.userId.slice(0, 12)}…` : row.userId}
+                            </TableCell>
+
+                            {/* Variant + title preview */}
+                            <TableCell>
+                              <p className="text-sm font-medium leading-none">
+                                {row.variantName ?? <span className="text-muted-foreground">—</span>}
+                              </p>
+                              {row.variantTitle && (
+                                <p className="text-xs text-muted-foreground mt-0.5 truncate max-w-[200px]">
+                                  {row.variantTitle}
+                                </p>
+                              )}
+                              {!row.variantTitle && row.variantBody && (
+                                <p className="text-xs text-muted-foreground mt-0.5 truncate max-w-[200px]">
+                                  {row.variantBody}
+                                </p>
+                              )}
+                            </TableCell>
+
+                            {/* Persona */}
+                            <TableCell className="hidden sm:table-cell">
+                              {row.personaName ? (
+                                <div className="flex items-center gap-1.5">
+                                  <span className={cn("h-2 w-2 rounded-full shrink-0", personaDot(row.personaColor))} />
+                                  <span className="text-xs">{row.personaName}</span>
+                                </div>
+                              ) : (
+                                <span className="text-xs text-muted-foreground">—</span>
+                              )}
+                            </TableCell>
+
+                            {/* Channel */}
+                            <TableCell className="hidden sm:table-cell">
+                              <Badge variant="outline" className="text-xs capitalize">
+                                {row.channel}
+                              </Badge>
+                            </TableCell>
+
+                            {/* Delivers — short local time */}
+                            <TableCell className="text-xs font-medium tabular-nums">
+                              {row.scheduledFor
+                                ? <span className="text-foreground/70">{formatShortTime(row.scheduledFor)}</span>
+                                : <span className="text-muted-foreground">now</span>
+                              }
+                            </TableCell>
+                          </TableRow>
+
+                          {/* Expanded detail row */}
+                          {isOpen && (
+                            <TableRow className="hover:bg-transparent">
+                              <TableCell colSpan={7} className="p-0">
+                                <ExpandedContent row={row} />
+                              </TableCell>
+                            </TableRow>
+                          )}
+                        </Fragment>
+                      );
+                    })}
                   </Fragment>
-                );
-              })}
-            </Fragment>
-          ))}
-        </TableBody>
-      </Table>
+                ))}
+              </TableBody>
+            </Table>
+          </div>
+        </div>
+      )}
 
       {hasMore && (
         <div className="flex justify-center pt-2">
