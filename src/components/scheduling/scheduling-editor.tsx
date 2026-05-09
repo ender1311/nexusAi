@@ -91,8 +91,8 @@ export function SchedulingEditor({ agentId, initialRule }: Props) {
           <p className="text-xs text-muted-foreground">
             Limit how many messages a user can receive in a given period.
           </p>
-          <div className="flex items-center gap-4">
-            <div className="flex-1">
+          <div className="flex flex-wrap items-end gap-4">
+            <div className="flex-1 min-w-[12rem]">
               <label className="text-xs text-muted-foreground">Max sends: {freqCap.maxSends}</label>
               <Slider
                 min={1} max={14} step={1}
@@ -105,7 +105,7 @@ export function SchedulingEditor({ agentId, initialRule }: Props) {
               value={freqCap.period}
               onValueChange={(v) => v && setFreqCap((f) => ({ ...f, period: v as FrequencyCap["period"] }))}
             >
-              <SelectTrigger className="w-36">
+              <SelectTrigger className="w-full sm:w-36">
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
@@ -132,32 +132,32 @@ export function SchedulingEditor({ agentId, initialRule }: Props) {
           <p className="text-xs text-muted-foreground">
             No messages are sent during these hours. Times apply in each user&apos;s local timezone via Braze&apos;s in-local-time delivery.
           </p>
-          <div className="flex items-center gap-3 flex-wrap">
-            <div>
+          <div className="flex flex-wrap gap-3">
+            <div className="flex-1 min-w-[7rem]">
               <label className="text-xs text-muted-foreground block mb-1">From</label>
               <Input
                 type="time"
                 value={quietHours.start}
                 onChange={(e) => setQuietHours((q) => ({ ...q, start: e.target.value }))}
-                className="w-32"
+                className="w-full"
               />
             </div>
-            <div>
+            <div className="flex-1 min-w-[7rem]">
               <label className="text-xs text-muted-foreground block mb-1">To</label>
               <Input
                 type="time"
                 value={quietHours.end}
                 onChange={(e) => setQuietHours((q) => ({ ...q, end: e.target.value }))}
-                className="w-32"
+                className="w-full"
               />
             </div>
-            <div>
+            <div className="flex-1 min-w-[11rem]">
               <label className="text-xs text-muted-foreground block mb-1">Reference timezone</label>
               <Select
                 value={quietHours.timezone}
                 onValueChange={(v) => v && setQuietHours((q) => ({ ...q, timezone: v }))}
               >
-                <SelectTrigger className="w-44">
+                <SelectTrigger className="w-full">
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
@@ -197,7 +197,7 @@ export function SchedulingEditor({ agentId, initialRule }: Props) {
               type="date"
               value={newBlackout}
               onChange={(e) => setNewBlackout(e.target.value)}
-              className="w-44"
+              className="flex-1 min-w-[8rem]"
             />
             <Button size="sm" variant="outline" onClick={addBlackout} disabled={!newBlackout}>
               Add
