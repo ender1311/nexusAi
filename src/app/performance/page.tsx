@@ -15,21 +15,46 @@ import { AgentMetric, VariantMetric } from "@/types/metrics";
 import Link from "next/link";
 import { TrendingUp, TrendingDown, Minus, Send, Zap, GitCompare } from "lucide-react";
 import { AgentStatus } from "@/types/agent";
+import { liftSignificance } from "@/lib/engine/lift-significance";
 
-function LiftBadge({ lift }: { lift: number }) {
-  if (lift > 5) return (
+function LiftBadge({
+  lift,
+  significant,
+  insufficient,
+}: {
+  lift: number;
+  significant: boolean;
+  insufficient: boolean;
+}) {
+  // Insufficient data: always gray, no directional signal
+  if (insufficient) {
+    return (
+      <span className="flex items-center gap-1 text-muted-foreground/60 text-sm" title="Fewer than 200 sends — not enough data for significance testing">
+        <Minus className="h-3.5 w-3.5" />
+        <span>~{lift >= 0 ? "+" : ""}{lift.toFixed(1)}%</span>
+      </span>
+    );
+  }
+  // Sufficient data but not statistically significant
+  if (!significant) {
+    return (
+      <span className="flex items-center gap-1 text-muted-foreground text-sm" title="Not statistically significant (p ≥ 0.05)">
+        <Minus className="h-3.5 w-3.5" />
+        {lift >= 0 ? "+" : ""}{lift.toFixed(1)}%
+        <span className="text-[10px] text-muted-foreground/60">n.s.</span>
+      </span>
+    );
+  }
+  // Significant positive lift
+  if (lift > 0) return (
     <span className="flex items-center gap-1 text-green-600 font-medium text-sm">
-      <TrendingUp className="h-3.5 w-3.5" />+{lift}%
+      <TrendingUp className="h-3.5 w-3.5" />+{lift.toFixed(1)}%
     </span>
   );
-  if (lift < -5) return (
-    <span className="flex items-center gap-1 text-red-500 font-medium text-sm">
-      <TrendingDown className="h-3.5 w-3.5" />{lift}%
-    </span>
-  );
+  // Significant negative lift
   return (
-    <span className="flex items-center gap-1 text-muted-foreground text-sm">
-      <Minus className="h-3.5 w-3.5" />{lift}%
+    <span className="flex items-center gap-1 text-red-500 font-medium text-sm">
+      <TrendingDown className="h-3.5 w-3.5" />{lift.toFixed(1)}%
     </span>
   );
 }
@@ -52,6 +77,9 @@ export default async function PerformancePage() {
     const sends = sendCountByAgent.get(a.id) ?? 0;
     const conversions = convCountByAgent.get(a.id) ?? 0;
     const convRate = sends > 0 ? (conversions / sends) * 100 : 0;
+    const { lift, significant, insufficient } = liftSignificance(
+      sends, conversions, fleetSendsTotal, fleetConversionsTotal,
+    );
     return {
       agentId: a.id,
       agentName: a.name,
@@ -59,7 +87,9 @@ export default async function PerformancePage() {
       sends,
       conversions,
       conversionRate: convRate,
-      liftVsControl: sends > 0 ? parseFloat((convRate - fleetConvRate).toFixed(1)) : 0,
+      liftVsControl: parseFloat(lift.toFixed(1)),
+      liftSignificant: significant,
+      liftInsufficient: insufficient,
       exploreRatio: 0,
     };
   });
@@ -98,9 +128,9 @@ export default async function PerformancePage() {
     .sort((a, b) => b.sends - a.sends)
     .slice(0, 10);
 
-  const bestLift = agentMetricsReal.length > 0
-    ? Math.max(0, ...agentMetricsReal.map((m) => m.liftVsControl))
-    : 0;
+  // Only consider statistically significant lifts for the headline KPI
+  const significantLifts = agentMetricsReal.filter((m) => m.liftSignificant).map((m) => m.liftVsControl);
+  const bestLift = significantLifts.length > 0 ? Math.max(...significantLifts) : null;
 
   return (
     <>
@@ -120,7 +150,7 @@ export default async function PerformancePage() {
           />
           <MetricCard
             title="Best Agent Lift"
-            value={`+${bestLift.toFixed(1)}%`}
+            value={bestLift !== null ? `+${bestLift.toFixed(1)}%` : "—"}
             icon={Zap}
           />
           <MetricCard
@@ -174,7 +204,7 @@ export default async function PerformancePage() {
                       {formatPercent(m.conversionRate)}
                     </TableCell>
                     <TableCell className="text-right hidden md:table-cell">
-                      <LiftBadge lift={m.liftVsControl} />
+                      <LiftBadge lift={m.liftVsControl} significant={m.liftSignificant} insufficient={m.liftInsufficient} />
                     </TableCell>
                     <TableCell className="text-right text-muted-foreground hidden md:table-cell">{m.exploreRatio}%</TableCell>
                     <TableCell>

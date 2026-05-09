@@ -25,6 +25,10 @@ export interface AgentMetric {
   conversions: number;
   conversionRate: number;
   liftVsControl: number;
+  /** True when the lift is statistically significant (p < 0.05, n >= 200) */
+  liftSignificant: boolean;
+  /** True when there are fewer than 200 sends — significance verdict withheld */
+  liftInsufficient: boolean;
   exploreRatio: number;
 }
 
