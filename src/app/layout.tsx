@@ -1,4 +1,4 @@
-import type { Metadata } from "next";
+import type { Metadata, Viewport } from "next";
 import { Inter, Geist_Mono } from "next/font/google";
 import "./globals.css";
 import { Sidebar, MobileNav } from "@/components/layout/sidebar";
@@ -18,9 +18,22 @@ const geistMono = Geist_Mono({
   subsets: ["latin"],
 });
 
+export const viewport: Viewport = {
+  themeColor: "#ff3d4d",
+  width: "device-width",
+  initialScale: 1,
+  viewportFit: "cover",
+};
+
 export const metadata: Metadata = {
   title: "Nexus",
   description: "YouVersion AI-powered personalized messaging decisions",
+  appleWebApp: {
+    capable: true,
+    title: "Nexus",
+    statusBarStyle: "default",
+  },
+  formatDetection: { telephone: false },
 };
 
 export default async function RootLayout({
