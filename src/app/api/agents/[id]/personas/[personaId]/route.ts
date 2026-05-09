@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { revalidatePath } from "next/cache";
 import { prisma } from "@/lib/db";
 
 export async function DELETE(
@@ -13,5 +14,6 @@ export async function DELETE(
   if (!target) return NextResponse.json({ error: "Not found" }, { status: 404 });
 
   await prisma.agentPersonaTarget.delete({ where: { id: target.id } });
+  revalidatePath(`/agents/${agentId}`);
   return NextResponse.json({ data: { ok: true } });
 }
