@@ -13,13 +13,20 @@ async function Charts() {
 
   const rows = await getCachedChartDecisions();
 
+  // Single pass: build both byDate (time series) and heatmapCounts simultaneously.
+  // rows contain ISO date strings (pre-serialized in cache to survive JSON round-trip).
   const byDate = new Map<string, { sends: number; conversions: number }>();
+  const heatmapCounts = new Map<string, number>();
   for (const d of rows) {
-    const key = d.sentAt.toISOString().slice(0, 10);
-    const e = byDate.get(key) ?? { sends: 0, conversions: 0 };
-    e.sends++;
-    if (d.conversionAt) e.conversions++;
-    byDate.set(key, e);
+    const dateKey = d.sentAt.slice(0, 10); // "YYYY-MM-DD" — no Date object needed
+    const entry = byDate.get(dateKey) ?? { sends: 0, conversions: 0 };
+    entry.sends++;
+    if (d.conversionAt) entry.conversions++;
+    byDate.set(dateKey, entry);
+
+    const sentAt = new Date(d.sentAt);
+    const hKey = `${sentAt.getUTCHours()}:${sentAt.getUTCDay()}`;
+    heatmapCounts.set(hKey, (heatmapCounts.get(hKey) ?? 0) + 1);
   }
 
   const last30Days: TimeSeriesPoint[] = [];
@@ -31,14 +38,6 @@ async function Charts() {
     last30Days.push({ date: key, sends, conversions, conversionRate: sends > 0 ? (conversions / sends) * 100 : 0 });
   }
   const last7Days = last30Days.slice(-7);
-
-  const heatmapCounts = new Map<string, number>();
-  for (const d of rows) {
-    const hour = d.sentAt.getUTCHours();
-    const day = d.sentAt.getUTCDay();
-    const key = `${hour}:${day}`;
-    heatmapCounts.set(key, (heatmapCounts.get(key) ?? 0) + 1);
-  }
   const timingHeatmapData: TimingHeatmapCell[] = [];
   for (let hour = 0; hour < 24; hour++) {
     for (let day = 0; day < 7; day++) {
