@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { revalidatePath } from "next/cache";
+import { revalidatePath, revalidateTag } from "next/cache";
 import { prisma } from "@/lib/db";
 
 export async function GET(_req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
@@ -24,6 +24,7 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
     },
   });
   revalidatePath(`/agents/${id}`);
+  revalidateTag(`agent-${id}`, "max");
   return NextResponse.json(goal, { status: 201 });
 }
 
@@ -66,5 +67,6 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
 
   const goals = await prisma.goal.findMany({ where: { agentId: id } });
   revalidatePath(`/agents/${id}`);
+  revalidateTag(`agent-${id}`, "max");
   return NextResponse.json(goals);
 }

@@ -1,5 +1,5 @@
 import { Suspense } from "react";
-import { prisma } from "@/lib/db";
+import { getCachedChartDecisions } from "@/lib/cache";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -10,13 +10,8 @@ import type { TimeSeriesPoint, TimingHeatmapCell } from "@/types/metrics";
 
 async function Charts() {
   const now = new Date();
-  const thirtyDaysAgo = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
 
-  const rows = await prisma.userDecision.findMany({
-    where: { sentAt: { gte: thirtyDaysAgo } },
-    select: { sentAt: true, conversionAt: true },
-    take: 50000,
-  });
+  const rows = await getCachedChartDecisions();
 
   const byDate = new Map<string, { sends: number; conversions: number }>();
   for (const d of rows) {

@@ -9,15 +9,15 @@ import { cn } from "@/lib/utils";
 type LinkedPersona = {
   id: string;
   userCount?: number;
-  persona: { id: string; name: string; icon: string; color: string; description: string | null };
+  persona: { id: string; name: string; label: string | null; icon: string; color: string };
 };
 
 type AvailablePersona = {
   id: string;
   name: string;
+  label: string | null;
   icon: string;
   color: string;
-  description: string | null;
 };
 
 type Props = {
@@ -104,7 +104,9 @@ export function PersonaTargetManager({ agentId, initialTargets, allPersonas }: P
                     </div>
                     <div>
                       <p className="text-sm font-semibold">{persona.name}</p>
-                      <p className={cn("text-xs", colors.text)}>{persona.description?.slice(0, 40)}</p>
+                      {persona.label ? (
+                        <p className={cn("text-xs", colors.text)}>{persona.label}</p>
+                      ) : null}
                     </div>
                   </div>
                   <button

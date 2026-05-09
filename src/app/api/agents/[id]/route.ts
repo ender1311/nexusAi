@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { revalidatePath } from "next/cache";
+import { revalidatePath, revalidateTag } from "next/cache";
 import { prisma } from "@/lib/db";
 import { FUNNEL_STAGES } from "@/types/agent";
 import { isPlainObject } from "@/lib/utils";
@@ -84,6 +84,9 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
     });
     revalidatePath(`/agents/${id}`);
     revalidatePath("/agents");
+    revalidateTag(`agent-${id}`, "max");
+    revalidateTag("agents", "max");
+    revalidateTag("performance", "max"); // status change affects performance page
     return NextResponse.json(agent);
   } catch (error) {
     console.error(`PATCH /api/agents/${id} error:`, error);
@@ -96,6 +99,9 @@ export async function DELETE(_req: NextRequest, { params }: { params: Promise<{ 
   try {
     await prisma.agent.delete({ where: { id } });
     revalidatePath("/agents");
+    revalidateTag(`agent-${id}`, "max");
+    revalidateTag("agents", "max");
+    revalidateTag("performance", "max");
     return NextResponse.json({ ok: true });
   } catch (error) {
     console.error(`DELETE /api/agents/${id} error:`, error);

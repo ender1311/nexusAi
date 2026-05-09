@@ -25,7 +25,6 @@ const PERSONAS = [
     label: "Emotion-first",
     icon: "Heart",
     color: "purple",
-    description: "28, marketing manager. Opens the app in moments of anxiety, grief, or overwhelm. Needs to feel seen before she feels taught.",
     tags: ["emotion-first", "anxiety", "wellness"],
   },
   {
@@ -33,7 +32,6 @@ const PERSONAS = [
     label: "Devotion-first",
     icon: "BookOpen",
     color: "blue",
-    description: "42, high school teacher. Already has a 6am quiet-time habit. Wants depth, not encouragement. Easily condescended to.",
     tags: ["devotion-first", "study", "depth"],
   },
   {
@@ -41,7 +39,6 @@ const PERSONAS = [
     label: "Social-first",
     icon: "Share2",
     color: "green",
-    description: "24, recent college grad. Faith lives in community. Downloaded because a friend sent a verse. Will leave if it feels solo.",
     tags: ["social-first", "community", "sharing"],
   },
   {
@@ -49,7 +46,6 @@ const PERSONAS = [
     label: "Bible-first",
     icon: "Quote",
     color: "amber",
-    description: "55, retired pastor, seminary-trained. Skeptical of \"app-ified\" faith. Zero patience for friction. Wants the text, fast.",
     tags: ["bible-first", "scripture", "study"],
   },
   {
@@ -57,7 +53,6 @@ const PERSONAS = [
     label: "Church-first",
     icon: "Landmark",
     color: "red",
-    description: "35, young mom. Downloaded because her pastor said so during a sermon series. Stays only if her church is front-and-center.",
     tags: ["church-first", "pastor", "community"],
   },
   {
@@ -65,7 +60,6 @@ const PERSONAS = [
     label: "Seeker",
     icon: "Compass",
     color: "teal",
-    description: "31, software engineer. Curious, not religious. Easily spooked by insider language. Wants a welcome mat, not a seminary.",
     tags: ["seeker", "new-user", "curious"],
   },
   {
@@ -73,7 +67,6 @@ const PERSONAS = [
     label: "Parent",
     icon: "CalendarDays",
     color: "orange",
-    description: "38, stay-at-home mom of three. Time-poor, wants to lead her family in faith. Not here for a solo reading plan.",
     tags: ["parent", "family", "kids"],
   },
   {
@@ -81,7 +74,6 @@ const PERSONAS = [
     label: "Re-engager",
     icon: "Sprout",
     color: "slate",
-    description: "44, lapsed user. Was active two years ago, life got in the way. Back now — and shame will send him packing.",
     tags: ["re-engagement", "lapsed", "returning"],
   },
 ] as const;
@@ -119,7 +111,6 @@ async function main() {
       data: {
         name: p.name,
         label: p.label,
-        description: p.description,
         icon: p.icon,
         color: p.color,
         tags: p.tags,

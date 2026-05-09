@@ -2,13 +2,13 @@ export const revalidate = 60;
 
 import { Header } from "@/components/layout/header";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { MetricCard } from "@/components/charts/metric-card";
 import { VariantComparison } from "@/components/charts/variant-comparison";
 import { AgentStatusBadge } from "@/components/agents/agent-status-badge";
 import { ChartsSection } from "./charts-section";
+import { getCachedPerformanceMetrics, getCachedVariantMetrics } from "@/lib/cache";
 import { prisma } from "@/lib/db";
 import { formatNumber, formatPercent } from "@/lib/utils";
 import { AgentMetric, VariantMetric } from "@/types/metrics";
@@ -35,25 +35,10 @@ function LiftBadge({ lift }: { lift: number }) {
 }
 
 export default async function PerformancePage() {
-  const now = new Date();
-  const thirtyDaysAgo = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
-
   // Per-agent send/conversion counts — aggregated in the DB, not in JS
-  const [agents, sendsByAgent, conversionsByAgent] = await Promise.all([
-    prisma.agent.findMany({
-      select: { id: true, name: true, status: true },
-      orderBy: { updatedAt: "desc" },
-    }),
-    prisma.userDecision.groupBy({
-      by: ["agentId"],
-      where: { sentAt: { gte: thirtyDaysAgo } },
-      _count: { id: true },
-    }),
-    prisma.userDecision.groupBy({
-      by: ["agentId"],
-      where: { sentAt: { gte: thirtyDaysAgo }, conversionAt: { not: null } },
-      _count: { id: true },
-    }),
+  const [{ agents, sendsByAgent, conversionsByAgent }, { variantSends, variantConversions, variantRewards }] = await Promise.all([
+    getCachedPerformanceMetrics(),
+    getCachedVariantMetrics(),
   ]);
 
   const sendCountByAgent = new Map(sendsByAgent.map((r) => [r.agentId, r._count.id]));
@@ -80,24 +65,7 @@ export default async function PerformancePage() {
   });
 
 
-  // Top variants — aggregate sends/conversions/reward per variant in the DB, then join names
-  const [variantSends, variantConversions, variantRewards] = await Promise.all([
-    prisma.userDecision.groupBy({
-      by: ["messageVariantId", "channel"],
-      where: { sentAt: { gte: thirtyDaysAgo }, messageVariantId: { not: null } },
-      _count: { id: true },
-    }),
-    prisma.userDecision.groupBy({
-      by: ["messageVariantId"],
-      where: { sentAt: { gte: thirtyDaysAgo }, messageVariantId: { not: null }, conversionAt: { not: null } },
-      _count: { id: true },
-    }),
-    prisma.userDecision.groupBy({
-      by: ["messageVariantId"],
-      where: { sentAt: { gte: thirtyDaysAgo }, messageVariantId: { not: null } },
-      _sum: { reward: true },
-    }),
-  ]);
+  // Top variants — variant name lookup joined after cache fetch
 
   const variantIds = [...new Set(variantSends.map((r) => r.messageVariantId as string))];
   const variantNameRows = variantIds.length > 0

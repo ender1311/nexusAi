@@ -7,6 +7,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
+import { getCachedAgentList, getCachedPersonaDistribution, getCachedDashboardCounts } from "@/lib/cache";
 import { prisma } from "@/lib/db";
 import { formatNumber, formatDate } from "@/lib/utils";
 import { TimeSeriesPoint, DecisionLog } from "@/types/metrics";
@@ -138,26 +139,14 @@ async function RecentSendsSection({ agents }: { agents: AgentSummary[] }) {
 // ---------------------------------------------------------------------------
 
 export default async function DashboardPage() {
-  const now = new Date();
-  const twentyFourHoursAgo = new Date(now.getTime() - 24 * 60 * 60 * 1000);
-
   // Fast queries — counts + lists needed for metric cards and sidebars.
   // last7Decisions is intentionally excluded; TimeSeriesSection fetches it.
-  const [agents, personasRaw, sentLast24h, totalDecisions, totalConversions, trackedUsers] = await Promise.all([
-    prisma.agent.findMany({
-      select: { id: true, name: true, status: true, _count: { select: { decisions: true } } },
-      orderBy: { updatedAt: "desc" },
-    }),
-    prisma.persona.findMany({
-      where: { isActive: true },
-      select: { name: true, label: true, color: true, _count: { select: { trackedUsers: true } } },
-      orderBy: { name: "asc" },
-    }),
-    prisma.userDecision.count({ where: { sentAt: { gte: twentyFourHoursAgo } } }),
-    prisma.userDecision.count(),
-    prisma.userDecision.count({ where: { conversionAt: { not: null } } }),
-    prisma.trackedUser.count(),
+  const [agents, personasRaw, dashCounts] = await Promise.all([
+    getCachedAgentList(),
+    getCachedPersonaDistribution(),
+    getCachedDashboardCounts(),
   ]);
+  const { sentLast24h, totalDecisions, totalConversions, trackedUsers } = dashCounts;
 
   // Derived metrics
   const activeAgents = agents.filter((a) => a.status === "active").length;

@@ -16,6 +16,7 @@ import { VariantDiffTable } from "@/components/agents/variant-diff-table";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { TestedVariable, MessageVariant, AgentStatus, FunnelStage } from "@/types/agent";
 import { prisma } from "@/lib/db";
+import { getCachedAgent, getCachedActivePersonas } from "@/lib/cache";
 import { Skeleton } from "@/components/ui/skeleton";
 import { AgentFunnelConfig } from "@/components/agents/agent-funnel-config";
 import { PersonaTargetManager } from "@/components/agents/persona-target-manager";
@@ -50,21 +51,8 @@ export default async function AgentDetailPage({ params }: { params: Promise<{ id
   const { id } = await params;
 
   const [agent, allPersonas] = await Promise.all([
-    prisma.agent.findUnique({
-      where: { id },
-      include: {
-        goals: true,
-        messages: { include: { variants: true } },
-        schedulingRule: true,
-        personaTargets: { include: { persona: true } },
-        _count: { select: { decisions: true } },
-      },
-    }),
-    prisma.persona.findMany({
-      where: { isActive: true },
-      select: { id: true, name: true, icon: true, color: true, description: true },
-      orderBy: { name: "asc" },
-    }),
+    getCachedAgent(id),
+    getCachedActivePersonas(),
   ]);
 
   if (!agent) notFound();
@@ -448,9 +436,9 @@ export default async function AgentDetailPage({ params }: { params: Promise<{ id
                     persona: {
                       id: pt.persona.id,
                       name: pt.persona.name,
+                      label: pt.persona.label,
                       icon: pt.persona.icon,
                       color: pt.persona.color,
-                      description: pt.persona.description,
                     },
                   }))}
                   allPersonas={allPersonas}

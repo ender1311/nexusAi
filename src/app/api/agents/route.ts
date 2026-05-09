@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { revalidateTag } from "next/cache";
 import { prisma } from "@/lib/db";
 import { detectTestedVariables } from "@/lib/engine/variant-diff";
 import { MessageVariant, FUNNEL_STAGES } from "@/types/agent";
@@ -115,6 +116,7 @@ export async function POST(req: NextRequest) {
       },
     });
 
+    revalidateTag("agents", "max");
     return NextResponse.json(agent, { status: 201 });
   } catch (error) {
     console.error("POST /api/agents error:", error);

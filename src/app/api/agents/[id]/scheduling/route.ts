@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { revalidatePath } from "next/cache";
+import { revalidatePath, revalidateTag } from "next/cache";
 import { prisma } from "@/lib/db";
 
 /** Lean GET — returns only what the scheduling UI needs (name + rule).
@@ -83,6 +83,7 @@ export async function PUT(
     });
 
     revalidatePath(`/agents/${id}`);
+    revalidateTag(`agent-${id}`, "max");
     return NextResponse.json(rule);
   } catch (error) {
     console.error(`PUT /api/agents/${id}/scheduling error:`, error);
