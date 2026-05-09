@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { revalidatePath } from "next/cache";
+import { revalidatePath, revalidateTag } from "next/cache";
 import { prisma } from "@/lib/db";
 
 export async function DELETE(
@@ -15,5 +15,6 @@ export async function DELETE(
 
   await prisma.agentPersonaTarget.delete({ where: { id: target.id } });
   revalidatePath(`/agents/${agentId}`);
+  revalidateTag(`agent-${agentId}`, "max");
   return NextResponse.json({ data: { ok: true } });
 }

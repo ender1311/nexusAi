@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { revalidatePath } from "next/cache";
+import { revalidatePath, revalidateTag } from "next/cache";
 import { prisma } from "@/lib/db";
 
 export async function POST(
@@ -31,6 +31,7 @@ export async function POST(
       data: { agentId, personaId: body.personaId },
     });
     revalidatePath(`/agents/${agentId}`);
+    revalidateTag(`agent-${agentId}`, "max");
     return NextResponse.json({ data: target }, { status: 201 });
   } catch {
     // Unique constraint = already linked
