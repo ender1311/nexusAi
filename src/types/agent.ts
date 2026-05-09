@@ -48,6 +48,7 @@ export interface Agent {
   _count?: {
     goals?: number;
     messages?: number;
+    variants?: number;
     decisions: number;
   };
 }

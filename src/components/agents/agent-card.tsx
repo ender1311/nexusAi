@@ -89,7 +89,7 @@ export function AgentCard({ agent, conversionRate, onDelete }: AgentCardProps) {
                 </span>
                 <span className="flex items-center gap-1">
                   <MessageSquare className="h-3 w-3" />
-                  {agent._count?.messages ?? agent.messages?.length ?? 0} messages
+                  {agent._count?.variants ?? agent.messages?.reduce((s, m) => s + (m.variants?.length ?? 0), 0) ?? 0} variants
                 </span>
               </div>
 
