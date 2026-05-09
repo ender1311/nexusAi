@@ -59,7 +59,10 @@ export default async function AgentsPage({
   const [dbAgents, totalCount] = await Promise.all([
     prisma.agent.findMany({
       where,
-      include: { _count: { select: { goals: true, messages: true, decisions: true } } },
+      include: {
+        _count: { select: { goals: true, messages: true, decisions: true } },
+        messages: { select: { _count: { select: { variants: true } } } },
+      },
       orderBy: { updatedAt: "desc" },
       take: PAGE_SIZE,
       skip: pageNum * PAGE_SIZE,
@@ -90,6 +93,7 @@ export default async function AgentsPage({
       goals: a._count.goals,
       messages: a._count.messages,
       decisions: a._count.decisions,
+      variants: a.messages.reduce((sum, m) => sum + m._count.variants, 0),
     },
   }));
 
