@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { revalidatePath } from "next/cache";
 import { prisma } from "@/lib/db";
 
 export async function POST(
@@ -29,6 +30,7 @@ export async function POST(
     const target = await prisma.agentPersonaTarget.create({
       data: { agentId, personaId: body.personaId },
     });
+    revalidatePath(`/agents/${agentId}`);
     return NextResponse.json({ data: target }, { status: 201 });
   } catch {
     // Unique constraint = already linked

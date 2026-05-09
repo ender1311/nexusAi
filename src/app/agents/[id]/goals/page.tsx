@@ -1,4 +1,4 @@
-export const dynamic = "force-dynamic";
+export const revalidate = 30;
 
 import { notFound } from "next/navigation";
 import { Header } from "@/components/layout/header";

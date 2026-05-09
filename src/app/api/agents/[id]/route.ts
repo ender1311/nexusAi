@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { revalidatePath } from "next/cache";
 import { prisma } from "@/lib/db";
 import { FUNNEL_STAGES } from "@/types/agent";
 import { isPlainObject } from "@/lib/utils";
@@ -81,6 +82,8 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
         ...(body.languageFilter !== undefined ? { languageFilter: body.languageFilter } : {}),
       },
     });
+    revalidatePath(`/agents/${id}`);
+    revalidatePath("/agents");
     return NextResponse.json(agent);
   } catch (error) {
     console.error(`PATCH /api/agents/${id} error:`, error);
@@ -92,6 +95,7 @@ export async function DELETE(_req: NextRequest, { params }: { params: Promise<{ 
   const { id } = await params;
   try {
     await prisma.agent.delete({ where: { id } });
+    revalidatePath("/agents");
     return NextResponse.json({ ok: true });
   } catch (error) {
     console.error(`DELETE /api/agents/${id} error:`, error);
