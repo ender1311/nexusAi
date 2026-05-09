@@ -1,10 +1,11 @@
 "use client";
 
-import { Fragment, useEffect, useState } from "react";
-import { Loader2, Send, ChevronDown, ChevronRight, Link2, Clock, CheckCircle2, XCircle } from "lucide-react";
+import { Fragment, useEffect, useMemo, useState } from "react";
+import { Loader2, Send, ChevronDown, ChevronRight, Link2, Clock, CheckCircle2, XCircle, ArrowUpDown, ArrowUp, ArrowDown, SlidersHorizontal, X } from "lucide-react";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { cn } from "@/lib/utils";
 
 type SendRow = {
@@ -26,6 +27,15 @@ type SendRow = {
   reward: number | null;
   decisionContext: unknown | null;
   failed: boolean;
+};
+
+type SortField = "sentAt" | "channel" | "persona" | "variant";
+type SortDir = "asc" | "desc";
+
+type Filters = {
+  status: "all" | "success" | "failed" | "converted";
+  channel: string; // "all" or channel name
+  persona: string; // "all" or persona name
 };
 
 type Props = { agentId: string };
@@ -100,6 +110,42 @@ function groupByDate(rows: SendRow[]): GroupedRows {
     map.get(key)!.rows.push(row);
   }
   return Array.from(map.entries()).map(([dateKey, { label, rows }]) => ({ dateKey, label, rows }));
+}
+
+function applyFilters(rows: SendRow[], filters: Filters): SendRow[] {
+  return rows.filter((r) => {
+    if (filters.status === "success" && r.failed) return false;
+    if (filters.status === "failed" && !r.failed) return false;
+    if (filters.status === "converted" && !r.conversionAt) return false;
+    if (filters.channel !== "all" && r.channel !== filters.channel) return false;
+    if (filters.persona !== "all" && (r.personaName ?? "none") !== filters.persona) return false;
+    return true;
+  });
+}
+
+function applySortToGroups(groups: GroupedRows, field: SortField, dir: SortDir): GroupedRows {
+  if (field === "sentAt") {
+    // Groups are already date-grouped; flip group order for asc/desc
+    return dir === "asc" ? [...groups].reverse() : groups;
+  }
+  return groups.map((g) => ({
+    ...g,
+    rows: [...g.rows].sort((a, b) => {
+      let av = "";
+      let bv = "";
+      if (field === "channel") { av = a.channel; bv = b.channel; }
+      if (field === "persona") { av = a.personaName ?? ""; bv = b.personaName ?? ""; }
+      if (field === "variant") { av = a.variantName ?? ""; bv = b.variantName ?? ""; }
+      return dir === "asc" ? av.localeCompare(bv) : bv.localeCompare(av);
+    }),
+  }));
+}
+
+function SortIcon({ field, active, dir }: { field: SortField; active: SortField; dir: SortDir }) {
+  if (field !== active) return <ArrowUpDown className="h-3 w-3 ml-1 text-muted-foreground/50" />;
+  return dir === "asc"
+    ? <ArrowUp className="h-3 w-3 ml-1 text-primary" />
+    : <ArrowDown className="h-3 w-3 ml-1 text-primary" />;
 }
 
 function ExpandedContent({ row }: { row: SendRow }) {
@@ -259,6 +305,12 @@ function ScheduledSection({ rows, expanded, onToggle }: {
   );
 }
 
+const DEFAULT_FILTERS: Filters = { status: "all", channel: "all", persona: "all" };
+
+function filtersActive(f: Filters): boolean {
+  return f.status !== "all" || f.channel !== "all" || f.persona !== "all";
+}
+
 export function AgentSendsTable({ agentId }: Props) {
   const [rows, setRows] = useState<SendRow[]>([]);
   const [status, setStatus] = useState<"loading" | "idle" | "error">("loading");
@@ -266,6 +318,10 @@ export function AgentSendsTable({ agentId }: Props) {
   const [hasMore, setHasMore] = useState(false);
   const [loadingMore, setLoadingMore] = useState(false);
   const [expanded, setExpanded] = useState<Set<string>>(new Set());
+  const [filters, setFilters] = useState<Filters>(DEFAULT_FILTERS);
+  const [sortField, setSortField] = useState<SortField>("sentAt");
+  const [sortDir, setSortDir] = useState<SortDir>("desc");
+  const [showFilters, setShowFilters] = useState(false);
 
   useEffect(() => {
     let cancelled = false;
@@ -320,6 +376,38 @@ export function AgentSendsTable({ agentId }: Props) {
     });
   }
 
+  function handleSort(field: SortField) {
+    if (sortField === field) {
+      setSortDir((d) => (d === "asc" ? "desc" : "asc"));
+    } else {
+      setSortField(field);
+      setSortDir("desc");
+    }
+  }
+
+  // Derive filter options from loaded rows
+  const channels = useMemo(() => [...new Set(rows.map((r) => r.channel))].sort(), [rows]);
+  const personas = useMemo(
+    () => [...new Set(rows.map((r) => r.personaName ?? "none"))].filter((p) => p !== "none").sort(),
+    [rows],
+  );
+
+  const now = new Date().toISOString();
+  const scheduledRows = rows.filter((r) => r.scheduledFor && r.scheduledFor > now);
+  const sentRows = rows.filter((r) => !r.scheduledFor || r.scheduledFor <= now);
+
+  const filteredSentRows = useMemo(() => applyFilters(sentRows, filters), [sentRows, filters]);
+  const groups = useMemo(
+    () => applySortToGroups(groupByDate(filteredSentRows), sortField, sortDir),
+    [filteredSentRows, sortField, sortDir],
+  );
+
+  const activeFilterCount = [
+    filters.status !== "all",
+    filters.channel !== "all",
+    filters.persona !== "all",
+  ].filter(Boolean).length;
+
   if (status === "loading") {
     return (
       <div className="flex items-center justify-center py-12">
@@ -342,26 +430,142 @@ export function AgentSendsTable({ agentId }: Props) {
     );
   }
 
-  const now = new Date().toISOString();
-  // Scheduled = future scheduledFor (queued with Braze, not yet delivered)
-  const scheduledRows = rows.filter((r) => r.scheduledFor && r.scheduledFor > now);
-  // Sent = everything else (delivered or immediate)
-  const sentRows = rows.filter((r) => !r.scheduledFor || r.scheduledFor <= now);
-  const groups = groupByDate(sentRows);
-
   return (
-    <div className="space-y-6">
+    <div className="space-y-4">
+      {/* Filter / sort toolbar */}
+      <div className="flex items-center gap-2 flex-wrap">
+        <Button
+          variant="outline"
+          size="sm"
+          className="h-7 text-xs gap-1.5"
+          onClick={() => setShowFilters((v) => !v)}
+        >
+          <SlidersHorizontal className="h-3 w-3" />
+          Filter
+          {activeFilterCount > 0 && (
+            <span className="ml-0.5 flex h-4 w-4 items-center justify-center rounded-full bg-primary text-[10px] text-primary-foreground font-bold">
+              {activeFilterCount}
+            </span>
+          )}
+        </Button>
+
+        {/* Active filter pills */}
+        {filters.status !== "all" && (
+          <span className="flex items-center gap-1 rounded-full border bg-muted/60 px-2 py-0.5 text-xs">
+            {filters.status}
+            <button onClick={() => setFilters((f) => ({ ...f, status: "all" }))}>
+              <X className="h-2.5 w-2.5 text-muted-foreground hover:text-foreground" />
+            </button>
+          </span>
+        )}
+        {filters.channel !== "all" && (
+          <span className="flex items-center gap-1 rounded-full border bg-muted/60 px-2 py-0.5 text-xs capitalize">
+            {filters.channel}
+            <button onClick={() => setFilters((f): Filters => ({ ...f, channel: "all" }))}>
+              <X className="h-2.5 w-2.5 text-muted-foreground hover:text-foreground" />
+            </button>
+          </span>
+        )}
+        {filters.persona !== "all" && (
+          <span className="flex items-center gap-1 rounded-full border bg-muted/60 px-2 py-0.5 text-xs">
+            {filters.persona}
+            <button onClick={() => setFilters((f): Filters => ({ ...f, persona: "all" }))}>
+              <X className="h-2.5 w-2.5 text-muted-foreground hover:text-foreground" />
+            </button>
+          </span>
+        )}
+        {filtersActive(filters) && (
+          <button
+            className="text-xs text-muted-foreground hover:text-foreground underline underline-offset-2"
+            onClick={() => setFilters(DEFAULT_FILTERS)}
+          >
+            Clear all
+          </button>
+        )}
+
+        <span className="ml-auto text-xs text-muted-foreground">
+          {filteredSentRows.length !== sentRows.length
+            ? `${filteredSentRows.length} of ${sentRows.length} sends`
+            : `${sentRows.length} sends`}
+        </span>
+      </div>
+
+      {/* Filter panel */}
+      {showFilters && (
+        <div className="flex flex-wrap gap-3 rounded-lg border bg-muted/30 p-3">
+          <div className="flex flex-col gap-1">
+            <label className="text-[10px] font-medium text-muted-foreground uppercase tracking-wide">Status</label>
+            <Select
+              value={filters.status}
+              onValueChange={(v) => setFilters((f) => ({ ...f, status: v as Filters["status"] }))}
+            >
+              <SelectTrigger className="h-7 w-[110px] text-xs">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all" className="text-xs">All</SelectItem>
+                <SelectItem value="success" className="text-xs">Success</SelectItem>
+                <SelectItem value="failed" className="text-xs">Failed</SelectItem>
+                <SelectItem value="converted" className="text-xs">Converted</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+
+          {channels.length > 1 && (
+            <div className="flex flex-col gap-1">
+              <label className="text-[10px] font-medium text-muted-foreground uppercase tracking-wide">Channel</label>
+              <Select
+                value={filters.channel}
+                onValueChange={(v) => setFilters((f) => ({ ...f, channel: v ?? f.channel }))}
+              >
+                <SelectTrigger className="h-7 w-[110px] text-xs">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all" className="text-xs">All</SelectItem>
+                  {channels.map((c) => (
+                    <SelectItem key={c} value={c} className="text-xs capitalize">{c}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+          )}
+
+          {personas.length > 1 && (
+            <div className="flex flex-col gap-1">
+              <label className="text-[10px] font-medium text-muted-foreground uppercase tracking-wide">Persona</label>
+              <Select
+                value={filters.persona}
+                onValueChange={(v) => setFilters((f) => ({ ...f, persona: v ?? f.persona }))}
+              >
+                <SelectTrigger className="h-7 w-[130px] text-xs">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all" className="text-xs">All</SelectItem>
+                  {personas.map((p) => (
+                    <SelectItem key={p} value={p} className="text-xs">{p}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+          )}
+        </div>
+      )}
+
       {/* Scheduled (future) sends */}
       <ScheduledSection rows={scheduledRows} expanded={expanded} onToggle={toggleExpanded} />
 
       {/* Sent history */}
-      {sentRows.length > 0 && (
+      {filteredSentRows.length === 0 ? (
+        <p className="text-center py-6 text-sm text-muted-foreground">No sends match the current filters.</p>
+      ) : (
         <div className="space-y-1">
           {scheduledRows.length > 0 && (
             <div className="flex items-center gap-2 mb-2">
               <Send className="h-3.5 w-3.5 text-muted-foreground" />
               <span className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">
-                Sent — {sentRows.length} decisions
+                Sent — {filteredSentRows.length} decisions
               </span>
             </div>
           )}
@@ -372,10 +576,42 @@ export function AgentSendsTable({ agentId }: Props) {
                   <TableHead className="w-8" />
                   <TableHead className="w-8" />
                   <TableHead className="w-[100px] sm:w-[130px]">User</TableHead>
-                  <TableHead>Variant / Message</TableHead>
-                  <TableHead className="w-[110px] hidden sm:table-cell">Persona</TableHead>
-                  <TableHead className="w-[80px] hidden sm:table-cell">Channel</TableHead>
-                  <TableHead className="w-[70px]">Delivers</TableHead>
+                  <TableHead>
+                    <button
+                      className="flex items-center text-xs font-medium hover:text-foreground"
+                      onClick={() => handleSort("variant")}
+                    >
+                      Variant
+                      <SortIcon field="variant" active={sortField} dir={sortDir} />
+                    </button>
+                  </TableHead>
+                  <TableHead className="w-[110px] hidden sm:table-cell">
+                    <button
+                      className="flex items-center text-xs font-medium hover:text-foreground"
+                      onClick={() => handleSort("persona")}
+                    >
+                      Persona
+                      <SortIcon field="persona" active={sortField} dir={sortDir} />
+                    </button>
+                  </TableHead>
+                  <TableHead className="w-[80px] hidden sm:table-cell">
+                    <button
+                      className="flex items-center text-xs font-medium hover:text-foreground"
+                      onClick={() => handleSort("channel")}
+                    >
+                      Channel
+                      <SortIcon field="channel" active={sortField} dir={sortDir} />
+                    </button>
+                  </TableHead>
+                  <TableHead className="w-[70px]">
+                    <button
+                      className="flex items-center text-xs font-medium hover:text-foreground"
+                      onClick={() => handleSort("sentAt")}
+                    >
+                      Time
+                      <SortIcon field="sentAt" active={sortField} dir={sortDir} />
+                    </button>
+                  </TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -459,7 +695,7 @@ export function AgentSendsTable({ agentId }: Props) {
                               </Badge>
                             </TableCell>
 
-                            {/* Delivers — short local time */}
+                            {/* Time — short local time or "now" */}
                             <TableCell className="text-xs font-medium tabular-nums">
                               {row.scheduledFor
                                 ? <span className="text-foreground/70">{formatShortTime(row.scheduledFor)}</span>
