@@ -9,6 +9,7 @@ import { ExplorationRatio } from "@/components/charts/exploration-ratio";
 import { TimingHeatmap } from "@/components/charts/timing-heatmap";
 import { formatNumber } from "@/lib/utils";
 import type { VariantMetric, TimeSeriesPoint, TimingHeatmapCell } from "@/types/metrics";
+import { liftSignificance } from "@/lib/engine/lift-significance";
 
 /** Wilson score 95% CI for a binomial proportion. Returns [low, high] as percentages. */
 function wilsonCI(sends: number, conversions: number): { low: number; high: number } {
@@ -155,8 +156,9 @@ export default async function AgentPerformancePage({
       where: { sentAt: { gte: thirtyDaysAgo }, conversionAt: { not: null } },
     }),
   ]);
-  const fleetConvRate = fleetSends > 0 ? (fleetConversions / fleetSends) * 100 : 0;
-  const lift = convRate - fleetConvRate;
+  const { lift, significant: liftSignificant, insufficient: liftInsufficient } = liftSignificance(
+    sends, conversions, fleetSends, fleetConversions,
+  );
 
   // Per-variant breakdown
   const variantMap = new Map<
@@ -272,10 +274,22 @@ export default async function AgentPerformancePage({
             <CardContent className="p-4">
               <p className="text-xs text-muted-foreground">Lift vs Fleet Avg</p>
               <p
-                className={`text-2xl font-bold mt-1 ${lift >= 0 ? "text-green-600" : "text-red-500"}`}
+                className={`text-2xl font-bold mt-1 ${
+                  liftInsufficient || !liftSignificant
+                    ? "text-muted-foreground"
+                    : lift >= 0
+                    ? "text-green-600"
+                    : "text-red-500"
+                }`}
               >
-                {lift >= 0 ? "+" : ""}
-                {lift.toFixed(1)}%
+                {liftInsufficient ? "~" : ""}{lift >= 0 ? "+" : ""}{lift.toFixed(1)}%
+              </p>
+              <p className="text-[10px] text-muted-foreground/70 mt-0.5">
+                {liftInsufficient
+                  ? `Need ${200 - sends} more sends`
+                  : liftSignificant
+                  ? "p < 0.05 · significant"
+                  : "n.s. · p ≥ 0.05"}
               </p>
             </CardContent>
           </Card>

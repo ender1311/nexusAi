@@ -80,9 +80,9 @@ export const variantMetrics: Record<string, VariantMetric[]> = {
 };
 
 export const agentMetrics: AgentMetric[] = [
-  { agentId: "agent_001", agentName: "Recommend Bible Plans",   status: "active", sends: 13630, conversions: 1140, conversionRate: 8.36, liftVsControl: 27.4, exploreRatio: 11 },
-  { agentId: "agent_002", agentName: "Retention - Lapsed Users", status: "active", sends: 9670,  conversions: 456,  conversionRate: 4.72, liftVsControl: 16.8, exploreRatio: 14 },
-  { agentId: "agent_003", agentName: "Referral Program",         status: "active", sends: 3580,  conversions: 157,  conversionRate: 4.38, liftVsControl: 34.1, exploreRatio: 22 },
+  { agentId: "agent_001", agentName: "Recommend Bible Plans",   status: "active", sends: 13630, conversions: 1140, conversionRate: 8.36, liftVsControl: 27.4, liftSignificant: true,  liftInsufficient: false, exploreRatio: 11 },
+  { agentId: "agent_002", agentName: "Retention - Lapsed Users", status: "active", sends: 9670,  conversions: 456,  conversionRate: 4.72, liftVsControl: 16.8, liftSignificant: true,  liftInsufficient: false, exploreRatio: 14 },
+  { agentId: "agent_003", agentName: "Referral Program",         status: "active", sends: 3580,  conversions: 157,  conversionRate: 4.38, liftVsControl: 34.1, liftSignificant: true,  liftInsufficient: false, exploreRatio: 22 },
 ];
 
 export function generateTimingHeatmap(): TimingHeatmapCell[] {
