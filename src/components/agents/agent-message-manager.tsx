@@ -8,6 +8,7 @@ import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle, DialogT
 import { PushVariantForm, PushVariantDraft } from "@/components/agents/push-variant-form";
 import { PushVariantPreviewCard } from "@/components/agents/push-variant-preview-card";
 import { TemplatePicker } from "@/components/agents/template-picker";
+import { VariantPicker } from "@/components/agents/variant-picker";
 import { cn } from "@/lib/utils";
 import { Plus, Pencil, Trash2 } from "lucide-react";
 import { FrequencyCap } from "@/types/agent";
@@ -38,17 +39,6 @@ type MessageRecord = {
 type AgentMessageManagerProps = {
   agentId: string;
   initialMessages: MessageRecord[];
-};
-
-const EMPTY_VARIANT: PushVariantDraft = {
-  name: "V1",
-  body: "",
-  title: "",
-  deeplink: "",
-  iconImageUrl: "",
-  preferredHour: null,
-  preferredDayOfWeek: null,
-  frequencyCapOverride: null,
 };
 
 function toDraft(variant: VariantRecord): PushVariantDraft {
@@ -109,10 +99,9 @@ export function AgentMessageManager({ agentId, initialMessages }: AgentMessageMa
   const [createOpen, setCreateOpen] = useState(false);
 
   const [addVariantForMessageId, setAddVariantForMessageId] = useState<string | null>(null);
-  const [newVariantDraft, setNewVariantDraft] = useState<PushVariantDraft>({ ...EMPTY_VARIANT });
 
   const [editingVariant, setEditingVariant] = useState<{ messageId: string; variant: VariantRecord } | null>(null);
-  const [editingDraft, setEditingDraft] = useState<PushVariantDraft>({ ...EMPTY_VARIANT });
+  const [editingDraft, setEditingDraft] = useState<PushVariantDraft>({ name: "", body: "", title: "", deeplink: "", iconImageUrl: "", preferredHour: null, preferredDayOfWeek: null, frequencyCapOverride: null });
 
   async function refreshMessages() {
     try {
@@ -122,36 +111,6 @@ export function AgentMessageManager({ agentId, initialMessages }: AgentMessageMa
       setMessages(data.map(normalizeMessage));
     } catch {
       // silent — user can refresh page if needed
-    }
-  }
-
-  async function addVariant() {
-    if (!addVariantForMessageId || !isValidVariant(newVariantDraft)) return;
-    setSaving(true);
-    setError(null);
-    try {
-      const res = await fetch(`/api/agents/${agentId}/messages`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          messageId: addVariantForMessageId,
-          variant: toPayload(newVariantDraft),
-        }),
-      });
-      if (!res.ok) {
-        const body = await res.json().catch(() => ({ error: "Failed to add variant" }));
-        throw new Error(body.error ?? "Failed to add variant");
-      }
-      const updatedMessage = (await res.json()) as MessageRecord;
-      setMessages((prev) =>
-        prev.map((msg) => (msg.id === updatedMessage.id ? normalizeMessage(updatedMessage) : msg)),
-      );
-      setNewVariantDraft({ ...EMPTY_VARIANT });
-      setAddVariantForMessageId(null);
-    } catch (err) {
-      setError(err instanceof Error ? err.message : "Failed to add variant");
-    } finally {
-      setSaving(false);
     }
   }
 
@@ -230,7 +189,7 @@ export function AgentMessageManager({ agentId, initialMessages }: AgentMessageMa
   return (
     <div className="space-y-4 sm:space-y-6">
       <div className="flex items-center justify-between gap-2">
-        <p className="text-sm text-muted-foreground">Create and manage push messages and their variants directly in Nexus.</p>
+        <p className="text-sm text-muted-foreground">Add messages and variants from approved push templates.</p>
         <Dialog open={createOpen} onOpenChange={setCreateOpen}>
           <DialogTrigger
             render={
@@ -285,10 +244,7 @@ export function AgentMessageManager({ agentId, initialMessages }: AgentMessageMa
                   <span className="text-xs text-muted-foreground">{msg.variants.length} variants</span>
                   <Dialog
                     open={addVariantForMessageId === msg.id}
-                    onOpenChange={(open) => {
-                      setAddVariantForMessageId(open ? msg.id : null);
-                      if (!open) setNewVariantDraft({ ...EMPTY_VARIANT, name: `V${msg.variants.length + 1}` });
-                    }}
+                    onOpenChange={(open) => setAddVariantForMessageId(open ? msg.id : null)}
                   >
                     <DialogTrigger
                       render={
@@ -298,20 +254,17 @@ export function AgentMessageManager({ agentId, initialMessages }: AgentMessageMa
                         </Button>
                       }
                     />
-                    <DialogContent className="max-w-xl max-h-[90vh] overflow-y-auto">
+                    <DialogContent className="w-[calc(100vw-2rem)] sm:max-w-3xl max-h-[90vh] overflow-y-auto">
                       <DialogHeader>
                         <DialogTitle>Add Variant to {msg.name}</DialogTitle>
                       </DialogHeader>
-                      <PushVariantForm variant={newVariantDraft} onChange={setNewVariantDraft} />
-                      {error && <p className="text-sm text-destructive">{error}</p>}
-                      <DialogFooter>
-                        <Button variant="outline" onClick={() => { setAddVariantForMessageId(null); setError(null); }}>
-                          Cancel
-                        </Button>
-                        <Button onClick={addVariant} disabled={!isValidVariant(newVariantDraft) || saving}>
-                          Save Variant
-                        </Button>
-                      </DialogFooter>
+                      <VariantPicker
+                        agentId={agentId}
+                        messageId={msg.id}
+                        existingVariantCount={msg.variants.length}
+                        onSaved={() => { setAddVariantForMessageId(null); refreshMessages(); }}
+                        onCancel={() => setAddVariantForMessageId(null)}
+                      />
                     </DialogContent>
                   </Dialog>
                 </div>
