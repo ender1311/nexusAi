@@ -143,7 +143,7 @@ const mobileNavItems = navItems.filter((item) =>
 export function MobileNav() {
   const pathname = usePathname();
   return (
-    <nav className="fixed bottom-0 left-0 right-0 z-50 flex lg:hidden border-t bg-sidebar">
+    <nav className="fixed bottom-0 left-0 right-0 z-50 flex lg:hidden border-t bg-sidebar pb-[env(safe-area-inset-bottom)]">
       {mobileNavItems.map((item) => {
         const active =
           item.href === "/" ? pathname === "/" : pathname.startsWith(item.href);
@@ -152,7 +152,7 @@ export function MobileNav() {
             key={item.href}
             href={item.href}
             className={cn(
-              "flex flex-1 flex-col items-center gap-1 py-2 text-[10px] font-medium transition-colors",
+              "flex flex-1 flex-col items-center gap-1 py-3 text-xs font-medium transition-colors",
               active ? "text-primary" : "text-muted-foreground"
             )}
           >

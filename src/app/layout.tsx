@@ -47,7 +47,7 @@ export default async function RootLayout({
             <DataModeProvider>
               <div className="flex h-screen overflow-hidden bg-background">
                 <Sidebar user={sidebarUser} />
-                <main className="flex-1 overflow-y-auto pb-16 lg:pb-0">
+                <main className="flex-1 overflow-y-auto pb-[calc(4rem+env(safe-area-inset-bottom))] lg:pb-0">
                   {children}
                 </main>
               </div>

@@ -130,8 +130,8 @@ export default function SettingsPage() {
             <CardTitle className="text-sm font-semibold">Default Send Limits</CardTitle>
           </CardHeader>
           <CardContent className="space-y-4">
-            <div className="flex items-center gap-4">
-              <div className="flex-1">
+            <div className="flex flex-wrap items-end gap-4">
+              <div className="flex-1 min-w-[12rem]">
                 <label className="text-xs font-medium text-muted-foreground">
                   Default frequency cap: {defaultFreqCap} sends
                 </label>
@@ -143,7 +143,7 @@ export default function SettingsPage() {
                 />
               </div>
               <Select value={defaultPeriod} onValueChange={(v) => v && setDefaultPeriod(v)}>
-                <SelectTrigger className="w-32">
+                <SelectTrigger className="w-full sm:w-36">
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
@@ -154,23 +154,23 @@ export default function SettingsPage() {
                 </SelectContent>
               </Select>
             </div>
-            <div className="flex gap-4">
-              <div>
+            <div className="flex flex-wrap gap-4">
+              <div className="flex-1 min-w-[8rem]">
                 <label className="text-xs font-medium text-muted-foreground">Default quiet start</label>
                 <Input
                   type="time"
                   value={defaultQuietStart}
                   onChange={(e) => setDefaultQuietStart(e.target.value)}
-                  className="mt-1 w-32"
+                  className="mt-1 w-full sm:w-32"
                 />
               </div>
-              <div>
+              <div className="flex-1 min-w-[8rem]">
                 <label className="text-xs font-medium text-muted-foreground">Default quiet end</label>
                 <Input
                   type="time"
                   value={defaultQuietEnd}
                   onChange={(e) => setDefaultQuietEnd(e.target.value)}
-                  className="mt-1 w-32"
+                  className="mt-1 w-full sm:w-32"
                 />
               </div>
             </div>
@@ -267,26 +267,26 @@ export default function SettingsPage() {
             </p>
 
             {/* Add form */}
-            <div className="flex gap-2">
+            <div className="flex flex-wrap gap-2">
               <Input
                 placeholder="Name"
                 value={newUserName}
                 onChange={(e) => setNewUserName(e.target.value)}
-                className="w-40 text-sm"
+                className="w-full sm:w-40 text-sm"
                 onKeyDown={(e) => e.key === "Enter" && handleAddUser()}
               />
               <Input
                 placeholder="Braze external ID"
                 value={newUserExternalId}
                 onChange={(e) => setNewUserExternalId(e.target.value)}
-                className="flex-1 text-sm font-mono"
+                className="flex-1 min-w-[10rem] text-sm font-mono"
                 onKeyDown={(e) => e.key === "Enter" && handleAddUser()}
               />
               <Button
                 size="sm"
                 onClick={handleAddUser}
                 disabled={addingUser || !newUserName.trim() || !newUserExternalId.trim()}
-                className="gap-1.5 shrink-0"
+                className="gap-1.5 shrink-0 w-full sm:w-auto"
               >
                 {addingUser ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <UserPlus className="h-3.5 w-3.5" />}
                 Add

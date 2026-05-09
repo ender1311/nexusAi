@@ -126,32 +126,32 @@ export default async function AgentDetailPage({ params }: { params: Promise<{ id
           <div className="overflow-x-auto -mx-4 px-4 sm:mx-0 sm:px-0">
           <TabsList className="w-max sm:w-auto">
             <TabsTrigger value="overview">
-              <LayoutDashboard className="h-3.5 w-3.5 mr-1.5" />
-              Overview
+              <LayoutDashboard className="h-3.5 w-3.5 sm:mr-1.5" />
+              <span className="hidden sm:inline">Overview</span>
             </TabsTrigger>
             <TabsTrigger value="goals">
-              <Target className="h-3.5 w-3.5 mr-1.5" />
-              Goals
+              <Target className="h-3.5 w-3.5 sm:mr-1.5" />
+              <span className="hidden sm:inline">Goals</span>
             </TabsTrigger>
             <TabsTrigger value="messages">
-              <MessageSquare className="h-3.5 w-3.5 mr-1.5" />
-              Messages
+              <MessageSquare className="h-3.5 w-3.5 sm:mr-1.5" />
+              <span className="hidden sm:inline">Messages</span>
             </TabsTrigger>
             <TabsTrigger value="scheduling">
-              <Calendar className="h-3.5 w-3.5 mr-1.5" />
-              Scheduling
+              <Calendar className="h-3.5 w-3.5 sm:mr-1.5" />
+              <span className="hidden sm:inline">Scheduling</span>
             </TabsTrigger>
             <TabsTrigger value="performance">
-              <BarChart3 className="h-3.5 w-3.5 mr-1.5" />
-              Performance
+              <BarChart3 className="h-3.5 w-3.5 sm:mr-1.5" />
+              <span className="hidden sm:inline">Performance</span>
             </TabsTrigger>
             <TabsTrigger value="audience">
-              <Users2 className="h-3.5 w-3.5 mr-1.5" />
-              Audience
+              <Users2 className="h-3.5 w-3.5 sm:mr-1.5" />
+              <span className="hidden sm:inline">Audience</span>
             </TabsTrigger>
             <TabsTrigger value="sends">
-              <Send className="h-3.5 w-3.5 mr-1.5" />
-              Sends
+              <Send className="h-3.5 w-3.5 sm:mr-1.5" />
+              <span className="hidden sm:inline">Sends</span>
             </TabsTrigger>
           </TabsList>
           </div>
@@ -287,7 +287,7 @@ export default async function AgentDetailPage({ params }: { params: Promise<{ id
                                     Compare
                                   </Button>
                                 } />
-                                <DialogContent className="max-w-3xl">
+                                <DialogContent className="w-[calc(100vw-2rem)] sm:max-w-3xl overflow-x-auto">
                                   <DialogHeader>
                                     <DialogTitle className="text-sm">{msg.name} — Variant Comparison</DialogTitle>
                                   </DialogHeader>
