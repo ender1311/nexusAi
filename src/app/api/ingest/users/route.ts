@@ -116,6 +116,12 @@ function pushOpenToEvent(row: PushOpenRow): EventRecord | null {
 // Mirrors the logic in /api/ingest/events — matches each event to the most
 // recent unattributed UserDecision within the attribution window, then
 // updates arm stats to close the learning loop.
+//
+// push_open events are handled specially:
+//   - Stamped on pushOpenAt (not conversionAt) so the attribution slot stays open
+//     for a subsequent goal event (plan_started, etc.) from the same send.
+//   - Arm stats are NOT updated for push_opens — they are pure engagement signals.
+//     Goal events drive the learning loop.
 
 async function attributeEvents(
   events: EventRecord[],
@@ -128,80 +134,106 @@ async function attributeEvents(
     const occurredAt = new Date(event.occurred_at);
     if (isNaN(occurredAt.getTime())) { unmatched++; continue; }
 
+    const isPushOpen = event.event_name === "push_open";
+
+    // ── Idempotency: skip if already processed in a previous batch ────────
+    const alreadyProcessed = await prisma.processedEventId.findUnique({
+      where: { eventId: event.event_id },
+    });
+    if (alreadyProcessed) { unmatched++; continue; }
+
     const attributionHours = LONG_HORIZON.has(event.event_name) ? 30 * 24 : 48;
     const windowStart = new Date(occurredAt.getTime() - attributionHours * 60 * 60 * 1000);
 
+    // push_open: also require pushOpenAt: null so we don't double-stamp the same send
     const decision = await prisma.userDecision.findFirst({
       where: {
         userId: event.external_user_id,
         conversionAt: null,
+        ...(isPushOpen ? { pushOpenAt: null } : {}),
         sentAt: { gte: windowStart, lte: occurredAt },
       },
       orderBy: { sentAt: "desc" },
       include: { agent: { include: { goals: true } } },
     });
 
-    if (!decision) { unmatched++; continue; }
-
-    const reward = calculateReward(
-      event.event_name,
-      decision.agent.goals as Parameters<typeof calculateReward>[1],
-      event.properties,
-    );
-
-    await prisma.userDecision.update({
-      where: { id: decision.id },
-      data: {
-        conversionEvent: event.event_name,
-        conversionAt: occurredAt,
-        reward: reward !== 0 ? reward : null,
-      },
-    });
-
-    if (reward !== 0) {
-      await accumulateUserStats({
-        externalId: event.external_user_id,
-        channel: decision.channel,
-        reward,
-        occurredAt,
-      }).catch((err) => {
-        console.error("[ingest/users] Failed to accumulate user stats:", err);
-      });
+    if (!decision) {
+      // Mark as processed so Hightouch retries don't re-attempt (unmatched is usually permanent)
+      await prisma.processedEventId.create({ data: { eventId: event.event_id } }).catch(() => {});
+      unmatched++;
+      continue;
     }
 
-    if (decision.messageVariantId) {
-      const user = await prisma.trackedUser.findFirst({
-        where: { externalId: event.external_user_id },
-        select: { personaId: true },
+    if (isPushOpen) {
+      // push_open: stamp pushOpenAt only — leave conversionAt null so a goal event can still claim this slot
+      await prisma.userDecision.update({
+        where: { id: decision.id },
+        data: { pushOpenAt: occurredAt },
       });
-      const deltaAlpha = reward > 0 ? reward : 0;
-      const deltaBeta  = reward <= 0 ? 1 : 0;
-      const deltaWins  = reward > 0 ? 1 : 0;
-      await Promise.all([
-        user?.personaId
-          ? upsertArmStats({
-              personaId: user.personaId,
-              agentId: decision.agentId,
-              variantId: decision.messageVariantId,
-              deltaAlpha, deltaBeta, deltaWins,
-            }).catch((err) => {
-              console.error("[ingest/users] Failed to update PersonaArmStats:", err);
-            })
-          : Promise.resolve(),
-        upsertUserArmStats({
-          userId: event.external_user_id,
-          agentId: decision.agentId,
-          variantId: decision.messageVariantId,
-          deltaAlpha, deltaBeta, deltaWins,
-        }).catch((err) => {
-          console.error("[ingest/users] Failed to update UserArmStats:", err);
-        }),
-      ]);
-      console.log(
-        `[ingest/users] reward attributed: event=${event.event_name} userId=${event.external_user_id} deltaAlpha=${deltaAlpha} deltaBeta=${deltaBeta}`,
+    } else {
+      // Goal event: stamp conversionAt and run the reward/arm-stats loop
+      const reward = calculateReward(
+        event.event_name,
+        decision.agent.goals as Parameters<typeof calculateReward>[1],
+        event.properties,
       );
+
+      await prisma.userDecision.update({
+        where: { id: decision.id },
+        data: {
+          conversionEvent: event.event_name,
+          conversionAt: occurredAt,
+          reward: reward !== 0 ? reward : null,
+        },
+      });
+
+      if (reward !== 0) {
+        await accumulateUserStats({
+          externalId: event.external_user_id,
+          channel: decision.channel,
+          reward,
+          occurredAt,
+        }).catch((err) => {
+          console.error("[ingest/users] Failed to accumulate user stats:", err);
+        });
+      }
+
+      if (decision.messageVariantId) {
+        const user = await prisma.trackedUser.findFirst({
+          where: { externalId: event.external_user_id },
+          select: { personaId: true },
+        });
+        const deltaAlpha = reward > 0 ? reward : 0;
+        const deltaBeta  = reward <= 0 ? 1 : 0;
+        const deltaWins  = reward > 0 ? 1 : 0;
+        await Promise.all([
+          user?.personaId
+            ? upsertArmStats({
+                personaId: user.personaId,
+                agentId: decision.agentId,
+                variantId: decision.messageVariantId,
+                deltaAlpha, deltaBeta, deltaWins,
+              }).catch((err) => {
+                console.error("[ingest/users] Failed to update PersonaArmStats:", err);
+              })
+            : Promise.resolve(),
+          upsertUserArmStats({
+            userId: event.external_user_id,
+            agentId: decision.agentId,
+            variantId: decision.messageVariantId,
+            deltaAlpha, deltaBeta, deltaWins,
+          }).catch((err) => {
+            console.error("[ingest/users] Failed to update UserArmStats:", err);
+          }),
+        ]);
+        console.log(
+          `[ingest/users] reward attributed: event=${event.event_name} userId=${event.external_user_id} deltaAlpha=${deltaAlpha} deltaBeta=${deltaBeta}`,
+        );
+      }
     }
 
+    // Mark as processed after successful handling
+    await prisma.processedEventId.create({ data: { eventId: event.event_id } }).catch(() => {});
     matched++;
   }
 
@@ -266,6 +298,17 @@ export async function POST(req: NextRequest) {
 
     console.log(`[ingest/users] Attributing ${deduped.length} events (kind=${kind})`);
     const { matched, unmatched } = await attributeEvents(deduped);
+
+    // Write sync log (non-critical — don't let a log failure break the response)
+    await prisma.ingestSyncLog.create({
+      data: {
+        syncKind: "push_open_events",
+        received: deduped.length,
+        matched,
+        unmatched,
+        details: { kind, deduplicated: events.length - deduped.length },
+      },
+    }).catch(() => {});
 
     return NextResponse.json({
       ok: true,
@@ -351,92 +394,113 @@ export async function POST(req: NextRequest) {
       .map((p) => [p.label, p.id])
   );
 
-  // ── Upsert each user ─────────────────────────────────────────────────────
+  // ── Upsert all users in parallel (chunked to avoid connection pool exhaustion) ─
+  const CHUNK = 50;
   let upserted = 0;
   let assigned = 0;
 
-  for (const user of deduped) {
-    const externalUserId = user.external_user_id?.trim() || null;
-    const brazeId = user.braze_id?.trim() || null;
-    // Unverified users (no external_user_id): use braze_id as the Nexus primary key.
-    const externalId = externalUserId ?? brazeId!;
-    const raw = (user.attributes ?? {}) as Record<string, unknown>;
+  for (let i = 0; i < deduped.length; i += CHUNK) {
+    const chunk = deduped.slice(i, i + CHUNK);
+    const results = await Promise.all(chunk.map(async (user) => {
+      const externalUserId = user.external_user_id?.trim() || null;
+      const brazeId = user.braze_id?.trim() || null;
+      // Unverified users (no external_user_id): use braze_id as the Nexus primary key.
+      const externalId = externalUserId ?? brazeId!;
+      const raw = (user.attributes ?? {}) as Record<string, unknown>;
 
-    let preferredSendHour: number | undefined;
-    let preferredSendMinute: number | undefined;
-    if (raw["last_seen_at"] && typeof raw["last_seen_at"] === "string") {
-      const lastSeen = new Date(raw["last_seen_at"]);
-      if (!isNaN(lastSeen.getTime())) {
-        const ms = Date.now() - lastSeen.getTime();
-        raw["hours_since_last_open"] = Math.round(ms / (1000 * 60 * 60));
-        raw["days_since_last_open"] = Math.round(ms / (1000 * 60 * 60 * 24));
-        preferredSendHour = lastSeen.getUTCHours();
-        preferredSendMinute = lastSeen.getUTCMinutes();
+      let preferredSendHour: number | undefined;
+      let preferredSendMinute: number | undefined;
+      if (raw["last_seen_at"] && typeof raw["last_seen_at"] === "string") {
+        const lastSeen = new Date(raw["last_seen_at"]);
+        if (!isNaN(lastSeen.getTime())) {
+          const ms = Date.now() - lastSeen.getTime();
+          raw["hours_since_last_open"] = Math.round(ms / (1000 * 60 * 60));
+          raw["days_since_last_open"] = Math.round(ms / (1000 * 60 * 60 * 24));
+          preferredSendHour = lastSeen.getUTCHours();
+          preferredSendMinute = lastSeen.getUTCMinutes();
+        }
       }
+
+      const attributes = raw as unknown as object;
+
+      const brazeAttrs: BrazeAttributes = {
+        plan_day_last_plan_id:        raw["plan_day_last_plan_id"] as string | null,
+        plan_day_last_plan_length:    raw["plan_day_last_plan_length"] as number | null,
+        plan_day_last_plan_publisher: raw["plan_day_last_plan_publisher"] as string | null,
+        plan_day_current_year_count:  raw["plan_day_current_year_count"] as number | null,
+        plan_day_current_month_count: raw["plan_day_current_month_count"] as number | null,
+        plan_day_year:                raw["plan_day_year"] as string | null,
+        plan_finish_lifetime_count:   raw["plan_finish_lifetime_count"] as number | null,
+        gp_current_year_count:        raw["gp_current_year_count"] as number | null,
+        gs_current_year_count:        raw["gs_current_year_count"] as number | null,
+        badge_current_year_count:     raw["badge_current_year_count"] as number | null,
+      };
+
+      const planId = brazeAttrs.plan_day_last_plan_id ?? null;
+      const planTags = planId ? (planTagMap.get(planId) ?? []) : [];
+
+      const isLapsed = user.funnel_stage === "lapsed" || user.funnel_stage === "lapsed_mau";
+      const personaLabel = isLapsed ? "Re-engager" : (classifyPersona(brazeAttrs, planTags) ?? "Bible-first");
+      const personaId = personaByLabel.get(personaLabel) ?? null;
+
+      const personaData = personaId
+        ? { personaId, personaConfidence: 0.8, personaAssignedAt: new Date() }
+        : {};
+
+      const funnelStageData = user.funnel_stage
+        ? { funnelStage: user.funnel_stage, funnelStageUpdatedAt: new Date() }
+        : {};
+
+      await prisma.trackedUser.upsert({
+        where: { externalId },
+        create: {
+          externalId,
+          ...(brazeId !== null && { brazeId }),
+          attributes,
+          ...(preferredSendHour !== undefined && { preferredSendHour, preferredSendMinute }),
+          ...funnelStageData,
+          ...personaData,
+        },
+        update: {
+          ...(brazeId !== null && { brazeId }),
+          attributes,
+          ...(preferredSendHour !== undefined && { preferredSendHour, preferredSendMinute }),
+          ...funnelStageData,
+          ...personaData,
+        },
+      });
+
+      return { upserted: 1, assigned: personaId ? 1 : 0 };
+    }));
+
+    for (const r of results) {
+      upserted += r.upserted;
+      assigned += r.assigned;
     }
-
-    const attributes = raw as unknown as object;
-
-    const brazeAttrs: BrazeAttributes = {
-      plan_day_last_plan_id:        raw["plan_day_last_plan_id"] as string | null,
-      plan_day_last_plan_length:    raw["plan_day_last_plan_length"] as number | null,
-      plan_day_last_plan_publisher: raw["plan_day_last_plan_publisher"] as string | null,
-      plan_day_current_year_count:  raw["plan_day_current_year_count"] as number | null,
-      plan_day_current_month_count: raw["plan_day_current_month_count"] as number | null,
-      plan_day_year:                raw["plan_day_year"] as string | null,
-      plan_finish_lifetime_count:   raw["plan_finish_lifetime_count"] as number | null,
-      gp_current_year_count:        raw["gp_current_year_count"] as number | null,
-      gs_current_year_count:        raw["gs_current_year_count"] as number | null,
-      badge_current_year_count:     raw["badge_current_year_count"] as number | null,
-    };
-
-    const planId = brazeAttrs.plan_day_last_plan_id ?? null;
-    const planTags = planId ? (planTagMap.get(planId) ?? []) : [];
-
-    const isLapsed = user.funnel_stage === "lapsed" || user.funnel_stage === "lapsed_mau";
-    const personaLabel = isLapsed ? "Re-engager" : (classifyPersona(brazeAttrs, planTags) ?? "Bible-first");
-    const personaId = personaByLabel.get(personaLabel) ?? null;
-
-    const personaData = personaId
-      ? { personaId, personaConfidence: 0.8, personaAssignedAt: new Date() }
-      : {};
-
-    const funnelStageData = user.funnel_stage
-      ? { funnelStage: user.funnel_stage, funnelStageUpdatedAt: new Date() }
-      : {};
-
-    await prisma.trackedUser.upsert({
-      where: { externalId },
-      create: {
-        externalId,
-        ...(brazeId !== null && { brazeId }),
-        attributes,
-        ...(preferredSendHour !== undefined && { preferredSendHour, preferredSendMinute }),
-        ...funnelStageData,
-        ...personaData,
-      },
-      update: {
-        ...(brazeId !== null && { brazeId }),
-        attributes,
-        ...(preferredSendHour !== undefined && { preferredSendHour, preferredSendMinute }),
-        ...funnelStageData,
-        ...personaData,
-      },
-    });
-
-    upserted++;
-    if (personaId) assigned++;
   }
 
-  return NextResponse.json(
-    {
-      ok: true,
+  const responseBody = {
+    ok: true,
+    received: deduped.length,
+    deduplicated: identified.length - deduped.length,
+    skipped_anonymous: skippedAnon,
+    upserted,
+    persona_assigned: assigned,
+  };
+
+  // Write sync log (non-critical)
+  await prisma.ingestSyncLog.create({
+    data: {
+      syncKind: "user_sync",
       received: deduped.length,
-      deduplicated: identified.length - deduped.length,
-      skipped_anonymous: skippedAnon,
       upserted,
-      persona_assigned: assigned,
+      details: {
+        deduplicated: identified.length - deduped.length,
+        skipped_anonymous: skippedAnon,
+        persona_assigned: assigned,
+      },
     },
-    { status: 200 },
-  );
+  }).catch(() => {});
+
+  return NextResponse.json(responseBody, { status: 200 });
 }
