@@ -92,6 +92,34 @@ describe("PayloadFactory.buildPushPayload", () => {
     expect(messages.apple_push.app_id).toBe("test-ios-app-id");
   });
 
+  it("uses recipients array when audience.recipients is provided", () => {
+    const recipients = [
+      { external_user_id: "user-1" },
+      { braze_id: "braze-abc" },
+    ];
+    const payload = factory.buildPushPayload({ title: "T", body: "B" }, { recipients });
+    expect(payload.recipients).toEqual(recipients);
+    expect(payload.external_user_ids).toBeUndefined();
+  });
+
+  it("recipients format still sets app_id in push messages", () => {
+    const recipients = [{ external_user_id: "user-1" }];
+    const payload = factory.buildPushPayload({ title: "T", body: "B" }, { recipients });
+    const messages = payload.messages as Record<string, Record<string, unknown>>;
+    expect(messages.android_push.app_id).toBe("test-android-app-id");
+    expect(messages.apple_push.app_id).toBe("test-ios-app-id");
+  });
+
+  it("recipients takes precedence over externalUserIds when both are provided", () => {
+    const recipients = [{ braze_id: "braze-xyz" }];
+    const payload = factory.buildPushPayload(
+      { title: "T", body: "B" },
+      { externalUserIds: ["user-1"], recipients },
+    );
+    expect(payload.recipients).toEqual(recipients);
+    expect(payload.external_user_ids).toBeUndefined();
+  });
+
   it("live send: title is the raw DB value with no [TEST] prefix and no Liquid injection", () => {
     // Live cron passes group.title directly — no personalization wrapping
     const rawDbTitle = "Don't forget to read today";

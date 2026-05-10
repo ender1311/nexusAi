@@ -87,10 +87,10 @@ describe("batch formats", () => {
     expect(count).toBe(2);
   });
 
-  it("skips anonymous users (no external_user_id) silently", async () => {
+  it("skips anonymous users (no external_user_id, no braze_id) silently", async () => {
     const req = buildRequest("POST", {
       users: [
-        { attributes: { plan: "devotional" } }, // no external_user_id — anonymous
+        { attributes: { plan: "devotional" } }, // no external_user_id, no braze_id — anonymous
         { external_user_id: "usr_named", attributes: {} },
       ],
     }, AUTH);
@@ -113,6 +113,85 @@ describe("batch formats", () => {
 
     const count = await prisma.trackedUser.count();
     expect(count).toBe(0);
+  });
+});
+
+// ── braze_id targeting (unverified users) ──────────────────────────────────
+describe("braze_id targeting", () => {
+  it("creates an unverified user using braze_id as externalId", async () => {
+    const req = buildRequest("POST", {
+      braze_id: "braze-abc-123",
+      funnel_stage: "lapsed",
+      attributes: {},
+    }, AUTH);
+    const res = await POST(req as NextRequest);
+    const body = await res.json();
+    expect(res.status).toBe(200);
+    expect(body.upserted).toBe(1);
+
+    const user = await prisma.trackedUser.findUnique({ where: { externalId: "braze-abc-123" } });
+    expect(user).toBeTruthy();
+    expect(user!.brazeId).toBe("braze-abc-123");
+  });
+
+  it("stores brazeId on a verified user who provides both identifiers", async () => {
+    const req = buildRequest("POST", {
+      external_user_id: "usr_verified",
+      braze_id: "braze-xyz-456",
+      attributes: {},
+    }, AUTH);
+    const res = await POST(req as NextRequest);
+    expect(res.status).toBe(200);
+
+    const user = await prisma.trackedUser.findUnique({ where: { externalId: "usr_verified" } });
+    expect(user!.brazeId).toBe("braze-xyz-456");
+  });
+
+  it("does not overwrite an existing brazeId when braze_id is absent on re-sync", async () => {
+    await prisma.trackedUser.create({
+      data: { externalId: "usr_keepbraze", brazeId: "braze-keep-me", attributes: {} },
+    });
+    const req = buildRequest("POST", {
+      external_user_id: "usr_keepbraze",
+      attributes: { plan: "devotional" },
+    }, AUTH);
+    await POST(req as NextRequest);
+
+    const user = await prisma.trackedUser.findUnique({ where: { externalId: "usr_keepbraze" } });
+    expect(user!.brazeId).toBe("braze-keep-me");
+  });
+
+  it("handles batch with mixed verified and unverified users", async () => {
+    const req = buildRequest("POST", {
+      users: [
+        { external_user_id: "usr_verified_2", braze_id: "braze-v2", attributes: {} },
+        { braze_id: "braze-unverified", attributes: {} },
+      ],
+    }, AUTH);
+    const res = await POST(req as NextRequest);
+    const body = await res.json();
+    expect(res.status).toBe(200);
+    expect(body.upserted).toBe(2);
+
+    const verified = await prisma.trackedUser.findUnique({ where: { externalId: "usr_verified_2" } });
+    expect(verified!.brazeId).toBe("braze-v2");
+
+    const unverified = await prisma.trackedUser.findUnique({ where: { externalId: "braze-unverified" } });
+    expect(unverified!.brazeId).toBe("braze-unverified");
+  });
+
+  it("treats empty-string external_user_id as absent and uses braze_id", async () => {
+    const req = buildRequest("POST", {
+      external_user_id: "",
+      braze_id: "braze-empty-ext",
+      attributes: {},
+    }, AUTH);
+    const res = await POST(req as NextRequest);
+    expect(res.status).toBe(200);
+
+    const user = await prisma.trackedUser.findUnique({ where: { externalId: "braze-empty-ext" } });
+    expect(user).toBeTruthy();
+    expect(user!.brazeId).toBe("braze-empty-ext");
   });
 });
 
@@ -207,6 +286,33 @@ describe("funnel_stage + persona assignment", () => {
 
     const user = await prisma.trackedUser.findUnique({ where: { externalId: "usr_funnel" } });
     expect(user!.funnelStage).toBe("core");
+  });
+
+  it("stamps funnelStageUpdatedAt when funnel_stage is provided", async () => {
+    const before = new Date();
+    const req = buildRequest("POST", {
+      external_user_id: "usr_stamp",
+      funnel_stage: "lapsed",
+      attributes: {},
+    }, AUTH);
+    await POST(req as NextRequest);
+    const after = new Date();
+
+    const user = await prisma.trackedUser.findUnique({ where: { externalId: "usr_stamp" } });
+    expect(user!.funnelStageUpdatedAt).not.toBeNull();
+    expect(user!.funnelStageUpdatedAt!.getTime()).toBeGreaterThanOrEqual(before.getTime());
+    expect(user!.funnelStageUpdatedAt!.getTime()).toBeLessThanOrEqual(after.getTime());
+  });
+
+  it("does not set funnelStageUpdatedAt when funnel_stage is absent", async () => {
+    const req = buildRequest("POST", {
+      external_user_id: "usr_no_stage",
+      attributes: {},
+    }, AUTH);
+    await POST(req as NextRequest);
+
+    const user = await prisma.trackedUser.findUnique({ where: { externalId: "usr_no_stage" } });
+    expect(user!.funnelStageUpdatedAt).toBeNull();
   });
 
   it("updates funnel_stage on re-sync", async () => {

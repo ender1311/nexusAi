@@ -1,12 +1,12 @@
 import { ThompsonSampling } from "@/lib/engine/thompson-sampling";
 import { EpsilonGreedy } from "@/lib/engine/epsilon-greedy";
-import { LinUCB } from "@/lib/engine/lin-ucb";
+import { LinUCB } from "@/lib/engine/linucb";
 import { assignUserToPersona } from "@/lib/engine/persona-assignment";
 import { computeFeatureVector } from "@/lib/engine/feature-vector";
 import { FEATURE_DIM } from "@/lib/engine/feature-vector";
 import { evaluateTargetFilter, buildComputedKeys } from "@/lib/engine/target-filter";
 import { prisma } from "@/lib/db";
-import type { BanditArm, LinUCBArm } from "@/lib/engine/types";
+import type { BanditArm } from "@/lib/engine/types";
 import type { Prisma } from "@/generated/prisma/client";
 
 // The shape of agent as fetched by decideForUser — with messages+variants and schedulingRule
@@ -192,31 +192,17 @@ export async function decideForUser(input: DecideInput): Promise<DecideResult | 
   let selectedVariantId: string;
 
   if (isLinUCB) {
-    // LinUCB: load/seed LinUCBArm rows; select using user feature vector as context.
-    const linUCB = new LinUCB(1.0, 1.0, FEATURE_DIM);
-    const linUCBArms: LinUCBArm[] = await Promise.all(
+    // LinUCB: load/seed LinUCBArm rows (keyed by agentId+variantId, no persona segmentation).
+    const linUCB = new LinUCB();
+    const linUCBArms = await Promise.all(
       variants.map(async (v) => {
-        const initialStats = linUCB.initialStats();
+        const initial = linUCB.initialArm(FEATURE_DIM);
         const row = await prisma.linUCBArm.upsert({
-          where: { personaId_agentId_variantId: { personaId: personaId!, agentId, variantId: v.id } },
-          create: {
-            personaId: personaId!,
-            agentId,
-            variantId: v.id,
-            aInv: initialStats.aInv,
-            b: initialStats.b,
-            tries: 0,
-          },
+          where: { agentId_variantId: { agentId, variantId: v.id } },
+          create: { agentId, variantId: v.id, aInv: initial.aInv, b: initial.b, tries: 0 },
           update: {},
         });
-        return {
-          id: v.id,
-          linucbStats: {
-            aInv: row.aInv as number[],
-            b: row.b as number[],
-            tries: row.tries,
-          },
-        };
+        return { id: v.id, aInv: row.aInv as number[], b: row.b as number[] };
       })
     );
 

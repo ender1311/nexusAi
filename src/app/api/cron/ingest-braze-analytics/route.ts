@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
 import { createBrazeClient } from "@/lib/braze/client";
 import { BrazeAnalytics } from "@/lib/braze/analytics";
-import { upsertArmStats } from "@/lib/arm-stats";
+import { batchUpsertArmStats, batchUpsertUserArmStats } from "@/lib/arm-stats";
 
 // Allow up to 300s execution time on Vercel
 export const maxDuration = 300;
@@ -183,21 +183,24 @@ export async function POST(req: NextRequest) {
       ).values(),
     ];
 
-    if (uniqueCombos.length === 0) continue;
-
-    // Apply decay + reward/punishment for each unique (persona, agent, variant)
-    await Promise.all(
-      uniqueCombos.map(({ agentId, variantId, personaId }) =>
-        upsertArmStats({
-          personaId,
-          agentId,
-          variantId,
-          deltaAlpha,
-          deltaBeta,
-          deltaWins: clickRate > 0 ? 1 : 0,
-        })
-      )
-    );
+    // Apply decay + reward/punishment in parallel batches.
+    // All combos within a sendId share the same delta values (same analytics result).
+    const deltaWins = clickRate > 0 ? 1 : 0;
+    const delta = { deltaAlpha, deltaBeta, deltaWins };
+    await Promise.all([
+      // Persona-level: one upsert per unique (persona, agent, variant) combo
+      batchUpsertArmStats(
+        uniqueCombos.map(({ agentId, variantId, personaId }) => ({ personaId, agentId, variantId })),
+        delta,
+      ),
+      // User-level: one upsert per individual decision (each user gets their own row)
+      batchUpsertUserArmStats(
+        groupDecisions
+          .filter((d) => d.messageVariantId !== null)
+          .map((d) => ({ userId: d.userId, agentId: d.agentId, variantId: d.messageVariantId! })),
+        delta,
+      ),
+    ]);
 
     // Mark decisions as processed: set reward + brazeAnalyticsFetchedAt
     const decisionIdsToUpdate = groupDecisions

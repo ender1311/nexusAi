@@ -7,6 +7,7 @@ export async function createAgent(overrides: {
   status?: string;
   funnelStage?: string;
   targetFilter?: object;
+  staleFunnelStageDays?: number | null;
 } = {}) {
   return prisma.agent.create({
     data: {
@@ -89,6 +90,7 @@ export async function createUser(
     totalReward?: number;
     attributes?: object;
     funnelStage?: string | null;
+    funnelStageUpdatedAt?: Date | null;
   } = {}
 ) {
   // Default personaConfidence to 1.0 so tests pass the MIN_PERSONA_CONFIDENCE filter

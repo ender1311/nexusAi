@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
 import { calculateReward } from "@/lib/engine/reward-calculator";
 import { accumulateUserStats } from "@/lib/engine/user-stats";
-import { upsertArmStats } from "@/lib/arm-stats";
+import { upsertArmStats, upsertUserArmStats } from "@/lib/arm-stats";
 
 /**
  * POST /api/ingest/events
@@ -101,13 +101,14 @@ export async function POST(req: NextRequest) {
     // push_disabled is a permanent opt-out signal — no attribution window needed.
     // Apply a hard penalty to arm stats for all agents this user recently received
     // decisions from, then move on. Do not try to match a specific UserDecision.
+    // 14-day window: attributing a send from 89 days ago to a today opt-out is causally wrong.
     if (event.event_name === "push_disabled") {
       const user = await prisma.trackedUser.findFirst({
         where: { externalId: event.external_user_id },
         select: { personaId: true },
       });
       if (user?.personaId) {
-        const recentCutoff = new Date(occurredAt.getTime() - 90 * 24 * 60 * 60 * 1000);
+        const recentCutoff = new Date(occurredAt.getTime() - 14 * 24 * 60 * 60 * 1000);
         const recentDecisions = await prisma.userDecision.findMany({
           where: {
             userId: event.external_user_id,
@@ -140,6 +141,7 @@ export async function POST(req: NextRequest) {
         }).catch((err) => {
           console.error("[ingest/events] Failed to accumulate user stats for push_disabled:", err);
         });
+        console.log(`[ingest/events] push_disabled attributed: userId=${event.external_user_id} decisions=${recentDecisions.length} deltaAlpha=0 deltaBeta=${recentDecisions.length}`);
       }
       matched.push(event.event_id);
       continue;
@@ -194,27 +196,46 @@ export async function POST(req: NextRequest) {
       });
     }
 
-    // Update PersonaArmStats to close the learning loop.
-    // Apply temporal decay before adding reward to prevent old data locking in winners.
-    // Decay formula: alpha = 1 + (alpha - 1) * 0.99, same for beta. (Industry practice: ~0.99/update)
-    // We update even when reward=0 — neutral events still count as a "try" (tightens variance).
+    // Update arm stats to close the learning loop: both persona-level (shared prior) and
+    // user-level (individual posterior). Both use the same decay formula (~0.99/update).
     if (decision.messageVariantId) {
       const user = await prisma.trackedUser.findFirst({
         where: { externalId: event.external_user_id },
         select: { personaId: true },
       });
-      if (user?.personaId) {
-        await upsertArmStats({
-          personaId: user.personaId,
+      // Beta parameter safety invariant: deltaAlpha and deltaBeta are always >= 0 by
+      // construction, so they can never push alpha or beta below 1.
+      // deltaAlpha = reward when reward > 0, else 0 — non-negative.
+      // deltaBeta  = 1 when reward <= 0, else 0 — non-negative.
+      // If this logic ever changes to allow negative deltas, add Math.max(0, delta)
+      // guards here; otherwise alpha_new or beta_new could drop below 1, invalidating
+      // the Beta distribution parameterisation (alpha, beta must be >= 1).
+      const deltaAlpha = reward > 0 ? reward : 0;
+      const deltaBeta  = reward <= 0 ? 1 : 0;
+      const deltaWins  = reward > 0 ? 1 : 0;
+      await Promise.all([
+        // Persona-level prior: shared across all users in the same persona
+        user?.personaId
+          ? upsertArmStats({
+              personaId: user.personaId,
+              agentId: decision.agentId,
+              variantId: decision.messageVariantId,
+              deltaAlpha, deltaBeta, deltaWins,
+            }).catch((err) => {
+              console.error("[ingest/events] Failed to update PersonaArmStats:", err);
+            })
+          : Promise.resolve(),
+        // User-level posterior: individual learning blended with persona prior at decision time
+        upsertUserArmStats({
+          userId: event.external_user_id,
           agentId: decision.agentId,
           variantId: decision.messageVariantId,
-          deltaAlpha: reward > 0 ? reward : 0,
-          deltaBeta: reward <= 0 ? 1 : 0,
-          deltaWins: reward > 0 ? 1 : 0,
+          deltaAlpha, deltaBeta, deltaWins,
         }).catch((err) => {
-          console.error("[ingest/events] Failed to update PersonaArmStats:", err);
-        });
-      }
+          console.error("[ingest/events] Failed to update UserArmStats:", err);
+        }),
+      ]);
+      console.log(`[ingest/events] reward attributed: event=${event.event_name} userId=${event.external_user_id} decisions=1 deltaAlpha=${deltaAlpha} deltaBeta=${deltaBeta}`);
     }
 
     matched.push(event.event_id);

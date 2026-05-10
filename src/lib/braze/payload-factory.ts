@@ -18,9 +18,18 @@ interface SmsMessage {
   body: string;
 }
 
+// Braze recipient: exactly one identifier per entry (external_user_id OR braze_id).
+// Used when a batch contains unverified users who have no external_user_id in Braze.
+export type BrazeRecipient =
+  | { external_user_id: string; braze_id?: never }
+  | { braze_id: string; external_user_id?: never };
+
 interface AudienceTarget {
   externalUserIds?: string[];
   segmentId?: string;
+  /** Per-recipient identifier array — use instead of externalUserIds when the batch
+   *  contains unverified users (braze_id only). Supports mixing both identifier types. */
+  recipients?: BrazeRecipient[];
 }
 
 export class PayloadFactory {
@@ -70,7 +79,7 @@ export class PayloadFactory {
       ...(msg.iconImageUrl && { image_url: msg.iconImageUrl }),
       ...(msg.extraData && { extra: msg.extraData }),
       ...(resolvedAndroidVariantId && { message_variation_id: resolvedAndroidVariantId }),
-      ...(audience.externalUserIds && { app_id: this.androidAppId }),
+      ...((audience.externalUserIds || audience.recipients) && { app_id: this.androidAppId }),
     };
 
     const appleMsg: Record<string, unknown> = {
@@ -81,7 +90,7 @@ export class PayloadFactory {
       }),
       ...(msg.extraData && { extra: msg.extraData }),
       ...(resolvedIosVariantId && { message_variation_id: resolvedIosVariantId }),
-      ...(audience.externalUserIds && { app_id: this.iosAppId }),
+      ...((audience.externalUserIds || audience.recipients) && { app_id: this.iosAppId }),
     };
 
     return {
@@ -159,6 +168,9 @@ export class PayloadFactory {
   }
 
   private buildAudience(audience: AudienceTarget): Record<string, unknown> {
+    if (audience.recipients?.length) {
+      return { recipients: audience.recipients };
+    }
     if (audience.externalUserIds?.length) {
       return { external_user_ids: audience.externalUserIds };
     }

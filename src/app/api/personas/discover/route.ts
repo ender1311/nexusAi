@@ -13,7 +13,6 @@ import { batchAssignPersonas } from "@/lib/engine/persona-assignment";
 export async function POST(req: NextRequest) {
   let config: {
     minInteractions?: number;
-    confidenceThreshold?: number;
     minK?: number;
     maxK?: number;
   } = {};
@@ -27,7 +26,6 @@ export async function POST(req: NextRequest) {
 
   const discoveryResult = await discoverPersonas({
     minInteractions: config.minInteractions,
-    confidenceThreshold: config.confidenceThreshold,
     minK: config.minK,
     maxK: config.maxK,
   });
@@ -43,7 +41,6 @@ export async function POST(req: NextRequest) {
 
   const assigned = await batchAssignPersonas({
     minInteractions: config.minInteractions ?? 20,
-    confidenceThreshold: config.confidenceThreshold ?? 0.75,
   });
 
   return NextResponse.json({

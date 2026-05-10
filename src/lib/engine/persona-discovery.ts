@@ -3,11 +3,11 @@ import { prisma } from "@/lib/db";
 
 export interface DiscoveryConfig {
   minInteractions?: number;   // default 20
-  confidenceThreshold?: number; // default 0.75
   minK?: number;              // default 3
   maxK?: number;              // default 15
   stabilityRuns?: number;     // default 5
   stabilityThreshold?: number; // default 0.85
+  minSilhouetteScore?: number; // default 0.25
 }
 
 interface ClusterResult {
@@ -222,6 +222,14 @@ export async function discoverPersonas(config: DiscoveryConfig = {}): Promise<{
 
   if (!bestResult) {
     return { personasCreated: 0, personasUpdated: 0, usersAssigned: 0, silhouetteScore: 0, k: 0 };
+  }
+
+  const minSilhouetteScore = config.minSilhouetteScore ?? 0.25;
+  if (bestResult.silhouetteScore < minSilhouetteScore) {
+    console.warn(
+      `[persona-discovery] best silhouette score ${bestResult.silhouetteScore.toFixed(4)} is below threshold ${minSilhouetteScore}; skipping persona creation`
+    );
+    return { personasCreated: 0, personasUpdated: 0, usersAssigned: 0, silhouetteScore: bestResult.silhouetteScore, k: 0 };
   }
 
   // Get existing discovered personas to update vs create

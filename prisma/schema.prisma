@@ -19,6 +19,9 @@ model Agent {
   fallbackSendHour Int?        // 0-23 UTC-naive hour; Braze delivers at this hour in user's local timezone via in_local_time
   audienceCap      Int?        // max users reached per cron run; null = unlimited
   languageFilter   String      @default("all") // "all" | "en" | ISO language prefix; filters by User.attributes.language_tag
+  // How many days after a user falls out of the Hightouch audience we keep targeting them.
+  // null = no staleness gate (backward compat). Lapsed agents typically use 14; others use 2.
+  staleFunnelStageDays Int?
   createdAt        DateTime    @default(now())
   updatedAt        DateTime    @updatedAt
 
@@ -89,6 +92,8 @@ model MessageVariant {
   sourceTemplate MessageVariant? @relation("TemplateClones", fields: [sourceTemplateId], references: [id], onDelete: SetNull)
   clones         MessageVariant[] @relation("TemplateClones")
   decisions      UserDecision[]
+
+  @@index([status, category, subcategory]) // variant picker API (WHERE status='active' AND category=X AND subcategory=Y)
 }
 
 model Deeplink {
@@ -125,6 +130,10 @@ model UserDecision {
   variant MessageVariant? @relation(fields: [messageVariantId], references: [id])
 
   @@index([agentId, userId, sentAt])
+  @@index([sentAt])                   // fleet-wide 30d/24h window queries (perf page, dashboard)
+  @@index([userId, sentAt])           // global daily cap + event attribution (userId + window)
+  @@index([agentId, sentAt])          // per-agent performance page (agentId + 30d window)
+  @@index([sentAt, brazeSendId])      // cron budget count (sentAt >= today AND brazeSendId NOT NULL)
 }
 
 // YouVersion app user — ingested from Hightouch/Braze, used by bandit engine
@@ -149,8 +158,14 @@ model TrackedUser {
   featureVector     Json?
   featureVectorAt   DateTime?
 
+  // Braze internal user ID — populated for unverified users who have no external_user_id in Braze
+  // For verified users: stored alongside their external_user_id for reference.
+  // For unverified users: externalId is set to brazeId so they can be stored and targeted.
+  brazeId           String?   @unique
+
   // Funnel stage — synced from Hightouch audience membership (optional)
-  funnelStage       String?   // "lapsed" | "connected" | "new_user" | etc; null = unknown
+  funnelStage          String?    // "lapsed" | "connected" | "new_user" | etc; null = unknown
+  funnelStageUpdatedAt DateTime?  // set on every ingest when funnelStage is present; used for staleness gate in cron
 
   // Persona assignment
   personaId         String?
@@ -163,6 +178,8 @@ model TrackedUser {
   persona Persona? @relation(fields: [personaId], references: [id])
 
   @@index([personaId])
+  @@index([funnelStage])              // cron stage filter (WHERE funnelStage = 'wau')
+  @@index([personaId, funnelStage])   // cron eligibility when filtering by both persona + stage
   @@map("User")  // keeps the existing DB table — no migration needed for this rename
 }
 
@@ -213,9 +230,22 @@ model PersonaArmStats {
   @@index([agentId, personaId])
 }
 
+model UserArmStats {
+  id        String @id @default(cuid())
+  userId    String  // TrackedUser.externalId (no FK — same pattern as UserDecision.userId)
+  agentId   String
+  variantId String
+  alpha     Float  @default(1.0)
+  beta      Float  @default(30.0)  // pessimistic prior matching ThompsonSampling.initialStats()
+  tries     Int    @default(0)
+  wins      Int    @default(0)
+
+  @@unique([userId, agentId, variantId])
+  @@index([userId, agentId])   // load all arms for a user × agent in one query
+}
+
 model LinUCBArm {
   id        String @id @default(cuid())
-  personaId String
   agentId   String
   variantId String
   // A_inv: flattened FEATURE_DIM×FEATURE_DIM matrix (row-major), maintained via Sherman-Morrison
@@ -224,8 +254,8 @@ model LinUCBArm {
   b         Json
   tries     Int    @default(0)
 
-  @@unique([personaId, agentId, variantId])
-  @@index([agentId, personaId])
+  @@unique([agentId, variantId])
+  @@index([agentId])
 }
 
 model SchedulingRule {
@@ -247,6 +277,8 @@ model ModelMetric {
   metrics   Json
 
   agent Agent @relation(fields: [agentId], references: [id], onDelete: Cascade)
+
+  @@index([agentId, timestamp])       // metrics history queries per agent
 }
 
 // ── Plan set classification ──────────────────────────────────────────────────

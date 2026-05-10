@@ -541,6 +541,90 @@ describe("Phase 0: exploration window assignment", () => {
     expect(decisions[0].agentId).toBe(agentA.id);
   });
 
+  it("staleness gate: skips user whose funnelStageUpdatedAt is older than staleFunnelStageDays", async () => {
+    const agent = await createAgent({ funnelStage: "wau", staleFunnelStageDays: 2 });
+    const persona = await createPersona();
+    await linkAgentToPersona(agent.id, persona.id);
+    const msg = await createMessage(agent.id);
+    await createVariant(msg.id);
+
+    // funnelStageUpdatedAt = 3 days ago → stale for a 2-day window
+    const threeDaysAgo = new Date(Date.now() - 3 * 86_400_000);
+    await createUser("usr_stale", {
+      personaId: persona.id,
+      funnelStage: "wau",
+      funnelStageUpdatedAt: threeDaysAgo,
+    });
+
+    await POST(buildRequest("POST", undefined, CRON_AUTH) as NextRequest);
+
+    const decisions = await prisma.userDecision.findMany({ where: { userId: "usr_stale" } });
+    expect(decisions).toHaveLength(0); // excluded by staleness gate
+  });
+
+  it("staleness gate: targets user whose funnelStageUpdatedAt is within staleFunnelStageDays", async () => {
+    const agent = await createAgent({ funnelStage: "wau", staleFunnelStageDays: 2 });
+    const persona = await createPersona();
+    await linkAgentToPersona(agent.id, persona.id);
+    const msg = await createMessage(agent.id);
+    await createVariant(msg.id);
+
+    // funnelStageUpdatedAt = 1 day ago → fresh for a 2-day window
+    const oneDayAgo = new Date(Date.now() - 1 * 86_400_000);
+    await createUser("usr_fresh", {
+      personaId: persona.id,
+      funnelStage: "wau",
+      funnelStageUpdatedAt: oneDayAgo,
+    });
+
+    await POST(buildRequest("POST", undefined, CRON_AUTH) as NextRequest);
+
+    const decisions = await prisma.userDecision.findMany({ where: { userId: "usr_fresh" } });
+    expect(decisions.length).toBeGreaterThan(0); // included — stage is fresh
+  });
+
+  it("staleness gate: null staleFunnelStageDays means no gate — targets even stale users", async () => {
+    const agent = await createAgent({ funnelStage: "lapsed", staleFunnelStageDays: null });
+    const persona = await createPersona();
+    await linkAgentToPersona(agent.id, persona.id);
+    const msg = await createMessage(agent.id);
+    await createVariant(msg.id);
+
+    // funnelStageUpdatedAt = 60 days ago — very stale, but no gate configured
+    const sixtyDaysAgo = new Date(Date.now() - 60 * 86_400_000);
+    await createUser("usr_no_gate", {
+      personaId: persona.id,
+      funnelStage: "lapsed",
+      funnelStageUpdatedAt: sixtyDaysAgo,
+    });
+
+    await POST(buildRequest("POST", undefined, CRON_AUTH) as NextRequest);
+
+    const decisions = await prisma.userDecision.findMany({ where: { userId: "usr_no_gate" } });
+    expect(decisions.length).toBeGreaterThan(0); // no gate → still targeted
+  });
+
+  it("staleness gate: lapsed agent with 14-day window keeps targeting user who graduated 10 days ago", async () => {
+    const agent = await createAgent({ funnelStage: "lapsed", staleFunnelStageDays: 14 });
+    const persona = await createPersona();
+    await linkAgentToPersona(agent.id, persona.id);
+    const msg = await createMessage(agent.id);
+    await createVariant(msg.id);
+
+    // User's lapsed stage was last confirmed 10 days ago — within the 14-day window
+    const tenDaysAgo = new Date(Date.now() - 10 * 86_400_000);
+    await createUser("usr_lapsed_recent", {
+      personaId: persona.id,
+      funnelStage: "lapsed",
+      funnelStageUpdatedAt: tenDaysAgo,
+    });
+
+    await POST(buildRequest("POST", undefined, CRON_AUTH) as NextRequest);
+
+    const decisions = await prisma.userDecision.findMany({ where: { userId: "usr_lapsed_recent" } });
+    expect(decisions.length).toBeGreaterThan(0); // within 14-day window → still targeted
+  });
+
   it("recency penalty: variant sent yesterday is demoted — different variant selected at higher rate", async () => {
     // Setup: two variants, arm stats strongly favour v1. But v1 was sent yesterday — penalty applies.
     const agent = await createAgent({ algorithm: "thompson" });

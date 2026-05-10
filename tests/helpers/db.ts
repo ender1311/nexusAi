@@ -10,7 +10,8 @@ export async function truncateAll(): Promise<void> {
   // Delete in FK-safe order. deleteMany() is a no-op when the table is empty,
   // and skips tables that don't yet exist (pending migrations) silently via try/catch.
   const steps: (() => Promise<unknown>)[] = [
-    () => prisma.userAgentAssignment.deleteMany(),   // ← add as first line
+    () => prisma.userAgentAssignment.deleteMany(),
+    () => prisma.userArmStats.deleteMany(),
     () => prisma.personaArmStats.deleteMany(),
     () => prisma.linUCBArm.deleteMany(),
     () => prisma.userDecision.deleteMany(),
