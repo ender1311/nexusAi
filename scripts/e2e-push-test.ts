@@ -87,7 +87,6 @@ for (let i = 0; i < SENDS_COUNT; i++) {
     { title: v.title ?? "", body: v.body, deeplink: v.deeplink ?? undefined },
     audience,
     v.brazeCampaignId ?? undefined,
-    undefined, // no sendId for test sends
     v.brazeVariantId ?? undefined,
   );
 

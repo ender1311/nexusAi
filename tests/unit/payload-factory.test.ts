@@ -51,18 +51,17 @@ describe("PayloadFactory.buildPushPayload", () => {
     expect(payload.external_user_ids).toEqual(["user-1", "user-2"]);
   });
 
-  it("includes campaign_id and send_id when provided", () => {
+  it("includes campaign_id when provided", () => {
     const payload = factory.buildPushPayload(
       { title: "T", body: "B" },
       audience,
       "campaign-abc",
-      "send-xyz",
     );
     expect(payload.campaign_id).toBe("campaign-abc");
-    expect(payload.send_id).toBe("send-xyz");
+    expect(payload.send_id).toBeUndefined();
   });
 
-  it("omits campaign_id and send_id when not provided", () => {
+  it("omits campaign_id when not provided", () => {
     const payload = factory.buildPushPayload({ title: "T", body: "B" }, audience);
     expect(payload.campaign_id).toBeUndefined();
     expect(payload.send_id).toBeUndefined();
@@ -72,7 +71,6 @@ describe("PayloadFactory.buildPushPayload", () => {
     const payload = factory.buildPushPayload(
       { title: "T", body: "B" },
       audience,
-      undefined,
       undefined,
       undefined,
       true,

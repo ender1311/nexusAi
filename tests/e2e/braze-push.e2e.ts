@@ -44,7 +44,6 @@ async function sendPush(
     { title, body, deeplink },
     { externalUserIds: [externalUserId] },
     undefined,
-    undefined,
     brazeVariantId ?? undefined
   );
   const res = await braze.post("/messages/send", payload);
