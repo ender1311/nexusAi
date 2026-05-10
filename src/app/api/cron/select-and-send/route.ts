@@ -18,11 +18,6 @@ import type { BrazeRecipient } from "@/lib/braze/payload-factory";
 // Allow up to 300s execution time on Vercel
 export const maxDuration = 300;
 
-// Global daily cap on Braze send ID API calls (POST /sends/id/create).
-// Each sendVariantGroup call consumes one send ID. Staying at 800 keeps
-// a 100-call safety buffer below a 900/day plan limit.
-const DAILY_SEND_ID_LIMIT = 800;
-
 /**
  * Blend persona-level prior with per-user observations to form a personalised arm.
  * The persona's Beta distribution is the prior; user-specific wins/tries shift it.
@@ -83,16 +78,11 @@ async function sendVariantGroup(
   try {
     // BRAZE_NEXUS_CAMPAIGN_ID is the authoritative single Nexus campaign.
     // It takes precedence over per-message DB values so all sends flow through
-    // one campaign and can be tracked in aggregate in Braze. send_id differentiates
-    // each variant batch for per-variant analytics.
+    // one campaign and can be tracked in aggregate in Braze.
     const resolvedCampaignId =
       process.env.BRAZE_NEXUS_CAMPAIGN_ID ??
       group.brazeCampaignId ??
       process.env.BRAZE_NEXUS_EMAIL_CAMPAIGN_ID;
-
-    const sendId = resolvedCampaignId
-      ? await brazeClient!.createSendId(resolvedCampaignId)
-      : null;
 
     // Use recipients[] format when the batch contains unverified users (braze_id only).
     // Verified users get { external_user_id }; unverified users get { braze_id }.
@@ -109,7 +99,6 @@ async function sendVariantGroup(
         { title: group.title ?? "", body: group.body, deeplink: group.deeplink ?? undefined },
         audience,
         resolvedCampaignId,
-        sendId ?? undefined,
         group.brazeVariantId ?? undefined,
         group.inLocalTime,
       );
@@ -118,7 +107,6 @@ async function sendVariantGroup(
         { subject: group.title ?? "", htmlBody: group.body },
         audience,
         resolvedCampaignId,
-        sendId ?? undefined,
         group.brazeVariantId ?? undefined,
         group.inLocalTime,
       );
@@ -127,7 +115,6 @@ async function sendVariantGroup(
         { body: group.body },
         audience,
         resolvedCampaignId,
-        sendId ?? undefined,
         group.brazeVariantId ?? undefined,
         group.inLocalTime,
       );
@@ -152,13 +139,10 @@ async function sendVariantGroup(
           brazeScheduleId = json.schedule_id ?? null;
         } catch { /* ignore parse errors */ }
       }
-      const updateData: Record<string, string> = {};
-      if (sendId) updateData.brazeSendId = sendId;
-      if (brazeScheduleId) updateData.brazeScheduleId = brazeScheduleId;
-      if (Object.keys(updateData).length > 0) {
+      if (brazeScheduleId) {
         await prisma.userDecision.updateMany({
           where: { id: { in: batchDecisionIds } },
-          data: updateData,
+          data: { brazeScheduleId },
         });
       }
       if (onSuccessfulBatch) {
@@ -272,7 +256,7 @@ export async function POST(req: NextRequest) {
   // Fetch eligible user IDs for all agents in parallel (one query per agent),
   // and also fetch the cooldown setting for Phase 0 in the same round trip.
   const eligibleUsersByAgent = new Map<string, string[]>();
-  const [, cooldownSetting, sendIdsUsedTodayRows] = await Promise.all([
+  const [, cooldownSetting] = await Promise.all([
     Promise.all(
       agents.map(async (agent) => {
         const personaIds = agent.personaTargets.map((pt) => pt.personaId);
@@ -306,32 +290,11 @@ export async function POST(req: NextRequest) {
     ),
     // ─── Phase 0 setup: fetch cooldown config in parallel with lottery queries ───
     prisma.appSetting.findUnique({ where: { key: "exploration_window_cooldown_days" } }),
-    // Count distinct Braze send IDs already used today (each = 1 /sends/id/create API call)
-    prisma.userDecision.findMany({
-      where: { sentAt: { gte: todayStart }, brazeSendId: { not: null } },
-      select: { brazeSendId: true },
-      distinct: ["brazeSendId"],
-    }),
   ]);
 
   const lotteryMap = buildAgentLottery(eligibleUsersByAgent);
   // lotteryMap: Map<externalUserId, agentId>  — held in memory for this run
   // ── End pre-assignment phase ──────────────────────────────────────────────
-
-  // Global send-ID budget for this cron run (mutable — shared across all agents)
-  let sendIdBudget = Math.max(0, DAILY_SEND_ID_LIMIT - sendIdsUsedTodayRows.length);
-  console.log("[cron/select-and-send] send ID budget", {
-    usedToday: sendIdsUsedTodayRows.length,
-    remainingBudget: sendIdBudget,
-  });
-  if (sendIdBudget === 0) {
-    console.log("[cron/select-and-send] Global send ID budget exhausted — skipping all sends for today");
-    await prisma.cronRun.update({
-      where: { id: cronRunId },
-      data: { status: "completed", finishedAt: new Date(), sent: 0, suppressed: 0, errors: 0 },
-    }).catch(() => {});
-    return NextResponse.json({ ok: true, sent: 0, suppressed: 0, errors: 0, budgetExhausted: true });
-  }
 
   // ─── Phase 0: Exploration window assignment ───────────────────────────────
   // Identify lapsed/connected users, create/classify their assignments,
@@ -498,12 +461,6 @@ export async function POST(req: NextRequest) {
 
     // If no lottery users and no in-window users, skip agent entirely
     if (lotteryUserIds.length === 0 && !hasInWindowUsers) continue;
-
-    // Skip this agent entirely if global send-ID budget is already exhausted
-    if (sendIdBudget <= 0) {
-      console.log("[cron/select-and-send] global send ID budget exhausted — skipping remaining agents", { agentId: agent.id });
-      break;
-    }
 
     // Build variant detail lookup: variantId → { channel, body, title, deeplink, brazeCampaignId, brazeVariantId }
     const variantMeta = new Map<string, {
@@ -894,38 +851,23 @@ export async function POST(req: NextRequest) {
         }
       }
 
-      // Send all variant groups in parallel batches of 50 (capped by global send-ID budget)
+      // Send all variant groups in parallel batches of 50
       {
         const BATCH = 50;
         const CONCURRENCY = 50;
-        type LotterySendTask = { fn: () => Promise<{ sent: number; errors: number }>; decisionIds: string[] };
-        const sendTasks: LotterySendTask[] = [];
+        const sendTasks: Array<() => Promise<{ sent: number; errors: number }>> = [];
         for (const group of Object.values(byVariant)) {
           for (let i = 0; i < group.externalUserIds.length; i += BATCH) {
             const batchUserIds    = group.externalUserIds.slice(i, i + BATCH);
             const batchDecisionIds = group.decisionIds.slice(i, i + BATCH);
-            sendTasks.push({
-              fn: () => sendVariantGroup(group, batchUserIds, batchDecisionIds, brazeClient, factory, agent.id, prisma),
-              decisionIds: batchDecisionIds,
-            });
+            sendTasks.push(
+              () => sendVariantGroup(group, batchUserIds, batchDecisionIds, brazeClient, factory, agent.id, prisma),
+            );
           }
-        }
-
-        // Enforce global daily send-ID budget: trim tasks that exceed it
-        if (sendTasks.length > sendIdBudget) {
-          const skipped = sendTasks.splice(sendIdBudget);
-          const orphanedIds = skipped.flatMap((t) => t.decisionIds);
-          console.log(`[cron/select-and-send] budget cap (lottery): dropping ${skipped.length} batches, ${orphanedIds.length} decisions`, { agentId: agent.id });
-          if (orphanedIds.length > 0) {
-            await prisma.userDecision.deleteMany({ where: { id: { in: orphanedIds } } });
-          }
-          sendIdBudget = 0;
-        } else {
-          sendIdBudget -= sendTasks.length;
         }
 
         for (let i = 0; i < sendTasks.length; i += CONCURRENCY) {
-          const results = await Promise.allSettled(sendTasks.slice(i, i + CONCURRENCY).map((t) => t.fn()));
+          const results = await Promise.allSettled(sendTasks.slice(i, i + CONCURRENCY).map((t) => t()));
           for (const r of results) {
             if (r.status === "fulfilled") {
               totalSent += r.value.sent;
@@ -1250,45 +1192,29 @@ export async function POST(req: NextRequest) {
         }
       }
 
-      // Send all window variant groups in parallel batches of 50 (capped by global send-ID budget)
+      // Send all window variant groups in parallel batches of 50
       {
         const BATCH = 50;
         const CONCURRENCY = 50;
-        type WindowSendTask = { fn: () => Promise<{ sent: number; errors: number; userIds: string[] }>; decisionIds: string[] };
+        type WindowSendTask = () => Promise<{ sent: number; errors: number; userIds: string[] }>;
         const windowSendTasks: WindowSendTask[] = [];
         for (const group of Object.values(windowByVariant)) {
           for (let i = 0; i < group.externalUserIds.length; i += BATCH) {
             const batchUserIds     = group.externalUserIds.slice(i, i + BATCH);
             const batchDecisionIds = group.decisionIds.slice(i, i + BATCH);
-            windowSendTasks.push({
-              fn: async () => {
-                const localSent: string[] = [];
-                const result = await sendVariantGroup(
-                  group, batchUserIds, batchDecisionIds, brazeClient, factory, agent.id, prisma,
-                  (userIds) => localSent.push(...userIds),
-                );
-                return { ...result, userIds: localSent };
-              },
-              decisionIds: batchDecisionIds,
+            windowSendTasks.push(async () => {
+              const localSent: string[] = [];
+              const result = await sendVariantGroup(
+                group, batchUserIds, batchDecisionIds, brazeClient, factory, agent.id, prisma,
+                (userIds) => localSent.push(...userIds),
+              );
+              return { ...result, userIds: localSent };
             });
           }
         }
 
-        // Enforce global daily send-ID budget
-        if (windowSendTasks.length > sendIdBudget) {
-          const skipped = windowSendTasks.splice(sendIdBudget);
-          const orphanedIds = skipped.flatMap((t) => t.decisionIds);
-          console.log(`[cron/select-and-send] budget cap (in-window): dropping ${skipped.length} batches, ${orphanedIds.length} decisions`, { agentId: agent.id });
-          if (orphanedIds.length > 0) {
-            await prisma.userDecision.deleteMany({ where: { id: { in: orphanedIds } } });
-          }
-          sendIdBudget = 0;
-        } else {
-          sendIdBudget -= windowSendTasks.length;
-        }
-
         for (let i = 0; i < windowSendTasks.length; i += CONCURRENCY) {
-          const results = await Promise.allSettled(windowSendTasks.slice(i, i + CONCURRENCY).map((t) => t.fn()));
+          const results = await Promise.allSettled(windowSendTasks.slice(i, i + CONCURRENCY).map((t) => t()));
           for (const r of results) {
             if (r.status === "fulfilled") {
               totalSent += r.value.sent;
@@ -1372,8 +1298,6 @@ export async function POST(req: NextRequest) {
     sent: totalSent,
     suppressed: totalSuppressed,
     errors: totalErrors,
-    sendIdBudgetUsed: DAILY_SEND_ID_LIMIT - sendIdBudget - sendIdsUsedTodayRows.length,
-    sendIdBudgetRemaining: sendIdBudget,
   });
   } finally {
     await prisma.appSetting.delete({ where: { key: "cron_lock_select_and_send" } }).catch(() => {});

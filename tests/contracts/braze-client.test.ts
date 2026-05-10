@@ -79,14 +79,13 @@ describe("PayloadFactory", () => {
       { title: "Hello", body: "World", deeplink: "/home" },
       { externalUserIds: ["usr_1"] },
       "camp_1",
-      "send_1",
       "var_1"
     );
     expect(payload).toHaveProperty("messages.android_push");
     expect(payload).toHaveProperty("messages.apple_push");
     expect((payload.messages as Record<string, unknown>).android_push).toMatchObject({ title: "Hello", alert: "World" });
     expect(payload.campaign_id).toBe("camp_1");
-    expect(payload.send_id).toBe("send_1");
+    expect(payload.send_id).toBeUndefined();
     expect(payload.external_user_ids).toEqual(["usr_1"]);
   });
 
@@ -113,7 +112,7 @@ describe("PayloadFactory", () => {
     expect(payload.external_user_ids).toEqual(["usr_1"]);
   });
 
-  it("omits campaign_id/send_id when not provided", () => {
+  it("omits campaign_id when not provided", () => {
     const payload = factory.buildPushPayload(
       { title: "T", body: "B" },
       { externalUserIds: ["u1"] }

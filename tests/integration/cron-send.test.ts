@@ -110,22 +110,6 @@ describe("POST /api/cron/select-and-send", () => {
     expect((body.schedule as Record<string, unknown>)?.time).toBeTruthy();
   });
 
-  it("records brazeSendId on UserDecision after successful send", async () => {
-    const persona = await createPersona();
-    const agent = await createAgent();
-    const msg = await createMessage(agent.id, { brazeCampaignId: "camp_2" });
-    await createVariant(msg.id);
-    await createUser("usr_sid", { personaId: persona.id, funnelStage: "wau" });
-    await linkAgentToPersona(agent.id, persona.id);
-    await createSchedulingRule(agent.id);
-
-    await POST(buildRequest("POST", undefined, CRON_AUTH) as NextRequest);
-
-    const decision = await prisma.userDecision.findFirst({ where: { userId: "usr_sid" } });
-    // brazeSendId is set when campaign has a brazeCampaignId
-    expect(decision?.brazeSendId).toBeTruthy();
-  });
-
   it("skips suppressed users (frequency cap exceeded)", async () => {
     const persona = await createPersona();
     const agent = await createAgent();
