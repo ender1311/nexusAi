@@ -1,5 +1,47 @@
 import { describe, expect, it } from "bun:test";
-import { getTodayStartUTC } from "@/lib/engine/scheduling";
+import { getTodayStartUTC, peakActivityHour } from "@/lib/engine/scheduling";
+
+describe("peakActivityHour", () => {
+  it("returns null for an all-zero array (no conversion data)", () => {
+    expect(peakActivityHour(Array(24).fill(0))).toBeNull();
+  });
+
+  it("returns null for an empty array", () => {
+    expect(peakActivityHour([])).toBeNull();
+  });
+
+  it("returns null for non-array input", () => {
+    expect(peakActivityHour(null)).toBeNull();
+    expect(peakActivityHour(undefined)).toBeNull();
+    expect(peakActivityHour("bad")).toBeNull();
+  });
+
+  it("returns the index of the single peak hour", () => {
+    const stats = Array(24).fill(0);
+    stats[14] = 5; // 14:00 UTC has 5 conversions
+    expect(peakActivityHour(stats)).toBe(14);
+  });
+
+  it("returns the first occurrence when two hours tie for the peak", () => {
+    const stats = Array(24).fill(0);
+    stats[10] = 3;
+    stats[20] = 3;
+    expect(peakActivityHour(stats)).toBe(10);
+  });
+
+  it("returns hour 0 when midnight is the peak", () => {
+    const stats = Array(24).fill(0);
+    stats[0] = 7;
+    expect(peakActivityHour(stats)).toBe(0);
+  });
+
+  it("ignores values beyond index 23", () => {
+    const stats = Array(30).fill(0);
+    stats[25] = 99; // outside valid 0-23 range
+    stats[12] = 1;
+    expect(peakActivityHour(stats)).toBe(12);
+  });
+});
 
 describe("getTodayStartUTC", () => {
   it("returns midnight ET (EDT, UTC-4) on a standard summer day", () => {

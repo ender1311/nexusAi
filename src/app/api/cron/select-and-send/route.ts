@@ -1,15 +1,19 @@
 import { NextRequest, NextResponse } from "next/server";
+import { randomUUID } from "crypto";
 import { prisma } from "@/lib/db";
 import { createBrazeClient } from "@/lib/braze/client";
 import { PayloadFactory } from "@/lib/braze/payload-factory";
 import { evaluateTargetFilter, buildComputedKeys } from "@/lib/engine/target-filter";
 import { buildAgentLottery } from "@/lib/engine/agent-lottery";
-import { getTodayStartUTC, computeScheduledAt }  from "@/lib/engine/scheduling";
+import { getTodayStartUTC, computeScheduledAt, peakActivityHour }  from "@/lib/engine/scheduling";
 import { isTimingMatch } from "@/lib/engine/send-timing";
 import { ThompsonSampling } from "@/lib/engine/thompson-sampling";
 import { EpsilonGreedy } from "@/lib/engine/epsilon-greedy";
+import { LinUCB } from "@/lib/engine/linucb";
+import { computeFeatureVector } from "@/lib/engine/feature-vector";
 import type { BanditArm } from "@/lib/engine/types";
 import { recencyMultiplier } from "@/lib/engine/beta-pdf";
+import type { BrazeRecipient } from "@/lib/braze/payload-factory";
 
 // Allow up to 300s execution time on Vercel
 export const maxDuration = 300;
@@ -18,6 +22,27 @@ export const maxDuration = 300;
 // Each sendVariantGroup call consumes one send ID. Staying at 800 keeps
 // a 100-call safety buffer below a 900/day plan limit.
 const DAILY_SEND_ID_LIMIT = 800;
+
+/**
+ * Blend persona-level prior with per-user observations to form a personalised arm.
+ * The persona's Beta distribution is the prior; user-specific wins/tries shift it.
+ * This is a standard Bayesian posterior update: more user data → more personalised.
+ */
+function blendArm(
+  personaArm: BanditArm,
+  userStats: { alpha: number; beta: number; tries: number; wins: number } | undefined,
+): BanditArm {
+  if (!userStats || userStats.tries === 0) return personaArm;
+  return {
+    id: personaArm.id,
+    stats: {
+      alpha: personaArm.stats.alpha + userStats.wins,
+      beta:  personaArm.stats.beta  + (userStats.tries - userStats.wins),
+      tries: personaArm.stats.tries + userStats.tries,
+      wins:  personaArm.stats.wins  + userStats.wins,
+    },
+  };
+}
 
 function verifyAuth(req: NextRequest): boolean {
   const token = req.headers.get("authorization")?.replace("Bearer ", "");
@@ -37,6 +62,9 @@ type VariantSendGroup = {
   inLocalTime?: boolean;
   scheduledAt?: Date;
   externalUserIds: string[];
+  /** Nexus externalIds that are actually Braze user IDs (unverified users).
+   *  These are sent via the recipients[] format with braze_id instead of external_user_id. */
+  brazeOnlyIds: Set<string>;
   decisionIds: string[];
 };
 
@@ -66,7 +94,14 @@ async function sendVariantGroup(
       ? await brazeClient!.createSendId(resolvedCampaignId)
       : null;
 
-    const audience = { externalUserIds: batchUserIds };
+    // Use recipients[] format when the batch contains unverified users (braze_id only).
+    // Verified users get { external_user_id }; unverified users get { braze_id }.
+    const hasBrazeOnly = batchUserIds.some((id) => group.brazeOnlyIds.has(id));
+    const audience = hasBrazeOnly
+      ? { recipients: batchUserIds.map((id): BrazeRecipient =>
+          group.brazeOnlyIds.has(id) ? { braze_id: id } : { external_user_id: id }
+        )}
+      : { externalUserIds: batchUserIds };
     let payload: Record<string, unknown>;
 
     if (group.channel === "push") {
@@ -126,11 +161,30 @@ async function sendVariantGroup(
           data: updateData,
         });
       }
+      if (onSuccessfulBatch) {
+        onSuccessfulBatch(batchUserIds);
+      }
+      return { sent: batchUserIds.length, errors: 0 };
+    } else {
+      // HTTP-level Braze error (non-exception path) — record failure, don't count as sent
+      let responseBody: unknown;
+      try { responseBody = await res.json(); } catch { responseBody = null; }
+      const reason = `HTTP ${res.status}: ${JSON.stringify(responseBody)}`;
+      console.error("[cron/select-and-send] Braze HTTP error:", reason, { variantId: group.variantId });
+      void prisma.failedBrazeSend.create({
+        data: {
+          agentId,
+          variantId: group.variantId,
+          channel:    group.channel,
+          userIds:    batchUserIds,
+          decisionIds: batchDecisionIds,
+          reason,
+        },
+      }).catch((dbErr: unknown) => {
+        console.error("[cron/select-and-send] Failed to write FailedBrazeSend record:", dbErr);
+      });
+      return { sent: 0, errors: batchUserIds.length };
     }
-    if (onSuccessfulBatch) {
-      onSuccessfulBatch(batchUserIds);
-    }
-    return { sent: batchUserIds.length, errors: 0 };
   } catch (err) {
     const reason = err instanceof Error ? err.message : String(err);
     console.error("[cron/select-and-send] Braze send error:", err);
@@ -155,20 +209,22 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
-  // Concurrency lock — prevent duplicate runs if cron invokes before previous run completes
+  // Concurrency lock — prevent duplicate runs if cron invokes before previous run completes.
+  // Single atomic INSERT ON CONFLICT eliminates the read-then-write race window.
+  // rowsAffected === 0 means the existing lock is fresh (< 290s old) → another run is active.
   const lockKey = "cron_lock_select_and_send";
-  const existing = await prisma.appSetting.findUnique({ where: { key: lockKey } });
-  if (existing) {
-    const lockAge = Date.now() - new Date(existing.value).getTime();
-    if (lockAge < 290_000) {
-      return NextResponse.json({ error: "Already running" }, { status: 409 });
-    }
+  const lockId  = randomUUID();
+  const lockTs  = new Date().toISOString();
+  const lockAcquired = await prisma.$executeRaw`
+    INSERT INTO "AppSetting" (id, key, value)
+    VALUES (${lockId}, ${lockKey}, ${lockTs})
+    ON CONFLICT (key) DO UPDATE
+      SET value = EXCLUDED.value
+      WHERE (EXTRACT(EPOCH FROM NOW()) - EXTRACT(EPOCH FROM "AppSetting".value::timestamptz)) > 290
+  `;
+  if (lockAcquired === 0) {
+    return NextResponse.json({ error: "Already running" }, { status: 409 });
   }
-  await prisma.appSetting.upsert({
-    where:  { key: lockKey },
-    create: { key: lockKey, value: new Date().toISOString() },
-    update: { value: new Date().toISOString() },
-  });
 
   const cronRun = await prisma.cronRun.create({
     data: { cronName: "select-and-send", agentCount: 0 },
@@ -227,8 +283,19 @@ export async function POST(req: NextRequest) {
         const langFilter = agent.languageFilter && agent.languageFilter !== "all"
           ? { attributes: { path: ["language_tag"], string_starts_with: agent.languageFilter } }
           : {};
+        // Staleness gate: only target users whose funnelStage was confirmed by Hightouch
+        // within the agent's configured window. Lapsed agents use a long window (e.g. 14 days)
+        // so users who graduate out of lapsed are still reachable for a while; tight-window
+        // agents (wau, connected) auto-exclude stale rows after ~2 days.
+        // null = no gate (backward compat for agents created before this field existed).
+        const staleAt = agent.staleFunnelStageDays
+          ? new Date(now.getTime() - agent.staleFunnelStageDays * 86_400_000)
+          : null;
         const funnelFilter = agent.funnelStage
-          ? { funnelStage: agent.funnelStage }
+          ? {
+              funnelStage: agent.funnelStage,
+              ...(staleAt && { funnelStageUpdatedAt: { gte: staleAt } }),
+            }
           : {};
         const rows = await prisma.trackedUser.findMany({
           where:  { personaId: { in: personaIds }, ...langFilter, ...funnelFilter },
@@ -658,6 +725,28 @@ export async function POST(req: NextRequest) {
           pageArmsByPersona.get(row.personaId)!.set(row.variantId, { id: row.variantId, stats: row });
         }
 
+        // Load per-user arm stats for personalised blending (Thompson/EpsilonGreedy only)
+        const pageUserIds = targetFiltered.map((u) => u.externalId);
+        const pageUserArmRows = agent.algorithm !== "linucb"
+          ? await prisma.userArmStats.findMany({
+              where: { userId: { in: pageUserIds }, agentId: agent.id, variantId: { in: allVariantIds } },
+            })
+          : [];
+        // Index: userId → variantId → {alpha,beta,tries,wins}
+        const userArmsByUser = new Map<string, Map<string, typeof pageUserArmRows[number]>>();
+        for (const row of pageUserArmRows) {
+          if (!userArmsByUser.has(row.userId)) userArmsByUser.set(row.userId, new Map());
+          userArmsByUser.get(row.userId)!.set(row.variantId, row);
+        }
+
+        // For LinUCB: load per-agent LinUCB arms once (keyed by variantId)
+        const linucbArmsByVariant = agent.algorithm === "linucb"
+          ? new Map(
+              (await prisma.linUCBArm.findMany({ where: { agentId: agent.id, variantId: { in: allVariantIds } } }))
+                .map((r) => [r.variantId, { id: r.variantId, aInv: r.aInv as number[], b: r.b as number[] }])
+            )
+          : new Map<string, { id: string; aInv: number[]; b: number[] }>();
+
         // Variants with channel for in-memory selection
         const pageVariants = agent.messages.flatMap((m) =>
           m.variants.map((v) => ({ ...v, channel: m.channel }))
@@ -667,13 +756,6 @@ export async function POST(req: NextRequest) {
         for (const user of targetFiltered) {
           const pid = user.personaId as string | null;
           if (!pid) continue;
-          const personaArms = pageArmsByPersona.get(pid);
-          if (!personaArms) continue;
-
-          const arms: BanditArm[] = pageVariants
-            .map((v) => personaArms.get(v.id))
-            .filter(Boolean) as BanditArm[];
-          if (arms.length === 0) continue;
 
           // Build recency penalty map for this user
           const userRecent = recentSendsByUser.filter((r) => r.userId === user.externalId);
@@ -685,14 +767,57 @@ export async function POST(req: NextRequest) {
             recencyPenalties[vid] = recencyMultiplier(daysSince);
           }
 
-          const selectedVariantId =
-            agent.algorithm === "epsilon_greedy"
-              ? new EpsilonGreedy(agent.epsilon).select(arms).variantId
-              : new ThompsonSampling().select(arms, recencyPenalties).variantId;
+          let selectedVariantId: string;
 
+          if (agent.algorithm === "linucb") {
+            // LinUCB: select variant from the user's feature context
+            const linucbArms = pageVariants
+              .map((v) => linucbArmsByVariant.get(v.id))
+              .filter(Boolean) as Array<{ id: string; aInv: number[]; b: number[] }>;
+            if (linucbArms.length === 0) continue;
+
+            // Use stored feature vector or compute on the fly from user behavioral stats
+            const context: number[] = Array.isArray(user.featureVector)
+              ? (user.featureVector as number[])
+              : computeFeatureVector({
+                  totalDecisions:   user.totalDecisions,
+                  totalConversions: user.totalConversions,
+                  totalReward:      user.totalReward,
+                  channelStats:     user.channelStats,
+                  hourlyStats:      user.hourlyStats,
+                  dailyStats:       user.dailyStats,
+                  attributes:       (user.attributes as Record<string, unknown>) ?? {},
+                });
+            selectedVariantId = new LinUCB().select(linucbArms, context).variantId;
+          } else {
+            // Thompson / EpsilonGreedy: blend persona prior with user-specific posterior
+            // Fall back to uniform priors (alpha=1, beta=30) for cold-start personas with no arm stats yet
+            const personaArms = pageArmsByPersona.get(pid) ?? new Map(
+              pageVariants.map((v) => [v.id, { id: v.id, stats: { alpha: 1, beta: 30, tries: 0, wins: 0 } } as BanditArm])
+            );
+            const userArms = userArmsByUser.get(user.externalId) ?? new Map();
+
+            const arms: BanditArm[] = pageVariants
+              .map((v) => {
+                const pa = personaArms.get(v.id);
+                return pa ? blendArm(pa, userArms.get(v.id)) : undefined;
+              })
+              .filter(Boolean) as BanditArm[];
+            if (arms.length === 0) continue;
+
+            selectedVariantId =
+              agent.algorithm === "epsilon_greedy"
+                ? new EpsilonGreedy(agent.epsilon).select(arms).variantId
+                : new ThompsonSampling().select(arms, recencyPenalties).variantId;
+          }
+
+          // Prefer the user's last-seen hour; fall back to their historical peak engagement hour
+          // before resorting to the agent-wide fallbackSendHour (which is the same for all users).
+          const effectiveSendHour = user.preferredSendHour ?? peakActivityHour(user.hourlyStats);
+          const effectiveSendMinute = user.preferredSendHour !== null ? (user.preferredSendMinute ?? null) : null;
           const { scheduledAt, inLocalTime: isFallback } = computeScheduledAt(
-            user.preferredSendHour ?? null,
-            user.preferredSendMinute ?? null,
+            effectiveSendHour,
+            effectiveSendMinute,
             agent.fallbackSendHour ?? 8,
             now,
           );
@@ -755,10 +880,15 @@ export async function POST(req: NextRequest) {
                 inLocalTime:     groupInLocalTime,
                 scheduledAt,
                 externalUserIds: [],
+                brazeOnlyIds:    new Set(),
                 decisionIds:     [],
               };
             }
             byVariant[groupKey].externalUserIds.push(user.externalId);
+            // Unverified users have externalId === brazeId — flag them for braze_id targeting
+            if (user.brazeId && user.externalId === user.brazeId) {
+              byVariant[groupKey].brazeOnlyIds.add(user.externalId);
+            }
             byVariant[groupKey].decisionIds.push(decisionId);
           }
         }
@@ -954,6 +1084,27 @@ export async function POST(req: NextRequest) {
           armStatsByPersona.get(row.personaId)!.set(row.variantId, { id: row.variantId, stats: row });
         }
 
+        // Load per-user arm stats for personalised blending (Thompson/EpsilonGreedy only)
+        const windowUserIds = eligibleWindowUsers.map((u) => u.externalId);
+        const windowUserArmRows = agent.algorithm !== "linucb"
+          ? await prisma.userArmStats.findMany({
+              where: { userId: { in: windowUserIds }, agentId: agent.id, variantId: { in: allVariantIds } },
+            })
+          : [];
+        const windowUserArmsByUser = new Map<string, Map<string, typeof windowUserArmRows[number]>>();
+        for (const row of windowUserArmRows) {
+          if (!windowUserArmsByUser.has(row.userId)) windowUserArmsByUser.set(row.userId, new Map());
+          windowUserArmsByUser.get(row.userId)!.set(row.variantId, row);
+        }
+
+        // For LinUCB: load per-agent LinUCB arms once
+        const windowLinucbArmsByVariant = agent.algorithm === "linucb"
+          ? new Map(
+              (await prisma.linUCBArm.findMany({ where: { agentId: agent.id, variantId: { in: allVariantIds } } }))
+                .map((r) => [r.variantId, { id: r.variantId, aInv: r.aInv as number[], b: r.b as number[] }])
+            )
+          : new Map<string, { id: string; aInv: number[]; b: number[] }>();
+
         // Select variant for each eligible window user (pure in-memory computation)
         const windowVariants = agent.messages.flatMap((m) =>
           m.variants.map((v) => ({ ...v, channel: m.channel }))
@@ -964,13 +1115,6 @@ export async function POST(req: NextRequest) {
         for (const user of eligibleWindowUsers) {
           const pid = user.personaId as string | null;
           if (!pid) continue;
-          const personaArms = armStatsByPersona.get(pid);
-          if (!personaArms) continue;
-
-          const arms: BanditArm[] = windowVariants
-            .map((v) => personaArms.get(v.id))
-            .filter(Boolean) as BanditArm[];
-          if (arms.length === 0) continue;
 
           // Build recency penalty map for this user
           const windowUserRecent = windowRecentSends.filter((r) => r.userId === user.externalId);
@@ -982,14 +1126,52 @@ export async function POST(req: NextRequest) {
             windowRecencyPenalties[vid] = recencyMultiplier(daysSince);
           }
 
-          const selectedVariantId =
-            agent.algorithm === "epsilon_greedy"
-              ? new EpsilonGreedy(agent.epsilon).select(arms).variantId
-              : new ThompsonSampling().select(arms, windowRecencyPenalties).variantId;
+          let selectedVariantId: string;
 
+          if (agent.algorithm === "linucb") {
+            const linucbArms = windowVariants
+              .map((v) => windowLinucbArmsByVariant.get(v.id))
+              .filter(Boolean) as Array<{ id: string; aInv: number[]; b: number[] }>;
+            if (linucbArms.length === 0) continue;
+            const context: number[] = Array.isArray(user.featureVector)
+              ? (user.featureVector as number[])
+              : computeFeatureVector({
+                  totalDecisions:   user.totalDecisions,
+                  totalConversions: user.totalConversions,
+                  totalReward:      user.totalReward,
+                  channelStats:     user.channelStats,
+                  hourlyStats:      user.hourlyStats,
+                  dailyStats:       user.dailyStats,
+                  attributes:       (user.attributes as Record<string, unknown>) ?? {},
+                });
+            selectedVariantId = new LinUCB().select(linucbArms, context).variantId;
+          } else {
+            const personaArms = armStatsByPersona.get(pid) ?? new Map(
+              windowVariants.map((v) => [v.id, { id: v.id, stats: { alpha: 1, beta: 30, tries: 0, wins: 0 } } as BanditArm])
+            );
+            const windowUserArms = windowUserArmsByUser.get(user.externalId) ?? new Map();
+
+            const arms: BanditArm[] = windowVariants
+              .map((v) => {
+                const pa = personaArms.get(v.id);
+                return pa ? blendArm(pa, windowUserArms.get(v.id)) : undefined;
+              })
+              .filter(Boolean) as BanditArm[];
+            if (arms.length === 0) continue;
+
+            selectedVariantId =
+              agent.algorithm === "epsilon_greedy"
+                ? new EpsilonGreedy(agent.epsilon).select(arms).variantId
+                : new ThompsonSampling().select(arms, windowRecencyPenalties).variantId;
+          }
+
+          // Prefer the user's last-seen hour; fall back to their historical peak engagement hour
+          // before resorting to the agent-wide fallbackSendHour (which is the same for all users).
+          const effectiveSendHour = user.preferredSendHour ?? peakActivityHour(user.hourlyStats);
+          const effectiveSendMinute = user.preferredSendHour !== null ? (user.preferredSendMinute ?? null) : null;
           const { scheduledAt, inLocalTime: isFallback } = computeScheduledAt(
-            user.preferredSendHour ?? null,
-            user.preferredSendMinute ?? null,
+            effectiveSendHour,
+            effectiveSendMinute,
             agent.fallbackSendHour ?? 8,
             now,
           );
@@ -1056,10 +1238,14 @@ export async function POST(req: NextRequest) {
               inLocalTime:     groupInLocalTime,
               scheduledAt,
               externalUserIds: [],
+              brazeOnlyIds:    new Set(),
               decisionIds:     [],
             };
           }
           windowByVariant[groupKey].externalUserIds.push(user.externalId);
+          if (user.brazeId && user.externalId === user.brazeId) {
+            windowByVariant[groupKey].brazeOnlyIds.add(user.externalId);
+          }
           windowByVariant[groupKey].decisionIds.push(decisionId);
         }
       }

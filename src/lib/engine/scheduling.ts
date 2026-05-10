@@ -51,6 +51,25 @@ export function computeScheduledAt(
   return { scheduledAt: fallback, inLocalTime: true };
 }
 
+/**
+ * Returns the UTC hour (0–23) with the highest cumulative conversion activity
+ * from a user's hourlyStats array, or null when the array is all zeros (no data).
+ *
+ * Used as a secondary send-time fallback: when a user has no preferredSendHour
+ * from last_seen_at, we use their historical peak engagement hour instead of the
+ * agent-wide fallbackSendHour (which applies the same hour to all users).
+ */
+export function peakActivityHour(hourlyStats: unknown): number | null {
+  const stats = Array.isArray(hourlyStats) ? (hourlyStats as number[]) : [];
+  let maxVal = 0;
+  let maxIdx = -1;
+  for (let h = 0; h < Math.min(stats.length, 24); h++) {
+    const v = stats[h] ?? 0;
+    if (v > maxVal) { maxVal = v; maxIdx = h; }
+  }
+  return maxIdx === -1 ? null : maxIdx;
+}
+
 export function getTodayStartUTC(timezone: string, now: Date = new Date()): Date {
   // Step 1: What date is "today" in the target timezone? (en-CA gives YYYY-MM-DD)
   const todayStr = new Intl.DateTimeFormat("en-CA", {

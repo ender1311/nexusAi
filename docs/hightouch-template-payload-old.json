@@ -1,0 +1,28 @@
+{
+    "users": [
+      {% for row in rows %}
+      {
+        "external_user_id": "{{ row['user_id'] }}",
+        "attributes": {
+          "first_name": "{{ row['first_name'] }}",
+          "last_name": "{{ row['last_name'] }}",
+          "email": "{{ row['email'] }}",
+          "last_seen_at": "{{ row['last_seen_timestamp'] }}",
+          "language_tag": "{{ row['language_tag'] }}",
+          "plan_locale": "{{ row['plan_locale_latest'] }}",
+          "preferred_bible_version_id": {{ row['text_bible_version_id_latest'] | default: "null" }},
+          "donor_alias_ids": "{{ row['donor_alias_ids_all'] }}",
+          "source_application": "{{ row['source_application'] }}",
+          "verified": {{ row['verified_flag'] | default: false }},
+          "suspended_at": "{{ row['suspended_timestamp'] }}",
+          "preferred_channel_30d": "{{ row['Preferred Channel Overall 30 Days'] }}",
+          "preferred_channel_90d": "{{ row['Preferred Channel Overall 90 Days'] }}",
+          "preferred_channel_external_30d": "{{ row['Preferred Channel External 30 Days'] }}",
+          "preferred_channel_external_90d": "{{ row['Preferred Channel External 90 Days'] }}",
+          "has_recurring_gift": {{ row['Has Active Recurring Gift to the YouVersion'] | default: false }},
+          "gifts_count_3_36mo": {{ row['Gifts Given within the past 3 to 36 Months'] | default: 0 }}
+        }
+      }{% unless forloop.last %},{% endunless %}
+      {% endfor %}
+    ]
+  }

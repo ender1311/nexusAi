@@ -3,8 +3,7 @@ import { Prisma } from "@/generated/prisma/client";
 import { prisma } from "@/lib/db";
 
 export interface AssignmentConfig {
-  minInteractions?: number;    // default 20
-  confidenceThreshold?: number; // default 0.75
+  minInteractions?: number;    // default 20; used to scale confidence — does not gate assignment
 }
 
 /**
@@ -16,7 +15,6 @@ export async function assignUserToPersona(
   config: AssignmentConfig = {}
 ): Promise<{ personaId: string | null; confidence: number }> {
   const minInteractions = config.minInteractions ?? 20;
-  const threshold = config.confidenceThreshold ?? 0.75;
 
   const user = await prisma.trackedUser.findUnique({ where: { externalId } });
   if (!user) return { personaId: null, confidence: 0 };
@@ -54,19 +52,28 @@ export async function assignUserToPersona(
   const dataRatio = Math.min(1, user.totalDecisions / minInteractions);
   const effectiveConfidence = bestSimilarity * dataRatio;
 
-  if (effectiveConfidence >= threshold && bestPersonaId) {
+  // Always assign to nearest persona — confidence is recorded but does not gate assignment.
+  // Users with no behavioral signal fall back to the largest persona (best population prior).
+  let assignId = bestPersonaId;
+  if (assignId === null) {
+    assignId = discoveredPersonas.sort((a, b) => b.clusterSize - a.clusterSize)[0]?.id ?? null;
+    console.warn(
+      `[persona-assignment] no centroid match for ${externalId}, falling back to largest persona ${assignId}`
+    );
+  }
+
+  if (assignId) {
     await prisma.trackedUser.update({
       where: { externalId },
       data: {
-        personaId: bestPersonaId,
+        personaId: assignId,
         personaConfidence: effectiveConfidence,
         personaAssignedAt: new Date(),
       },
     });
-    return { personaId: bestPersonaId, confidence: effectiveConfidence };
   }
 
-  return { personaId: null, confidence: effectiveConfidence };
+  return { personaId: assignId, confidence: effectiveConfidence };
 }
 
 /**
@@ -77,9 +84,11 @@ export async function batchAssignPersonas(config: AssignmentConfig = {}): Promis
   const users = await prisma.trackedUser.findMany({ select: { externalId: true } });
   let assigned = 0;
 
-  for (const user of users) {
-    const result = await assignUserToPersona(user.externalId, config);
-    if (result.personaId) assigned++;
+  const BATCH_SIZE = 50;
+  for (let i = 0; i < users.length; i += BATCH_SIZE) {
+    const batch = users.slice(i, i + BATCH_SIZE);
+    const results = await Promise.all(batch.map((u) => assignUserToPersona(u.externalId, config)));
+    assigned += results.filter((r) => r.personaId !== null).length;
   }
 
   return assigned;

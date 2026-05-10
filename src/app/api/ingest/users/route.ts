@@ -37,17 +37,17 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "Invalid JSON" }, { status: 400 });
   }
 
-  type UserRecord = { external_user_id?: string; idempotency_key?: string; funnel_stage?: string; attributes?: Record<string, unknown> };
+  type UserRecord = { external_user_id?: string; braze_id?: string; idempotency_key?: string; funnel_stage?: string; attributes?: Record<string, unknown> };
 
   let users: UserRecord[];
   if (Array.isArray(body)) {
     users = body;
   } else if (typeof body === "object" && body !== null && "users" in body && Array.isArray((body as Record<string, unknown>).users)) {
     users = (body as { users: UserRecord[] }).users;
-  } else if (typeof body === "object" && body !== null && "external_user_id" in body) {
+  } else if (typeof body === "object" && body !== null && ("external_user_id" in body || "braze_id" in body)) {
     users = [body as UserRecord];
   } else {
-    return NextResponse.json({ error: "Invalid payload: expected { external_user_id, attributes } or { users: [...] }" }, { status: 400 });
+    return NextResponse.json({ error: "Invalid payload: expected { external_user_id, attributes }, { braze_id, attributes }, or { users: [...] }" }, { status: 400 });
   }
 
   // Guard against oversized batches that could exhaust memory or DB connections
@@ -58,16 +58,16 @@ export async function POST(req: NextRequest) {
     );
   }
 
-  // Anonymous users (no external_user_id) can't be targeted — skip them silently
-  const skippedAnon = users.filter((u) => !u.external_user_id).length;
-  const identified = users.filter((u) => !!u.external_user_id);
+  // Users with neither external_user_id nor braze_id can't be targeted — skip them silently
+  const skippedAnon = users.filter((u) => !u.external_user_id?.trim() && !u.braze_id?.trim()).length;
+  const identified = users.filter((u) => !!(u.external_user_id?.trim() || u.braze_id?.trim()));
   if (identified.length === 0) {
     return NextResponse.json({ ok: true, upserted: 0, skipped_anonymous: skippedAnon });
   }
 
   const seen = new Set<string>();
   const deduped = identified.filter((u) => {
-    const key = u.idempotency_key ?? u.external_user_id!;
+    const key = u.idempotency_key ?? u.external_user_id?.trim() ?? u.braze_id!.trim();
     if (seen.has(key)) return false;
     seen.add(key);
     return true;
@@ -112,7 +112,11 @@ export async function POST(req: NextRequest) {
   let assigned = 0;
 
   for (const user of deduped) {
-    const externalId = user.external_user_id!;
+    const externalUserId = user.external_user_id?.trim() || null;
+    const brazeId = user.braze_id?.trim() || null;
+    // For unverified users (no external_user_id), use braze_id as the Nexus primary key.
+    // This allows them to be stored, persona-assigned, and targeted via the recipients[] path.
+    const externalId = externalUserId ?? brazeId!;
     const raw = (user.attributes ?? {}) as Record<string, unknown>;
 
     // Derive days_since_last_open from last_seen_at if present
@@ -159,18 +163,23 @@ export async function POST(req: NextRequest) {
       ? { personaId, personaConfidence: 0.8, personaAssignedAt: new Date() }
       : {};
 
-    const funnelStageData = user.funnel_stage ? { funnelStage: user.funnel_stage } : {};
+    const funnelStageData = user.funnel_stage
+      ? { funnelStage: user.funnel_stage, funnelStageUpdatedAt: new Date() }
+      : {};
 
     await prisma.trackedUser.upsert({
       where: { externalId },
       create: {
         externalId,
+        ...(brazeId !== null && { brazeId }),
         attributes,
         ...(preferredSendHour !== undefined && { preferredSendHour, preferredSendMinute }),
         ...funnelStageData,
         ...personaData,
       },
       update: {
+        // Only update brazeId when present — don't clear an existing brazeId on re-sync
+        ...(brazeId !== null && { brazeId }),
         attributes,
         ...(preferredSendHour !== undefined && { preferredSendHour, preferredSendMinute }),
         ...funnelStageData,

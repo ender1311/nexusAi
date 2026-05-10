@@ -1,0 +1,29 @@
+{
+    "users": [
+      {% for row in rows %}
+      {% assign uid = row['user_id'] | append: '' %}
+      {
+        "external_user_id": {{ uid | json }},
+        "attributes": {
+          "first_name": {{ row['first_name'] | default: "" | json }},
+          "last_name": {{ row['last_name'] | default: "" | json }},
+          "email": {{ row['email'] | default: "" | json }},
+          "last_seen_at": {{ row['last_seen_timestamp'] | default: "" | json }},
+          "language_tag": {{ row['language_tag'] | default: "" | json }},
+          "plan_locale": {{ row['plan_locale_latest'] | default: "" | json }},
+          "preferred_bible_version_id": {{ row['text_bible_version_id_latest'] | json }},
+          "donor_alias_ids": {{ row['donor_alias_ids_all'] | default: "" | json }},
+          "source_application": {{ row['source_application'] | default: "" | json }},
+          "verified": {{ row['verified_flag'] | default: false | json }},
+          "suspended_at": {{ row['suspended_timestamp'] | default: "" | json }},
+          "preferred_channel_30d": {{ row['Preferred Channel Overall 30 Days'] | default: "" | json }},
+          "preferred_channel_90d": {{ row['Preferred Channel Overall 90 Days'] | default: "" | json }},
+          "preferred_channel_external_30d": {{ row['Preferred Channel External 30 Days'] | default: "" | json }},
+          "preferred_channel_external_90d": {{ row['Preferred Channel External 90 Days'] | default: "" | json }},
+          "has_recurring_gift": {{ row['Has Active Recurring Gift to the YouVersion'] | default: false | json }},
+          "gifts_count_3_36mo": {{ row['Gifts Given within the past 3 to 36 Months'] | default: 0 | json }}
+        }
+      }{% unless forloop.last %},{% endunless %}
+      {% endfor %}
+    ]
+  }
