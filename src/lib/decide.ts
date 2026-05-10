@@ -101,16 +101,26 @@ export async function decideForUser(input: DecideInput): Promise<DecideResult | 
   );
   if (variants.length === 0) return null;
 
-  // 2. Fetch or create user (upsert for /api/decide; findUnique when called from cron
-  // where user is guaranteed to exist, avoiding an unnecessary write round-trip)
-  const user = skipSchedulingChecks
-    ? await prisma.trackedUser.findUnique({ where: { externalId: externalUserId } }) ??
-      await prisma.trackedUser.create({ data: { externalId: externalUserId } })
-    : await prisma.trackedUser.upsert({
-        where: { externalId: externalUserId },
-        create: { externalId: externalUserId },
-        update: {},
-      });
+  // 2. Fetch or create user. Use upsert with a P2002 fallback to handle concurrent
+  // callers: if two requests race on the same new externalUserId, the losing caller
+  // catches the unique constraint violation and reads the row the winner created.
+  // The Neon driver adapter implements upsert as SELECT + INSERT (not native ON CONFLICT),
+  // so P2002 is possible under true concurrency even with upsert.
+  const user = await prisma.trackedUser
+    .upsert({
+      where: { externalId: externalUserId },
+      create: { externalId: externalUserId },
+      update: {},
+    })
+    .catch(async (err: { code?: string }) => {
+      if (err?.code === "P2002") {
+        // Concurrent insert race: another caller won — read the row they created
+        return prisma.trackedUser.findUniqueOrThrow({
+          where: { externalId: externalUserId },
+        });
+      }
+      throw err;
+    });
 
   // 3. Resolve personaId — try cached, then assignment, then fallback to largest persona
   let personaId: string | null = user.personaId ?? null;
