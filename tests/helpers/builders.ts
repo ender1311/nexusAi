@@ -91,6 +91,7 @@ export async function createUser(
     attributes?: object;
     funnelStage?: string | null;
     funnelStageUpdatedAt?: Date | null;
+    brazeId?: string | null;
   } = {}
 ) {
   // Default personaConfidence to 1.0 so tests pass the MIN_PERSONA_CONFIDENCE filter
@@ -154,6 +155,8 @@ export async function createUserDecision(params: {
   messageVariantId?: string;
   channel?: string;
   sentAt?: Date;
+  conversionEvent?: string;
+  conversionAt?: Date;
 }) {
   return prisma.userDecision.create({
     data: {
@@ -162,6 +165,8 @@ export async function createUserDecision(params: {
       messageVariantId: params.messageVariantId,
       channel: params.channel ?? "push",
       sentAt: params.sentAt ?? new Date(),
+      ...(params.conversionEvent && { conversionEvent: params.conversionEvent }),
+      ...(params.conversionAt && { conversionAt: params.conversionAt }),
     },
   });
 }

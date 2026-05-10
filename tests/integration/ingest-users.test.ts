@@ -385,3 +385,175 @@ describe("response shape", () => {
     expect(body).toHaveProperty("persona_assigned");
   });
 });
+
+// ── push open events ────────────────────────────────────────────────────────
+import {
+  createAgent,
+  createMessage,
+  createVariant,
+  createUser,
+  createUserDecision,
+  linkAgentToPersona,
+} from "../helpers/builders";
+
+describe("push open events: { events: [...] } format", () => {
+  it("attributes a push_open to the matching UserDecision and sets conversionEvent", async () => {
+    const persona  = await createPersona();
+    const agent    = await createAgent();
+    const msg      = await createMessage(agent.id, { brazeCampaignId: "camp_open" });
+    const variant  = await createVariant(msg.id);
+    await linkAgentToPersona(agent.id, persona.id);
+    const user = await createUser("usr_open_1", { personaId: persona.id });
+
+    // UserDecision sent 2h ago — within 48h attribution window
+    const sentAt = new Date(Date.now() - 2 * 60 * 60 * 1000);
+    await createUserDecision({ agentId: agent.id, userId: user.externalId, sentAt, messageVariantId: variant.id });
+
+    const occurredAt = new Date().toISOString();
+    const payload = {
+      events: [{
+        event_id: "braze_abc:2026-05-10T15:00:00Z",
+        event_name: "push_open",
+        external_user_id: user.externalId,
+        occurred_at: occurredAt,
+        properties: { campaign_id: "camp_open" },
+      }],
+    };
+
+    const res  = await POST(buildRequest("POST", payload, AUTH) as NextRequest);
+    const body = await res.json();
+    expect(res.status).toBe(200);
+    expect(body.ok).toBe(true);
+    expect(body.matched).toBe(1);
+    expect(body.unmatched).toBe(0);
+
+    const decision = await prisma.userDecision.findFirst({ where: { userId: user.externalId } });
+    expect(decision!.conversionEvent).toBe("push_open");
+    expect(decision!.conversionAt).not.toBeNull();
+  });
+
+  it("does not match a decision that is already attributed", async () => {
+    const persona = await createPersona();
+    const agent   = await createAgent();
+    const msg     = await createMessage(agent.id);
+    const variant = await createVariant(msg.id);
+    await linkAgentToPersona(agent.id, persona.id);
+    const user = await createUser("usr_open_2", { personaId: persona.id });
+
+    const sentAt = new Date(Date.now() - 2 * 60 * 60 * 1000);
+    await createUserDecision({
+      agentId: agent.id, userId: user.externalId, sentAt, messageVariantId: variant.id,
+      conversionEvent: "push_open", conversionAt: sentAt,  // already attributed
+    });
+
+    const payload = {
+      events: [{
+        event_id: "braze_abc:already",
+        event_name: "push_open",
+        external_user_id: user.externalId,
+        occurred_at: new Date().toISOString(),
+        properties: {},
+      }],
+    };
+
+    const res  = await POST(buildRequest("POST", payload, AUTH) as NextRequest);
+    const body = await res.json();
+    expect(body.matched).toBe(0);
+    expect(body.unmatched).toBe(1);
+  });
+
+  it("returns unmatched=1 when no decision exists within the attribution window", async () => {
+    await createUser("usr_open_3");
+
+    const payload = {
+      events: [{
+        event_id: "braze_xyz:no_decision",
+        event_name: "push_open",
+        external_user_id: "usr_open_3",
+        occurred_at: new Date().toISOString(),
+        properties: {},
+      }],
+    };
+
+    const res  = await POST(buildRequest("POST", payload, AUTH) as NextRequest);
+    const body = await res.json();
+    expect(body.matched).toBe(0);
+    expect(body.unmatched).toBe(1);
+  });
+});
+
+describe("push open events: flat column-mapping rows", () => {
+  it("attributes a push_open from a flat { user_id, event_timestamp } row", async () => {
+    const persona = await createPersona();
+    const agent   = await createAgent();
+    const msg     = await createMessage(agent.id, { brazeCampaignId: "camp_flat" });
+    const variant = await createVariant(msg.id);
+    await linkAgentToPersona(agent.id, persona.id);
+    const user = await createUser("usr_flat_1", { personaId: persona.id });
+
+    const sentAt = new Date(Date.now() - 2 * 60 * 60 * 1000);
+    await createUserDecision({ agentId: agent.id, userId: user.externalId, sentAt, messageVariantId: variant.id });
+
+    const payload = {
+      user_id: user.externalId,
+      braze_user_id: "braze_flat_1",
+      campaign_id: "camp_flat",
+      event_timestamp: new Date().toISOString(),
+      timezone: "America/New_York",
+    };
+
+    const res  = await POST(buildRequest("POST", payload, AUTH) as NextRequest);
+    const body = await res.json();
+    expect(res.status).toBe(200);
+    expect(body.ok).toBe(true);
+    expect(body.matched).toBe(1);
+
+    const decision = await prisma.userDecision.findFirst({ where: { userId: user.externalId } });
+    expect(decision!.conversionEvent).toBe("push_open");
+  });
+
+  it("handles unverified user (no user_id) using braze_user_id as externalId", async () => {
+    const persona = await createPersona();
+    const agent   = await createAgent();
+    const msg     = await createMessage(agent.id);
+    const variant = await createVariant(msg.id);
+    await linkAgentToPersona(agent.id, persona.id);
+    // Unverified user: externalId === brazeId
+    const brazeId = "braze_unverified_1";
+    await createUser(brazeId, { personaId: persona.id, brazeId });
+
+    const sentAt = new Date(Date.now() - 2 * 60 * 60 * 1000);
+    await createUserDecision({ agentId: agent.id, userId: brazeId, sentAt, messageVariantId: variant.id });
+
+    const payload = {
+      user_id: "",        // empty — unverified
+      braze_user_id: brazeId,
+      campaign_id: "camp_unverified",
+      event_timestamp: new Date().toISOString(),
+    };
+
+    const res  = await POST(buildRequest("POST", payload, AUTH) as NextRequest);
+    const body = await res.json();
+    expect(body.matched).toBe(1);
+
+    const decision = await prisma.userDecision.findFirst({ where: { userId: brazeId } });
+    expect(decision!.conversionEvent).toBe("push_open");
+  });
+
+  it("deduplicates batch push open rows with the same event_id", async () => {
+    await createUser("usr_dedup_open");
+
+    const row = {
+      user_id: "usr_dedup_open",
+      braze_user_id: "braze_dedup",
+      campaign_id: "camp_dedup",
+      event_timestamp: "2026-05-10T15:00:00Z",
+    };
+
+    const res  = await POST(buildRequest("POST", [row, row], AUTH) as NextRequest);
+    const body = await res.json();
+    // Both rows produce the same event_id — second is deduplicated
+    expect(body.received).toBe(1);
+    expect(body.deduplicated).toBe(1);
+  });
+});

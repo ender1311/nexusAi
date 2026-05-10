@@ -1,0 +1,23 @@
+{
+    "events": [
+        {% for row in rows %}
+        {% assign yv = row['user_id'] | append: '' | strip %}
+        {% assign ext = yv %}
+        {% if yv == '' %}
+        {% assign ext = row['braze_user_id'] | append: '' | strip %}
+        {% endif %}
+        {% assign eid = row['braze_user_id'] | append: ':' | append: row['event_timestamp'] | append: '' %}
+        {
+            "event_id": {{ eid | json }},
+            "event_name": "push_open",
+            "external_user_id": {{ ext | json }},
+            "occurred_at": {{ row['event_timestamp'] | append: '' | json }},
+            "properties": {
+                "timezone": {{ row['timezone'] | default: "" | json }},
+                "braze_user_id": {{ row['braze_user_id'] | append: '' | json }},
+                "campaign_id": {{ row['campaign_id'] | append: '' | json }}
+            }
+        }{% unless forloop.last %},{% endunless %}
+        {% endfor %}
+        ]
+    }

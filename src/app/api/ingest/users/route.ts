@@ -1,29 +1,214 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
 import { classifyPersona, BrazeAttributes } from "@/lib/engine/plan-persona-classifier";
+import { calculateReward } from "@/lib/engine/reward-calculator";
+import { accumulateUserStats } from "@/lib/engine/user-stats";
+import { upsertArmStats, upsertUserArmStats } from "@/lib/arm-stats";
 
 /**
  * POST /api/ingest/users
  *
- * Hightouch HTTP Request destination for user profile data.
+ * Multiplex endpoint — handles two payload shapes from Hightouch:
  *
- * Expected payload shape:
- * {
- *   idempotency_key?: string,
- *   external_user_id: string,
- *   attributes: { [key: string]: string | number | boolean | null }
- * }
+ * 1. User sync (Liquid template):
+ *    { users: [{ external_user_id, braze_id, attributes }] }
+ *    Upserts TrackedUser rows and assigns personas.
  *
- * Or batch format:
- * { users: Array<{ external_user_id, attributes }> }
+ * 2a. Push open events (Liquid template):
+ *    { events: [{ event_id, event_name, external_user_id, occurred_at, properties }] }
+ *    Attributes a push_open reward to the matching UserDecision.
+ *
+ * 2b. Push open events (column-mapping / flat rows):
+ *    { user_id, braze_user_id, campaign_id, event_timestamp, timezone }
+ *    OR array of the above. Normalised internally to the events format.
+ *
+ * Unverified users (no external_user_id): use braze_id / braze_user_id as the
+ * Nexus externalId — consistent with how select-and-send targets them via recipients[].
  */
 
 function verifyAuth(req: NextRequest): boolean {
   const expected = process.env.HIGHTOUCH_API_KEY ?? process.env.INGEST_API_KEY;
-  if (!expected) return false; // Require key to be configured — never open to all
+  if (!expected) return false;
   const token = req.headers.get("authorization")?.replace("Bearer ", "");
   return token === expected;
 }
+
+// ── Types ─────────────────────────────────────────────────────────────────
+
+type UserRecord = {
+  external_user_id?: string;
+  braze_id?: string;
+  idempotency_key?: string;
+  funnel_stage?: string;
+  attributes?: Record<string, unknown>;
+};
+
+type EventRecord = {
+  event_id: string;
+  event_name: string;
+  external_user_id: string;
+  occurred_at: string;
+  properties?: Record<string, unknown>;
+};
+
+/** Flat push-open row from Hightouch column-mapping sync */
+type PushOpenRow = {
+  user_id?: string;
+  braze_user_id?: string;
+  campaign_id?: string;
+  event_timestamp?: string;
+  timezone?: string;
+};
+
+// ── Payload kind detection ────────────────────────────────────────────────
+
+type PayloadKind = "user_sync" | "events" | "push_open_rows";
+
+function detectKind(body: unknown): PayloadKind | null {
+  if (typeof body !== "object" || body === null) return null;
+
+  if (Array.isArray(body)) {
+    const first = body[0] as Record<string, unknown> | undefined;
+    if (!first) return "user_sync"; // empty → treat as user sync no-op
+    if ("event_name" in first || "event_id" in first) return "events";
+    if (
+      "event_timestamp" in first ||
+      ("user_id" in first && "campaign_id" in first && !("external_user_id" in first))
+    ) return "push_open_rows";
+    return "user_sync";
+  }
+
+  const b = body as Record<string, unknown>;
+  if ("users" in b && Array.isArray(b.users)) return "user_sync";
+  if ("events" in b && Array.isArray(b.events)) return "events";
+
+  // Single flat object
+  if ("event_name" in b || "event_id" in b) return "events";
+  if (
+    "event_timestamp" in b ||
+    ("user_id" in b && "campaign_id" in b && !("external_user_id" in b) && !("braze_id" in b))
+  ) return "push_open_rows";
+  if ("external_user_id" in b || "braze_id" in b) return "user_sync";
+
+  return null;
+}
+
+// ── Push-open row → EventRecord normalisation ─────────────────────────────
+
+function pushOpenToEvent(row: PushOpenRow): EventRecord | null {
+  // Verified users: externalId = user_id. Unverified: externalId = braze_user_id.
+  const externalId = row.user_id?.trim() || row.braze_user_id?.trim();
+  if (!externalId || !row.event_timestamp) return null;
+  return {
+    event_id: `${row.braze_user_id ?? row.user_id}:${row.event_timestamp}`,
+    event_name: "push_open",
+    external_user_id: externalId,
+    occurred_at: row.event_timestamp,
+    properties: {
+      ...(row.timezone && { timezone: row.timezone }),
+      ...(row.campaign_id && { campaign_id: row.campaign_id }),
+      ...(row.braze_user_id && { braze_user_id: row.braze_user_id }),
+    },
+  };
+}
+
+// ── Event attribution ─────────────────────────────────────────────────────
+// Mirrors the logic in /api/ingest/events — matches each event to the most
+// recent unattributed UserDecision within the attribution window, then
+// updates arm stats to close the learning loop.
+
+async function attributeEvents(
+  events: EventRecord[],
+): Promise<{ matched: number; unmatched: number }> {
+  const LONG_HORIZON = new Set(["plan_completed", "plan_read_day_3", "plan_read_day_7"]);
+  let matched = 0;
+  let unmatched = 0;
+
+  for (const event of events) {
+    const occurredAt = new Date(event.occurred_at);
+    if (isNaN(occurredAt.getTime())) { unmatched++; continue; }
+
+    const attributionHours = LONG_HORIZON.has(event.event_name) ? 30 * 24 : 48;
+    const windowStart = new Date(occurredAt.getTime() - attributionHours * 60 * 60 * 1000);
+
+    const decision = await prisma.userDecision.findFirst({
+      where: {
+        userId: event.external_user_id,
+        conversionAt: null,
+        sentAt: { gte: windowStart, lte: occurredAt },
+      },
+      orderBy: { sentAt: "desc" },
+      include: { agent: { include: { goals: true } } },
+    });
+
+    if (!decision) { unmatched++; continue; }
+
+    const reward = calculateReward(
+      event.event_name,
+      decision.agent.goals as Parameters<typeof calculateReward>[1],
+      event.properties,
+    );
+
+    await prisma.userDecision.update({
+      where: { id: decision.id },
+      data: {
+        conversionEvent: event.event_name,
+        conversionAt: occurredAt,
+        reward: reward !== 0 ? reward : null,
+      },
+    });
+
+    if (reward !== 0) {
+      await accumulateUserStats({
+        externalId: event.external_user_id,
+        channel: decision.channel,
+        reward,
+        occurredAt,
+      }).catch((err) => {
+        console.error("[ingest/users] Failed to accumulate user stats:", err);
+      });
+    }
+
+    if (decision.messageVariantId) {
+      const user = await prisma.trackedUser.findFirst({
+        where: { externalId: event.external_user_id },
+        select: { personaId: true },
+      });
+      const deltaAlpha = reward > 0 ? reward : 0;
+      const deltaBeta  = reward <= 0 ? 1 : 0;
+      const deltaWins  = reward > 0 ? 1 : 0;
+      await Promise.all([
+        user?.personaId
+          ? upsertArmStats({
+              personaId: user.personaId,
+              agentId: decision.agentId,
+              variantId: decision.messageVariantId,
+              deltaAlpha, deltaBeta, deltaWins,
+            }).catch((err) => {
+              console.error("[ingest/users] Failed to update PersonaArmStats:", err);
+            })
+          : Promise.resolve(),
+        upsertUserArmStats({
+          userId: event.external_user_id,
+          agentId: decision.agentId,
+          variantId: decision.messageVariantId,
+          deltaAlpha, deltaBeta, deltaWins,
+        }).catch((err) => {
+          console.error("[ingest/users] Failed to update UserArmStats:", err);
+        }),
+      ]);
+      console.log(
+        `[ingest/users] reward attributed: event=${event.event_name} userId=${event.external_user_id} deltaAlpha=${deltaAlpha} deltaBeta=${deltaBeta}`,
+      );
+    }
+
+    matched++;
+  }
+
+  return { matched, unmatched };
+}
+
+// ── Main handler ──────────────────────────────────────────────────────────
 
 export async function POST(req: NextRequest) {
   if (!verifyAuth(req)) {
@@ -37,28 +222,90 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "Invalid JSON" }, { status: 400 });
   }
 
-  type UserRecord = { external_user_id?: string; braze_id?: string; idempotency_key?: string; funnel_stage?: string; attributes?: Record<string, unknown> };
-
-  let users: UserRecord[];
-  if (Array.isArray(body)) {
-    users = body;
-  } else if (typeof body === "object" && body !== null && "users" in body && Array.isArray((body as Record<string, unknown>).users)) {
-    users = (body as { users: UserRecord[] }).users;
-  } else if (typeof body === "object" && body !== null && ("external_user_id" in body || "braze_id" in body)) {
-    users = [body as UserRecord];
-  } else {
-    return NextResponse.json({ error: "Invalid payload: expected { external_user_id, attributes }, { braze_id, attributes }, or { users: [...] }" }, { status: 400 });
-  }
-
-  // Guard against oversized batches that could exhaust memory or DB connections
-  if (users.length > 1000) {
+  const kind = detectKind(body);
+  if (kind === null) {
     return NextResponse.json(
-      { error: "Batch too large: maximum 1000 users per request" },
-      { status: 400 }
+      { error: "Invalid payload: expected user sync ({ users: [...] }) or push open event ({ events: [...] } or flat row)" },
+      { status: 400 },
     );
   }
 
-  // Users with neither external_user_id nor braze_id can't be targeted — skip them silently
+  // ── Push open events ────────────────────────────────────────────────────
+  if (kind === "events" || kind === "push_open_rows") {
+    let rawItems: unknown[];
+    if (Array.isArray(body)) rawItems = body;
+    else if (typeof body === "object" && body !== null && "events" in body) {
+      rawItems = (body as { events: unknown[] }).events;
+    } else {
+      rawItems = [body];
+    }
+
+    if (rawItems.length > 1000) {
+      return NextResponse.json(
+        { error: "Batch too large: maximum 1000 events per request" },
+        { status: 400 },
+      );
+    }
+
+    let events: EventRecord[];
+    if (kind === "push_open_rows") {
+      events = (rawItems as PushOpenRow[])
+        .map(pushOpenToEvent)
+        .filter((e): e is EventRecord => e !== null);
+    } else {
+      events = rawItems as EventRecord[];
+    }
+
+    // Deduplicate by event_id within this batch
+    const seen = new Set<string>();
+    const deduped = events.filter((e) => {
+      if (!e.event_id || seen.has(e.event_id)) return false;
+      seen.add(e.event_id);
+      return true;
+    });
+
+    console.log(`[ingest/users] Attributing ${deduped.length} events (kind=${kind})`);
+    const { matched, unmatched } = await attributeEvents(deduped);
+
+    return NextResponse.json({
+      ok: true,
+      received: deduped.length,
+      deduplicated: events.length - deduped.length,
+      matched,
+      unmatched,
+    });
+  }
+
+  // ── User sync ───────────────────────────────────────────────────────────
+
+  type UserRecord_ = UserRecord;
+  let users: UserRecord_[];
+  if (Array.isArray(body)) {
+    users = body as UserRecord_[];
+  } else if (
+    typeof body === "object" && body !== null &&
+    "users" in body && Array.isArray((body as Record<string, unknown>).users)
+  ) {
+    users = (body as { users: UserRecord_[] }).users;
+  } else if (
+    typeof body === "object" && body !== null &&
+    ("external_user_id" in body || "braze_id" in body)
+  ) {
+    users = [body as UserRecord_];
+  } else {
+    return NextResponse.json(
+      { error: "Invalid payload: expected { external_user_id, attributes }, { braze_id, attributes }, or { users: [...] }" },
+      { status: 400 },
+    );
+  }
+
+  if (users.length > 1000) {
+    return NextResponse.json(
+      { error: "Batch too large: maximum 1000 users per request" },
+      { status: 400 },
+    );
+  }
+
   const skippedAnon = users.filter((u) => !u.external_user_id?.trim() && !u.braze_id?.trim()).length;
   const identified = users.filter((u) => !!(u.external_user_id?.trim() || u.braze_id?.trim()));
   if (identified.length === 0) {
@@ -76,15 +323,13 @@ export async function POST(req: NextRequest) {
   console.log(`[ingest/users] Upserting ${deduped.length} user profiles`);
 
   // ── Bulk-load classification data for the whole batch ────────────────────
-  // Collect all unique plan IDs from the batch
   const planIds = [...new Set(
     deduped
       .map((u) => (u.attributes?.plan_day_last_plan_id as string | undefined))
       .filter((id): id is string => Boolean(id))
   )];
 
-  // One query: plan_id → persona tags (via PlanSetMember + PlanSet)
-  const planTagMap = new Map<string, string[]>(); // planId → personaTags[]
+  const planTagMap = new Map<string, string[]>();
   if (planIds.length > 0) {
     const memberships = await prisma.planSetMember.findMany({
       where: { planId: { in: planIds } },
@@ -97,7 +342,6 @@ export async function POST(req: NextRequest) {
     }
   }
 
-  // Load all personas once (label → id map)
   const personas = await prisma.persona.findMany({
     select: { id: true, label: true },
   });
@@ -114,12 +358,10 @@ export async function POST(req: NextRequest) {
   for (const user of deduped) {
     const externalUserId = user.external_user_id?.trim() || null;
     const brazeId = user.braze_id?.trim() || null;
-    // For unverified users (no external_user_id), use braze_id as the Nexus primary key.
-    // This allows them to be stored, persona-assigned, and targeted via the recipients[] path.
+    // Unverified users (no external_user_id): use braze_id as the Nexus primary key.
     const externalId = externalUserId ?? brazeId!;
     const raw = (user.attributes ?? {}) as Record<string, unknown>;
 
-    // Derive days_since_last_open from last_seen_at if present
     let preferredSendHour: number | undefined;
     let preferredSendMinute: number | undefined;
     if (raw["last_seen_at"] && typeof raw["last_seen_at"] === "string") {
@@ -128,7 +370,6 @@ export async function POST(req: NextRequest) {
         const ms = Date.now() - lastSeen.getTime();
         raw["hours_since_last_open"] = Math.round(ms / (1000 * 60 * 60));
         raw["days_since_last_open"] = Math.round(ms / (1000 * 60 * 60 * 24));
-        // Store preferred send time fields separately for the upsert (not in attributes JSON)
         preferredSendHour = lastSeen.getUTCHours();
         preferredSendMinute = lastSeen.getUTCMinutes();
       }
@@ -136,7 +377,6 @@ export async function POST(req: NextRequest) {
 
     const attributes = raw as unknown as object;
 
-    // ── Persona classification ─────────────────────────────────────────────
     const brazeAttrs: BrazeAttributes = {
       plan_day_last_plan_id:        raw["plan_day_last_plan_id"] as string | null,
       plan_day_last_plan_length:    raw["plan_day_last_plan_length"] as number | null,
@@ -153,9 +393,7 @@ export async function POST(req: NextRequest) {
     const planId = brazeAttrs.plan_day_last_plan_id ?? null;
     const planTags = planId ? (planTagMap.get(planId) ?? []) : [];
 
-    // Funnel-stage persona override: lapsed users → Returning (Re-engager persona)
     const isLapsed = user.funnel_stage === "lapsed" || user.funnel_stage === "lapsed_mau";
-    // Default to "Bible-first" (Word-driven persona) when classifier has insufficient data
     const personaLabel = isLapsed ? "Re-engager" : (classifyPersona(brazeAttrs, planTags) ?? "Bible-first");
     const personaId = personaByLabel.get(personaLabel) ?? null;
 
@@ -178,7 +416,6 @@ export async function POST(req: NextRequest) {
         ...personaData,
       },
       update: {
-        // Only update brazeId when present — don't clear an existing brazeId on re-sync
         ...(brazeId !== null && { brazeId }),
         attributes,
         ...(preferredSendHour !== undefined && { preferredSendHour, preferredSendMinute }),
@@ -200,6 +437,6 @@ export async function POST(req: NextRequest) {
       upserted,
       persona_assigned: assigned,
     },
-    { status: 200 }
+    { status: 200 },
   );
 }
