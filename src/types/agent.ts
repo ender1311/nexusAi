@@ -17,14 +17,14 @@ export const FUNNEL_STAGES: FunnelStage[] = [
   "lapsed_mau",
 ];
 
-export const FUNNEL_STAGE_META: Record<FunnelStage, { label: string; description: string }> = {
-  new:         { label: "New",          description: "New users — installed recently" },
-  dau4:        { label: "DAU4",         description: "Daily active — opens 4+ days/week" },
-  wau:         { label: "WAU",          description: "Weekly active — opens 1–3 days/week" },
-  mau:         { label: "MAU",          description: "Monthly active — opens at least once/month" },
-  lapsed_dau4: { label: "Lapsed DAU4",  description: "Was DAU4 — now gone quiet" },
-  lapsed_wau:  { label: "Lapsed WAU",   description: "Was WAU — now gone quiet" },
-  lapsed_mau:  { label: "Lapsed MAU",   description: "Was MAU — now gone quiet" },
+export const FUNNEL_STAGE_META: Record<FunnelStage, { label: string }> = {
+  new:         { label: "New" },
+  dau4:        { label: "DAU4" },
+  wau:         { label: "WAU" },
+  mau:         { label: "MAU" },
+  lapsed_dau4: { label: "Lapsed DAU4" },
+  lapsed_wau:  { label: "Lapsed WAU" },
+  lapsed_mau:  { label: "Lapsed MAU" },
 };
 
 export type AgentStatus = "draft" | "active" | "paused";

@@ -62,7 +62,7 @@ export function AgentCard({ agent, conversionRate, onDelete }: AgentCardProps) {
                     <p className="text-xs text-muted-foreground mt-0.5 line-clamp-2">{agent.description}</p>
                   )}
                   <Badge variant="secondary" className="mt-1.5 text-xs font-normal max-w-full truncate block">
-                    {FUNNEL_STAGE_META[agent.funnelStage]?.label ?? agent.funnelStage} · {FUNNEL_STAGE_META[agent.funnelStage]?.description ?? ""}
+                    {FUNNEL_STAGE_META[agent.funnelStage]?.label ?? agent.funnelStage}
                   </Badge>
                 </div>
                 <div className="flex items-center gap-1 shrink-0">
