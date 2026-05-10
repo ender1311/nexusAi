@@ -187,24 +187,31 @@ export async function POST(req: NextRequest) {
     // All combos within a sendId share the same delta values (same analytics result).
     const deltaWins = clickRate > 0 ? 1 : 0;
     const delta = { deltaAlpha, deltaBeta, deltaWins };
-    await Promise.all([
-      // Persona-level: one upsert per unique (persona, agent, variant) combo
-      batchUpsertArmStats(
-        uniqueCombos.map(({ agentId, variantId, personaId }) => ({ personaId, agentId, variantId })),
-        delta,
-      ),
-      // User-level: one upsert per individual decision (each user gets their own row)
-      batchUpsertUserArmStats(
-        groupDecisions
-          .filter((d) => d.messageVariantId !== null)
-          .map((d) => ({ userId: d.userId, agentId: d.agentId, variantId: d.messageVariantId! })),
-        delta,
-      ),
-    ]);
+    try {
+      await Promise.all([
+        // Persona-level: one upsert per unique (persona, agent, variant) combo
+        batchUpsertArmStats(
+          uniqueCombos.map(({ agentId, variantId, personaId }) => ({ personaId, agentId, variantId })),
+          delta,
+        ),
+        // User-level: one upsert per individual decision (each user gets their own row)
+        batchUpsertUserArmStats(
+          groupDecisions
+            .filter((d) => d.messageVariantId !== null)
+            .map((d) => ({ userId: d.userId, agentId: d.agentId, variantId: d.messageVariantId! })),
+          delta,
+        ),
+      ]);
+    } catch (err) {
+      console.error(`[cron/ingest-braze-analytics] arm stats update failed for sendId=${brazeSendId}:`, err);
+      continue;
+    }
 
-    // Mark decisions as processed: set reward + brazeAnalyticsFetchedAt
+    // Mark decisions as processed: set reward + brazeAnalyticsFetchedAt.
+    // Include ALL decisions in the group — persona-less users still get their
+    // user-level arm stats updated above and must be marked to prevent
+    // repeated reprocessing on every cron run (which inflates arm stats).
     const decisionIdsToUpdate = groupDecisions
-      .filter((d) => personaByUserId.has(d.userId))
       .map((d) => d.id);
 
     if (decisionIdsToUpdate.length > 0) {
