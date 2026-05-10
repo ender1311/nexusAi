@@ -157,6 +157,7 @@ export async function createUserDecision(params: {
   sentAt?: Date;
   conversionEvent?: string;
   conversionAt?: Date;
+  pushOpenAt?: Date;
 }) {
   return prisma.userDecision.create({
     data: {
@@ -167,6 +168,7 @@ export async function createUserDecision(params: {
       sentAt: params.sentAt ?? new Date(),
       ...(params.conversionEvent && { conversionEvent: params.conversionEvent }),
       ...(params.conversionAt && { conversionAt: params.conversionAt }),
+      ...(params.pushOpenAt && { pushOpenAt: params.pushOpenAt }),
     },
   });
 }

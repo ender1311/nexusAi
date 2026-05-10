@@ -4,6 +4,7 @@ import { truncateAll, prisma } from "../helpers/db";
 import { buildRequest } from "../helpers/request";
 import { createPersona } from "../helpers/builders";
 import { POST } from "@/app/api/ingest/users/route";
+import { POST as eventsPost } from "@/app/api/ingest/events/route";
 
 const AUTH = { Authorization: "Bearer test_ingest_key" };
 
@@ -428,8 +429,9 @@ describe("push open events: { events: [...] } format", () => {
     expect(body.unmatched).toBe(0);
 
     const decision = await prisma.userDecision.findFirst({ where: { userId: user.externalId } });
-    expect(decision!.conversionEvent).toBe("push_open");
-    expect(decision!.conversionAt).not.toBeNull();
+    expect(decision!.pushOpenAt).not.toBeNull();      // push open recorded
+    expect(decision!.conversionEvent).toBeNull();     // slot preserved for goal event
+    expect(decision!.conversionAt).toBeNull();        // slot preserved for goal event
   });
 
   it("does not match a decision that is already attributed", async () => {
@@ -443,7 +445,7 @@ describe("push open events: { events: [...] } format", () => {
     const sentAt = new Date(Date.now() - 2 * 60 * 60 * 1000);
     await createUserDecision({
       agentId: agent.id, userId: user.externalId, sentAt, messageVariantId: variant.id,
-      conversionEvent: "push_open", conversionAt: sentAt,  // already attributed
+      pushOpenAt: sentAt,  // already push-opened — pushOpenAt: null check will exclude it
     });
 
     const payload = {
@@ -509,7 +511,8 @@ describe("push open events: flat column-mapping rows", () => {
     expect(body.matched).toBe(1);
 
     const decision = await prisma.userDecision.findFirst({ where: { userId: user.externalId } });
-    expect(decision!.conversionEvent).toBe("push_open");
+    expect(decision!.pushOpenAt).not.toBeNull();
+    expect(decision!.conversionEvent).toBeNull();
   });
 
   it("handles unverified user (no user_id) using braze_user_id as externalId", async () => {
@@ -537,7 +540,8 @@ describe("push open events: flat column-mapping rows", () => {
     expect(body.matched).toBe(1);
 
     const decision = await prisma.userDecision.findFirst({ where: { userId: brazeId } });
-    expect(decision!.conversionEvent).toBe("push_open");
+    expect(decision!.pushOpenAt).not.toBeNull();
+    expect(decision!.conversionEvent).toBeNull();
   });
 
   it("deduplicates batch push open rows with the same event_id", async () => {
@@ -555,5 +559,151 @@ describe("push open events: flat column-mapping rows", () => {
     // Both rows produce the same event_id — second is deduplicated
     expect(body.received).toBe(1);
     expect(body.deduplicated).toBe(1);
+  });
+});
+
+// ── improvement: pushOpenAt vs conversionAt ────────────────────────────────
+describe("push_open uses pushOpenAt — conversionAt slot stays open", () => {
+  it("stamps pushOpenAt without setting conversionAt", async () => {
+    const persona = await createPersona();
+    const agent   = await createAgent();
+    const msg     = await createMessage(agent.id);
+    const variant = await createVariant(msg.id);
+    await linkAgentToPersona(agent.id, persona.id);
+    const user = await createUser("usr_pushopen_slot", { personaId: persona.id });
+
+    const sentAt = new Date(Date.now() - 2 * 60 * 60 * 1000);
+    await createUserDecision({ agentId: agent.id, userId: user.externalId, sentAt, messageVariantId: variant.id });
+
+    const payload = {
+      events: [{
+        event_id: "slot_test:001",
+        event_name: "push_open",
+        external_user_id: user.externalId,
+        occurred_at: new Date().toISOString(),
+        properties: {},
+      }],
+    };
+    await POST(buildRequest("POST", payload, AUTH) as NextRequest);
+
+    const decision = await prisma.userDecision.findFirst({ where: { userId: user.externalId } });
+    expect(decision!.pushOpenAt).not.toBeNull();  // push open recorded
+    expect(decision!.conversionAt).toBeNull();    // slot still open for a goal event
+    expect(decision!.conversionEvent).toBeNull(); // no conversion yet
+  });
+
+  it("allows a goal event to attribute after a push_open on the same decision", async () => {
+    const persona = await createPersona();
+    const agent   = await createAgent();
+    const msg     = await createMessage(agent.id);
+    const variant = await createVariant(msg.id);
+    await linkAgentToPersona(agent.id, persona.id);
+    await prisma.goal.create({
+      data: { agentId: agent.id, eventName: "plan_started", tier: "best", valueWeight: 1.0, weightMode: "fixed", weightDefault: 1.0 },
+    });
+    const user = await createUser("usr_pushopen_then_goal", { personaId: persona.id });
+
+    const sentAt = new Date(Date.now() - 2 * 60 * 60 * 1000);
+    await createUserDecision({ agentId: agent.id, userId: user.externalId, sentAt, messageVariantId: variant.id });
+
+    // Step 1: push_open arrives (from Hightouch batch)
+    await POST(buildRequest("POST", {
+      events: [{
+        event_id: "chain_test:push_open",
+        event_name: "push_open",
+        external_user_id: user.externalId,
+        occurred_at: new Date().toISOString(),
+        properties: {},
+      }],
+    }, AUTH) as NextRequest);
+
+    // Step 2: plan_started arrives (real-time) — should still claim the slot
+    await eventsPost(buildRequest("POST", {
+      events: [{
+        event_id: "chain_test:plan_started",
+        event_name: "plan_started",
+        external_user_id: user.externalId,
+        occurred_at: new Date().toISOString(),
+        properties: {},
+      }],
+    }, AUTH) as NextRequest);
+
+    const decision = await prisma.userDecision.findFirst({ where: { userId: user.externalId } });
+    expect(decision!.pushOpenAt).not.toBeNull();       // push open recorded
+    expect(decision!.conversionEvent).toBe("plan_started"); // goal attributed
+    expect(decision!.conversionAt).not.toBeNull();          // slot claimed by goal
+  });
+});
+
+// ── improvement: cross-batch idempotency ──────────────────────────────────
+describe("cross-batch idempotency via ProcessedEventId", () => {
+  it("does not re-attribute when the same event_id is sent in a second request", async () => {
+    const persona = await createPersona();
+    const agent   = await createAgent();
+    const msg     = await createMessage(agent.id);
+    const variant = await createVariant(msg.id);
+    await linkAgentToPersona(agent.id, persona.id);
+    const user = await createUser("usr_idem", { personaId: persona.id });
+
+    const sentAt = new Date(Date.now() - 2 * 60 * 60 * 1000);
+    await createUserDecision({ agentId: agent.id, userId: user.externalId, sentAt, messageVariantId: variant.id });
+
+    const payload = {
+      events: [{
+        event_id: "idem_test:001",
+        event_name: "push_open",
+        external_user_id: user.externalId,
+        occurred_at: new Date().toISOString(),
+        properties: {},
+      }],
+    };
+
+    // First request — should match
+    const res1  = await POST(buildRequest("POST", payload, AUTH) as NextRequest);
+    const body1 = await res1.json();
+    expect(body1.matched).toBe(1);
+
+    // Second request (Hightouch retry) — same event_id, should be a no-op
+    const res2  = await POST(buildRequest("POST", payload, AUTH) as NextRequest);
+    const body2 = await res2.json();
+    expect(body2.matched).toBe(0);
+    expect(body2.unmatched).toBe(1); // counted as unmatched (already processed)
+
+    // DB should only have one pushOpenAt, not double-stamped
+    const decision = await prisma.userDecision.findFirst({ where: { userId: user.externalId } });
+    expect(decision!.pushOpenAt).not.toBeNull();
+  });
+});
+
+// ── improvement: IngestSyncLog written on every sync ─────────────────────
+describe("IngestSyncLog", () => {
+  it("writes a user_sync log row after a user sync", async () => {
+    const req = buildRequest("POST", { external_user_id: "usr_log", attributes: {} }, AUTH);
+    await POST(req as NextRequest);
+
+    const log = await prisma.ingestSyncLog.findFirst({ where: { syncKind: "user_sync" } });
+    expect(log).not.toBeNull();
+    expect(log!.received).toBe(1);
+    expect(log!.upserted).toBe(1);
+  });
+
+  it("writes a push_open_events log row after event attribution", async () => {
+    await createUser("usr_log_events");
+
+    const payload = {
+      events: [{
+        event_id: "log_test:001",
+        event_name: "push_open",
+        external_user_id: "usr_log_events",
+        occurred_at: new Date().toISOString(),
+        properties: {},
+      }],
+    };
+    await POST(buildRequest("POST", payload, AUTH) as NextRequest);
+
+    const log = await prisma.ingestSyncLog.findFirst({ where: { syncKind: "push_open_events" } });
+    expect(log).not.toBeNull();
+    expect(log!.matched).toBeDefined();
+    expect(log!.unmatched).toBeDefined();
   });
 });

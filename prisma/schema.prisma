@@ -120,6 +120,7 @@ model UserDecision {
   scheduledFor            DateTime? // when Braze is scheduled to deliver this message (null = immediate)
   conversionEvent         String?
   conversionAt            DateTime?
+  pushOpenAt              DateTime?  // when user opened the push — set without consuming conversionAt slot
   reward                  Float?
   brazeAnalyticsFetchedAt DateTime? // when /sends/data_series was last polled (used for daily 900-sendId cap)
   // Context snapshot at decide-time — used for offline analysis and oracle training
@@ -351,4 +352,27 @@ model FailedBrazeSend {
   retryCount  Int      @default(0)
 
   @@index([agentId, failedAt])
+}
+
+// Idempotency table for event attribution — prevents double-processing when Hightouch retries a sync.
+// TTL: rows older than 30 days can be pruned (no query needs older records).
+model ProcessedEventId {
+  eventId   String   @id             // Hightouch event_id (e.g. "braze_user_id:timestamp")
+  createdAt DateTime @default(now())
+
+  @@index([createdAt])               // used for TTL pruning
+}
+
+// System-level ingest run log — tracks received/matched/unmatched counts per sync.
+model IngestSyncLog {
+  id        String   @id @default(cuid())
+  syncKind  String                   // "user_sync" | "push_open_events"
+  createdAt DateTime @default(now())
+  received  Int
+  upserted  Int?                     // user_sync only
+  matched   Int?                     // event attribution only
+  unmatched Int?                     // event attribution only
+  details   Json?                    // extra metadata (deduped count, skipped_anonymous, etc.)
+
+  @@index([syncKind, createdAt])
 }
