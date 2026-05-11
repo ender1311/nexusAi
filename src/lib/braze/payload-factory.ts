@@ -119,7 +119,6 @@ export class PayloadFactory {
       body: msg.htmlBody,
       from: `${fromName} <${fromEmail}>`,
       reply_to: msg.replyTo ?? fromEmail,
-      app_id: this.iosAppId,
       ...(resolvedVariantId && { message_variation_id: resolvedVariantId }),
     };
 
