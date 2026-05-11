@@ -54,7 +54,7 @@ export function AgentFunnelConfig({ agentId, funnelStage, targetFilter }: AgentF
             <SelectContent>
               {FUNNEL_STAGES.map((s) => (
                 <SelectItem key={s} value={s}>
-                  {FUNNEL_STAGE_META[s].label} — {FUNNEL_STAGE_META[s].description}
+                  {FUNNEL_STAGE_META[s].label}
                 </SelectItem>
               ))}
             </SelectContent>

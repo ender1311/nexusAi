@@ -367,7 +367,7 @@ export function AgentWizard({ personas }: { personas: Persona[] }) {
                 <SelectContent>
                   {FUNNEL_STAGES.map((stage) => (
                     <SelectItem key={stage} value={stage}>
-                      {FUNNEL_STAGE_META[stage].label} — {FUNNEL_STAGE_META[stage].description}
+                      {FUNNEL_STAGE_META[stage].label}
                     </SelectItem>
                   ))}
                 </SelectContent>
