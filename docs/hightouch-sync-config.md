@@ -51,18 +51,23 @@ See `hightouch-ingest-users-payload.json` in this directory.
 
 > **Hightouch Liquid gotcha:** The `present` filter is not supported. For nullable fields, store the raw value as a string (e.g. `suspended_at`) instead of trying to coerce to boolean.
 
-## Sync B: Conversion Events (TODO)
+## Sync B: Conversion events
 
 - **Destination endpoint:** `POST /api/ingest/events`
-- **Triggers:** Rows added
-- **Payload shape:**
+- **Triggers:** Rows added (or per your Lightning / sync design)
+- **Batching:** ≤ 1000 events per request
+- **Required fields per event:** `event_id`, `event_name`, `external_user_id`, `occurred_at` (ISO 8601)
+- **Liquid template:** `hightouch-push-open-events-payload.json` (push opens from `braze_user_id`, `user_id`, `timezone`, `event_timestamp`)
+
   ```json
   {
     "events": [
       {
+        "event_id": "...",
+        "event_name": "push_open",
         "external_user_id": "...",
-        "event_type": "plan_completed | streak_restored | gave | ...",
-        "properties": { ... }
+        "occurred_at": "2026-05-10T12:34:56.000Z",
+        "properties": { "timezone": "America/Chicago" }
       }
     ]
   }

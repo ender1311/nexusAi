@@ -53,10 +53,12 @@ type EventRecord = {
 
 /** Flat push-open row from Hightouch column-mapping sync */
 type PushOpenRow = {
-  user_id?: string;
+  user_id?: string | null;
   braze_user_id?: string;
+  braze_user_id_latest?: string;   // Hightouch audience sync without Liquid template
   campaign_id?: string;
   event_timestamp?: string;
+  "User Last Seen"?: string;       // Hightouch audience sync column name
   timezone?: string;
 };
 
@@ -86,6 +88,7 @@ function detectKind(body: unknown): PayloadKind | null {
   if ("event_name" in b || "event_id" in b) return "events";
   if (
     "event_timestamp" in b ||
+    "braze_user_id_latest" in b ||
     ("user_id" in b && "campaign_id" in b && !("external_user_id" in b) && !("braze_id" in b))
   ) return "push_open_rows";
   if ("external_user_id" in b || "braze_id" in b) return "user_sync";
@@ -96,18 +99,21 @@ function detectKind(body: unknown): PayloadKind | null {
 // ── Push-open row → EventRecord normalisation ─────────────────────────────
 
 function pushOpenToEvent(row: PushOpenRow): EventRecord | null {
-  // Verified users: externalId = user_id. Unverified: externalId = braze_user_id.
-  const externalId = row.user_id?.trim() || row.braze_user_id?.trim();
-  if (!externalId || !row.event_timestamp) return null;
+  // Accept both field name variants from different Hightouch sync configs.
+  const brazeId    = row.braze_user_id?.trim() || row.braze_user_id_latest?.trim();
+  const occurredAt = row.event_timestamp?.trim() || row["User Last Seen"]?.trim();
+  // Verified users: externalId = user_id. Unverified: externalId = brazeId.
+  const externalId = row.user_id?.trim() || brazeId;
+  if (!externalId || !occurredAt) return null;
   return {
-    event_id: `${row.braze_user_id ?? row.user_id}:${row.event_timestamp}`,
+    event_id: `${brazeId ?? externalId}:${occurredAt}`,
     event_name: "push_open",
     external_user_id: externalId,
-    occurred_at: row.event_timestamp,
+    occurred_at: occurredAt,
     properties: {
       ...(row.timezone && { timezone: row.timezone }),
       ...(row.campaign_id && { campaign_id: row.campaign_id }),
-      ...(row.braze_user_id && { braze_user_id: row.braze_user_id }),
+      ...(brazeId && { braze_user_id: brazeId }),
     },
   };
 }

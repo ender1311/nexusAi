@@ -544,6 +544,37 @@ describe("push open events: flat column-mapping rows", () => {
     expect(decision!.conversionEvent).toBeNull();
   });
 
+  it("accepts Hightouch audience sync flat row (braze_user_id_latest + 'User Last Seen')", async () => {
+    // Regression: Hightouch "Push Opens - Audiences" sync without Liquid template sends
+    // braze_user_id_latest and "User Last Seen" instead of braze_user_id + event_timestamp.
+    const persona = await createPersona();
+    const agent   = await createAgent();
+    const msg     = await createMessage(agent.id);
+    const variant = await createVariant(msg.id);
+    await linkAgentToPersona(agent.id, persona.id);
+    const brazeId = "braze_ht_audience_1";
+    await createUser(brazeId, { personaId: persona.id, brazeId });
+
+    const sentAt = new Date(Date.now() - 2 * 60 * 60 * 1000);
+    await createUserDecision({ agentId: agent.id, userId: brazeId, sentAt, messageVariantId: variant.id });
+
+    const payload = {
+      braze_user_id_latest: brazeId,
+      user_id: null,
+      "User Last Seen": new Date().toISOString(),
+      last_updated_timestamp: null,
+    };
+
+    const res  = await POST(buildRequest("POST", payload, AUTH) as NextRequest);
+    const body = await res.json();
+    expect(res.status).toBe(200);
+    expect(body.matched).toBe(1);
+
+    const decision = await prisma.userDecision.findFirst({ where: { userId: brazeId } });
+    expect(decision!.pushOpenAt).not.toBeNull();
+    expect(decision!.conversionEvent).toBeNull();
+  });
+
   it("deduplicates batch push open rows with the same event_id", async () => {
     await createUser("usr_dedup_open");
 
