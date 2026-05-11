@@ -349,9 +349,10 @@ export async function POST(req: NextRequest) {
       for (const agent of explorationAgents) {
         if (!agentPersonaSets.get(agent.id)?.has(user.personaId)) continue;
         const attrs = user.attributes as Record<string, unknown>;
-        // Push-enabled filter: don't target push-disabled users for push agents
+        // Push-enabled filter: exclude users who have explicitly set push_enabled: false.
+        // Users without the attribute are treated as opted-in (opt-out model).
         const agentHasPush = agent.messages.some((m) => m.channel === "push");
-        if (agentHasPush && attrs?.push_enabled !== true) continue;
+        if (agentHasPush && attrs?.push_enabled === false) continue;
         // Language filter: agent.languageFilter takes precedence;
         // push agents without explicit filter default to English-only sends.
         const effectiveLang =
@@ -659,13 +660,14 @@ export async function POST(req: NextRequest) {
           !sentTodayIds.has(u.externalId)
       );
 
-      // Push-enabled filter: for push-channel agents, only send to users with push_enabled: true.
+      // Push-enabled filter: exclude users who have explicitly set push_enabled: false.
+      // Users without the attribute are treated as opted-in (opt-out model).
       // Checked in-memory for reliability (JSONB boolean comparison via Prisma path filter is fragile).
       const hasPushMessages = agent.messages.some((m) => m.channel === "push");
       const pushFiltered = hasPushMessages
         ? eligibleUsers.filter((u) => {
             const attrs = u.attributes as Record<string, unknown>;
-            return attrs?.push_enabled === true;
+            return attrs?.push_enabled !== false;
           })
         : eligibleUsers;
       suppress.targetFilter += eligibleUsers.length - pushFiltered.length;

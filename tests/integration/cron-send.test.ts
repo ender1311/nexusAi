@@ -684,7 +684,7 @@ describe("push_enabled and language_tag filters", () => {
     expect(brazeRequests.length).toBe(0);
   });
 
-  it("does not send push to user without push_enabled attribute", async () => {
+  it("sends push to user without push_enabled attribute (opt-out model — missing = allowed)", async () => {
     const persona = await createPersona();
     const agent = await createAgent({ funnelStage: "wau" });
     const msg = await createMessage(agent.id, { channel: "push", brazeCampaignId: "camp_push2" });
@@ -692,7 +692,7 @@ describe("push_enabled and language_tag filters", () => {
     await linkAgentToPersona(agent.id, persona.id);
     await createSchedulingRule(agent.id);
 
-    // User has no push_enabled attribute at all (e.g. legacy user)
+    // User has no push_enabled attribute (e.g. legacy user) — treated as opted-in
     await prisma.trackedUser.create({
       data: {
         externalId: "usr_no_attr",
@@ -708,8 +708,8 @@ describe("push_enabled and language_tag filters", () => {
     const body = await res.json();
 
     expect(res.status).toBe(200);
-    expect(body.sent).toBe(0);
-    expect(brazeRequests.length).toBe(0);
+    expect(body.sent).toBe(1);
+    expect(brazeRequests.length).toBeGreaterThan(0);
   });
 
   it("sends push to user with push_enabled: true", async () => {
