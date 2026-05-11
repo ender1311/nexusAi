@@ -94,8 +94,14 @@ export async function createUser(
     brazeId?: string | null;
   } = {}
 ) {
-  // Default personaConfidence to 1.0 so tests pass the MIN_PERSONA_CONFIDENCE filter
-  const data = { personaConfidence: 1.0, ...overrides };
+  // Default personaConfidence to 1.0 so tests pass the MIN_PERSONA_CONFIDENCE filter.
+  // Default push_enabled: true and language_tag: "en" so users are eligible for push sends
+  // by default; individual tests can override via attributes: { push_enabled: false } etc.
+  const defaultAttrs = { push_enabled: true, language_tag: "en" };
+  const mergedAttrs = overrides.attributes
+    ? { ...defaultAttrs, ...(overrides.attributes as Record<string, unknown>) }
+    : defaultAttrs;
+  const data = { personaConfidence: 1.0, ...overrides, attributes: mergedAttrs };
   return prisma.trackedUser.upsert({
     where: { externalId },
     create: { externalId, ...data },
