@@ -63,6 +63,13 @@ type PushOpenRow = {
   event_type?: string;             // e.g. "push_open" — column from Hightouch model
   "User Last Seen"?: string;       // Hightouch audience sync column name
   timezone?: string;
+  // Canvas-level fields from Hightouch push opens sync (sync ID 2765748)
+  canvas_id?: string;
+  canvas_step_id?: string;
+  canvas_variation_id?: string;
+  canvas_step_message_variation_id?: string;
+  app_group_id?: string;
+  app_id?: string;
 };
 
 /**
@@ -153,6 +160,12 @@ function pushOpenToEvent(row: PushOpenRow): EventRecord | null {
       ...(row.timezone && { timezone: row.timezone }),
       ...(row.campaign_id && { campaign_id: row.campaign_id }),
       ...(brazeId && { braze_user_id: brazeId }),
+      ...(row.canvas_id && { canvas_id: row.canvas_id }),
+      ...(row.canvas_step_id && { canvas_step_id: row.canvas_step_id }),
+      ...(row.canvas_variation_id && { canvas_variation_id: row.canvas_variation_id }),
+      ...(row.canvas_step_message_variation_id && { canvas_step_message_variation_id: row.canvas_step_message_variation_id }),
+      ...(row.app_group_id && { app_group_id: row.app_group_id }),
+      ...(row.app_id && { app_id: row.app_id }),
     },
   };
 }

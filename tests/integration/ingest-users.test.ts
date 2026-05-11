@@ -591,6 +591,33 @@ describe("push open events: flat column-mapping rows", () => {
     expect(body.received).toBe(1);
     expect(body.deduplicated).toBe(1);
   });
+
+  it("accepts canvas-level fields from Hightouch push opens sync without error", async () => {
+    // Regression guard: canvas_id, canvas_step_id, canvas_variation_id,
+    // canvas_step_message_variation_id, app_group_id, app_id added in Hightouch
+    // push opens sync (sync ID 2765748) — endpoint must not reject them.
+    await createUser("usr_canvas_fields");
+
+    const row = {
+      user_id: "usr_canvas_fields",
+      braze_user_id: "braze_canvas_1",
+      campaign_id: "camp_canvas",
+      event_timestamp: new Date().toISOString(),
+      canvas_id: "canvas-abc-123",
+      canvas_step_id: "step-def-456",
+      canvas_variation_id: "var-ghi-789",
+      canvas_step_message_variation_id: "msgvar-jkl-012",
+      app_group_id: "appgroup-mno-345",
+      app_id: "app-pqr-678",
+    };
+
+    const res  = await POST(buildRequest("POST", row, AUTH) as NextRequest);
+    const body = await res.json();
+    expect(res.status).toBe(200);
+    expect(body.ok).toBe(true);
+    // No matching decision exists — unmatched=1 is correct; the key assertion is no 400/500
+    expect(body.unmatched).toBe(1);
+  });
 });
 
 // ── improvement: pushOpenAt vs conversionAt ────────────────────────────────

@@ -137,7 +137,7 @@ export function Sidebar({ user }: { user: SidebarUser | null }) {
 }
 
 const mobileNavItems = navItems.filter((item) =>
-  ["/", "/agents", "/personas", "/performance", "/settings"].includes(item.href)
+  ["/", "/agents", "/personas", "/control-tower", "/settings"].includes(item.href)
 );
 
 export function MobileNav() {
