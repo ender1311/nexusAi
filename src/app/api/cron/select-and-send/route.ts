@@ -264,9 +264,13 @@ export async function POST(req: NextRequest) {
           eligibleUsersByAgent.set(agent.id, []);
           return;
         }
+        // Language filter: only apply DB-level filter when agent has an explicit setting.
+        // Push agent language filtering (defaulting to "en") is done in-memory to avoid
+        // JSONB path filter reliability issues with the Neon HTTP adapter.
         const langFilter = agent.languageFilter && agent.languageFilter !== "all"
           ? { attributes: { path: ["language_tag"], string_starts_with: agent.languageFilter } }
           : {};
+
         // Staleness gate: only target users whose funnelStage was confirmed by Hightouch
         // within the agent's configured window. Lapsed agents use a long window (e.g. 14 days)
         // so users who graduate out of lapsed are still reachable for a while; tight-window
@@ -344,10 +348,21 @@ export async function POST(req: NextRequest) {
       const eligible: string[] = [];
       for (const agent of explorationAgents) {
         if (!agentPersonaSets.get(agent.id)?.has(user.personaId)) continue;
-        // Language filter
-        if (agent.languageFilter && agent.languageFilter !== "all") {
-          const lang = (user.attributes as Record<string, unknown>)?.language_tag as string | undefined;
-          if (!lang?.startsWith(agent.languageFilter)) continue;
+        const attrs = user.attributes as Record<string, unknown>;
+        // Push-enabled filter: don't target push-disabled users for push agents
+        const agentHasPush = agent.messages.some((m) => m.channel === "push");
+        if (agentHasPush && attrs?.push_enabled !== true) continue;
+        // Language filter: agent.languageFilter takes precedence;
+        // push agents without explicit filter default to English-only sends.
+        const effectiveLang =
+          (agent.languageFilter && agent.languageFilter !== "all")
+            ? agent.languageFilter
+            : agentHasPush
+              ? "en"
+              : null;
+        if (effectiveLang) {
+          const lang = attrs?.language_tag as string | undefined;
+          if (!lang?.startsWith(effectiveLang)) continue;
         }
         // Funnel stage filter: skip user if their funnelStage doesn't match the agent's
         if (agent.funnelStage && user.funnelStage !== agent.funnelStage) continue;
@@ -644,15 +659,41 @@ export async function POST(req: NextRequest) {
           !sentTodayIds.has(u.externalId)
       );
 
+      // Push-enabled filter: for push-channel agents, only send to users with push_enabled: true.
+      // Checked in-memory for reliability (JSONB boolean comparison via Prisma path filter is fragile).
+      const hasPushMessages = agent.messages.some((m) => m.channel === "push");
+      const pushFiltered = hasPushMessages
+        ? eligibleUsers.filter((u) => {
+            const attrs = u.attributes as Record<string, unknown>;
+            return attrs?.push_enabled === true;
+          })
+        : eligibleUsers;
+      suppress.targetFilter += eligibleUsers.length - pushFiltered.length;
+
+      // Language filter for push agents: English-only sends by default.
+      // Checked in-memory for reliability (JSONB path filter is fragile with Neon HTTP adapter).
+      const effectiveAgentLang =
+        agent.languageFilter && agent.languageFilter !== "all"
+          ? agent.languageFilter
+          : hasPushMessages ? "en" : null;
+      const langFiltered = effectiveAgentLang
+        ? pushFiltered.filter((u) => {
+            const attrs = u.attributes as Record<string, unknown>;
+            const lang = attrs?.language_tag as string | undefined;
+            return lang?.startsWith(effectiveAgentLang) === true;
+          })
+        : pushFiltered;
+      suppress.targetFilter += pushFiltered.length - langFiltered.length;
+
       // Apply targetFilter in-memory on the already-loaded page (V1: no SQL-side JSON filtering)
-      const targetFiltered = eligibleUsers.filter((u) => {
+      const targetFiltered = langFiltered.filter((u) => {
         if (!agent.targetFilter) return true;
         return evaluateTargetFilter(agent.targetFilter as Record<string, unknown>, {
           attributes: u.attributes as Record<string, unknown>,
           computed: buildComputedKeys(u),
         });
       });
-      suppress.targetFilter += eligibleUsers.length - targetFiltered.length;
+      suppress.targetFilter += langFiltered.length - targetFiltered.length;
 
       // Batch-decide for lottery users: load arm stats once, select variant in-memory,
       // then bulk-create all UserDecision records in a single createManyAndReturn call.

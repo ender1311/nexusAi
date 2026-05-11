@@ -57,8 +57,10 @@ type PushOpenRow = {
   braze_user_id?: string;
   braze_user_id_latest?: string;   // Hightouch audience sync without Liquid template
   last_updated_timestamp?: string | null; // present in push open rows; absent in user sync rows
+  push_notification_event_id?: string;   // Hightouch primary key — use as idempotency key
   campaign_id?: string;
   event_timestamp?: string;
+  event_type?: string;             // e.g. "push_open" — column from Hightouch model
   "User Last Seen"?: string;       // Hightouch audience sync column name
   timezone?: string;
 };
@@ -141,7 +143,9 @@ function pushOpenToEvent(row: PushOpenRow): EventRecord | null {
   const externalId = row.user_id?.trim() || brazeId;
   if (!externalId || !occurredAt) return null;
   return {
-    event_id: `${brazeId ?? externalId}:${occurredAt}`,
+    // Prefer the Hightouch primary key (push_notification_event_id) as the idempotency key.
+    // Fall back to a synthetic composite for legacy flat rows that don't include it.
+    event_id: row.push_notification_event_id?.trim() || `${brazeId ?? externalId}:${occurredAt}`,
     event_name: "push_open",
     external_user_id: externalId,
     occurred_at: occurredAt,

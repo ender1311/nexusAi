@@ -17,6 +17,7 @@ const CRON_AUTH = { Authorization: "Bearer test_cron_secret" };
 
 // Track Braze HTTP calls
 let brazeRequests: Array<{ url: string; method: string; body: unknown }> = [];
+let _originalFetch: typeof globalThis.fetch;
 
 beforeEach(async () => {
   await truncateAll();
@@ -25,31 +26,36 @@ beforeEach(async () => {
   process.env.BRAZE_REST_URL = "https://rest.test.braze.com";
   brazeRequests = [];
 
-  // Replace globalThis.fetch to intercept Braze HTTP calls
+  // Intercept only Braze HTTP calls; pass all other fetch calls (e.g., Neon DB) through to the
+  // original fetch so Prisma queries still hit the real test database.
+  _originalFetch = globalThis.fetch;
   (globalThis as Record<string, unknown>).fetch = async (
     input: string | URL | Request,
     init?: RequestInit
   ): Promise<Response> => {
     const url = input instanceof Request ? input.url : String(input);
-    brazeRequests.push({
-      url,
-      method: init?.method ?? "GET",
-      body: init?.body ? JSON.parse(init.body as string) : null,
-    });
-    return new Response(JSON.stringify({ message: "success" }), {
-      status: 201,
-      headers: { "Content-Type": "application/json" },
-    });
+    if (url.includes("rest.test.braze.com")) {
+      brazeRequests.push({
+        url,
+        method: init?.method ?? "GET",
+        body: init?.body ? JSON.parse(init.body as string) : null,
+      });
+      return new Response(JSON.stringify({ message: "success" }), {
+        status: 201,
+        headers: { "Content-Type": "application/json" },
+      });
+    }
+    return _originalFetch(input, init);
   };
 });
 
 afterEach(async () => {
+  // Restore fetch before truncateAll so Prisma DB calls work
+  globalThis.fetch = _originalFetch;
   await truncateAll();
   delete process.env.CRON_SECRET;
   delete process.env.BRAZE_API_KEY;
   delete process.env.BRAZE_REST_URL;
-  // Restore fetch
-  delete (globalThis as Record<string, unknown>).fetch;
 });
 
 describe("POST /api/cron/select-and-send", () => {
@@ -648,5 +654,126 @@ describe("Phase 0: exploration window assignment", () => {
     expect(penalisedV1Sample).toBeLessThan(0.80); // penalty applied
     expect(multiplier).toBeGreaterThan(0.2);      // floor respected
     expect(multiplier).toBeLessThan(1.0);          // actually penalised
+  });
+});
+
+// ── push_enabled + language_tag eligibility filters ───────────────────────
+describe("push_enabled and language_tag filters", () => {
+  it("does not send push to user with push_enabled: false", async () => {
+    const persona = await createPersona();
+    const agent = await createAgent({ funnelStage: "wau" });
+    const msg = await createMessage(agent.id, { channel: "push", brazeCampaignId: "camp_push" });
+    await createVariant(msg.id, { brazeVariantId: "var_push" });
+    await linkAgentToPersona(agent.id, persona.id);
+    await createSchedulingRule(agent.id);
+
+    // User explicitly has push_enabled: false
+    await createUser("usr_no_push", {
+      personaId: persona.id,
+      funnelStage: "wau",
+      attributes: { push_enabled: false, language_tag: "en" },
+    });
+
+    const req = buildRequest("POST", undefined, CRON_AUTH);
+    const res = await POST(req as NextRequest);
+    const body = await res.json();
+
+    expect(res.status).toBe(200);
+    // User should be filtered out — no push sent
+    expect(body.sent).toBe(0);
+    expect(brazeRequests.length).toBe(0);
+  });
+
+  it("does not send push to user without push_enabled attribute", async () => {
+    const persona = await createPersona();
+    const agent = await createAgent({ funnelStage: "wau" });
+    const msg = await createMessage(agent.id, { channel: "push", brazeCampaignId: "camp_push2" });
+    await createVariant(msg.id, { brazeVariantId: "var_push2" });
+    await linkAgentToPersona(agent.id, persona.id);
+    await createSchedulingRule(agent.id);
+
+    // User has no push_enabled attribute at all (e.g. legacy user)
+    await prisma.trackedUser.create({
+      data: {
+        externalId: "usr_no_attr",
+        personaId: persona.id,
+        personaConfidence: 1.0,
+        funnelStage: "wau",
+        attributes: { language_tag: "en" }, // no push_enabled
+      },
+    });
+
+    const req = buildRequest("POST", undefined, CRON_AUTH);
+    const res = await POST(req as NextRequest);
+    const body = await res.json();
+
+    expect(res.status).toBe(200);
+    expect(body.sent).toBe(0);
+    expect(brazeRequests.length).toBe(0);
+  });
+
+  it("sends push to user with push_enabled: true", async () => {
+    const persona = await createPersona();
+    const agent = await createAgent({ funnelStage: "wau" });
+    const msg = await createMessage(agent.id, { channel: "push", brazeCampaignId: "camp_push3" });
+    await createVariant(msg.id, { brazeVariantId: "var_push3" });
+    await linkAgentToPersona(agent.id, persona.id);
+    await createSchedulingRule(agent.id);
+
+    // createUser defaults to push_enabled: true, language_tag: "en"
+    await createUser("usr_push_ok", { personaId: persona.id, funnelStage: "wau" });
+
+    const req = buildRequest("POST", undefined, CRON_AUTH);
+    const res = await POST(req as NextRequest);
+    const body = await res.json();
+
+    expect(res.status).toBe(200);
+    expect(body.sent).toBe(1);
+    expect(brazeRequests.length).toBeGreaterThan(0);
+  });
+
+  it("does not send push to user with non-English language_tag", async () => {
+    const persona = await createPersona();
+    const agent = await createAgent({ funnelStage: "wau" });
+    const msg = await createMessage(agent.id, { channel: "push", brazeCampaignId: "camp_push4" });
+    await createVariant(msg.id, { brazeVariantId: "var_push4" });
+    await linkAgentToPersona(agent.id, persona.id);
+    await createSchedulingRule(agent.id);
+
+    await createUser("usr_es", {
+      personaId: persona.id,
+      funnelStage: "wau",
+      attributes: { push_enabled: true, language_tag: "es" },
+    });
+
+    const req = buildRequest("POST", undefined, CRON_AUTH);
+    const res = await POST(req as NextRequest);
+    const body = await res.json();
+
+    expect(res.status).toBe(200);
+    expect(body.sent).toBe(0);
+    expect(brazeRequests.length).toBe(0);
+  });
+
+  it("sends push to user with language_tag en-US (prefix match)", async () => {
+    const persona = await createPersona();
+    const agent = await createAgent({ funnelStage: "wau" });
+    const msg = await createMessage(agent.id, { channel: "push", brazeCampaignId: "camp_push5" });
+    await createVariant(msg.id, { brazeVariantId: "var_push5" });
+    await linkAgentToPersona(agent.id, persona.id);
+    await createSchedulingRule(agent.id);
+
+    await createUser("usr_en_us", {
+      personaId: persona.id,
+      funnelStage: "wau",
+      attributes: { push_enabled: true, language_tag: "en-US" },
+    });
+
+    const req = buildRequest("POST", undefined, CRON_AUTH);
+    const res = await POST(req as NextRequest);
+    const body = await res.json();
+
+    expect(res.status).toBe(200);
+    expect(body.sent).toBe(1);
   });
 });
