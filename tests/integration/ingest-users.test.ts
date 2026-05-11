@@ -738,3 +738,79 @@ describe("IngestSyncLog", () => {
     expect(log!.unmatched).toBeDefined();
   });
 });
+
+// ── flat HT user sync rows (Lapsed Habitual DAU4 style) ───────────────────
+describe("flat Hightouch user sync rows", () => {
+  it("upserts a user from a flat braze_user_id_latest row (no last_updated_timestamp)", async () => {
+    // Hightouch 'Lapsed Habitual DAU4' sends column-mapped fields without a Liquid template.
+    // These rows have braze_user_id_latest but NO last_updated_timestamp (which distinguishes
+    // them from push open rows that DO have last_updated_timestamp).
+    const payload = {
+      braze_user_id_latest: "braze_abc123",
+      user_id: "usr_flat_1",
+      language_tag: "en",
+      plan_locale_latest: "en-US",
+      push_enabled: true,
+      "Email Enabled": false,
+      "User Last Seen": new Date(Date.now() - 3 * 24 * 60 * 60 * 1000).toISOString(),
+    };
+
+    const res = await POST(buildRequest("POST", payload, AUTH) as NextRequest);
+    const body = await res.json();
+
+    expect(res.status).toBe(200);
+    expect(body.upserted).toBe(1);
+
+    const user = await prisma.trackedUser.findUnique({ where: { externalId: "usr_flat_1" } });
+    expect(user).not.toBeNull();
+    expect(user!.brazeId).toBe("braze_abc123");
+    const attrs = user!.attributes as Record<string, unknown>;
+    expect(attrs.language_tag).toBe("en");
+    expect(attrs.plan_locale).toBe("en-US");
+    expect(attrs.push_enabled).toBe(true);
+    expect(attrs.email_enabled).toBe(false);
+    expect(attrs.last_seen_at).toBeTruthy();
+    // preferredSendHour should be derived from User Last Seen
+    expect(user!.preferredSendHour).toBeGreaterThanOrEqual(0);
+  });
+
+  it("does NOT treat the flat user sync row as a push_open_rows (matched=0, unmatched=1 regression)", async () => {
+    // Regression: before the fix, braze_user_id_latest caused detectKind to return
+    // push_open_rows regardless of other fields, causing matched:0, unmatched:1.
+    const payload = {
+      braze_user_id_latest: "braze_xyz789",
+      user_id: "usr_flat_2",
+      "User Last Seen": new Date().toISOString(),
+      push_enabled: false,
+    };
+
+    const res = await POST(buildRequest("POST", payload, AUTH) as NextRequest);
+    const body = await res.json();
+
+    // Should be processed as a user sync, not push_open_rows
+    expect(res.status).toBe(200);
+    expect(body.upserted).toBe(1);
+    // user_sync responses have no matched/unmatched fields
+    expect(body.matched).toBeUndefined();
+    expect(body.unmatched).toBeUndefined();
+  });
+
+  it("still treats rows WITH last_updated_timestamp as push open rows", async () => {
+    // Rows with last_updated_timestamp are push open events, not user sync.
+    const payload = {
+      braze_user_id_latest: "braze_push_open",
+      user_id: "usr_push_open_test",
+      last_updated_timestamp: new Date().toISOString(),
+      "User Last Seen": new Date().toISOString(),
+    };
+
+    const res = await POST(buildRequest("POST", payload, AUTH) as NextRequest);
+    const body = await res.json();
+
+    // Treated as push_open_rows — no user upserted
+    expect(res.status).toBe(200);
+    expect(body.upserted).toBeUndefined();
+    expect(body.matched).toBeDefined();
+    expect(body.unmatched).toBeDefined();
+  });
+});

@@ -56,11 +56,45 @@ type PushOpenRow = {
   user_id?: string | null;
   braze_user_id?: string;
   braze_user_id_latest?: string;   // Hightouch audience sync without Liquid template
+  last_updated_timestamp?: string | null; // present in push open rows; absent in user sync rows
   campaign_id?: string;
   event_timestamp?: string;
   "User Last Seen"?: string;       // Hightouch audience sync column name
   timezone?: string;
 };
+
+/**
+ * Flat Hightouch user sync row — raw column names when no Liquid template is applied.
+ * Distinguishable from push open rows by the absence of last_updated_timestamp.
+ * e.g. "Lapsed Habitual DAU4" sync sends: braze_user_id_latest, user_id,
+ * language_tag, plan_locale_latest, push_enabled, "Email Enabled", "User Last Seen".
+ */
+type HtFlatUserRow = {
+  user_id?: string | null;
+  braze_user_id_latest?: string;
+  "User Last Seen"?: string;
+  language_tag?: string;
+  plan_locale_latest?: string;
+  push_enabled?: boolean;
+  "Email Enabled"?: boolean;
+  funnel_stage?: string;
+  [key: string]: unknown;
+};
+
+function normalizeHtFlatUserRow(row: HtFlatUserRow): UserRecord {
+  const attrs: Record<string, unknown> = {};
+  if (row["User Last Seen"])          attrs.last_seen_at    = row["User Last Seen"];
+  if (row.language_tag !== undefined) attrs.language_tag    = row.language_tag;
+  if (row.plan_locale_latest !== undefined) attrs.plan_locale = row.plan_locale_latest;
+  if (row.push_enabled !== undefined) attrs.push_enabled    = row.push_enabled;
+  if (row["Email Enabled"] !== undefined) attrs.email_enabled = row["Email Enabled"];
+  return {
+    external_user_id: row.user_id?.trim() || undefined,
+    braze_id: row.braze_user_id_latest?.trim() || undefined,
+    attributes: attrs,
+    ...(row.funnel_stage ? { funnel_stage: row.funnel_stage } : {}),
+  };
+}
 
 // ── Payload kind detection ────────────────────────────────────────────────
 
@@ -88,10 +122,11 @@ function detectKind(body: unknown): PayloadKind | null {
   if ("event_name" in b || "event_id" in b) return "events";
   if (
     "event_timestamp" in b ||
-    "braze_user_id_latest" in b ||
+    // push open rows have last_updated_timestamp; user sync rows do not
+    ("braze_user_id_latest" in b && "last_updated_timestamp" in b) ||
     ("user_id" in b && "campaign_id" in b && !("external_user_id" in b) && !("braze_id" in b))
   ) return "push_open_rows";
-  if ("external_user_id" in b || "braze_id" in b) return "user_sync";
+  if ("external_user_id" in b || "braze_id" in b || "braze_user_id_latest" in b) return "user_sync";
 
   return null;
 }
@@ -330,7 +365,12 @@ export async function POST(req: NextRequest) {
   type UserRecord_ = UserRecord;
   let users: UserRecord_[];
   if (Array.isArray(body)) {
-    users = body as UserRecord_[];
+    // Array may be flat HtFlatUserRow objects or standard UserRecord objects
+    users = (body as HtFlatUserRow[]).map((row) =>
+      "braze_user_id_latest" in row && !("external_user_id" in row) && !("braze_id" in row)
+        ? normalizeHtFlatUserRow(row)
+        : (row as unknown as UserRecord_)
+    );
   } else if (
     typeof body === "object" && body !== null &&
     "users" in body && Array.isArray((body as Record<string, unknown>).users)
@@ -341,6 +381,12 @@ export async function POST(req: NextRequest) {
     ("external_user_id" in body || "braze_id" in body)
   ) {
     users = [body as UserRecord_];
+  } else if (
+    typeof body === "object" && body !== null &&
+    "braze_user_id_latest" in body
+  ) {
+    // Flat Hightouch user sync row (e.g. Lapsed Habitual DAU4 audience)
+    users = [normalizeHtFlatUserRow(body as HtFlatUserRow)];
   } else {
     return NextResponse.json(
       { error: "Invalid payload: expected { external_user_id, attributes }, { braze_id, attributes }, or { users: [...] }" },
