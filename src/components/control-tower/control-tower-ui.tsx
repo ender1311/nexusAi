@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { RotateCcw, Users, Zap } from "lucide-react";
+import { CheckCircle2, RotateCcw, Users, Zap } from "lucide-react";
 import { Header } from "@/components/layout/header";
 import { AgentToggleCard } from "@/components/control-tower/agent-toggle-card";
 import { OptimizationObjective } from "@/components/control-tower/optimization-objective";
@@ -9,6 +9,16 @@ import { ScanningAnimation } from "@/components/control-tower/scanning-animation
 import { PredictionResults } from "@/components/control-tower/prediction-results";
 import { UserInspector } from "@/components/control-tower/user-inspector";
 import { CronRuns } from "@/components/control-tower/cron-runs";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import {
   controlAgents,
   scanningPhases,
@@ -74,8 +84,11 @@ export function ControlTowerUI({ agents, stats }: ControlTowerUIProps) {
   const [scanProgress, setScanProgress] = useState(0);
   const [scanPhase, setScanPhase] = useState("");
   const [predictions, setPredictions] = useState<PredictionResult[]>([]);
+  const [pendingOff, setPendingOff] = useState<string | null>(null); // agent id awaiting deactivation confirm
+  const [notification, setNotification] = useState<string | null>(null);
 
   const timeoutsRef = useRef<ReturnType<typeof setTimeout>[]>([]);
+  const notifTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const clearTimeouts = () => {
     timeoutsRef.current.forEach(clearTimeout);
@@ -132,6 +145,44 @@ export function ControlTowerUI({ agents, stats }: ControlTowerUIProps) {
     return clearTimeouts;
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [pageState, stats]);
+
+  const showNotification = (msg: string) => {
+    if (notifTimerRef.current) clearTimeout(notifTimerRef.current);
+    setNotification(msg);
+    notifTimerRef.current = setTimeout(() => setNotification(null), 3500);
+  };
+
+  const updateAgentStatus = async (agentId: string, status: "active" | "draft") => {
+    try {
+      await fetch(`/api/agents/${agentId}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ status }),
+      });
+    } catch (err) {
+      console.error("[control-tower] Failed to update agent status:", err);
+    }
+  };
+
+  const handleToggle = (agentId: string, on: boolean) => {
+    if (!on) {
+      setPendingOff(agentId); // show confirmation dialog
+      return;
+    }
+    // Turning on: no confirmation needed
+    setEnabledAgents((prev) => ({ ...prev, [agentId]: true }));
+    void updateAgentStatus(agentId, "active");
+  };
+
+  const confirmTurnOff = async () => {
+    if (!pendingOff) return;
+    const agentId = pendingOff;
+    setPendingOff(null);
+    setEnabledAgents((prev) => ({ ...prev, [agentId]: false }));
+    await updateAgentStatus(agentId, "draft");
+    const name = agentPool.find((a) => a.id === agentId)?.name ?? "Agent";
+    showNotification(`${name} has been turned off`);
+  };
 
   const handleActivate = () => {
     setPageState("scanning");
@@ -216,9 +267,7 @@ export function ControlTowerUI({ agents, stats }: ControlTowerUIProps) {
                   key={agent.id}
                   agent={agent}
                   enabled={enabledAgents[agent.id] ?? false}
-                  onToggle={(on) =>
-                    setEnabledAgents((prev) => ({ ...prev, [agent.id]: on }))
-                  }
+                  onToggle={(on) => handleToggle(agent.id, on)}
                   disabled={isScanning}
                 />
               ))}
@@ -266,6 +315,32 @@ export function ControlTowerUI({ agents, stats }: ControlTowerUIProps) {
           <CronRuns />
         </div>
       </div>
+
+      {/* Deactivation confirmation dialog */}
+      <AlertDialog open={pendingOff !== null} onOpenChange={(open) => { if (!open) setPendingOff(null); }}>
+        <AlertDialogContent size="sm">
+          <AlertDialogHeader>
+            <AlertDialogTitle>Turn off {agentPool.find((a) => a.id === pendingOff)?.name ?? "agent"}?</AlertDialogTitle>
+            <AlertDialogDescription>
+              This agent will stop sending messages immediately. You can turn it back on at any time.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction variant="destructive" onClick={confirmTurnOff}>
+              Turn off
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      {/* Success notification */}
+      {notification && (
+        <div className="fixed bottom-6 right-6 z-50 flex items-center gap-2 rounded-lg border bg-background px-4 py-3 text-sm shadow-lg animate-in slide-in-from-bottom-2 fade-in-0">
+          <CheckCircle2 className="h-4 w-4 text-green-500 shrink-0" />
+          <span>{notification}</span>
+        </div>
+      )}
     </div>
   );
 }
