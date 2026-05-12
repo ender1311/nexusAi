@@ -841,3 +841,128 @@ describe("flat Hightouch user sync rows", () => {
     expect(body.unmatched).toBeDefined();
   });
 });
+
+// ── Canvas exact attribution ───────────────────────────────────────────────────
+// When canvas_step_id is present and maps to a known MessageVariant, the open
+// is exactly attributed to that arm and arm stats are updated immediately.
+
+describe("canvas exact attribution via canvas_step_id", () => {
+  it("credits arm stats when canvas_step_id matches a known variant (passive learning)", async () => {
+    const persona  = await createPersona();
+    const agent    = await createAgent();
+    const msg      = await createMessage(agent.id);
+    const variant  = await createVariant(msg.id, { brazeCanvasStepId: "step-abc-123" });
+    await linkAgentToPersona(agent.id, persona.id);
+    const user     = await createUser("usr_canvas_attr_1", { personaId: persona.id });
+
+    // Push open arrives with canvas_step_id — no prior UserDecision (passive send)
+    const payload = {
+      user_id:         user.externalId,
+      braze_user_id:   "braze_canvas_attr_1",
+      event_timestamp: new Date().toISOString(),
+      canvas_id:       "canvas-xyz",
+      canvas_step_id:  "step-abc-123",
+    };
+
+    const res  = await POST(buildRequest("POST", payload, AUTH) as NextRequest);
+    const body = await res.json();
+    expect(res.status).toBe(200);
+    expect(body.matched).toBe(1);
+
+    // Synthetic UserDecision created
+    const decision = await prisma.userDecision.findFirst({
+      where: { userId: user.externalId, messageVariantId: variant.id },
+    });
+    expect(decision).not.toBeNull();
+    expect(decision!.pushOpenAt).not.toBeNull();
+    expect((decision!.decisionContext as Record<string, unknown>)?.source).toBe("canvas_observed");
+
+    // Arm stats updated for this variant
+    const armStats = await prisma.personaArmStats.findFirst({
+      where: { personaId: persona.id, agentId: agent.id, variantId: variant.id },
+    });
+    expect(armStats).not.toBeNull();
+    expect(armStats!.wins).toBe(1);
+    expect(armStats!.alpha).toBeGreaterThan(1);
+  });
+
+  it("stamps pushOpenAt on an existing Nexus-controlled decision when canvas_step_id matches", async () => {
+    const persona  = await createPersona();
+    const agent    = await createAgent();
+    const msg      = await createMessage(agent.id);
+    const variant  = await createVariant(msg.id, { brazeCanvasStepId: "step-nexus-123" });
+    await linkAgentToPersona(agent.id, persona.id);
+    const user     = await createUser("usr_canvas_attr_2", { personaId: persona.id });
+
+    // Nexus already sent this variant — UserDecision exists
+    const sentAt = new Date(Date.now() - 30 * 60 * 1000); // 30 min ago
+    await createUserDecision({ agentId: agent.id, userId: user.externalId, sentAt, messageVariantId: variant.id });
+
+    const payload = {
+      user_id:         user.externalId,
+      braze_user_id:   "braze_nexus_canvas",
+      event_timestamp: new Date().toISOString(),
+      canvas_step_id:  "step-nexus-123",
+    };
+
+    const res  = await POST(buildRequest("POST", payload, AUTH) as NextRequest);
+    const body = await res.json();
+    expect(body.matched).toBe(1);
+
+    // Original decision stamped — no synthetic created
+    const decisions = await prisma.userDecision.findMany({
+      where: { userId: user.externalId, agentId: agent.id },
+    });
+    expect(decisions).toHaveLength(1); // only the original
+    expect(decisions[0].pushOpenAt).not.toBeNull();
+  });
+
+  it("falls through to time-window attribution when canvas_step_id has no matching variant", async () => {
+    const persona  = await createPersona();
+    const agent    = await createAgent();
+    const msg      = await createMessage(agent.id);
+    const variant  = await createVariant(msg.id); // no brazeCanvasStepId
+    await linkAgentToPersona(agent.id, persona.id);
+    const user     = await createUser("usr_canvas_attr_3", { personaId: persona.id });
+
+    const sentAt = new Date(Date.now() - 30 * 60 * 1000);
+    await createUserDecision({ agentId: agent.id, userId: user.externalId, sentAt, messageVariantId: variant.id });
+
+    const payload = {
+      user_id:         user.externalId,
+      braze_user_id:   "braze_canvas_fallback",
+      event_timestamp: new Date().toISOString(),
+      canvas_step_id:  "step-unknown-999", // no variant has this ID
+    };
+
+    const res  = await POST(buildRequest("POST", payload, AUTH) as NextRequest);
+    const body = await res.json();
+    // Falls through to time-window match — still finds the UserDecision
+    expect(body.matched).toBe(1);
+    const decision = await prisma.userDecision.findFirst({ where: { userId: user.externalId } });
+    expect(decision!.pushOpenAt).not.toBeNull();
+  });
+
+  it("is idempotent — second send of same event_id is a no-op", async () => {
+    const agent    = await createAgent();
+    const msg      = await createMessage(agent.id);
+    await createVariant(msg.id, { brazeCanvasStepId: "step-idem-456" });
+    await createUser("usr_canvas_idem");
+
+    const payload = {
+      push_notification_event_id: "idem-canvas-evt-001",
+      user_id:                    "usr_canvas_idem",
+      event_timestamp:            new Date().toISOString(),
+      canvas_step_id:             "step-idem-456",
+    };
+
+    await POST(buildRequest("POST", payload, AUTH) as NextRequest);
+    const res2  = await POST(buildRequest("POST", payload, AUTH) as NextRequest);
+    const body2 = await res2.json();
+
+    // Second call: already processed → unmatched (idempotency key blocks re-processing)
+    expect(body2.matched + body2.unmatched).toBe(1);
+    const decisions = await prisma.userDecision.findMany({ where: { userId: "usr_canvas_idem" } });
+    expect(decisions).toHaveLength(1); // only one synthetic decision
+  });
+});
