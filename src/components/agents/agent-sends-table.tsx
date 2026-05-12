@@ -7,6 +7,10 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { cn } from "@/lib/utils";
+import {
+  getAgentSendDeliveryStatus,
+  type AgentSendDeliveryStatus,
+} from "@/lib/agent-send-delivery-status";
 
 type SendRow = {
   id: string;
@@ -55,6 +59,62 @@ const PERSONA_COLOR_CLASSES: Record<string, string> = {
 
 function personaDot(color: string | null): string {
   return PERSONA_COLOR_CLASSES[color ?? ""] ?? "bg-muted-foreground/40";
+}
+
+function SendsStatusLegend() {
+  const items: { status: AgentSendDeliveryStatus; label: string; detail: string }[] = [
+    {
+      status: "delivered",
+      label: "Delivered",
+      detail: "Braze returned success for this send or schedule.",
+    },
+    {
+      status: "failed",
+      label: "Failed",
+      detail: "Braze returned an error (see expanded row / server logs).",
+    },
+    {
+      status: "pending",
+      label: "Pending",
+      detail: "Delivery is scheduled for a future time.",
+    },
+  ];
+  return (
+    <div className="rounded-lg border bg-muted/20 px-3 py-2.5">
+      <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wide mb-2">
+        Row status
+      </p>
+      <ul className="flex flex-col sm:flex-row sm:flex-wrap gap-2 sm:gap-x-6 sm:gap-y-2">
+        {items.map(({ status, label, detail }) => (
+          <li key={status} className="flex items-start gap-2 min-w-0 sm:max-w-[220px]">
+            <span
+              className={cn(
+                "mt-0.5 h-2.5 w-2.5 rounded-full shrink-0",
+                status === "delivered" && "bg-emerald-500",
+                status === "failed" && "bg-red-500",
+                status === "pending" && "bg-amber-400",
+              )}
+              aria-hidden
+            />
+            <span className="text-xs leading-snug">
+              <span className="font-medium text-foreground">{label}</span>
+              <span className="text-muted-foreground"> — {detail}</span>
+            </span>
+          </li>
+        ))}
+      </ul>
+    </div>
+  );
+}
+
+function rowStatusClasses(status: AgentSendDeliveryStatus): string {
+  if (status === "failed") {
+    return "bg-red-50 hover:bg-red-100 dark:bg-red-950/20 dark:hover:bg-red-950/30";
+  }
+  if (status === "pending") {
+    return "bg-amber-50 hover:bg-amber-100 dark:bg-amber-950/20 dark:hover:bg-amber-950/35";
+  }
+  return "bg-emerald-50/50 hover:bg-emerald-100/60 dark:bg-emerald-950/15 dark:hover:bg-emerald-950/25";
 }
 
 const formatDateTime = (dateStr: string): string =>
@@ -148,9 +208,29 @@ function SortIcon({ field, active, dir }: { field: SortField; active: SortField;
     : <ArrowDown className="h-3 w-3 ml-1 text-primary" />;
 }
 
-function ExpandedContent({ row }: { row: SendRow }) {
+function deliveryStatusLabel(status: AgentSendDeliveryStatus): string {
+  if (status === "failed") return "Failed (Braze error)";
+  if (status === "pending") return "Pending (scheduled)";
+  return "Delivered (Braze OK)";
+}
+
+function ExpandedContent({ row, nowMs }: { row: SendRow; nowMs: number }) {
+  const status = getAgentSendDeliveryStatus(row, nowMs);
   return (
     <div className="px-4 py-3 bg-muted/30 border-t space-y-2.5">
+      <div>
+        <p className="text-[10px] font-medium text-muted-foreground uppercase tracking-wide mb-0.5">Braze status</p>
+        <p
+          className={cn(
+            "text-xs font-medium",
+            status === "failed" && "text-red-600 dark:text-red-400",
+            status === "pending" && "text-amber-700 dark:text-amber-400",
+            status === "delivered" && "text-emerald-700 dark:text-emerald-400",
+          )}
+        >
+          {deliveryStatusLabel(status)}
+        </p>
+      </div>
       {row.variantTitle && (
         <div>
           <p className="text-[10px] font-medium text-muted-foreground uppercase tracking-wide mb-0.5">Title</p>
@@ -241,10 +321,11 @@ function ExpandedContent({ row }: { row: SendRow }) {
 }
 
 /** Scheduled (future) sends — compact card list above the main sent table */
-function ScheduledSection({ rows, expanded, onToggle }: {
+function ScheduledSection({ rows, expanded, onToggle, nowMs }: {
   rows: SendRow[];
   expanded: Set<string>;
   onToggle: (id: string) => void;
+  nowMs: number;
 }) {
   if (rows.length === 0) return null;
   return (
@@ -257,20 +338,30 @@ function ScheduledSection({ rows, expanded, onToggle }: {
       </div>
       {rows.map((row) => {
         const isOpen = expanded.has(row.id);
+        const st = getAgentSendDeliveryStatus(row, nowMs);
         return (
           <div
             key={row.id}
             className={cn(
               "rounded-lg border overflow-hidden",
-              row.failed
-                ? "border-red-200 bg-red-50 dark:border-red-800 dark:bg-red-950/20"
-                : "border-amber-200 bg-amber-50 dark:border-amber-800 dark:bg-amber-950/20",
+              st === "failed" && "border-red-200 bg-red-50 dark:border-red-800 dark:bg-red-950/20",
+              st === "pending" && "border-amber-200 bg-amber-50 dark:border-amber-800 dark:bg-amber-950/20",
+              st === "delivered" && "border-emerald-200 bg-emerald-50 dark:border-emerald-900/30 dark:bg-emerald-950/15",
             )}
           >
             <button
               className="w-full flex items-center gap-3 px-3 py-2.5 text-left hover:bg-black/5"
               onClick={() => onToggle(row.id)}
             >
+              <span className="shrink-0 w-3.5 flex justify-center">
+                {st === "failed" ? (
+                  <XCircle className="h-3.5 w-3.5 text-red-500" />
+                ) : st === "pending" ? (
+                  <Clock className="h-3.5 w-3.5 text-amber-600" />
+                ) : (
+                  <CheckCircle2 className="h-3.5 w-3.5 text-emerald-600" />
+                )}
+              </span>
               {isOpen
                 ? <ChevronDown className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
                 : <ChevronRight className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
@@ -297,7 +388,7 @@ function ScheduledSection({ rows, expanded, onToggle }: {
                 <Badge variant="outline" className="text-xs capitalize hidden sm:inline-flex">{row.channel}</Badge>
               </div>
             </button>
-            {isOpen && <ExpandedContent row={row} />}
+            {isOpen && <ExpandedContent row={row} nowMs={nowMs} />}
           </div>
         );
       })}
@@ -392,9 +483,10 @@ export function AgentSendsTable({ agentId }: Props) {
     [rows],
   );
 
-  const now = new Date().toISOString();
-  const scheduledRows = rows.filter((r) => r.scheduledFor && r.scheduledFor > now);
-  const sentRows = rows.filter((r) => !r.scheduledFor || r.scheduledFor <= now);
+  const nowMs = Date.now();
+  const nowIso = new Date(nowMs).toISOString();
+  const scheduledRows = rows.filter((r) => r.scheduledFor && r.scheduledFor > nowIso);
+  const sentRows = rows.filter((r) => !r.scheduledFor || r.scheduledFor <= nowIso);
 
   const filteredSentRows = useMemo(() => applyFilters(sentRows, filters), [sentRows, filters]);
   const groups = useMemo(
@@ -452,7 +544,7 @@ export function AgentSendsTable({ agentId }: Props) {
         {/* Active filter pills */}
         {filters.status !== "all" && (
           <span className="flex items-center gap-1 rounded-full border bg-muted/60 px-2 py-0.5 text-xs">
-            {filters.status}
+            {filters.status === "success" ? "Delivered" : filters.status}
             <button onClick={() => setFilters((f) => ({ ...f, status: "all" }))}>
               <X className="h-2.5 w-2.5 text-muted-foreground hover:text-foreground" />
             </button>
@@ -499,12 +591,12 @@ export function AgentSendsTable({ agentId }: Props) {
               value={filters.status}
               onValueChange={(v) => setFilters((f) => ({ ...f, status: v as Filters["status"] }))}
             >
-              <SelectTrigger className="h-7 w-[110px] text-xs">
+              <SelectTrigger className="h-7 w-[130px] text-xs">
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
                 <SelectItem value="all" className="text-xs">All</SelectItem>
-                <SelectItem value="success" className="text-xs">Success</SelectItem>
+                <SelectItem value="success" className="text-xs">Delivered</SelectItem>
                 <SelectItem value="failed" className="text-xs">Failed</SelectItem>
                 <SelectItem value="converted" className="text-xs">Converted</SelectItem>
               </SelectContent>
@@ -553,8 +645,10 @@ export function AgentSendsTable({ agentId }: Props) {
         </div>
       )}
 
+      <SendsStatusLegend />
+
       {/* Scheduled (future) sends */}
-      <ScheduledSection rows={scheduledRows} expanded={expanded} onToggle={toggleExpanded} />
+      <ScheduledSection rows={scheduledRows} expanded={expanded} onToggle={toggleExpanded} nowMs={nowMs} />
 
       {/* Sent history */}
       {filteredSentRows.length === 0 ? (
@@ -627,15 +721,11 @@ export function AgentSendsTable({ agentId }: Props) {
                     </TableRow>
                     {groupRows.map((row) => {
                       const isOpen = expanded.has(row.id);
+                      const st = getAgentSendDeliveryStatus(row, nowMs);
                       return (
                         <Fragment key={row.id}>
                           <TableRow
-                            className={cn(
-                              "cursor-pointer",
-                              row.failed
-                                ? "bg-red-50 hover:bg-red-100 dark:bg-red-950/20 dark:hover:bg-red-950/30"
-                                : "bg-green-50/40 hover:bg-green-100/50 dark:bg-green-950/10 dark:hover:bg-green-950/20",
-                            )}
+                            className={cn("cursor-pointer", rowStatusClasses(st))}
                             onClick={() => toggleExpanded(row.id)}
                           >
                             {/* Expand chevron */}
@@ -648,10 +738,9 @@ export function AgentSendsTable({ agentId }: Props) {
 
                             {/* Status icon */}
                             <TableCell className="pr-0">
-                              {row.failed
-                                ? <XCircle className="h-3.5 w-3.5 text-red-500" />
-                                : <CheckCircle2 className="h-3.5 w-3.5 text-green-500" />
-                              }
+                              {st === "failed" && <XCircle className="h-3.5 w-3.5 text-red-500" />}
+                              {st === "delivered" && <CheckCircle2 className="h-3.5 w-3.5 text-emerald-600" />}
+                              {st === "pending" && <Clock className="h-3.5 w-3.5 text-amber-500" />}
                             </TableCell>
 
                             {/* User */}
@@ -708,7 +797,7 @@ export function AgentSendsTable({ agentId }: Props) {
                           {isOpen && (
                             <TableRow className="hover:bg-transparent">
                               <TableCell colSpan={7} className="p-0">
-                                <ExpandedContent row={row} />
+                                <ExpandedContent row={row} nowMs={nowMs} />
                               </TableCell>
                             </TableRow>
                           )}

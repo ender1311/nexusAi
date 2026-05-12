@@ -369,7 +369,7 @@ model ProcessedEventId {
 // System-level ingest run log — tracks received/matched/unmatched counts per sync.
 model IngestSyncLog {
   id        String   @id @default(cuid())
-  syncKind  String                   // "user_sync" | "push_open_events"
+  syncKind  String                   // "user_sync" | "push_open_events" | "conversion_events" | "braze_events"
   createdAt DateTime @default(now())
   received  Int
   upserted  Int?                     // user_sync only

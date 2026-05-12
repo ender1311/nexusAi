@@ -135,6 +135,16 @@ export async function POST(req: NextRequest) {
   const clickEvents = events.filter((e) => CLICK_EVENTS.has(extractFields(e).eventType));
 
   if (clickEvents.length === 0) {
+    await prisma.ingestSyncLog.create({
+      data: {
+        syncKind: "braze_events",
+        received: events.length,
+        matched: 0,
+        unmatched: events.length,
+        details: { clickable: 0, rewarded: 0 },
+      },
+    }).catch(() => {});
+
     return NextResponse.json({ ok: true, received: events.length, matched: 0, rewarded: 0 });
   }
 
@@ -198,7 +208,19 @@ export async function POST(req: NextRequest) {
     rewarded++;
   }
 
-  console.log(`[ingest/braze-events] received=${events.length} clickable=${clickEvents.length} matched=${matched} rewarded=${rewarded}`);
+  await prisma.ingestSyncLog.create({
+    data: {
+      syncKind: "braze_events",
+      received: events.length,
+      matched,
+      unmatched: clickEvents.length - matched,
+      details: {
+        clickable: clickEvents.length,
+        rewarded,
+        deduplicated: rawEvents.length - events.length,
+      },
+    },
+  }).catch(() => {});
 
   return NextResponse.json({
     ok: true,
