@@ -134,7 +134,6 @@ export function PushLibraryClient({ groups, isAdmin }: Props) {
             <thead>
               <tr className="bg-muted/50 border-b">
                 <th className="px-4 py-2.5 text-left text-xs font-medium text-muted-foreground w-[140px]">Category</th>
-                <th className="px-4 py-2.5 text-left text-xs font-medium text-muted-foreground w-[160px]">Name</th>
                 <th className="px-4 py-2.5 text-left text-xs font-medium text-muted-foreground w-[180px]">Title</th>
                 <th className="px-4 py-2.5 text-left text-xs font-medium text-muted-foreground">Body</th>
                 {isAdmin && (
@@ -145,7 +144,7 @@ export function PushLibraryClient({ groups, isAdmin }: Props) {
             <tbody>
               {filteredVariants.length === 0 ? (
                 <tr>
-                  <td colSpan={isAdmin ? 5 : 4} className="px-4 py-8 text-center text-sm text-muted-foreground">
+                  <td colSpan={isAdmin ? 4 : 3} className="px-4 py-8 text-center text-sm text-muted-foreground">
                     No results
                   </td>
                 </tr>
@@ -158,7 +157,6 @@ export function PushLibraryClient({ groups, isAdmin }: Props) {
                         <span className="block text-xs text-muted-foreground capitalize">{v.subcategory}</span>
                       )}
                     </td>
-                    <td className="px-4 py-3 font-medium text-sm">{v.name}</td>
                     <td className="px-4 py-3 text-sm text-muted-foreground">
                       {v.title ?? <span className="opacity-40">—</span>}
                     </td>

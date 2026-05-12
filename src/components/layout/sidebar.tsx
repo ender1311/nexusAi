@@ -136,9 +136,14 @@ export function Sidebar({ user }: { user: SidebarUser | null }) {
   );
 }
 
-const mobileNavItems = navItems.filter((item) =>
-  ["/", "/agents", "/personas", "/control-tower", "/settings"].includes(item.href)
-);
+const mobileNavItems = navItems
+  .filter((item) =>
+    ["/", "/agents", "/personas", "/control-tower", "/settings"].includes(item.href)
+  )
+  .map((item) => ({
+    ...item,
+    mobileLabel: item.href === "/control-tower" ? "Tower" : item.label,
+  }));
 
 export function MobileNav() {
   const pathname = usePathname();
@@ -157,7 +162,7 @@ export function MobileNav() {
             )}
           >
             <item.icon className={cn("h-5 w-5", active && "text-primary")} />
-            <span>{item.label}</span>
+            <span>{item.mobileLabel}</span>
           </Link>
         );
       })}
