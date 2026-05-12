@@ -204,8 +204,8 @@ export default async function AgentDetailPage({ params }: { params: Promise<{ id
               </Card>
               <Card>
                 <CardContent className="p-4">
-                  <p className="text-xs text-muted-foreground">Messages</p>
-                  <p className="text-2xl font-bold mt-1">{agent.messages.length}</p>
+                  <p className="text-xs text-muted-foreground">Variants</p>
+                  <p className="text-2xl font-bold mt-1">{agent.messages.flatMap((m) => m.variants).length}</p>
                 </CardContent>
               </Card>
               <Card>

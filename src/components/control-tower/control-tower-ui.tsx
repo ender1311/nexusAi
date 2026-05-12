@@ -200,7 +200,7 @@ export function ControlTowerUI({ agents, stats }: ControlTowerUIProps) {
   const isResults = pageState === "results";
 
   return (
-    <div className="flex flex-col h-full">
+    <div className="flex flex-col min-h-0">
       <Header title="Control Tower" description="AI-Powered Optimization Command Center">
         {isResults && (
           <button
@@ -250,7 +250,7 @@ export function ControlTowerUI({ agents, stats }: ControlTowerUIProps) {
       </div>
 
       {/* Main content */}
-      <div className="flex-1 overflow-auto p-4 sm:p-6 space-y-4 sm:space-y-6">
+      <div className="p-4 sm:p-6 space-y-4 sm:space-y-6">
         {/* Agent toggles + sliders + activate */}
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 sm:gap-6">
           {/* Agent cards — span 2 cols */}
