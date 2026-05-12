@@ -88,10 +88,6 @@ export async function POST(req: NextRequest) {
     return true;
   });
 
-  console.log(`[ingest/events] Received ${deduped.length} events`, {
-    event_types: [...new Set(deduped.map((e) => e.event_name))],
-  });
-
   const matched: string[] = [];
   const unmatched: string[] = [];
 
@@ -141,7 +137,6 @@ export async function POST(req: NextRequest) {
         }).catch((err) => {
           console.error("[ingest/events] Failed to accumulate user stats for push_disabled:", err);
         });
-        console.log(`[ingest/events] push_disabled attributed: userId=${event.external_user_id} decisions=${recentDecisions.length} deltaAlpha=0 deltaBeta=${recentDecisions.length}`);
       }
       matched.push(event.event_id);
       continue;
@@ -235,11 +230,25 @@ export async function POST(req: NextRequest) {
           console.error("[ingest/events] Failed to update UserArmStats:", err);
         }),
       ]);
-      console.log(`[ingest/events] reward attributed: event=${event.event_name} userId=${event.external_user_id} decisions=1 deltaAlpha=${deltaAlpha} deltaBeta=${deltaBeta}`);
     }
 
     matched.push(event.event_id);
   }
+
+  // Persist aggregate throughput without emitting one billable Vercel log event
+  // per Hightouch batch or per attributed event.
+  await prisma.ingestSyncLog.create({
+    data: {
+      syncKind: "conversion_events",
+      received: deduped.length,
+      matched: matched.length,
+      unmatched: unmatched.length,
+      details: {
+        deduplicated: events.length - deduped.length,
+        event_types: [...new Set(deduped.map((e) => e.event_name))],
+      },
+    },
+  }).catch(() => {});
 
   return NextResponse.json({
     ok: true,

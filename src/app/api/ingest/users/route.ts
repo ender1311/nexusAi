@@ -378,9 +378,6 @@ async function attributeEvents(
             console.error("[ingest/users] Failed to update UserArmStats:", err);
           }),
         ]);
-        console.log(
-          `[ingest/users] reward attributed: event=${event.event_name} userId=${event.external_user_id} deltaAlpha=${deltaAlpha} deltaBeta=${deltaBeta}`,
-        );
       }
     }
 
@@ -448,7 +445,6 @@ export async function POST(req: NextRequest) {
       return true;
     });
 
-    console.log(`[ingest/users] Attributing ${deduped.length} events (kind=${kind})`);
     const { matched, unmatched } = await attributeEvents(deduped);
 
     // Write sync log (non-critical — don't let a log failure break the response)
@@ -525,8 +521,6 @@ export async function POST(req: NextRequest) {
     seen.add(key);
     return true;
   });
-
-  console.log(`[ingest/users] Upserting ${deduped.length} user profiles`);
 
   // ── Bulk-load classification data for the whole batch ────────────────────
   const planIds = [...new Set(
