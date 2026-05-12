@@ -82,7 +82,7 @@ async function sendVariantGroup(
     const resolvedCampaignId =
       process.env.BRAZE_NEXUS_CAMPAIGN_ID ??
       group.brazeCampaignId ??
-      process.env.BRAZE_NEXUS_EMAIL_CAMPAIGN_ID;
+      undefined;
 
     // Use recipients[] format when the batch contains unverified users (braze_id only).
     // Verified users get { external_user_id }; unverified users get { braze_id }.

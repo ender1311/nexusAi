@@ -2,9 +2,14 @@
 
 ## Commands
 
-**After significant code changes, always run:**
+**During development (fast — ~30s):**
 ```bash
-bun run check    # lint + typecheck (run this before considering a task done)
+bun run check:quick   # typecheck + lint + unit/contract tests — use this while iterating
+```
+
+**Before opening an MR (full — ~5-8 min):**
+```bash
+bun run check         # check:quick + full integration + regression suite
 ```
 
 ```bash
@@ -13,12 +18,17 @@ bun run build      # Production build
 bun run start      # Start production server
 bun run lint       # ESLint only
 bun run typecheck  # tsc --noEmit only
-bun run check      # lint + typecheck together
+bun run test:quick # unit + contract tests only (no DB)
+bun run test:int   # integration tests only (requires test DB)
 
 # Database
-npx prisma migrate dev   # Run migrations (uses prisma.config.ts)
+npx prisma migrate dev   # Run migrations (uses prisma.config.ts → .env.local → production DB)
 npx prisma generate      # Regenerate Prisma client
 npx prisma studio        # Browse DB in browser
+
+# WARNING: prisma.config.ts always loads .env.local (production DB).
+# To apply schema changes to the test DB, use ALTER TABLE via neon() HTTP client
+# with the test DATABASE_URL — never prisma db push on the test DB.
 ```
 
 ## Architecture

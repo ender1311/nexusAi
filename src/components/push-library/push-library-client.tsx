@@ -65,7 +65,7 @@ export function PushLibraryClient({ groups, isAdmin }: Props) {
         <div className="relative flex-1 max-w-sm">
           <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
           <Input
-            placeholder="Search name, title, body…"
+            placeholder="Search title, body…"
             className="pl-8 h-9"
             value={search}
             onChange={(e) => setSearch(e.target.value)}

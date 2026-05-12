@@ -58,7 +58,12 @@ export async function truncateAll(): Promise<void> {
     () => prisma.appSetting.deleteMany(),
   ];
   for (const step of steps) {
-    await step().catch(() => {/* table may not exist yet — skip */});
+    await step().catch((err: Error) => {
+      // Only skip "table does not exist" errors — anything else is worth knowing about
+      if (!err.message.includes("does not exist")) {
+        console.warn("[truncateAll] unexpected error:", err.message);
+      }
+    });
   }
 }
 
