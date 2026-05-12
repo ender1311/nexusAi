@@ -60,6 +60,7 @@ export async function createVariant(
     body?: string;
     title?: string | null;
     brazeVariantId?: string | null;
+    brazeCanvasStepId?: string | null;
     status?: string;
     deeplink?: string | null;
     category?: string | null;

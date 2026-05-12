@@ -56,6 +56,7 @@ model Message {
   name            String
   channel         String
   brazeCampaignId String?
+  brazeCanvasId   String?  // Braze canvas UUID — set by sync-braze-canvas-ids script
   testedVariables Json     @default("[]")
   createdAt       DateTime @default(now())
 
@@ -72,6 +73,7 @@ model MessageVariant {
   cta                  String?
   status               String    @default("active")
   brazeVariantId       String?
+  brazeCanvasStepId    String?  // Braze canvas step UUID — set by sync-braze-canvas-ids script
   title                String?
   iconImageUrl         String?
   deeplink             String?
@@ -94,6 +96,7 @@ model MessageVariant {
   decisions      UserDecision[]
 
   @@index([status, category, subcategory]) // variant picker API (WHERE status='active' AND category=X AND subcategory=Y)
+  @@index([brazeCanvasStepId])             // canvas attribution: canvas_step_id → variant lookup
 }
 
 model Deeplink {

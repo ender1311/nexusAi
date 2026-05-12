@@ -170,16 +170,94 @@ function pushOpenToEvent(row: PushOpenRow): EventRecord | null {
   };
 }
 
-// ── Event attribution ─────────────────────────────────────────────────────
-// Mirrors the logic in /api/ingest/events — matches each event to the most
-// recent unattributed UserDecision within the attribution window, then
-// updates arm stats to close the learning loop.
+// ── Canvas-step exact attribution ─────────────────────────────────────────
+// When Hightouch delivers canvas_step_id, we can look up the exact MessageVariant
+// and credit that arm directly — no time-window guessing needed.
 //
-// push_open events are handled specially:
-//   - Stamped on pushOpenAt (not conversionAt) so the attribution slot stays open
-//     for a subsequent goal event (plan_started, etc.) from the same send.
-//   - Arm stats are NOT updated for push_opens — they are pure engagement signals.
-//     Goal events drive the learning loop.
+// This enables passive learning: even sends NOT orchestrated by Nexus (existing
+// Braze canvases) feed the Thompson sampler. An open on an exactly-identified
+// variant increments alpha by 1 (positive engagement signal).
+
+async function attributeCanvasOpen(
+  event: EventRecord,
+  canvasStepId: string,
+  occurredAt: Date,
+): Promise<boolean> {
+  const variant = await prisma.messageVariant.findFirst({
+    where:   { brazeCanvasStepId: canvasStepId },
+    select:  { id: true, message: { select: { agentId: true } } },
+  });
+  if (!variant) return false;
+
+  const { agentId } = variant.message;
+  const variantId   = variant.id;
+
+  // Try to stamp an existing decision (from a Nexus-controlled send of this variant)
+  const windowStart = new Date(occurredAt.getTime() - 48 * 60 * 60 * 1000);
+  const existing = await prisma.userDecision.findFirst({
+    where: {
+      userId: event.external_user_id,
+      agentId,
+      messageVariantId: variantId,
+      pushOpenAt: null,
+      sentAt: { gte: windowStart, lte: occurredAt },
+    },
+    orderBy: { sentAt: "desc" },
+  });
+
+  if (existing) {
+    await prisma.userDecision.update({
+      where: { id: existing.id },
+      data:  { pushOpenAt: occurredAt },
+    });
+  } else {
+    // Passive observation: record that this user was exposed to and opened this variant.
+    // sentAt ≈ occurredAt (best approximation for independently-sent canvases).
+    await prisma.userDecision.create({
+      data: {
+        userId:          event.external_user_id,
+        agentId,
+        messageVariantId: variantId,
+        channel:         "push",
+        sentAt:          occurredAt,
+        pushOpenAt:      occurredAt,
+        decisionContext: { source: "canvas_observed", canvas_step_id: canvasStepId },
+      },
+    });
+  }
+
+  // Credit the arm: push open on an exactly-attributed variant is a positive signal.
+  // deltaAlpha=1 (open), deltaBeta=0 (not a failure), deltaWins=1.
+  const user = await prisma.trackedUser.findFirst({
+    where:  { externalId: event.external_user_id },
+    select: { personaId: true },
+  });
+
+  await Promise.all([
+    user?.personaId
+      ? upsertArmStats({
+          personaId: user.personaId, agentId, variantId,
+          deltaAlpha: 1, deltaBeta: 0, deltaWins: 1,
+        }).catch(() => {})
+      : Promise.resolve(),
+    upsertUserArmStats({
+      userId: event.external_user_id, agentId, variantId,
+      deltaAlpha: 1, deltaBeta: 0, deltaWins: 1,
+    }).catch(() => {}),
+  ]);
+
+  return true; // handled
+}
+
+// ── Event attribution ─────────────────────────────────────────────────────
+// Matches each event to the most recent unattributed UserDecision within the
+// attribution window, then updates arm stats to close the learning loop.
+//
+// push_open events:
+//   - If canvas_step_id is present → attributeCanvasOpen (exact match, updates arm stats)
+//   - Otherwise → time-window match, stamps pushOpenAt only (no arm stat update)
+//     so the attribution slot stays open for a subsequent goal event.
+// Goal events: stamp conversionAt + run reward/arm-stats loop.
 
 async function attributeEvents(
   events: EventRecord[],
@@ -199,6 +277,22 @@ async function attributeEvents(
       where: { eventId: event.event_id },
     });
     if (alreadyProcessed) { unmatched++; continue; }
+
+    // ── Canvas exact attribution (push opens only) ─────────────────────────
+    if (isPushOpen) {
+      const canvasStepId = typeof event.properties?.canvas_step_id === "string"
+        ? event.properties.canvas_step_id
+        : null;
+      if (canvasStepId) {
+        const handled = await attributeCanvasOpen(event, canvasStepId, occurredAt);
+        if (handled) {
+          await prisma.processedEventId.create({ data: { eventId: event.event_id } }).catch(() => {});
+          matched++;
+          continue;
+        }
+        // No variant found for this step ID — fall through to time-window path
+      }
+    }
 
     const attributionHours = LONG_HORIZON.has(event.event_name) ? 30 * 24 : 48;
     const windowStart = new Date(occurredAt.getTime() - attributionHours * 60 * 60 * 1000);
@@ -223,7 +317,7 @@ async function attributeEvents(
     }
 
     if (isPushOpen) {
-      // push_open: stamp pushOpenAt only — leave conversionAt null so a goal event can still claim this slot
+      // Time-window push_open: stamp pushOpenAt only (no arm stat update — imprecise match)
       await prisma.userDecision.update({
         where: { id: decision.id },
         data: { pushOpenAt: occurredAt },
