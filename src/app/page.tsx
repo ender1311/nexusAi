@@ -9,8 +9,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
-import { getCachedAgentList, getCachedPersonaDistribution, getCachedDashboardCounts } from "@/lib/cache";
-import { prisma } from "@/lib/db";
+import { getCachedAgentList, getCachedPersonaDistribution, getCachedDashboardCounts, getCachedDashboardTimeSeries, getCachedRecentDecisions } from "@/lib/cache";
 import { formatNumber, formatDate } from "@/lib/utils";
 import { TimeSeriesPoint, DecisionLog } from "@/types/metrics";
 import { Bot, Send, TrendingUp, Users, Plus, CheckCircle2, XCircle } from "lucide-react";
@@ -33,17 +32,11 @@ type AgentSummary = {
 
 async function TimeSeriesSection() {
   const now = new Date();
-  const sevenDaysAgo = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
-
-  const last7Decisions = await prisma.userDecision.findMany({
-    where: { sentAt: { gte: sevenDaysAgo } },
-    select: { sentAt: true, conversionAt: true },
-    take: 50000,
-  });
+  const last7Decisions = await getCachedDashboardTimeSeries();
 
   const byDate = new Map<string, { sends: number; conversions: number }>();
   for (const d of last7Decisions) {
-    const key = d.sentAt.toISOString().slice(0, 10);
+    const key = d.sentAt.slice(0, 10);
     const e = byDate.get(key) ?? { sends: 0, conversions: 0 };
     e.sends++;
     if (d.conversionAt) e.conversions++;
@@ -73,15 +66,7 @@ async function TimeSeriesSection() {
 }
 
 async function RecentSendsSection({ agents }: { agents: AgentSummary[] }) {
-  const recentDecisionsRaw = await prisma.userDecision.findMany({
-    select: {
-      id: true, userId: true, channel: true, sentAt: true, conversionAt: true, reward: true,
-      agentId: true,
-      variant: { select: { name: true } },
-    },
-    orderBy: { sentAt: "desc" },
-    take: 10,
-  });
+  const recentDecisionsRaw = await getCachedRecentDecisions();
 
   const recentSends: DecisionLog[] = recentDecisionsRaw.map((d) => ({
     id: d.id,
@@ -89,7 +74,7 @@ async function RecentSendsSection({ agents }: { agents: AgentSummary[] }) {
     agentName: agents.find((a) => a.id === d.agentId)?.name ?? "Unknown",
     channel: d.channel,
     variantName: d.variant?.name ?? "—",
-    sentAt: d.sentAt.toISOString(),
+    sentAt: d.sentAt,
     converted: d.conversionAt !== null,
     reward: d.reward ?? undefined,
   }));

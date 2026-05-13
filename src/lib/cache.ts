@@ -98,6 +98,56 @@ export const getCachedDashboardCounts = unstable_cache(
   { tags: ["dashboard-stats"], revalidate: 60 }
 );
 
+// ── Dashboard time-series and recent-sends ────────────────────────────────────
+
+/**
+ * 7-day decision rows for the dashboard conversion-rate chart (60s TTL).
+ * Dates are pre-serialized to ISO strings — same rationale as getCachedChartDecisions.
+ */
+export const getCachedDashboardTimeSeries = unstable_cache(
+  async () => {
+    const sevenDaysAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000);
+    const rows = await prisma.userDecision.findMany({
+      where: { sentAt: { gte: sevenDaysAgo } },
+      select: { sentAt: true, conversionAt: true },
+      take: 50000,
+    });
+    return rows.map((r) => ({
+      sentAt: r.sentAt.toISOString(),
+      conversionAt: r.conversionAt?.toISOString() ?? null,
+    }));
+  },
+  ["dashboard-timeseries"],
+  { tags: ["dashboard-stats"], revalidate: 60 }
+);
+
+/** Last 10 decisions for the dashboard recent-sends feed (30s TTL). */
+export const getCachedRecentDecisions = unstable_cache(
+  async () => {
+    const rows = await prisma.userDecision.findMany({
+      select: {
+        id: true,
+        userId: true,
+        channel: true,
+        sentAt: true,
+        conversionAt: true,
+        reward: true,
+        agentId: true,
+        variant: { select: { name: true } },
+      },
+      orderBy: { sentAt: "desc" },
+      take: 10,
+    });
+    return rows.map((r) => ({
+      ...r,
+      sentAt: r.sentAt.toISOString(),
+      conversionAt: r.conversionAt?.toISOString() ?? null,
+    }));
+  },
+  ["dashboard-recent-decisions"],
+  { tags: ["dashboard-stats"], revalidate: 30 }
+);
+
 // ── Performance page data ─────────────────────────────────────────────────────
 
 /** Per-agent send/conversion aggregates for the last 30 days (5-min TTL). */
