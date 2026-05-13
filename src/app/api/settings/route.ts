@@ -20,6 +20,6 @@ export async function POST(req: NextRequest) {
     });
     results.push(setting);
   }
-  revalidateTag("lift-settings");
+  revalidateTag("lift-settings", "max");
   return NextResponse.json(results);
 }
