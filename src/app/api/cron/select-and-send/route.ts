@@ -129,6 +129,13 @@ async function sendVariantGroup(
       payload = { ...payload, schedule: { time: group.scheduledAt.toISOString() } };
     }
 
+    // Attach a UUID send_id on every send so Braze tracks this batch for
+    // /sends/data_series analytics. Braze accepts send_id on both
+    // /messages/send and /messages/schedule/create; we store it on
+    // UserDecision so the analytics cron can look it up after delivery.
+    const sendId = randomUUID();
+    payload = { ...payload, send_id: sendId };
+
     const res = await brazeClient!.post(endpoint, payload);
     if (res.ok) {
       // Parse schedule_id for scheduled sends (returned by /messages/schedule/create)
@@ -139,12 +146,14 @@ async function sendVariantGroup(
           brazeScheduleId = json.schedule_id ?? null;
         } catch { /* ignore parse errors */ }
       }
-      if (brazeScheduleId) {
-        await prisma.userDecision.updateMany({
-          where: { id: { in: batchDecisionIds } },
-          data: { brazeScheduleId },
-        });
-      }
+      // Persist tracking IDs on decisions so the analytics cron can match them
+      await prisma.userDecision.updateMany({
+        where: { id: { in: batchDecisionIds } },
+        data: {
+          brazeSendId: sendId,
+          ...(brazeScheduleId && { brazeScheduleId }),
+        },
+      });
       if (onSuccessfulBatch) {
         onSuccessfulBatch(batchUserIds);
       }

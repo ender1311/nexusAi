@@ -156,6 +156,34 @@ describe("POST /api/cron/select-and-send", () => {
     const sendCalls = brazeRequests.filter((r) => r.url.includes("/messages/schedule/create"));
     expect(sendCalls).toHaveLength(2); // ceil(55/50) = 2; all users share fallback scheduledAt → one group
   }, 20000); // 55 users × sequential DB ops against Neon
+
+  it("stamps brazeSendId on UserDecision records after a successful send", async () => {
+    // Regression: the cron previously never set brazeSendId, so the analytics cron
+    // (which filters WHERE brazeSendId IS NOT NULL) would always return 0 decisions
+    // and no rewards were ever written back to the Thompson Sampling arm stats.
+    const persona = await createPersona();
+    const agent = await createAgent();
+    const msg = await createMessage(agent.id);
+    await createVariant(msg.id);
+    await createUser("usr_sendid", { personaId: persona.id, funnelStage: "wau" });
+    await linkAgentToPersona(agent.id, persona.id);
+    await createSchedulingRule(agent.id);
+
+    await POST(buildRequest("POST", undefined, CRON_AUTH) as NextRequest);
+
+    // The Braze payload should include a send_id
+    const sendCall = brazeRequests.find((r) => r.url.includes("/messages/schedule/create"));
+    expect(sendCall).toBeTruthy();
+    const payload = sendCall!.body as Record<string, unknown>;
+    expect(typeof payload.send_id).toBe("string");
+    expect((payload.send_id as string).length).toBeGreaterThan(0);
+
+    // The decision in DB must have brazeSendId set to the same UUID
+    const decision = await prisma.userDecision.findFirst({
+      where: { userId: "usr_sendid" },
+    });
+    expect(decision?.brazeSendId).toBe(payload.send_id as string);
+  });
 });
 
 describe("Lottery: cross-agent user distribution", () => {
