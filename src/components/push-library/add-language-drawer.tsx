@@ -29,11 +29,36 @@ type Props = {
 
 type Translations = Record<string, { aTitle: string; bTitle: string; verseText: string }>;
 
+async function postContent(
+  campaign: string,
+  language: string,
+  usfmReference: string,
+  usfmHuman: string | null | undefined,
+  contentType: "a-title" | "b-title" | "verse-text",
+  text: string
+): Promise<void> {
+  const isTitle = contentType !== "verse-text";
+  const response = await fetch("/api/campaign-content", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      campaign,
+      language,
+      usfmReference,
+      usfmHuman: usfmHuman ?? undefined,
+      contentType,
+      ...(isTitle ? { title: text } : { body: text }),
+    }),
+  });
+  if (!response.ok) throw new Error(`Failed to save ${contentType} for ${usfmReference}`);
+}
+
 export function AddLanguageDrawer({ campaign, language, enVerseRefs, onClose, onSaved }: Props) {
   const [step, setStep] = useState<"code" | "translate">("code");
   const [langCode, setLangCode] = useState(language ?? "");
   const [translations, setTranslations] = useState<Translations>({});
   const [saving, setSaving] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
   function setField(ref: string, field: "aTitle" | "bTitle" | "verseText", value: string) {
     setTranslations((prev) => {
@@ -47,64 +72,34 @@ export function AddLanguageDrawer({ campaign, language, enVerseRefs, onClose, on
 
   async function handleSave() {
     setSaving(true);
-    const tasks: Promise<Response>[] = [];
+    const tasks: Promise<void>[] = [];
 
     for (const [usfmReference, vals] of Object.entries(translations)) {
+      const ref = enVerseRefs.find((r) => r.usfmReference === usfmReference);
       if (vals.aTitle.trim()) {
-        tasks.push(
-          fetch("/api/campaign-content", {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({
-              campaign,
-              language: langCode,
-              usfmReference,
-              contentType: "a-title",
-              title: vals.aTitle.trim(),
-            }),
-          })
-        );
+        tasks.push(postContent(campaign, langCode, usfmReference, ref?.usfmHuman, "a-title", vals.aTitle.trim()));
       }
       if (vals.bTitle.trim()) {
-        tasks.push(
-          fetch("/api/campaign-content", {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({
-              campaign,
-              language: langCode,
-              usfmReference,
-              contentType: "b-title",
-              title: vals.bTitle.trim(),
-            }),
-          })
-        );
+        tasks.push(postContent(campaign, langCode, usfmReference, ref?.usfmHuman, "b-title", vals.bTitle.trim()));
       }
       if (vals.verseText.trim()) {
-        tasks.push(
-          fetch("/api/campaign-content", {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({
-              campaign,
-              language: langCode,
-              usfmReference,
-              contentType: "verse-text",
-              body: vals.verseText.trim(),
-            }),
-          })
-        );
+        tasks.push(postContent(campaign, langCode, usfmReference, ref?.usfmHuman, "verse-text", vals.verseText.trim()));
       }
     }
 
-    await Promise.all(tasks);
-    setSaving(false);
-    onSaved();
+    try {
+      await Promise.all(tasks);
+      setError(null);
+      onSaved();
+    } catch {
+      setError("Save failed. Please try again.");
+      setSaving(false);
+    }
   }
 
   return (
     <Sheet open onOpenChange={(open) => !open && onClose()}>
-      <SheetContent className="w-[640px] sm:max-w-2xl overflow-y-auto">
+      <SheetContent className="flex flex-col w-[640px] sm:max-w-[640px] overflow-hidden">
         <SheetHeader>
           <SheetTitle>Add Language</SheetTitle>
         </SheetHeader>
@@ -133,52 +128,57 @@ export function AddLanguageDrawer({ campaign, language, enVerseRefs, onClose, on
             </div>
           </div>
         ) : (
-          <div className="mt-6 space-y-4">
-            <div className="flex items-center justify-between">
-              <p className="text-sm text-muted-foreground">
-                Language: <strong>{langCode}</strong> — fill in translations. Partial saves are fine.
-              </p>
-              <button
-                className="text-xs text-muted-foreground hover:underline"
-                onClick={() => setStep("code")}
-              >
-                Change code
-              </button>
-            </div>
-
-            <div className="space-y-6 pb-24">
-              {enVerseRefs.map((ref) => (
-                <div key={ref.usfmReference} className="border rounded-lg p-3 space-y-3">
-                  <p className="text-sm font-medium">{ref.usfmHuman}</p>
-                  <div className="space-y-1">
-                    <Label className="text-xs">A-Title</Label>
-                    <Input
-                      value={translations[ref.usfmReference]?.aTitle ?? ""}
-                      onChange={(e) => setField(ref.usfmReference, "aTitle", e.target.value)}
-                      placeholder={ref.enATitle ?? ""}
-                    />
-                  </div>
-                  <div className="space-y-1">
-                    <Label className="text-xs">B-Title</Label>
-                    <Input
-                      value={translations[ref.usfmReference]?.bTitle ?? ""}
-                      onChange={(e) => setField(ref.usfmReference, "bTitle", e.target.value)}
-                      placeholder={ref.enBTitle ?? ""}
-                    />
-                  </div>
-                  <div className="space-y-1">
-                    <Label className="text-xs">Verse Text</Label>
-                    <Input
-                      value={translations[ref.usfmReference]?.verseText ?? ""}
-                      onChange={(e) => setField(ref.usfmReference, "verseText", e.target.value)}
-                      placeholder={ref.enVerseText ?? ""}
-                    />
-                  </div>
+          <>
+            <div className="flex-1 overflow-y-auto p-6">
+              <div className="space-y-4">
+                <div className="flex items-center justify-between">
+                  <p className="text-sm text-muted-foreground">
+                    Language: <strong>{langCode}</strong> — fill in translations. Partial saves are fine.
+                  </p>
+                  <button
+                    className="text-xs text-muted-foreground hover:underline"
+                    onClick={() => setStep("code")}
+                  >
+                    Change code
+                  </button>
                 </div>
-              ))}
+
+                <div className="space-y-6">
+                  {enVerseRefs.map((ref) => (
+                    <div key={ref.usfmReference} className="border rounded-lg p-3 space-y-3">
+                      <p className="text-sm font-medium">{ref.usfmHuman}</p>
+                      <div className="space-y-1">
+                        <Label className="text-xs">A-Title</Label>
+                        <Input
+                          value={translations[ref.usfmReference]?.aTitle ?? ""}
+                          onChange={(e) => setField(ref.usfmReference, "aTitle", e.target.value)}
+                          placeholder={ref.enATitle ?? ""}
+                        />
+                      </div>
+                      <div className="space-y-1">
+                        <Label className="text-xs">B-Title</Label>
+                        <Input
+                          value={translations[ref.usfmReference]?.bTitle ?? ""}
+                          onChange={(e) => setField(ref.usfmReference, "bTitle", e.target.value)}
+                          placeholder={ref.enBTitle ?? ""}
+                        />
+                      </div>
+                      <div className="space-y-1">
+                        <Label className="text-xs">Verse Text</Label>
+                        <Input
+                          value={translations[ref.usfmReference]?.verseText ?? ""}
+                          onChange={(e) => setField(ref.usfmReference, "verseText", e.target.value)}
+                          placeholder={ref.enVerseText ?? ""}
+                        />
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
             </div>
 
-            <div className="fixed bottom-0 right-0 w-[640px] flex justify-end gap-2 bg-background border-t px-6 py-3">
+            <div className="border-t p-4 flex justify-end gap-2 bg-background">
+              {error && <p className="text-sm text-destructive mr-auto">{error}</p>}
               <Button variant="outline" onClick={onClose} disabled={saving}>
                 Cancel
               </Button>
@@ -186,7 +186,7 @@ export function AddLanguageDrawer({ campaign, language, enVerseRefs, onClose, on
                 {saving ? "Saving…" : "Save Translations"}
               </Button>
             </div>
-          </div>
+          </>
         )}
       </SheetContent>
     </Sheet>
