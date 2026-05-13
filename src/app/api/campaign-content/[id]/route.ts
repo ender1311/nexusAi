@@ -25,7 +25,12 @@ export async function PATCH(
   if (typeof title === "string") data.title = title.trim() || null;
   if (typeof msgBody === "string") data.body = (msgBody as string).trim() || null;
   if (typeof usfmHuman === "string") data.usfmHuman = usfmHuman.trim() || null;
-  if (typeof status === "string") data.status = status;
+  if (typeof status === "string") {
+    if (!["active", "archived"].includes(status)) {
+      return NextResponse.json({ error: "status must be active or archived" }, { status: 400 });
+    }
+    data.status = status;
+  }
 
   try {
     const row = await prisma.campaignContent.update({ where: { id }, data });
