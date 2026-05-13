@@ -78,7 +78,7 @@ export async function POST(req: NextRequest) {
     },
     include: {
       variant: {
-        include: {
+        select: {
           message: { select: { brazeCampaignId: true } },
         },
       },

@@ -15,19 +15,34 @@ function formatDate(d: Date | null) {
   return d.toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" });
 }
 
-export async function LiftPanel() {
+type LiftPanelProps = {
+  /** Pre-computed scored sends count (reward IS NOT NULL). When provided, skips the DB COUNT query. */
+  nexusSendsCount?: number;
+  /** Pre-computed positive conversions count (reward > 0). When provided, skips the DB COUNT query. */
+  nexusConversionsCount?: number;
+};
+
+export async function LiftPanel({ nexusSendsCount: sendsProp, nexusConversionsCount: convProp }: LiftPanelProps = {}) {
   const { baselineRate, liftSince } = await getCachedLiftSettings();
 
-  // Headline counts — uncached COUNT queries covering the full window
-  const liftSinceFilter = liftSince ? { gte: liftSince } : undefined;
-  const [nexusSendsCount, nexusConversionsCount] = await Promise.all([
-    prisma.userDecision.count({
-      where: { sentAt: liftSinceFilter, reward: { not: null } },
-    }),
-    prisma.userDecision.count({
-      where: { sentAt: liftSinceFilter, reward: { gt: 0 } },
-    }),
-  ]);
+  // Headline counts — use pre-computed values when passed in (avoids duplicate DB queries
+  // when the parent already fetched them), otherwise fall back to uncached COUNT queries.
+  let nexusSendsCount: number;
+  let nexusConversionsCount: number;
+  if (sendsProp !== undefined && convProp !== undefined) {
+    nexusSendsCount = sendsProp;
+    nexusConversionsCount = convProp;
+  } else {
+    const liftSinceFilter = liftSince ? { gte: liftSince } : undefined;
+    [nexusSendsCount, nexusConversionsCount] = await Promise.all([
+      prisma.userDecision.count({
+        where: { sentAt: liftSinceFilter, reward: { not: null } },
+      }),
+      prisma.userDecision.count({
+        where: { sentAt: liftSinceFilter, reward: { gt: 0 } },
+      }),
+    ]);
+  }
 
   const lift = baselineLiftSignificance(nexusSendsCount, nexusConversionsCount, baselineRate);
 

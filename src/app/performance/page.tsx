@@ -185,8 +185,8 @@ export default async function PerformancePage() {
           </Card>
         )}
 
-        {/* AI Lift vs non-Nexus baseline */}
-        <LiftPanel />
+        {/* AI Lift vs non-Nexus baseline — pass pre-computed counts to avoid duplicate DB queries */}
+        <LiftPanel nexusSendsCount={liftSendsCount} nexusConversionsCount={liftConversionsCount} />
 
         {/* Charts — streamed in via Suspense to unblock KPIs and agent table */}
         <ChartsSection />
