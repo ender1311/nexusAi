@@ -51,15 +51,15 @@ async function importSource(
   let totalImported = 0;
 
   for (const file of files) {
-    // Language code is the last dash-separated token before .yml
+    // Strip extension, take the last '-'-separated segment as the language code
     // e.g. "2026-Q1-resurrection-Atitle-de.yml" → "de"
     // e.g. "2026-Q1-resurrection-Atitle-zh_CN.yml" → "zh_CN"
-    const langMatch = file.match(/-([a-zA-Z_\-]+)\.ya?ml$/);
-    if (!langMatch) {
+    const base = file.replace(/\.ya?ml$/, "");
+    const language = base.split("-").at(-1)!;
+    if (!language || !/^[a-zA-Z][a-zA-Z0-9_]*$/.test(language)) {
       console.warn(`  Skipping unrecognized filename: ${file}`);
       continue;
     }
-    const language = langMatch[1];
 
     const raw = fs.readFileSync(path.join(dirPath, file), "utf-8");
     const parsed = yaml.load(raw) as Record<string, string> | null;
@@ -132,9 +132,6 @@ async function main() {
 main()
   .catch((err) => {
     console.error(err);
-    process.exit(1);
+    process.exitCode = 1;
   })
-  .finally(() => prisma.$disconnect())
-  .catch(() => {
-    // disconnect errors are non-fatal
-  });
+  .finally(() => prisma.$disconnect());
