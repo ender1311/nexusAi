@@ -123,7 +123,12 @@ export async function POST(req: NextRequest) {
 
   for (const brazeSendId of sendIdsToProcess) {
     const groupDecisions = bySendId.get(brazeSendId)!;
-    const brazeCampaignId = groupDecisions[0].variant?.message?.brazeCampaignId ?? null;
+    // Prefer the per-message brazeCampaignId; fall back to the global env var because
+    // most production Message records were created before the field was populated.
+    const brazeCampaignId =
+      groupDecisions[0].variant?.message?.brazeCampaignId ??
+      process.env.BRAZE_NEXUS_CAMPAIGN_ID ??
+      null;
     if (!brazeCampaignId) continue;
 
     let analyticsResult: Record<string, number> | null;
