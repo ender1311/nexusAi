@@ -8,7 +8,7 @@ import { Input } from "@/components/ui/input";
 import { Slider } from "@/components/ui/slider";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
-import { CheckCircle2, Loader2, Sparkles, UserPlus, Trash2, FlaskConical } from "lucide-react";
+import { CheckCircle2, Loader2, Sparkles, UserPlus, Trash2, FlaskConical, BarChart2 } from "lucide-react";
 
 type TestUser = { externalId: string; name: string; personaId: string | null; createdAt: string };
 
@@ -82,6 +82,12 @@ export default function SettingsPage() {
   const [defaultQuietStart, setDefaultQuietStart] = useState("22:00");
   const [defaultQuietEnd, setDefaultQuietEnd] = useState("08:00");
 
+  // AI Lift Measurement settings
+  const [baselineRate, setBaselineRate] = useState("1.2");
+  const [liftSinceDate, setLiftSinceDate] = useState("");
+  const [liftSaved, setLiftSaved] = useState(false);
+  const [liftSaving, setLiftSaving] = useState(false);
+
   const handleDiscover = async () => {
     setDiscovering(true);
     setDiscoveryResult(null);
@@ -97,6 +103,35 @@ export default function SettingsPage() {
       setDiscoveryResult({ ok: false, message: "Request failed" });
     } finally {
       setDiscovering(false);
+    }
+  };
+
+  // Load existing lift settings on mount
+  useEffect(() => {
+    fetch("/api/settings")
+      .then((r) => r.json())
+      .then((data: Record<string, string>) => {
+        if (data["baseline_push_open_rate"]) setBaselineRate(data["baseline_push_open_rate"]);
+        if (data["lift_since_date"]) setLiftSinceDate(data["lift_since_date"]);
+      })
+      .catch(() => {});
+  }, []);
+
+  const handleSaveLift = async () => {
+    setLiftSaving(true);
+    try {
+      await fetch("/api/settings", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          baseline_push_open_rate: baselineRate,
+          lift_since_date: liftSinceDate,
+        }),
+      });
+      setLiftSaved(true);
+      setTimeout(() => setLiftSaved(false), 3000);
+    } finally {
+      setLiftSaving(false);
     }
   };
 
@@ -319,6 +354,64 @@ export default function SettingsPage() {
             {testUsers.length === 0 && (
               <p className="text-xs text-muted-foreground italic">No test users yet.</p>
             )}
+          </CardContent>
+        </Card>
+
+        {/* AI Lift Measurement */}
+        <Card>
+          <CardHeader>
+            <div className="flex items-center justify-between">
+              <CardTitle className="text-sm font-semibold flex items-center gap-1.5">
+                <BarChart2 className="h-4 w-4" />
+                AI Lift Measurement
+              </CardTitle>
+            </div>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <p className="text-xs text-muted-foreground">
+              Configure the non-Nexus baseline used to measure AI-driven lift on the Performance page.
+            </p>
+            <div className="flex flex-wrap gap-4">
+              <div className="flex-1 min-w-[8rem]">
+                <label className="text-xs font-medium text-muted-foreground">Baseline push open rate (%)</label>
+                <Input
+                  type="number"
+                  step="0.1"
+                  min="0"
+                  max="100"
+                  placeholder="1.2"
+                  value={baselineRate}
+                  onChange={(e) => setBaselineRate(e.target.value)}
+                  className="mt-1 w-full sm:w-32"
+                />
+              </div>
+              <div className="flex-1 min-w-[8rem]">
+                <label className="text-xs font-medium text-muted-foreground">Measure Nexus lift from</label>
+                <Input
+                  type="date"
+                  value={liftSinceDate}
+                  onChange={(e) => setLiftSinceDate(e.target.value)}
+                  className="mt-1 w-full sm:w-40"
+                />
+                <p className="text-xs text-muted-foreground mt-1">Leave blank to include all-time sends.</p>
+              </div>
+            </div>
+            <div className="flex items-center gap-3">
+              <Button onClick={handleSaveLift} disabled={liftSaving} size="sm">
+                {liftSaving ? (
+                  <>
+                    <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                    Saving…
+                  </>
+                ) : "Save Lift Settings"}
+              </Button>
+              {liftSaved && (
+                <div className="flex items-center gap-1.5 text-green-600 dark:text-green-400 text-sm">
+                  <CheckCircle2 className="h-4 w-4" />
+                  Saved!
+                </div>
+              )}
+            </div>
           </CardContent>
         </Card>
 
