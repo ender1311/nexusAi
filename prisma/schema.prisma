@@ -379,3 +379,20 @@ model IngestSyncLog {
 
   @@index([syncKind, createdAt])
 }
+
+model CampaignContent {
+  id            String   @id @default(cuid())
+  campaign      String
+  contentType   String
+  language      String
+  usfmReference String
+  usfmHuman     String?
+  title         String?
+  body          String?
+  status        String   @default("active")
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  @@unique([campaign, contentType, language, usfmReference])
+  @@index([campaign, language, contentType])
+}
