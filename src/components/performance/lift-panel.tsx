@@ -31,16 +31,17 @@ export async function LiftPanel() {
 
   const lift = baselineLiftSignificance(nexusSendsCount, nexusConversionsCount, baselineRate);
 
-  // Sparkline — from cached chart decisions, filtered to lift window (last 30d max)
+  // Sparkline — from cached chart decisions (already limited to last 30 days).
+  // Filter further to the lift window if a start date is configured.
   const rawDecisions = await getCachedChartDecisions();
-  const cutoffMs = liftSince ? Math.max(liftSince.getTime(), Date.now() - 30 * 24 * 60 * 60 * 1000) : Date.now() - 30 * 24 * 60 * 60 * 1000;
+  const liftSinceMs = liftSince?.getTime() ?? 0;
 
   // Bucket by calendar day: date string → { sends, conversions }
   const dayBuckets = new Map<string, { sends: number; conversions: number }>();
   for (const row of rawDecisions) {
     if (row.reward === null) continue; // only scored sends
     const sentMs = new Date(row.sentAt).getTime();
-    if (sentMs < cutoffMs) continue;
+    if (sentMs < liftSinceMs) continue;
     const dayKey = row.sentAt.slice(0, 10); // "YYYY-MM-DD"
     const bucket = dayBuckets.get(dayKey) ?? { sends: 0, conversions: 0 };
     bucket.sends += 1;
