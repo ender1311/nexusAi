@@ -41,13 +41,14 @@ async function upsertRow(
     : { body: params.text };
 
   if (id) {
-    await fetch(`/api/campaign-content/${id}`, {
+    const response = await fetch(`/api/campaign-content/${id}`, {
       method: "PATCH",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(payload),
     });
+    if (!response.ok) throw new Error(`Failed to save ${params.contentType} for ${params.usfmReference}`);
   } else {
-    await fetch("/api/campaign-content", {
+    const response = await fetch("/api/campaign-content", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
@@ -58,6 +59,7 @@ async function upsertRow(
         ...payload,
       }),
     });
+    if (!response.ok) throw new Error(`Failed to save ${params.contentType} for ${params.usfmReference}`);
   }
 }
 
@@ -77,6 +79,7 @@ export function EditContentModal({
   const [bTitle, setBTitle] = useState("");
   const [verseText, setVerseText] = useState("");
   const [saving, setSaving] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
   const hasChanges = aTitle.trim() || bTitle.trim() || verseText.trim();
 
@@ -100,9 +103,14 @@ export function EditContentModal({
       );
     }
 
-    await Promise.all(tasks);
-    setSaving(false);
-    onSaved();
+    try {
+      await Promise.all(tasks);
+      setError(null);
+      onSaved();
+    } catch {
+      setError("Save failed. Please try again.");
+      setSaving(false);
+    }
   }
 
   return (
@@ -151,6 +159,7 @@ export function EditContentModal({
             )}
           </div>
 
+          {error && <p className="text-sm text-destructive">{error}</p>}
           <div className="flex justify-end gap-2 pt-1">
             <Button variant="outline" onClick={onClose} disabled={saving}>
               Cancel
