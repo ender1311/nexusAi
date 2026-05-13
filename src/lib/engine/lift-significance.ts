@@ -53,3 +53,64 @@ export function liftSignificance(
 
   return { lift, significant, insufficient: false, zScore };
 }
+
+export type BaselineLiftResult = {
+  /** Nexus rate as a percentage (e.g. 3.3 for 3.3%) */
+  nexusRate: number;
+  /** Absolute lift in percentage points: nexusRate - baselineRatePct */
+  absoluteLift: number;
+  /** Relative lift in percent: absoluteLift / baselineRatePct × 100 */
+  relativeLift: number;
+  /** True when |z| > 1.96 AND nexusSends >= MIN_SENDS */
+  significant: boolean;
+  /** True when nexusSends < MIN_SENDS — significance verdict withheld */
+  insufficient: boolean;
+  /** One-proportion z-score; 0 when insufficient */
+  zScore: number;
+  /** Raw nexusSends for display */
+  nexusSends: number;
+};
+
+/**
+ * One-proportion z-test: compares Nexus conversion rate against a known
+ * fixed baseline rate (non-Nexus push open rate).
+ *
+ * z = (p̂ − p₀) / sqrt(p₀ × (1 − p₀) / n)
+ *
+ * where p̂ = nexusRate/100, p₀ = baselineRatePct/100, n = nexusSends.
+ * Significant when |z| > 1.96 (p < 0.05) AND nexusSends >= MIN_SENDS.
+ *
+ * @param nexusSends      Total scored sends (reward IS NOT NULL)
+ * @param nexusConversions Sends where reward > 0
+ * @param baselineRatePct Non-Nexus open rate as a percentage (e.g. 1.2)
+ */
+export function baselineLiftSignificance(
+  nexusSends: number,
+  nexusConversions: number,
+  baselineRatePct: number,
+): BaselineLiftResult {
+  const nexusRate = nexusSends > 0 ? (nexusConversions / nexusSends) * 100 : 0;
+  const absoluteLift = nexusSends > 0 ? nexusRate - baselineRatePct : 0;
+  const relativeLift = nexusSends > 0 && baselineRatePct !== 0 ? (absoluteLift / baselineRatePct) * 100 : 0;
+
+  if (nexusSends < MIN_SENDS_FOR_SIGNIFICANCE) {
+    return {
+      nexusRate,
+      absoluteLift,
+      relativeLift,
+      significant: false,
+      insufficient: true,
+      zScore: 0,
+      nexusSends,
+    };
+  }
+
+  // One-proportion z-test (baseline is a fixed known rate, not a sample)
+  const p0 = baselineRatePct / 100;
+  const pHat = nexusRate / 100;
+  const se = Math.sqrt((p0 * (1 - p0)) / nexusSends);
+  const zScore = se > 0 ? (pHat - p0) / se : 0;
+  const significant = Math.abs(zScore) > 1.96;
+
+  return { nexusRate, absoluteLift, relativeLift, significant, insufficient: false, zScore, nexusSends };
+}

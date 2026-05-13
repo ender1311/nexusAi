@@ -1,5 +1,9 @@
 import { describe, it, expect } from "bun:test";
-import { liftSignificance, MIN_SENDS_FOR_SIGNIFICANCE } from "@/lib/engine/lift-significance";
+import {
+  liftSignificance,
+  baselineLiftSignificance,
+  MIN_SENDS_FOR_SIGNIFICANCE,
+} from "@/lib/engine/lift-significance";
 
 describe("liftSignificance", () => {
   // ─── Insufficient data ────────────────────────────────────────────────────
@@ -126,5 +130,87 @@ describe("liftSignificance", () => {
 
   it("MIN_SENDS_FOR_SIGNIFICANCE is exported and equals 200", () => {
     expect(MIN_SENDS_FOR_SIGNIFICANCE).toBe(200);
+  });
+});
+
+describe("baselineLiftSignificance", () => {
+  // ─── Insufficient data ────────────────────────────────────────────────────
+
+  it("returns insufficient=true when nexusSends < MIN_SENDS", () => {
+    const result = baselineLiftSignificance(199, 10, 1.2);
+    expect(result.insufficient).toBe(true);
+    expect(result.significant).toBe(false);
+    expect(result.zScore).toBe(0);
+  });
+
+  it("returns insufficient=false when nexusSends === MIN_SENDS", () => {
+    const result = baselineLiftSignificance(MIN_SENDS_FOR_SIGNIFICANCE, 10, 1.2);
+    expect(result.insufficient).toBe(false);
+  });
+
+  it("returns dash state when nexusSends === 0", () => {
+    const result = baselineLiftSignificance(0, 0, 1.2);
+    expect(result.nexusSends).toBe(0);
+    expect(result.insufficient).toBe(true);
+    expect(result.significant).toBe(false);
+    expect(result.absoluteLift).toBe(0);
+  });
+
+  // ─── Lift calculation ────────────────────────────────────────────────────
+
+  it("computes correct nexusRate, absoluteLift, relativeLift", () => {
+    // 33 conversions / 1000 sends = 3.3%; baseline = 1.2%
+    const result = baselineLiftSignificance(1000, 33, 1.2);
+    expect(result.nexusRate).toBeCloseTo(3.3, 1);
+    expect(result.absoluteLift).toBeCloseTo(2.1, 1); // 3.3 - 1.2
+    expect(result.relativeLift).toBeCloseTo(175, 0);  // 2.1/1.2*100
+  });
+
+  it("computes negative lift when Nexus underperforms baseline", () => {
+    // 5 / 1000 = 0.5%; baseline = 1.2%
+    const result = baselineLiftSignificance(1000, 5, 1.2);
+    expect(result.absoluteLift).toBeLessThan(0);
+    expect(result.relativeLift).toBeLessThan(0);
+  });
+
+  // ─── Statistical significance ─────────────────────────────────────────────
+
+  it("marks significant=true for large lift with adequate sample", () => {
+    // 3.3% vs 1.2% baseline, n=1420 — should be very significant
+    const result = baselineLiftSignificance(1420, 47, 1.2);
+    expect(result.significant).toBe(true);
+    expect(result.zScore).toBeGreaterThan(1.96);
+  });
+
+  it("marks significant=false when z < 1.96", () => {
+    // Very small lift with moderate sample
+    const result = baselineLiftSignificance(300, 4, 1.2);
+    // 1.33% vs 1.2% — tiny difference, likely not significant
+    expect(result.significant).toBe(false);
+  });
+
+  it("uses one-proportion z-test formula correctly", () => {
+    // Hand-computed: p0=0.012, p_hat=0.033, n=1420
+    // z = (0.033 - 0.012) / sqrt(0.012 * 0.988 / 1420) ≈ 7.25
+    const result = baselineLiftSignificance(1420, Math.round(1420 * 0.033), 1.2);
+    expect(result.zScore).toBeGreaterThan(7);
+    expect(result.significant).toBe(true);
+  });
+
+  // ─── Boundary: n=199 vs n=200 ─────────────────────────────────────────────
+
+  it("n=199 is insufficient, n=200 is not", () => {
+    const under = baselineLiftSignificance(199, 10, 1.2);
+    const at    = baselineLiftSignificance(200, 10, 1.2);
+    expect(under.insufficient).toBe(true);
+    expect(at.insufficient).toBe(false);
+  });
+
+  // ─── Edge case: zero baseline ────────────────────────────────────────────
+
+  it("does not divide by zero when baselineRatePct is 0", () => {
+    const result = baselineLiftSignificance(500, 10, 0);
+    // relativeLift is Infinity or the function guards it — should not throw
+    expect(typeof result.relativeLift).toBe("number");
   });
 });
