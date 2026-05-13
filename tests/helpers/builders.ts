@@ -180,6 +180,33 @@ export async function createUserDecision(params: {
   });
 }
 
+export async function createCampaignContent(overrides: {
+  campaign?: string;
+  contentType?: string;
+  language?: string;
+  usfmReference?: string;
+  usfmHuman?: string | null;
+  title?: string | null;
+  body?: string | null;
+  status?: string;
+} = {}) {
+  const contentType = overrides.contentType ?? "a-title";
+  const isTitle = contentType !== "verse-text";
+  return prisma.campaignContent.create({
+    data: {
+      campaign: "resurrection-push",
+      contentType,
+      language: "en",
+      usfmReference: "ISA.43.18",
+      usfmHuman: "Isaiah 43:18",
+      title: isTitle ? "Test A-Title" : null,
+      body: !isTitle ? "Test verse body" : null,
+      status: "active",
+      ...overrides,
+    },
+  });
+}
+
 export async function linkAgentToPersona(agentId: string, personaId: string) {
   return prisma.agentPersonaTarget.create({ data: { agentId, personaId } });
 }
