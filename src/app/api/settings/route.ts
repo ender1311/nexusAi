@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { revalidateTag } from "next/cache";
 import { prisma } from "@/lib/db";
 
 export async function GET() {
@@ -19,5 +20,6 @@ export async function POST(req: NextRequest) {
     });
     results.push(setting);
   }
+  revalidateTag("lift-settings", "max");
   return NextResponse.json(results);
 }

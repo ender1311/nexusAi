@@ -8,7 +8,9 @@ import { MetricCard } from "@/components/charts/metric-card";
 import { VariantComparison } from "@/components/charts/variant-comparison";
 import { AgentStatusBadge } from "@/components/agents/agent-status-badge";
 import { ChartsSection } from "./charts-section";
-import { getCachedPerformanceMetrics, getCachedVariantMetrics } from "@/lib/cache";
+import { LiftPanel } from "@/components/performance/lift-panel";
+import { getCachedPerformanceMetrics, getCachedVariantMetrics, getCachedLiftSettings } from "@/lib/cache";
+import { baselineLiftSignificance } from "@/lib/engine/lift-significance";
 import { prisma } from "@/lib/db";
 import { formatNumber, formatPercent } from "@/lib/utils";
 import { AgentMetric, VariantMetric } from "@/types/metrics";
@@ -61,10 +63,22 @@ function LiftBadge({
 
 export default async function PerformancePage() {
   // Per-agent send/conversion counts — aggregated in the DB, not in JS
-  const [{ agents, sendsByAgent, conversionsByAgent }, { variantSends, variantConversions, variantRewards }] = await Promise.all([
+  const [
+    { agents, sendsByAgent, conversionsByAgent },
+    { variantSends, variantConversions, variantRewards },
+    { baselineRate, liftSince },
+  ] = await Promise.all([
     getCachedPerformanceMetrics(),
     getCachedVariantMetrics(),
+    getCachedLiftSettings(),
   ]);
+
+  const liftSinceFilter = liftSince ? { gte: liftSince } : undefined;
+  const [liftSendsCount, liftConversionsCount] = await Promise.all([
+    prisma.userDecision.count({ where: { sentAt: liftSinceFilter, reward: { not: null } } }),
+    prisma.userDecision.count({ where: { sentAt: liftSinceFilter, reward: { gt: 0 } } }),
+  ]);
+  const nexusLift = baselineLiftSignificance(liftSendsCount, liftConversionsCount, baselineRate);
 
   const sendCountByAgent = new Map(sendsByAgent.map((r) => [r.agentId, r._count.id]));
   const convCountByAgent = new Map(conversionsByAgent.map((r) => [r.agentId, r._count.id]));
@@ -128,9 +142,6 @@ export default async function PerformancePage() {
     .sort((a, b) => b.sends - a.sends)
     .slice(0, 10);
 
-  // Only consider statistically significant lifts for the headline KPI
-  const significantLifts = agentMetricsReal.filter((m) => m.liftSignificant).map((m) => m.liftVsControl);
-  const bestLift = significantLifts.length > 0 ? Math.max(...significantLifts) : null;
 
   return (
     <>
@@ -149,8 +160,14 @@ export default async function PerformancePage() {
             icon={TrendingUp}
           />
           <MetricCard
-            title="Best Agent Lift"
-            value={bestLift !== null ? `+${bestLift.toFixed(1)}%` : "—"}
+            title="Nexus Lift vs Baseline"
+            value={
+              nexusLift.nexusSends === 0
+                ? "—"
+                : nexusLift.insufficient
+                ? `~${nexusLift.relativeLift >= 0 ? "+" : ""}${nexusLift.relativeLift.toFixed(0)}%`
+                : `${nexusLift.relativeLift >= 0 ? "+" : ""}${nexusLift.relativeLift.toFixed(0)}%`
+            }
             icon={Zap}
           />
           <MetricCard
@@ -167,6 +184,9 @@ export default async function PerformancePage() {
             </CardContent>
           </Card>
         )}
+
+        {/* AI Lift vs non-Nexus baseline */}
+        <LiftPanel />
 
         {/* Charts — streamed in via Suspense to unblock KPIs and agent table */}
         <ChartsSection />

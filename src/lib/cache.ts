@@ -168,14 +168,42 @@ export const getCachedChartDecisions = unstable_cache(
     const thirtyDaysAgo = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000);
     const rows = await prisma.userDecision.findMany({
       where: { sentAt: { gte: thirtyDaysAgo } },
-      select: { sentAt: true, conversionAt: true },
+      select: { sentAt: true, conversionAt: true, reward: true },
       take: 50000,
     });
     return rows.map((r) => ({
       sentAt: r.sentAt.toISOString(),
       conversionAt: r.conversionAt?.toISOString() ?? null,
+      reward: r.reward,
     }));
   },
   ["chart-decisions"],
   { tags: ["performance"], revalidate: 300 }
+);
+
+/**
+ * Lift measurement configuration from AppSetting.
+ * Cached for 24h — tag-invalidated by the settings API on save.
+ * Returns defaults (1.2% baseline, null since date) when keys are absent.
+ */
+export const getCachedLiftSettings = unstable_cache(
+  async () => {
+    const rows = await prisma.appSetting.findMany({
+      where: { key: { in: ["baseline_push_open_rate", "lift_since_date"] } },
+    });
+    const map = Object.fromEntries(rows.map((r) => [r.key, r.value]));
+    const baselineRate = parseFloat(map["baseline_push_open_rate"] ?? "1.2");
+    const sinceDateStr = map["lift_since_date"] ?? "";
+    const liftSince = (() => {
+      if (!sinceDateStr) return null;
+      const d = new Date(sinceDateStr);
+      return isNaN(d.getTime()) ? null : d;
+    })();
+    return {
+      baselineRate: isNaN(baselineRate) ? 1.2 : baselineRate,
+      liftSince,
+    };
+  },
+  ["lift-settings"],
+  { tags: ["lift-settings"], revalidate: 86400 }
 );
