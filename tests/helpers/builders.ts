@@ -180,6 +180,9 @@ export async function createUserDecision(params: {
   });
 }
 
+// Note: title and body are mutually exclusive based on contentType.
+// a-title and b-title use title; verse-text uses body.
+// If you override contentType, also explicitly override title/body accordingly.
 export async function createCampaignContent(overrides: {
   campaign?: string;
   contentType?: string;

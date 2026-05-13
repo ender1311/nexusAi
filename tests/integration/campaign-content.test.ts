@@ -61,6 +61,7 @@ describe("GET /api/campaign-content", () => {
 
     const req = new Request("http://localhost/api/campaign-content?campaign=resurrection-push&language=de") as NextRequest;
     const res = await GET(req);
+    expect(res.status).toBe(200);
     const body = await res.json();
     expect(body.data).toHaveLength(1);
     expect(body.data[0].language).toBe("de");
@@ -151,6 +152,20 @@ describe("POST /api/campaign-content", () => {
     const body = await res.json();
     expect(body.error).toMatch(/body/);
   });
+
+  it("returns 400 when title is missing for a-title", async () => {
+    const req = buildRequest("POST", {
+      campaign: "resurrection-push",
+      contentType: "a-title",
+      language: "de",
+      usfmReference: "GEN.1.1",
+      // title omitted intentionally
+    }) as NextRequest;
+    const res = await POST(req);
+    expect(res.status).toBe(400);
+    const body = await res.json();
+    expect(body.error).toMatch(/title/);
+  });
 });
 
 describe("PATCH /api/campaign-content/[id]", () => {
@@ -166,6 +181,15 @@ describe("PATCH /api/campaign-content/[id]", () => {
     const req = buildRequest("PATCH", { title: "Updated" }) as NextRequest;
     const res = await PATCH(req, { params: Promise.resolve({ id: "nonexistent" }) });
     expect(res.status).toBe(404);
+  });
+
+  it("returns 400 for invalid status value", async () => {
+    const row = await createCampaignContent({ usfmReference: "GEN.1.1" });
+    const req = buildRequest("PATCH", { status: "invalid-status" }) as NextRequest;
+    const res = await PATCH(req, { params: Promise.resolve({ id: row.id }) });
+    expect(res.status).toBe(400);
+    const body = await res.json();
+    expect(body.error).toMatch(/status/);
   });
 
   it("updates title and returns the row", async () => {
