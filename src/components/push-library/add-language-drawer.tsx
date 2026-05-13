@@ -21,16 +21,17 @@ type EnVerseRef = {
 
 type Props = {
   campaign: string;
-  verseRefs: EnVerseRef[];
+  language?: string;
+  enVerseRefs: EnVerseRef[];
   onClose: () => void;
   onSaved: () => void;
 };
 
 type Translations = Record<string, { aTitle: string; bTitle: string; verseText: string }>;
 
-export function AddLanguageDrawer({ campaign, verseRefs, onClose, onSaved }: Props) {
+export function AddLanguageDrawer({ campaign, language, enVerseRefs, onClose, onSaved }: Props) {
   const [step, setStep] = useState<"code" | "translate">("code");
-  const [langCode, setLangCode] = useState("");
+  const [langCode, setLangCode] = useState(language ?? "");
   const [translations, setTranslations] = useState<Translations>({});
   const [saving, setSaving] = useState(false);
 
@@ -146,7 +147,7 @@ export function AddLanguageDrawer({ campaign, verseRefs, onClose, onSaved }: Pro
             </div>
 
             <div className="space-y-6 pb-24">
-              {verseRefs.map((ref) => (
+              {enVerseRefs.map((ref) => (
                 <div key={ref.usfmReference} className="border rounded-lg p-3 space-y-3">
                   <p className="text-sm font-medium">{ref.usfmHuman}</p>
                   <div className="space-y-1">

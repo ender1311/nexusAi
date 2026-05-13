@@ -233,7 +233,8 @@ export function VerseLibraryClient({
       {drawerOpen && (
         <AddLanguageDrawer
           campaign={campaign}
-          verseRefs={enVerseRefs}
+          language={activeLanguage}
+          enVerseRefs={enVerseRefs}
           onClose={() => setDrawerOpen(false)}
           onSaved={() => {
             setDrawerOpen(false);
