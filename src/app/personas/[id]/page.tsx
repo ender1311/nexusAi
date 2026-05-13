@@ -1,3 +1,5 @@
+export const revalidate = 30;
+
 import { notFound } from "next/navigation";
 import { Header } from "@/components/layout/header";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";

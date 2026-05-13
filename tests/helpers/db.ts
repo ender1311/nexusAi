@@ -56,6 +56,7 @@ export async function truncateAll(): Promise<void> {
     () => prisma.planSetMember.deleteMany(),
     () => prisma.planSet.deleteMany(),
     () => prisma.appSetting.deleteMany(),
+    () => prisma.campaignContent.deleteMany(),
   ];
   for (const step of steps) {
     await step().catch((err: Error) => {

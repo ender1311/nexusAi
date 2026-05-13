@@ -1,3 +1,5 @@
+export const revalidate = 60;
+
 import { prisma } from "@/lib/db";
 import { ControlTowerUI } from "@/components/control-tower/control-tower-ui";
 import type { StatsData } from "@/app/api/stats/route";

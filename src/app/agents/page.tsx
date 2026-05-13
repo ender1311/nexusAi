@@ -1,3 +1,5 @@
+export const revalidate = 30;
+
 import Link from "next/link";
 import { Header } from "@/components/layout/header";
 import { AgentCard } from "@/components/agents/agent-card";

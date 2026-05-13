@@ -1,3 +1,5 @@
+export const revalidate = 300;
+
 import { Suspense } from "react";
 import { prisma } from "@/lib/db";
 import { LiveDemoWizard } from "@/components/demo/LiveDemoWizard";
