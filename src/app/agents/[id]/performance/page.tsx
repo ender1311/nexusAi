@@ -32,22 +32,55 @@ export default async function AgentPerformancePage({
   params: Promise<{ id: string }>;
 }) {
   const { id } = await params;
+  const now = new Date();
+  const thirtyDaysAgo = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
 
-  const agent = await prisma.agent.findUnique({
-    where: { id },
-    select: { id: true, name: true, algorithm: true, epsilon: true, status: true },
-  });
+  // Phase 1: all three independent queries in parallel (saves 2 DB round-trips vs sequential)
+  const [agent, armStats, decisions] = await Promise.all([
+    prisma.agent.findUnique({
+      where: { id },
+      select: { id: true, name: true, algorithm: true, epsilon: true, status: true },
+    }),
+    prisma.personaArmStats.findMany({
+      where: { agentId: id },
+      select: { personaId: true, variantId: true, alpha: true, beta: true, tries: true, wins: true },
+    }),
+    prisma.userDecision.findMany({
+      where: { agentId: id, sentAt: { gte: thirtyDaysAgo } },
+      select: {
+        id: true,
+        sentAt: true,
+        conversionAt: true,
+        reward: true,
+        channel: true,
+        messageVariantId: true,
+      },
+      orderBy: { sentAt: "asc" },
+      // Safety cap: prevents unbounded memory growth for high-volume agents.
+      // At typical send rates this window holds well under 5 000 rows.
+      take: 5000,
+    }),
+  ]);
+
   if (!agent) notFound();
 
-  // Per-persona arm stats (for breakdown section)
-  const armStats = await prisma.personaArmStats.findMany({
-    where: { agentId: id },
-    select: { personaId: true, variantId: true, alpha: true, beta: true, tries: true, wins: true },
-  });
-  // Collect unique IDs for batch lookups
+  if (decisions.length === 0) {
+    return (
+      <>
+        <Header title="Performance" description={agent.name} />
+        <div className="p-6 text-center text-muted-foreground">
+          <p>No performance data yet.</p>
+        </div>
+      </>
+    );
+  }
+
+  // Phase 2: dependent lookups — all run in parallel (saves 3 more round-trips)
   const uniquePersonaIds = [...new Set(armStats.map((a) => a.personaId))];
   const uniqueVariantIds = [...new Set(armStats.map((a) => a.variantId))];
-  const [personaRows, variantRows] = await Promise.all([
+  const decidedVariantIds = [...new Set(decisions.map((d) => d.messageVariantId).filter((v): v is string => v !== null))];
+
+  const [personaRows, variantRows, variantNameRows, fleetSends, fleetConversions] = await Promise.all([
     uniquePersonaIds.length > 0
       ? prisma.persona.findMany({
           where: { id: { in: uniquePersonaIds } },
@@ -60,9 +93,21 @@ export default async function AgentPerformancePage({
           select: { id: true, name: true },
         })
       : Promise.resolve([]),
+    decidedVariantIds.length > 0
+      ? prisma.messageVariant.findMany({
+          where: { id: { in: decidedVariantIds } },
+          select: { id: true, name: true },
+        })
+      : Promise.resolve([]),
+    prisma.userDecision.count({ where: { sentAt: { gte: thirtyDaysAgo } } }),
+    prisma.userDecision.count({
+      where: { sentAt: { gte: thirtyDaysAgo }, conversionAt: { not: null } },
+    }),
   ]);
+
   const personaById = new Map(personaRows.map((p) => [p.id, p]));
   const variantById = new Map(variantRows.map((v) => [v.id, v]));
+  const variantNameById = new Map(variantNameRows.map((v) => [v.id, v.name]));
 
   type PersonaBreakdownRow = {
     personaId: string;
@@ -105,57 +150,9 @@ export default async function AgentPerformancePage({
   }
   personaBreakdown.sort((a, b) => b.convRate - a.convRate);
 
-  const now = new Date();
-  const thirtyDaysAgo = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
-
-  const decisions = await prisma.userDecision.findMany({
-    where: { agentId: id, sentAt: { gte: thirtyDaysAgo } },
-    select: {
-      id: true,
-      sentAt: true,
-      conversionAt: true,
-      reward: true,
-      channel: true,
-      messageVariantId: true,
-    },
-    orderBy: { sentAt: "asc" },
-    // Safety cap: prevents unbounded memory growth for high-volume agents.
-    // At typical send rates this window holds well under 5 000 rows.
-    take: 5000,
-  });
-
-  // Fetch variant names separately to avoid a per-row JOIN in the main query
-  const decidedVariantIds = [...new Set(decisions.map((d) => d.messageVariantId).filter((v): v is string => v !== null))];
-  const variantNameRows = decidedVariantIds.length > 0
-    ? await prisma.messageVariant.findMany({
-        where: { id: { in: decidedVariantIds } },
-        select: { id: true, name: true },
-      })
-    : [];
-  const variantNameById = new Map(variantNameRows.map((v) => [v.id, v.name]));
-
-  if (decisions.length === 0) {
-    return (
-      <>
-        <Header title="Performance" description={agent.name} />
-        <div className="p-6 text-center text-muted-foreground">
-          <p>No performance data yet.</p>
-        </div>
-      </>
-    );
-  }
-
   const sends = decisions.length;
   const conversions = decisions.filter((d) => d.conversionAt !== null).length;
   const convRate = sends > 0 ? (conversions / sends) * 100 : 0;
-
-  // Fleet average for lift calculation (all agents, same 30-day window)
-  const [fleetSends, fleetConversions] = await Promise.all([
-    prisma.userDecision.count({ where: { sentAt: { gte: thirtyDaysAgo } } }),
-    prisma.userDecision.count({
-      where: { sentAt: { gte: thirtyDaysAgo }, conversionAt: { not: null } },
-    }),
-  ]);
   const { lift, significant: liftSignificant, insufficient: liftInsufficient } = liftSignificance(
     sends, conversions, fleetSends, fleetConversions,
   );
