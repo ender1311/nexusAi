@@ -1,3 +1,5 @@
+export const revalidate = 300;
+
 import { Header } from "@/components/layout/header";
 import { AgentWizard } from "@/components/agents/agent-wizard";
 import { prisma } from "@/lib/db";
