@@ -1,3 +1,5 @@
+export const revalidate = 60;
+
 import { Suspense } from "react";
 import { Header } from "@/components/layout/header";
 import { MetricCard } from "@/components/charts/metric-card";
@@ -36,6 +38,7 @@ async function TimeSeriesSection() {
   const last7Decisions = await prisma.userDecision.findMany({
     where: { sentAt: { gte: sevenDaysAgo } },
     select: { sentAt: true, conversionAt: true },
+    take: 50000,
   });
 
   const byDate = new Map<string, { sends: number; conversions: number }>();
