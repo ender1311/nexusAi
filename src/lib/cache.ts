@@ -194,7 +194,11 @@ export const getCachedLiftSettings = unstable_cache(
     const map = Object.fromEntries(rows.map((r) => [r.key, r.value]));
     const baselineRate = parseFloat(map["baseline_push_open_rate"] ?? "1.2");
     const sinceDateStr = map["lift_since_date"] ?? "";
-    const liftSince = sinceDateStr ? new Date(sinceDateStr) : null;
+    const liftSince = (() => {
+      if (!sinceDateStr) return null;
+      const d = new Date(sinceDateStr);
+      return isNaN(d.getTime()) ? null : d;
+    })();
     return {
       baselineRate: isNaN(baselineRate) ? 1.2 : baselineRate,
       liftSince,
