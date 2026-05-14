@@ -1027,6 +1027,32 @@ export default function DemoPage() {
         </Card>
       </div>
 
+      {/* ── Advanced Data Science entry ───────────────────────────────── */}
+      <Link href="/demo/deep-dive" className="block">
+        <Card className="border-2 border-purple-500/50 hover:border-purple-500 hover:shadow-md transition-all cursor-pointer bg-purple-500/5">
+          <CardContent className="pt-5 pb-5">
+            <div className="flex items-center justify-between gap-4">
+              <div className="flex items-center gap-4">
+                <div className="w-12 h-12 rounded-full bg-purple-500 flex items-center justify-center shrink-0">
+                  <Brain className="w-6 h-6 text-white" />
+                </div>
+                <div>
+                  <div className="flex items-center gap-2 flex-wrap">
+                    <h2 className="text-lg font-bold">Advanced Data Science</h2>
+                    <Badge className="bg-purple-500 text-white border-0 text-[10px]">~20 min read</Badge>
+                  </div>
+                  <p className="text-sm text-muted-foreground">
+                    Deep-dive into the math powering Nexus — feature vectors, k-means persona clustering,
+                    Thompson Sampling, LinUCB, reward calculus, lift statistics, and send-time optimization
+                  </p>
+                </div>
+              </div>
+              <div className="text-muted-foreground shrink-0">→</div>
+            </div>
+          </CardContent>
+        </Card>
+      </Link>
+
       {/* ── Further Reading ────────────────────────────────────────────── */}
       <Card className="border-dashed">
         <CardContent className="pt-6">
