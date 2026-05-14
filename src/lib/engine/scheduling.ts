@@ -55,6 +55,33 @@ export function computeScheduledAt(
 }
 
 /**
+ * Returns true when the current time in `timezone` falls within [start, end) quiet hours.
+ * Handles overnight ranges (start > end, e.g. "21:00"–"06:00").
+ * If `timezone` is not a valid IANA string, returns false (don't suppress on bad data).
+ *
+ * @param timezone  IANA timezone string (e.g. "America/New_York")
+ * @param start     HH:MM quiet-hours start (e.g. "21:00")
+ * @param end       HH:MM quiet-hours end   (e.g. "06:00")
+ * @param now       Current UTC time
+ */
+export function isInQuietHours(timezone: string, start: string, end: string, now: Date): boolean {
+  let tzTime: string;
+  try {
+    tzTime = new Intl.DateTimeFormat("en-US", {
+      timeZone: timezone,
+      hour:     "2-digit",
+      minute:   "2-digit",
+      hour12:   false,
+    }).format(now);
+  } catch {
+    return false; // unknown timezone → don't suppress
+  }
+  return start > end
+    ? tzTime >= start || tzTime < end   // overnight range
+    : tzTime >= start && tzTime < end;  // same-day range
+}
+
+/**
  * Returns the UTC hour (0–23) with the highest cumulative conversion activity
  * from a user's hourlyStats array, or null when the array is all zeros (no data).
  *
