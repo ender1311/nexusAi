@@ -58,56 +58,71 @@ function toApiPersona(p: {
 }
 
 export async function GET(_req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
-  const { id } = await params;
-  const persona = await prisma.persona.findUnique({
-    where: { id },
-    include: { _count: { select: { trackedUsers: true } } },
-  });
-  if (!persona) return NextResponse.json({ error: "Not found" }, { status: 404 });
-  return NextResponse.json(toApiPersona(persona));
+  try {
+    const { id } = await params;
+    const persona = await prisma.persona.findUnique({
+      where: { id },
+      include: { _count: { select: { trackedUsers: true } } },
+    });
+    if (!persona) return NextResponse.json({ error: "Not found" }, { status: 404 });
+    return NextResponse.json(toApiPersona(persona));
+  } catch (error) {
+    console.error("GET /api/personas/[id] error:", error);
+    return NextResponse.json({ error: "Failed to fetch persona" }, { status: 500 });
+  }
 }
 
 export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
-  const { id } = await params;
-  const body = await req.json();
+  try {
+    const { id } = await params;
+    const body = await req.json();
 
-  const { lifeContext, demographics, engagement, contentModes, features, channels, metrics, ...coreFields } = body;
+    const { lifeContext, demographics, engagement, contentModes, features, channels, metrics, ...coreFields } = body;
 
-  const existing = await prisma.persona.findUnique({ where: { id } });
-  if (!existing) return NextResponse.json({ error: "Not found" }, { status: 404 });
+    const existing = await prisma.persona.findUnique({ where: { id } });
+    if (!existing) return NextResponse.json({ error: "Not found" }, { status: 404 });
 
-  const existingTraits = (existing.traits as unknown as Record<string, unknown>) ?? {};
-  const updatedTraits = {
-    ...existingTraits,
-    ...(lifeContext !== undefined && { lifeContext }),
-    ...(demographics !== undefined && { demographics }),
-    ...(engagement !== undefined && { engagement }),
-    ...(contentModes !== undefined && { contentModes }),
-    ...(features !== undefined && { features }),
-    ...(channels !== undefined && { channels }),
-    ...(metrics !== undefined && { metrics }),
-  };
+    const existingTraits = (existing.traits as unknown as Record<string, unknown>) ?? {};
+    const updatedTraits = {
+      ...existingTraits,
+      ...(lifeContext !== undefined && { lifeContext }),
+      ...(demographics !== undefined && { demographics }),
+      ...(engagement !== undefined && { engagement }),
+      ...(contentModes !== undefined && { contentModes }),
+      ...(features !== undefined && { features }),
+      ...(channels !== undefined && { channels }),
+      ...(metrics !== undefined && { metrics }),
+    };
 
-  const persona = await prisma.persona.update({
-    where: { id },
-    data: {
-      ...(coreFields.name && { name: coreFields.name }),
-      ...(coreFields.description !== undefined && { description: coreFields.description }),
-      ...(coreFields.icon && { icon: coreFields.icon }),
-      ...(coreFields.color && { color: coreFields.color }),
-      ...(coreFields.label !== undefined && { label: coreFields.label }),
-      ...(coreFields.tags && { tags: coreFields.tags }),
-      ...(coreFields.isActive !== undefined && { isActive: coreFields.isActive }),
-      traits: updatedTraits,
-    },
-    include: { _count: { select: { trackedUsers: true } } },
-  });
+    const persona = await prisma.persona.update({
+      where: { id },
+      data: {
+        ...(coreFields.name && { name: coreFields.name }),
+        ...(coreFields.description !== undefined && { description: coreFields.description }),
+        ...(coreFields.icon && { icon: coreFields.icon }),
+        ...(coreFields.color && { color: coreFields.color }),
+        ...(coreFields.label !== undefined && { label: coreFields.label }),
+        ...(coreFields.tags && { tags: coreFields.tags }),
+        ...(coreFields.isActive !== undefined && { isActive: coreFields.isActive }),
+        traits: updatedTraits,
+      },
+      include: { _count: { select: { trackedUsers: true } } },
+    });
 
-  return NextResponse.json(toApiPersona(persona));
+    return NextResponse.json(toApiPersona(persona));
+  } catch (error) {
+    console.error("PUT /api/personas/[id] error:", error);
+    return NextResponse.json({ error: "Failed to update persona" }, { status: 500 });
+  }
 }
 
 export async function DELETE(_req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
-  const { id } = await params;
-  await prisma.persona.update({ where: { id }, data: { isActive: false } });
-  return NextResponse.json({ ok: true });
+  try {
+    const { id } = await params;
+    await prisma.persona.update({ where: { id }, data: { isActive: false } });
+    return NextResponse.json({ ok: true });
+  } catch (error) {
+    console.error("DELETE /api/personas/[id] error:", error);
+    return NextResponse.json({ error: "Failed to delete persona" }, { status: 500 });
+  }
 }

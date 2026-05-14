@@ -60,41 +60,51 @@ function toApiPersona(p: {
 }
 
 export async function GET() {
-  const personas = await prisma.persona.findMany({
-    where: { isActive: true },
-    include: { _count: { select: { trackedUsers: true } } },
-    orderBy: [{ source: "asc" }, { createdAt: "asc" }],
-  });
+  try {
+    const personas = await prisma.persona.findMany({
+      where: { isActive: true },
+      include: { _count: { select: { trackedUsers: true } } },
+      orderBy: [{ source: "asc" }, { createdAt: "asc" }],
+    });
 
-  const res = NextResponse.json(personas.map(toApiPersona));
-  res.headers.set("Cache-Control", "public, s-maxage=30, stale-while-revalidate=60");
-  return res;
+    const res = NextResponse.json(personas.map(toApiPersona));
+    res.headers.set("Cache-Control", "public, s-maxage=30, stale-while-revalidate=60");
+    return res;
+  } catch (error) {
+    console.error("GET /api/personas error:", error);
+    return NextResponse.json({ error: "Failed to fetch personas" }, { status: 500 });
+  }
 }
 
 export async function POST(req: NextRequest) {
-  const body = await req.json();
+  try {
+    const body = await req.json();
 
-  if (!body.name) {
-    return NextResponse.json({ error: "name is required" }, { status: 400 });
+    if (!body.name) {
+      return NextResponse.json({ error: "name is required" }, { status: 400 });
+    }
+
+    // Rich fields go into traits JSON
+    const { lifeContext, demographics, engagement, contentModes, features, channels, metrics, ...coreFields } = body;
+    const traits = { lifeContext, demographics, engagement, contentModes, features, channels, metrics };
+
+    const persona = await prisma.persona.create({
+      data: {
+        name: coreFields.name,
+        description: coreFields.description ?? null,
+        icon: coreFields.icon ?? "Users2",
+        color: coreFields.color ?? "blue",
+        source: "manual",
+        label: coreFields.label ?? null,
+        tags: coreFields.tags ?? [],
+        traits,
+      },
+      include: { _count: { select: { trackedUsers: true } } },
+    });
+
+    return NextResponse.json(toApiPersona(persona), { status: 201 });
+  } catch (error) {
+    console.error("POST /api/personas error:", error);
+    return NextResponse.json({ error: "Failed to create persona" }, { status: 500 });
   }
-
-  // Rich fields go into traits JSON
-  const { lifeContext, demographics, engagement, contentModes, features, channels, metrics, ...coreFields } = body;
-  const traits = { lifeContext, demographics, engagement, contentModes, features, channels, metrics };
-
-  const persona = await prisma.persona.create({
-    data: {
-      name: coreFields.name,
-      description: coreFields.description ?? null,
-      icon: coreFields.icon ?? "Users2",
-      color: coreFields.color ?? "blue",
-      source: "manual",
-      label: coreFields.label ?? null,
-      tags: coreFields.tags ?? [],
-      traits,
-    },
-    include: { _count: { select: { trackedUsers: true } } },
-  });
-
-  return NextResponse.json(toApiPersona(persona), { status: 201 });
 }
