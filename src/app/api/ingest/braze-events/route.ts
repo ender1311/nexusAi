@@ -164,17 +164,24 @@ export async function POST(req: NextRequest) {
   let rewarded = 0;
   const now = new Date();
 
+  // Match window: Braze Currents events fire within seconds to minutes of delivery,
+  // but we allow 48h to cover delayed delivery and Hightouch sync lag.
+  const matchWindowStart = new Date(now.getTime() - 48 * 60 * 60 * 1000);
+
   for (const event of clickEvents) {
     const { eventType, userId, sendId } = extractFields(event);
-    if (!userId || !sendId) continue;
+    if (!userId) continue;
 
-    // Find the matching UserDecision: correct user + send, not yet rewarded
+    // Match by userId + recent unresolved decision. We do NOT match by brazeSendId
+    // because Braze auto-assigns send_id — we never pass one in the payload.
+    // Daily cap ensures at most 1 send per user per day, so ordering by sentAt desc
+    // picks the most recent unresolved send within the window.
     const decision = await prisma.userDecision.findFirst({
       where: {
         userId,
-        brazeSendId: sendId,
         reward: null,
         brazeAnalyticsFetchedAt: null,
+        sentAt: { gte: matchWindowStart },
       },
       orderBy: { sentAt: "desc" },
     });
@@ -182,10 +189,11 @@ export async function POST(req: NextRequest) {
     if (!decision?.messageVariantId) continue;
     matched++;
 
-    // Apply immediate click reward
+    // Apply immediate click reward; store Braze's send_id for analytics cron compatibility
     await prisma.userDecision.update({
       where: { id: decision.id },
       data: {
+        ...(sendId && { brazeSendId: sendId }),
         reward: CLICK_REWARD,
         conversionEvent: eventType,
         conversionAt: now,

@@ -44,6 +44,8 @@ export async function GET(
       ? Math.min(Math.max(1, parseInt(rawLimit, 10) || DEFAULT_LIMIT), MAX_LIMIT)
       : DEFAULT_LIMIT;
 
+    const failedCutoff = new Date(Date.now() - 24 * 60 * 60 * 1000);
+
     const [decisions, failedSendRecords] = await Promise.all([
       prisma.userDecision.findMany({
         where: { agentId: id },
@@ -54,9 +56,10 @@ export async function GET(
         take: limit,
         ...(cursor !== undefined ? { cursor: { id: cursor }, skip: 1 } : {}),
       }),
-      // Fetch all failure records for this agent to mark individual decisions
+      // Only surface failures from the last 24 h — older records are stale noise.
+      // The [agentId, failedAt] index makes this fast.
       prisma.failedBrazeSend.findMany({
-        where: { agentId: id },
+        where: { agentId: id, failedAt: { gte: failedCutoff } },
         select: { decisionIds: true },
       }),
     ]);

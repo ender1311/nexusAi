@@ -40,29 +40,6 @@ describe("BrazeClient", () => {
     expect(fake.requests[0].method).toBe("POST");
   });
 
-  it("createSendId returns the sendId on success (201)", async () => {
-    const client = new BrazeClient("key", "https://rest.test.braze.com");
-    fake.queueResponse({ message: "success" }, 201);
-    const sendId = await client.createSendId("camp_123", "test");
-    expect(typeof sendId).toBe("string");
-    expect(sendId).toContain("test_");
-    expect(fake.requests[0].url).toContain("/sends/id/create");
-  });
-
-  it("createSendId returns null on Braze error (400)", async () => {
-    const client = new BrazeClient("key", "https://rest.test.braze.com");
-    fake.queueResponse({ error: "bad request" }, 400);
-    const sendId = await client.createSendId("camp_123");
-    expect(sendId).toBeNull();
-  });
-
-  it("createSendId returns null when campaignId is empty", async () => {
-    const client = new BrazeClient("key", "https://rest.test.braze.com");
-    const sendId = await client.createSendId("");
-    expect(sendId).toBeNull();
-    expect(fake.requests).toHaveLength(0); // no HTTP call made
-  });
-
   it("strips trailing slash from restUrl", async () => {
     const client = new BrazeClient("key", "https://rest.test.braze.com/");
     fake.queueResponse({});

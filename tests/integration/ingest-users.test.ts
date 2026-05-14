@@ -801,6 +801,57 @@ describe("flat Hightouch user sync rows", () => {
     expect(user!.preferredSendHour).toBeGreaterThanOrEqual(0);
   });
 
+  it("uses last_seen_timestamp from flat Hightouch user sync rows", async () => {
+    const lastSeen = "2026-05-13T15:42:00.000Z";
+    const payload = {
+      braze_user_id_latest: "braze_last_seen_timestamp",
+      user_id: "usr_last_seen_timestamp",
+      last_seen_timestamp: lastSeen,
+      language_tag: "en",
+      push_enabled: true,
+    };
+
+    const res = await POST(buildRequest("POST", payload, AUTH) as NextRequest);
+    const body = await res.json();
+
+    expect(res.status).toBe(200);
+    expect(body.upserted).toBe(1);
+
+    const user = await prisma.trackedUser.findUnique({ where: { externalId: "usr_last_seen_timestamp" } });
+    expect(user).not.toBeNull();
+    const attrs = user!.attributes as Record<string, unknown>;
+    expect(attrs.last_seen_at).toBe(lastSeen);
+    expect(user!.preferredSendHour).toBe(15);
+    expect(user!.preferredSendMinute).toBe(42);
+  });
+
+  it("normalizes braze_user_id_latest inside a wrapped users batch", async () => {
+    const payload = {
+      users: [
+        {
+          braze_user_id_latest: "braze_wrapped_latest",
+          last_seen_timestamp: "2026-05-13T16:30:00.000Z",
+          language_tag: "en",
+          push_enabled: true,
+        },
+      ],
+    };
+
+    const res = await POST(buildRequest("POST", payload, AUTH) as NextRequest);
+    const body = await res.json();
+
+    expect(res.status).toBe(200);
+    expect(body.upserted).toBe(1);
+
+    const user = await prisma.trackedUser.findUnique({ where: { externalId: "braze_wrapped_latest" } });
+    expect(user).not.toBeNull();
+    expect(user!.brazeId).toBe("braze_wrapped_latest");
+    const attrs = user!.attributes as Record<string, unknown>;
+    expect(attrs.last_seen_at).toBe("2026-05-13T16:30:00.000Z");
+    expect(attrs.language_tag).toBe("en");
+    expect(attrs.push_enabled).toBe(true);
+  });
+
   it("does NOT treat the flat user sync row as a push_open_rows (matched=0, unmatched=1 regression)", async () => {
     // Regression: before the fix, braze_user_id_latest caused detectKind to return
     // push_open_rows regardless of other fields, causing matched:0, unmatched:1.
