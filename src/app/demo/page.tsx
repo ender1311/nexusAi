@@ -17,6 +17,8 @@ import {
   TrendingUp,
   Headphones,
   Sun,
+  FileText,
+  ExternalLink,
 } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -454,6 +456,16 @@ export default function DemoPage() {
                 score per variant. The highest draw wins. Consistently strong variants draw
                 high scores reliably and get sent more. The system never fully stops exploring.
               </p>
+              <a
+                href="/TS_Tutorial.pdf"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="inline-flex items-center gap-1.5 text-xs text-muted-foreground hover:text-foreground transition-colors border rounded px-2 py-1 mt-1 w-fit"
+              >
+                <FileText className="h-3 w-3 shrink-0" />
+                A Tutorial on Thompson Sampling — Russo et al., Stanford
+                <ExternalLink className="h-3 w-3 shrink-0" />
+              </a>
             </div>
             {/* Variant cards */}
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
@@ -857,6 +869,7 @@ export default function DemoPage() {
                     badge: "bg-teal-100 text-teal-700",
                     label: "persona-segmented",
                     body: "The Evening Engager model is completely separate from the Morning Devotee model. What works for night readers may not work for early risers — Nexus optimizes for each persona independently.",
+                    paper: { href: "/A_community_of_bandits.pdf", label: "A Community of Bandits — OfferFit" },
                   },
                   {
                     title: "Opt-outs trigger a heavy penalty",
@@ -865,13 +878,25 @@ export default function DemoPage() {
                     label: "hard negative signal",
                     body: "When a user disables push notifications, every message sent to them over the past 90 days takes a −10 confidence penalty. Nexus learns which content patterns lead to opt-outs and suppresses them.",
                   },
-                ].map(({ title, color, badge, label, body }) => (
+                ].map(({ title, color, badge, label, body, paper }: { title: string; color: string; badge: string; label: string; body: string; paper?: { href: string; label: string } }) => (
                   <div key={title} className={`rounded-lg border ${color} p-4`}>
                     <div className="flex items-start justify-between gap-2 mb-2">
                       <span className="text-xs font-semibold leading-tight">{title}</span>
                       <span className={`text-[10px] rounded px-1.5 py-0.5 font-medium shrink-0 ${badge}`}>{label}</span>
                     </div>
                     <p className="text-[11px] text-muted-foreground leading-relaxed">{body}</p>
+                    {paper && (
+                      <a
+                        href={paper.href}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="inline-flex items-center gap-1 text-[10px] text-muted-foreground hover:text-foreground transition-colors mt-2"
+                      >
+                        <FileText className="h-3 w-3 shrink-0" />
+                        {paper.label}
+                        <ExternalLink className="h-3 w-3 shrink-0" />
+                      </a>
+                    )}
                   </div>
                 ))}
               </div>
@@ -1001,6 +1026,55 @@ export default function DemoPage() {
           </CardContent>
         </Card>
       </div>
+
+      {/* ── Further Reading ────────────────────────────────────────────── */}
+      <Card className="border-dashed">
+        <CardContent className="pt-6">
+          <h3 className="text-sm font-semibold mb-4 flex items-center gap-2">
+            <FileText className="h-4 w-4 text-muted-foreground" />
+            Further Reading
+          </h3>
+          <div className="space-y-3">
+            {[
+              {
+                href: "/TS_Tutorial.pdf",
+                title: "A Tutorial on Thompson Sampling",
+                authors: "Russo, Van Roy, Kazerouni, Osband, Wen — Stanford / Google Brain",
+                desc: "The canonical reference for Thompson Sampling. Covers the algorithm, Bayesian foundations, and practical guidance for applying it to multi-armed bandit problems.",
+                tag: "Thompson Sampling",
+                tagColor: "bg-blue-100 text-blue-700",
+              },
+              {
+                href: "/A_community_of_bandits.pdf",
+                title: "A Community of Bandits",
+                authors: "OfferFit Research",
+                desc: "Explores per-segment bandit models that share signal across related audiences — the theoretical foundation for Nexus's persona-segmented arm statistics.",
+                tag: "Persona Bandits",
+                tagColor: "bg-teal-100 text-teal-700",
+              },
+            ].map(({ href, title, authors, desc, tag, tagColor }) => (
+              <a
+                key={href}
+                href={href}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="flex items-start gap-3 rounded-lg border p-4 hover:bg-muted/30 transition-colors group"
+              >
+                <FileText className="h-5 w-5 text-muted-foreground shrink-0 mt-0.5 group-hover:text-foreground transition-colors" />
+                <div className="flex-1 min-w-0">
+                  <div className="flex items-center gap-2 flex-wrap mb-1">
+                    <span className="text-sm font-semibold group-hover:underline">{title}</span>
+                    <span className={`text-[10px] rounded px-1.5 py-0.5 font-medium ${tagColor}`}>{tag}</span>
+                  </div>
+                  <p className="text-[11px] text-muted-foreground mb-1">{authors}</p>
+                  <p className="text-xs text-muted-foreground leading-relaxed">{desc}</p>
+                </div>
+                <ExternalLink className="h-4 w-4 text-muted-foreground shrink-0 mt-0.5" />
+              </a>
+            ))}
+          </div>
+        </CardContent>
+      </Card>
     </div>
   );
 }
