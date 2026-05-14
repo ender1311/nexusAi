@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
-import { upsertArmStats } from "@/lib/arm-stats";
+import { upsertArmStats, upsertUserArmStats } from "@/lib/arm-stats";
 
 /**
  * POST /api/ingest/braze-events
@@ -172,6 +172,16 @@ export async function POST(req: NextRequest) {
     const { eventType, userId, sendId } = extractFields(event);
     if (!userId) continue;
 
+    // Idempotency: Braze Currents retries can replay the same event — skip if already processed
+    const eventKey = event.id;
+    if (eventKey) {
+      const alreadyProcessed = await prisma.processedEventId.findUnique({
+        where: { eventId: eventKey },
+      });
+      if (alreadyProcessed) continue;
+    }
+
+
     // Match by userId + recent unresolved decision. We do NOT match by brazeSendId
     // because Braze auto-assigns send_id — we never pass one in the payload.
     // Daily cap ensures at most 1 send per user per day, so ordering by sentAt desc
@@ -186,7 +196,12 @@ export async function POST(req: NextRequest) {
       orderBy: { sentAt: "desc" },
     });
 
-    if (!decision?.messageVariantId) continue;
+    if (!decision?.messageVariantId) {
+      if (eventKey) {
+        await prisma.processedEventId.create({ data: { eventId: eventKey } }).catch(() => {});
+      }
+      continue;
+    }
     matched++;
 
     // Apply immediate click reward; store Braze's send_id for analytics cron compatibility
@@ -202,17 +217,34 @@ export async function POST(req: NextRequest) {
     });
 
     const personaId = personaByUserId.get(userId);
-    if (personaId) {
-      await upsertArmStats({
-        personaId,
-        agentId:   decision.agentId,
-        variantId: decision.messageVariantId,
+    await Promise.all([
+      personaId
+        ? upsertArmStats({
+            personaId,
+            agentId:    decision.agentId,
+            variantId:  decision.messageVariantId,
+            deltaAlpha: CLICK_REWARD,
+            deltaBeta:  0,
+            deltaWins:  1,
+          }).catch((err) => {
+            console.error("[ingest/braze-events] Failed to update PersonaArmStats:", err);
+          })
+        : Promise.resolve(),
+      upsertUserArmStats({
+        userId,
+        agentId:    decision.agentId,
+        variantId:  decision.messageVariantId,
         deltaAlpha: CLICK_REWARD,
         deltaBeta:  0,
         deltaWins:  1,
-      });
-    }
+      }).catch((err) => {
+        console.error("[ingest/braze-events] Failed to update UserArmStats:", err);
+      }),
+    ]);
 
+    if (eventKey) {
+      await prisma.processedEventId.create({ data: { eventId: eventKey } }).catch(() => {});
+    }
     rewarded++;
   }
 
