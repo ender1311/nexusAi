@@ -129,12 +129,10 @@ async function sendVariantGroup(
       payload = { ...payload, schedule: { time: group.scheduledAt.toISOString() } };
     }
 
-    // Attach a UUID send_id on every send so Braze tracks this batch for
-    // /sends/data_series analytics. Braze accepts send_id on both
-    // /messages/send and /messages/schedule/create; we store it on
-    // UserDecision so the analytics cron can look it up after delivery.
+    // Do NOT pass send_id to Braze — Braze Currents events carry Braze's auto-assigned
+    // send_id back to us via /api/ingest/braze-events. We store a local UUID on
+    // UserDecision only as an "accepted by Braze" marker for the daily cap check.
     const sendId = randomUUID();
-    payload = { ...payload, send_id: sendId };
 
     const res = await brazeClient!.post(endpoint, payload);
     if (res.ok) {
@@ -600,11 +598,14 @@ export async function POST(req: NextRequest) {
               _count: { userId: true },
             })
           : Promise.resolve([] as Array<{ userId: string; _count: { userId: number } }>),
-        // 4d. Global daily cap — cross-agent guard (no agentId filter intentional)
+        // 4d. Global daily cap — cross-agent guard (no agentId filter intentional).
+        // Only count confirmed sends (brazeSendId set) — phantom decisions where
+        // the Braze API call failed should not block the user from being retried.
         prisma.userDecision.findMany({
           where: {
             userId: { in: userExternalIds },
             sentAt: { gte: todayStart },
+            brazeSendId: { not: null },
             // intentionally no agentId filter — cross-agent
           },
           select:   { userId: true },
@@ -998,6 +999,7 @@ export async function POST(req: NextRequest) {
           where: {
             userId: { in: inWindowUserIdsForAgent },
             sentAt: { gte: todayStart },
+            brazeSendId: { not: null },
           },
           select:   { userId: true },
           distinct: ["userId"],

@@ -35,24 +35,7 @@ export class BrazeClient {
     });
   }
 
-  async createSendId(campaignId: string, prefix = ""): Promise<string | null> {
-    if (!campaignId) return null;
-    const uniquePart = Math.random().toString(36).slice(2, 10);
-    const sendId = prefix ? `${prefix}_${uniquePart}` : uniquePart;
 
-    try {
-      const res = await this.post("/sends/id/create", {
-        campaign_id: campaignId,
-        send_id: sendId,
-      });
-      if (res.ok) return sendId;
-      console.error("Failed to register Braze send_id", { status: res.status });
-      return null;
-    } catch (err) {
-      console.error("Exception creating send_id", err);
-      return null;
-    }
-  }
 }
 
 export function createBrazeClient(): BrazeClient | null {

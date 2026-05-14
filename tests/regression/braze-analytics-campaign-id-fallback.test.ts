@@ -1,13 +1,13 @@
 /**
- * Regression test: ingest-braze-analytics must use BRAZE_NEXUS_CAMPAIGN_ID env var
- * when Message.brazeCampaignId is null.
+ * Regression test: decisions without brazeSendId must not be processed by the
+ * 48h decay cron.
  *
- * Bug: the route fetched `groupDecisions[0].variant?.message?.brazeCampaignId` and
- * skipped the whole sendId group with `if (!brazeCampaignId) continue`. All production
- * Message records have brazeCampaignId = null (created before the field was populated),
- * so the analytics cron never processed any decisions and no rewards were written.
+ * Phantom decisions (brazeSendId=null) were created during the broken send_id
+ * period when Braze rejected sends. These were never actually delivered and
+ * should not receive rewards or penalties — applying arm stats to undelivered
+ * sends would corrupt the bandit's signal.
  *
- * Fix: fall back to `process.env.BRAZE_NEXUS_CAMPAIGN_ID` before returning null.
+ * The cron query filters brazeSendId: { not: null } to exclude these.
  */
 
 import { afterEach, beforeEach, describe, expect, it } from "bun:test";
@@ -15,7 +15,6 @@ import { NextRequest } from "next/server";
 import { truncateAll, prisma } from "../helpers/db";
 import {
   createAgent,
-  createPersona,
   createMessage,
   createVariant,
   createUser,
@@ -24,59 +23,31 @@ import { POST } from "@/app/api/cron/ingest-braze-analytics/route";
 
 const AUTH = { Authorization: "Bearer test_cron_secret" };
 
-function mockBrazeAnalyticsSuccess() {
-  (globalThis as Record<string, unknown>).fetch = async (
-    input: string | URL | Request,
-  ): Promise<Response> => {
-    const url = input instanceof Request ? input.url : String(input);
-    if (url.includes("/sends/data_series")) {
-      return new Response(
-        JSON.stringify({
-          data: [{ time: new Date().toISOString(), sent: 10, unique_clicks: 2, unique_opens: 5 }],
-        }),
-        { status: 200, headers: { "Content-Type": "application/json" } },
-      );
-    }
-    return new Response(JSON.stringify({}), { status: 200 });
-  };
-}
-
 beforeEach(async () => {
   await truncateAll();
-  process.env.CRON_SECRET            = "test_cron_secret";
-  process.env.BRAZE_API_KEY          = "test_braze_key";
-  process.env.BRAZE_REST_URL         = "rest.test.braze.com";
-  process.env.BRAZE_NEXUS_CAMPAIGN_ID = "env-campaign-fallback-id";
-  mockBrazeAnalyticsSuccess();
+  process.env.CRON_SECRET = "test_cron_secret";
 });
 
 afterEach(async () => {
   await truncateAll();
   delete process.env.CRON_SECRET;
-  delete process.env.BRAZE_API_KEY;
-  delete process.env.BRAZE_REST_URL;
-  delete process.env.BRAZE_NEXUS_CAMPAIGN_ID;
-  delete (globalThis as Record<string, unknown>).fetch;
 });
 
-describe("braze-analytics: campaign ID env var fallback", () => {
-  it("processes decisions whose message has brazeCampaignId = null by using env var", async () => {
-    const persona = await createPersona();
+describe("decay cron: phantom decisions (brazeSendId=null) are excluded", () => {
+  it("decision with null brazeSendId is not processed", async () => {
     const agent   = await createAgent();
-    // No brazeCampaignId — this is the bug scenario
-    const msg     = await createMessage(agent.id, { brazeCampaignId: null });
+    const msg     = await createMessage(agent.id);
     const variant = await createVariant(msg.id);
-    const user    = await createUser("usr-fallback-a", { personaId: persona.id });
-    const sentAt  = new Date(Date.now() - 36 * 60 * 60 * 1000);
+    await createUser("usr-phantom");
 
+    const sentAt = new Date(Date.now() - 60 * 60 * 60 * 1000); // 60h ago
+
+    // Create decision without brazeSendId (phantom send)
     await prisma.userDecision.create({
       data: {
-        agentId:          agent.id,
-        userId:           user.externalId,
-        messageVariantId: variant.id,
-        channel:          "push",
-        sentAt,
-        brazeSendId:      "send-fallback-001",
+        agentId: agent.id, userId: "usr-phantom",
+        messageVariantId: variant.id, channel: "push", sentAt,
+        // brazeSendId intentionally omitted (null)
       },
     });
 
@@ -85,51 +56,65 @@ describe("braze-analytics: campaign ID env var fallback", () => {
       headers: AUTH,
     });
     const res  = await POST(req);
-    const body = await res.json() as Record<string, unknown>;
+    const body = await res.json();
 
     expect(res.status).toBe(200);
-    expect(body.ok).toBe(true);
-    // Without the fix, processed would be 0 because the sendId group is skipped
-    expect(body.processed).toBe(1);
-    expect(body.updated).toBe(1);
+    expect(body.processed).toBe(0); // phantom decision skipped
 
-    const decision = await prisma.userDecision.findFirst({
-      where: { brazeSendId: "send-fallback-001" },
-    });
-    expect(decision?.brazeAnalyticsFetchedAt).not.toBeNull();
-    expect(decision?.reward).not.toBeNull();
+    const decision = await prisma.userDecision.findFirst({ where: { userId: "usr-phantom" } });
+    expect(decision!.brazeAnalyticsFetchedAt).toBeNull(); // untouched
+    expect(decision!.reward).toBeNull();
   });
 
-  it("skips decisions when BRAZE_NEXUS_CAMPAIGN_ID is also absent", async () => {
-    delete process.env.BRAZE_NEXUS_CAMPAIGN_ID;
-    const persona = await createPersona();
+  it("only the decision with brazeSendId is processed when both exist", async () => {
     const agent   = await createAgent();
-    const msg     = await createMessage(agent.id, { brazeCampaignId: null });
+    const msg     = await createMessage(agent.id);
     const variant = await createVariant(msg.id);
-    const user    = await createUser("usr-fallback-b", { personaId: persona.id });
-    const sentAt  = new Date(Date.now() - 36 * 60 * 60 * 1000);
+    await createUser("usr-phantom2");
+    await createUser("usr-real");
 
-    await prisma.userDecision.create({
-      data: {
-        agentId:          agent.id,
-        userId:           user.externalId,
-        messageVariantId: variant.id,
-        channel:          "push",
-        sentAt,
-        brazeSendId:      "send-fallback-002",
-      },
+    const sentAt = new Date(Date.now() - 60 * 60 * 60 * 1000);
+
+    await prisma.userDecision.createMany({
+      data: [
+        { agentId: agent.id, userId: "usr-phantom2", messageVariantId: variant.id, channel: "push", sentAt },
+        { agentId: agent.id, userId: "usr-real",     messageVariantId: variant.id, channel: "push", sentAt, brazeSendId: "send_real_001" },
+      ],
     });
 
     const req = new NextRequest("http://localhost/api/cron/ingest-braze-analytics", {
       method: "POST",
       headers: AUTH,
     });
-    const res  = await POST(req);
-    const body = await res.json() as Record<string, unknown>;
+    const body = await (await POST(req)).json();
 
-    expect(res.status).toBe(200);
-    expect(body.ok).toBe(true);
-    // Still skipped because both campaign ID sources are null
+    expect(body.processed).toBe(1); // only the real send
+
+    const phantom = await prisma.userDecision.findFirst({ where: { userId: "usr-phantom2" } });
+    const real    = await prisma.userDecision.findFirst({ where: { userId: "usr-real" } });
+
+    expect(phantom!.brazeAnalyticsFetchedAt).toBeNull();
+    expect(real!.brazeAnalyticsFetchedAt).not.toBeNull();
+  });
+
+  it("decisions newer than 48h are not processed yet", async () => {
+    const agent   = await createAgent();
+    const msg     = await createMessage(agent.id);
+    const variant = await createVariant(msg.id);
+    await createUser("usr-fresh");
+
+    const sentAt = new Date(Date.now() - 24 * 60 * 60 * 1000); // only 24h ago
+
+    await prisma.userDecision.create({
+      data: { agentId: agent.id, userId: "usr-fresh", messageVariantId: variant.id, channel: "push", sentAt, brazeSendId: "send_fresh_001" },
+    });
+
+    const req = new NextRequest("http://localhost/api/cron/ingest-braze-analytics", {
+      method: "POST",
+      headers: AUTH,
+    });
+    const body = await (await POST(req)).json();
+
     expect(body.processed).toBe(0);
   });
 });

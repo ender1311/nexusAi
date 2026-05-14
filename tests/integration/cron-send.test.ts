@@ -171,18 +171,17 @@ describe("POST /api/cron/select-and-send", () => {
 
     await POST(buildRequest("POST", undefined, CRON_AUTH) as NextRequest);
 
-    // The Braze payload should include a send_id
+    // The cron must have hit Braze's schedule endpoint
     const sendCall = brazeRequests.find((r) => r.url.includes("/messages/schedule/create"));
     expect(sendCall).toBeTruthy();
-    const payload = sendCall!.body as Record<string, unknown>;
-    expect(typeof payload.send_id).toBe("string");
-    expect((payload.send_id as string).length).toBeGreaterThan(0);
 
-    // The decision in DB must have brazeSendId set to the same UUID
+    // brazeSendId is a local UUID stored for the analytics cron; it is NOT forwarded to Braze
+    // (Braze Currents returns its own send_id via ingest). We verify it's stamped on the decision.
     const decision = await prisma.userDecision.findFirst({
       where: { userId: "usr_sendid" },
     });
-    expect(decision?.brazeSendId).toBe(payload.send_id as string);
+    expect(typeof decision?.brazeSendId).toBe("string");
+    expect((decision!.brazeSendId as string).length).toBeGreaterThan(0);
   });
 });
 
@@ -298,11 +297,16 @@ describe("Global daily cap", () => {
     await createSchedulingRule(agentA.id);
     await createSchedulingRule(agentB.id);
 
-    // Pre-seed a decision from agentA today (before this cron run)
-    await createUserDecision({
-      agentId: agentA.id,
-      userId:  user.externalId,
-      sentAt:  new Date(),
+    // Pre-seed a confirmed send from agentA today (brazeSendId must be set —
+    // the daily cap only counts confirmed sends, not phantom failed decisions)
+    await prisma.userDecision.create({
+      data: {
+        agentId: agentA.id,
+        userId:  user.externalId,
+        channel: "push",
+        sentAt:  new Date(),
+        brazeSendId: "confirmed_send_id_001",
+      },
     });
 
     const res  = await POST(buildRequest("POST", undefined, CRON_AUTH) as NextRequest);

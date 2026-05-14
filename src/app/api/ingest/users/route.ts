@@ -81,6 +81,7 @@ type PushOpenRow = {
 type HtFlatUserRow = {
   user_id?: string | null;
   braze_user_id_latest?: string;
+  last_seen_timestamp?: string;
   "User Last Seen"?: string;
   language_tag?: string;
   plan_locale_latest?: string;
@@ -92,7 +93,8 @@ type HtFlatUserRow = {
 
 function normalizeHtFlatUserRow(row: HtFlatUserRow): UserRecord {
   const attrs: Record<string, unknown> = {};
-  if (row["User Last Seen"])          attrs.last_seen_at    = row["User Last Seen"];
+  const lastSeen = row.last_seen_timestamp ?? row["User Last Seen"];
+  if (lastSeen)                       attrs.last_seen_at    = lastSeen;
   if (row.language_tag !== undefined) attrs.language_tag    = row.language_tag;
   if (row.plan_locale_latest !== undefined) attrs.plan_locale = row.plan_locale_latest;
   if (row.push_enabled !== undefined) attrs.push_enabled    = row.push_enabled;
@@ -482,7 +484,12 @@ export async function POST(req: NextRequest) {
     typeof body === "object" && body !== null &&
     "users" in body && Array.isArray((body as Record<string, unknown>).users)
   ) {
-    users = (body as { users: UserRecord_[] }).users;
+    users = ((body as { users: unknown[] }).users).map((row) =>
+      typeof row === "object" && row !== null &&
+      "braze_user_id_latest" in row && !("external_user_id" in row) && !("braze_id" in row)
+        ? normalizeHtFlatUserRow(row as HtFlatUserRow)
+        : (row as UserRecord_)
+    );
   } else if (
     typeof body === "object" && body !== null &&
     ("external_user_id" in body || "braze_id" in body)
