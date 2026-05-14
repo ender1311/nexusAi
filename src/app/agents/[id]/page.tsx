@@ -477,7 +477,7 @@ export default async function AgentDetailPage({ params }: { params: Promise<{ id
                       <tr className="border-b text-xs text-muted-foreground">
                         <th className="px-4 py-2 text-left font-medium">External ID</th>
                         <th className="px-4 py-2 text-left font-medium">Name</th>
-                        <th className="px-4 py-2 text-left font-medium">Email</th>
+                        <th className="hidden sm:table-cell px-4 py-2 text-left font-medium">Email</th>
                         <th className="px-4 py-2 text-left font-medium">Persona</th>
                       </tr>
                     </thead>
@@ -487,10 +487,10 @@ export default async function AgentDetailPage({ params }: { params: Promise<{ id
                         const personaName = agent.personaTargets.find((pt) => pt.personaId === u.personaId)?.persona.name ?? "—";
                         return (
                           <tr key={u.externalId} className="border-b last:border-0 hover:bg-muted/40">
-                            <td className="px-4 py-2 font-mono text-xs">{u.externalId}</td>
-                            <td className="px-4 py-2">{String(attrs.first_name ?? "—")}</td>
-                            <td className="px-4 py-2 text-muted-foreground">{String(attrs.email ?? "—")}</td>
-                            <td className="px-4 py-2">{personaName}</td>
+                            <td className="px-4 py-2 font-mono text-xs max-w-[100px] truncate">{u.externalId}</td>
+                            <td className="px-4 py-2 max-w-[80px] truncate">{String(attrs.first_name ?? "—")}</td>
+                            <td className="hidden sm:table-cell px-4 py-2 text-muted-foreground max-w-[160px] truncate">{String(attrs.email ?? "—")}</td>
+                            <td className="px-4 py-2 max-w-[90px] truncate">{personaName}</td>
                           </tr>
                         );
                       })}
