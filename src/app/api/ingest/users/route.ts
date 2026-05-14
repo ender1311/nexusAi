@@ -87,6 +87,7 @@ type HtFlatUserRow = {
   plan_locale_latest?: string;
   push_enabled?: boolean;
   "Email Enabled"?: boolean;
+  timezone?: string;
   funnel_stage?: string;
   [key: string]: unknown;
 };
@@ -99,6 +100,7 @@ function normalizeHtFlatUserRow(row: HtFlatUserRow): UserRecord {
   if (row.plan_locale_latest !== undefined) attrs.plan_locale = row.plan_locale_latest;
   if (row.push_enabled !== undefined) attrs.push_enabled    = row.push_enabled;
   if (row["Email Enabled"] !== undefined) attrs.email_enabled = row["Email Enabled"];
+  if (row.timezone !== undefined)      attrs.timezone        = row.timezone;
   return {
     external_user_id: row.user_id?.trim() || undefined,
     braze_id: row.braze_user_id_latest?.trim() || undefined,
@@ -572,6 +574,10 @@ export async function POST(req: NextRequest) {
       const externalId = externalUserId ?? brazeId!;
       const raw = (user.attributes ?? {}) as Record<string, unknown>;
 
+      const timezone = typeof raw["timezone"] === "string" && raw["timezone"].trim()
+        ? raw["timezone"].trim()
+        : undefined;
+
       let preferredSendHour: number | undefined;
       let preferredSendMinute: number | undefined;
       if (raw["last_seen_at"] && typeof raw["last_seen_at"] === "string") {
@@ -622,6 +628,7 @@ export async function POST(req: NextRequest) {
           ...(brazeId !== null && { brazeId }),
           attributes,
           ...(preferredSendHour !== undefined && { preferredSendHour, preferredSendMinute }),
+          ...(timezone !== undefined && { timezone }),
           ...funnelStageData,
           ...personaData,
         },
@@ -629,6 +636,7 @@ export async function POST(req: NextRequest) {
           ...(brazeId !== null && { brazeId }),
           attributes,
           ...(preferredSendHour !== undefined && { preferredSendHour, preferredSendMinute }),
+          ...(timezone !== undefined && { timezone }),
           ...funnelStageData,
           ...personaData,
         },

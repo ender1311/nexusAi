@@ -161,6 +161,7 @@ export function SchedulingEditor({ agentId, initialRule }: Props) {
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
+                  <SelectItem value="user">User&apos;s local time</SelectItem>
                   <SelectItem value="America/New_York">Eastern (ET)</SelectItem>
                   <SelectItem value="America/Chicago">Central (CT)</SelectItem>
                   <SelectItem value="America/Denver">Mountain (MT)</SelectItem>

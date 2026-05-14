@@ -5,7 +5,7 @@ import { createBrazeClient } from "@/lib/braze/client";
 import { PayloadFactory } from "@/lib/braze/payload-factory";
 import { evaluateTargetFilter, buildComputedKeys } from "@/lib/engine/target-filter";
 import { buildAgentLottery } from "@/lib/engine/agent-lottery";
-import { getTodayStartUTC, computeScheduledAt, peakActivityHour }  from "@/lib/engine/scheduling";
+import { getTodayStartUTC, computeScheduledAt, peakActivityHour, isInQuietHours }  from "@/lib/engine/scheduling";
 import { isTimingMatch } from "@/lib/engine/send-timing";
 import { ThompsonSampling } from "@/lib/engine/thompson-sampling";
 import { EpsilonGreedy } from "@/lib/engine/epsilon-greedy";
@@ -510,28 +510,16 @@ export async function POST(req: NextRequest) {
     // Evaluate agent-level scheduling checks once (not per user)
     const rule = agent.schedulingRule;
 
-    // When timezone === "user", skip server-side quiet hours check and let Braze
-    // deliver in each user's local timezone via in_local_time: true.
-    const inLocalTime = (rule?.quietHours as { timezone?: string } | null)?.timezone === "user";
+    const quietHoursConfig = rule?.quietHours as { start?: string; end?: string; timezone?: string } | null;
+    // When timezone === "user", skip the agent-level check; enforce per-user below.
+    const inLocalTime = quietHoursConfig?.timezone === "user";
 
-    // 4a. Quiet hours — same for all users, check once (skip when delegating to Braze local time)
+    // 4a. Quiet hours — agent-level check (single timezone, checked once per agent per run)
     if (rule && !inLocalTime) {
-      const quietHours = rule.quietHours as unknown as { start?: string; end?: string; timezone?: string };
-      if (quietHours?.start && quietHours?.end) {
-        const tzTime = new Intl.DateTimeFormat("en-US", {
-          timeZone: quietHours.timezone ?? "UTC",
-          hour: "2-digit",
-          minute: "2-digit",
-          hour12: false,
-        }).format(now);
-        const { start, end } = quietHours;
-        const inQuiet =
-          start > end
-            ? tzTime >= start || tzTime < end
-            : tzTime >= start && tzTime < end;
-        if (inQuiet) {
+      if (quietHoursConfig?.start && quietHoursConfig?.end) {
+        if (isInQuietHours(quietHoursConfig.timezone ?? "UTC", quietHoursConfig.start, quietHoursConfig.end, now)) {
           console.log("[cron/select-and-send] agent suppressed — quiet hours", {
-            agentId: agent.id, agentName: agent.name, timezone: quietHours.timezone ?? "UTC",
+            agentId: agent.id, agentName: agent.name, timezone: quietHoursConfig.timezone ?? "UTC",
           });
           continue;
         }
@@ -707,14 +695,25 @@ export async function POST(req: NextRequest) {
       });
       suppress.targetFilter += langFiltered.length - targetFiltered.length;
 
+      // Per-user quiet hours: when timezone === "user", suppress users whose stored
+      // IANA timezone is currently inside the configured quiet window.
+      // Users with no timezone stored are passed through (can't enforce, don't suppress).
+      const quietFiltered = (inLocalTime && quietHoursConfig?.start && quietHoursConfig?.end)
+        ? targetFiltered.filter((u) => {
+            if (!u.timezone) return true;
+            return !isInQuietHours(u.timezone, quietHoursConfig!.start!, quietHoursConfig!.end!, now);
+          })
+        : targetFiltered;
+      suppress.targetFilter += targetFiltered.length - quietFiltered.length;
+
       // Batch-decide for lottery users: load arm stats once, select variant in-memory,
       // then bulk-create all UserDecision records in a single createManyAndReturn call.
       const byVariant: Record<string, VariantSendGroup> = {};
 
-      if (targetFiltered.length > 0) {
+      if (quietFiltered.length > 0) {
         // Collect unique personaIds among eligible users
         const pagePersonaIds = [...new Set(
-          targetFiltered.map((u) => u.personaId).filter(Boolean) as string[]
+          quietFiltered.map((u) => u.personaId).filter(Boolean) as string[]
         )];
 
         // Load all arm stats for this agent × page personas in one query
@@ -736,7 +735,7 @@ export async function POST(req: NextRequest) {
         }
 
         // Load per-user arm stats for personalised blending (Thompson/EpsilonGreedy only)
-        const pageUserIds = targetFiltered.map((u) => u.externalId);
+        const pageUserIds = quietFiltered.map((u) => u.externalId);
         const pageUserArmRows = agent.algorithm !== "linucb"
           ? await prisma.userArmStats.findMany({
               where: { userId: { in: pageUserIds }, agentId: agent.id, variantId: { in: allVariantIds } },
@@ -762,8 +761,8 @@ export async function POST(req: NextRequest) {
           m.variants.map((v) => ({ ...v, channel: m.channel }))
         );
 
-        const lotteryDecisionInputs: Array<{ user: typeof targetFiltered[number]; variantId: string; scheduledAt: Date; inLocalTime: boolean }> = [];
-        for (const user of targetFiltered) {
+        const lotteryDecisionInputs: Array<{ user: typeof quietFiltered[number]; variantId: string; scheduledAt: Date; inLocalTime: boolean }> = [];
+        for (const user of quietFiltered) {
           const pid = user.personaId as string | null;
           if (!pid) continue;
 
@@ -1051,15 +1050,23 @@ export async function POST(req: NextRequest) {
         return isTimingMatch(hourlyStats, dailyStats, assignment.sendCount, currentHourET, currentDayET);
       });
 
+      // Per-user quiet hours for window path (same logic as lottery path above)
+      const quietWindowUsers = (inLocalTime && quietHoursConfig?.start && quietHoursConfig?.end)
+        ? eligibleWindowUsers.filter((u) => {
+            if (!u.timezone) return true;
+            return !isInQuietHours(u.timezone, quietHoursConfig!.start!, quietHoursConfig!.end!, now);
+          })
+        : eligibleWindowUsers;
+
       // Batch-decide for in-window users: load arm stats once, select variant in-memory,
       // then bulk-create all UserDecision records in a single createMany call.
       const windowByVariant: Record<string, VariantSendGroup> = {};
       const sentWindowUserIds: string[] = [];
 
-      if (eligibleWindowUsers.length > 0) {
+      if (quietWindowUsers.length > 0) {
         // Collect all unique personaIds among eligible window users
         const windowPersonaIds = [...new Set(
-          eligibleWindowUsers.map((u) => u.personaId).filter(Boolean) as string[]
+          quietWindowUsers.map((u) => u.personaId).filter(Boolean) as string[]
         )];
 
         // Load all arm stats for this agent × these personas in one query
@@ -1081,7 +1088,7 @@ export async function POST(req: NextRequest) {
         }
 
         // Load per-user arm stats for personalised blending (Thompson/EpsilonGreedy only)
-        const windowUserIds = eligibleWindowUsers.map((u) => u.externalId);
+        const windowUserIds = quietWindowUsers.map((u) => u.externalId);
         const windowUserArmRows = agent.algorithm !== "linucb"
           ? await prisma.userArmStats.findMany({
               where: { userId: { in: windowUserIds }, agentId: agent.id, variantId: { in: allVariantIds } },
@@ -1106,9 +1113,9 @@ export async function POST(req: NextRequest) {
           m.variants.map((v) => ({ ...v, channel: m.channel }))
         );
 
-        const decisionInputs: Array<{ user: typeof eligibleWindowUsers[number]; variantId: string; scheduledAt: Date; inLocalTime: boolean }> = [];
+        const decisionInputs: Array<{ user: typeof quietWindowUsers[number]; variantId: string; scheduledAt: Date; inLocalTime: boolean }> = [];
 
-        for (const user of eligibleWindowUsers) {
+        for (const user of quietWindowUsers) {
           const pid = user.personaId as string | null;
           if (!pid) continue;
 

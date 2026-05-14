@@ -161,6 +161,7 @@ model TrackedUser {
   // Preferred send time (derived from last_seen_at UTC hour/minute during ingest)
   preferredSendHour   Int?   // 0-23 UTC — derived from last_seen_at hour
   preferredSendMinute Int?   // 0-59 UTC — derived from last_seen_at minute
+  timezone            String? // IANA timezone string synced from Braze via Hightouch (e.g. "America/New_York")
 
   // Feature vector (computed periodically from stats)
   featureVector     Json?
