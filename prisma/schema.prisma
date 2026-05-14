@@ -48,6 +48,8 @@ model Goal {
   description    String?
 
   agent Agent @relation(fields: [agentId], references: [id], onDelete: Cascade)
+
+  @@index([agentId])
 }
 
 model Message {
@@ -62,6 +64,8 @@ model Message {
 
   agent    Agent            @relation(fields: [agentId], references: [id], onDelete: Cascade)
   variants MessageVariant[]
+
+  @@index([agentId])
 }
 
 model MessageVariant {
@@ -395,4 +399,5 @@ model CampaignContent {
 
   @@unique([campaign, contentType, language, usfmReference])
   @@index([campaign, language, contentType])
+  @@index([campaign, status])
 }

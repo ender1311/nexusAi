@@ -6,27 +6,33 @@ import { usfmToHuman } from "@/lib/usfm";
 
 const CAMPAIGN = "resurrection-push";
 
-function findDropboxBase(): string {
+function findPushBase(): string {
   const cloudBase = path.join(process.env.HOME!, "Library", "CloudStorage");
   if (!fs.existsSync(cloudBase)) {
-    throw new Error(`CloudStorage directory not found at ${cloudBase}. Is Dropbox installed?`);
+    throw new Error(`CloudStorage directory not found: ${cloudBase}. Is Dropbox installed?`);
   }
 
   const dropboxFolder = fs.readdirSync(cloudBase).find((d) =>
     d.toLowerCase().startsWith("dropbox")
   );
-  if (!dropboxFolder) {
-    throw new Error(`No Dropbox folder found under ${cloudBase}`);
-  }
+  if (!dropboxFolder) throw new Error(`No Dropbox folder found under ${cloudBase}`);
 
-  const accountBase = path.join(cloudBase, dropboxFolder);
-  const accountEntries = fs.readdirSync(accountBase);
-  if (accountEntries.length === 0) {
-    throw new Error(`No entries found under ${accountBase}`);
-  }
+  const dropboxBase = path.join(cloudBase, dropboxFolder);
 
-  // The account folder has a Unicode apostrophe (U+2019) in the name — enumerate rather than hardcode
-  return path.join(accountBase, accountEntries[0]);
+  // The files live deep under a shared folder whose name contains a Unicode apostrophe (U+2019).
+  // Enumerate each apostrophe-containing segment rather than hardcoding the character.
+  const ionClintPath = path.join(dropboxBase, "Ion", "Interactive", "Design", "Clint");
+  if (!fs.existsSync(ionClintPath)) {
+    throw new Error(`Expected shared folder not found: ${ionClintPath}`);
+  }
+  const clintSub = fs.readdirSync(ionClintPath).find((d) => !d.startsWith("."));
+  if (!clintSub) throw new Error(`No entries under ${ionClintPath}`);
+
+  return path.join(
+    ionClintPath, clintSub,
+    "Shared", "YouVersionTeam", "Communications", "Campaigns",
+    "2026", "2026 Resurrection Push", "source", "Syntax Fixed"
+  );
 }
 
 const SOURCES: Array<{ dir: string; contentType: "a-title" | "b-title" | "verse-text" }> = [
@@ -62,7 +68,28 @@ async function importSource(
     }
 
     const raw = fs.readFileSync(path.join(dirPath, file), "utf-8");
-    const parsed = yaml.load(raw) as Record<string, string> | null;
+    let parsed: Record<string, string> | null;
+    try {
+      parsed = yaml.load(raw) as Record<string, string> | null;
+    } catch {
+      // Some files have unescaped " inside double-quoted values (invalid YAML).
+      // Fall back to a line-by-line regex parser for the known KEY: "value" format.
+      parsed = {};
+      let fallbackOk = true;
+      for (const line of raw.split("\n")) {
+        const trimmed = line.trim();
+        if (!trimmed || trimmed.startsWith("#") || trimmed === "---") continue;
+        // Match USFM key followed by a double-quoted value (value may itself contain quotes)
+        const m = trimmed.match(/^([A-Z0-9.+]+):\s+"(.*)"$/);
+        if (!m) { fallbackOk = false; break; }
+        parsed[m[1]] = m[2];
+      }
+      if (!fallbackOk || Object.keys(parsed).length === 0) {
+        console.warn(`  Skipping malformed YAML (unparseable): ${file}`);
+        continue;
+      }
+      console.warn(`  Recovered malformed YAML via fallback parser: ${file}`);
+    }
     if (!parsed || typeof parsed !== "object") {
       console.warn(`  Skipping empty/invalid YAML: ${file}`);
       continue;
@@ -92,15 +119,14 @@ async function importSource(
 async function main() {
   console.log("Seeding 2026 Resurrection Push content...\n");
 
-  let dropboxBase: string;
+  let pushBase: string;
   try {
-    dropboxBase = findDropboxBase();
+    pushBase = findPushBase();
   } catch (err) {
     console.error((err as Error).message);
     process.exit(1);
   }
 
-  const pushBase = path.join(dropboxBase, "2026 Resurrection Push", "push", "Syntax Fixed");
   if (!fs.existsSync(pushBase)) {
     console.error(`Source not found: ${pushBase}`);
     console.error("Check that the Dropbox folder is synced and the path is correct.");

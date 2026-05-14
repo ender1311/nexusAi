@@ -11,7 +11,7 @@ export type StatsData = {
 
 export async function GET(): Promise<NextResponse<StatsData | { error: string }>> {
   try {
-    const [trackedUsers, personas, agents, decisions] = await Promise.all([
+    const [trackedUsers, personas, agents, decisions, totalConversions] = await Promise.all([
       prisma.trackedUser.count(),
       prisma.persona.count({ where: { isActive: true } }),
       prisma.agent.count({ where: { status: "active" } }),
@@ -20,11 +20,8 @@ export async function GET(): Promise<NextResponse<StatsData | { error: string }>
         _sum: { reward: true },
         where: {},
       }),
+      prisma.userDecision.count({ where: { conversionAt: { not: null } } }),
     ]);
-
-    const totalConversions = await prisma.userDecision.count({
-      where: { conversionAt: { not: null } },
-    });
 
     const res = NextResponse.json({
       trackedUsers,

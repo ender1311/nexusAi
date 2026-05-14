@@ -21,6 +21,8 @@ const BOOK_NAMES: Record<string, string> = {
   PHM: "Philemon",      HEB: "Hebrews",       JAS: "James",
   "1PE": "1 Peter",     "2PE": "2 Peter",     "1JN": "1 John",
   "2JN": "2 John",      "3JN": "3 John",      JUD: "Jude",
+  // Alternative spellings found in campaign YAML files
+  "1JHN": "1 John",    "2JHN": "2 John",     "3JHN": "3 John",
   REV: "Revelation",
 };
 
@@ -35,6 +37,7 @@ export const BOOK_ORDER: Record<string, number> = {
   EPH: 49, PHP: 50, COL: 51, "1TH": 52, "2TH": 53, "1TI": 54, "2TI": 55,
   TIT: 56, PHM: 57, HEB: 58, JAS: 59, "1PE": 60, "2PE": 61, "1JN": 62,
   "2JN": 63, "3JN": 64, JUD: 65, REV: 66,
+  "1JHN": 62, "2JHN": 63, "3JHN": 64,
 };
 
 type VersePart = { book: string; chapter: number; verse: number };

@@ -45,6 +45,18 @@ describe("usfmToHuman", () => {
   it("unknown book code: returns raw string", () => {
     expect(usfmToHuman("ZZZ.1.1")).toBe("ZZZ.1.1");
   });
+
+  it("2JHN alias (campaign YAML spelling): 2JHN.1.6", () => {
+    expect(usfmToHuman("2JHN.1.6")).toBe("2 John 1:6");
+  });
+
+  it("1JHN alias: 1JHN.4.4", () => {
+    expect(usfmToHuman("1JHN.4.4")).toBe("1 John 4:4");
+  });
+
+  it("3JHN alias: 3JHN.1.4", () => {
+    expect(usfmToHuman("3JHN.1.4")).toBe("3 John 1:4");
+  });
 });
 
 describe("usfmSortKey", () => {

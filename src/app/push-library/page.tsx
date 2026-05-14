@@ -1,4 +1,4 @@
-export const revalidate = 0;
+export const revalidate = 60;
 
 import { prisma } from "@/lib/db";
 import { getAuth } from "@/lib/auth";
@@ -25,28 +25,36 @@ export default async function PushLibraryPage({
   const activeLanguage = langParam ?? "en";
   const { user } = await getAuth();
 
-  const allRows = await prisma.campaignContent.findMany({
-    where: { campaign: CAMPAIGN, status: "active" },
-    select: {
-      id: true,
-      contentType: true,
-      language: true,
-      usfmReference: true,
-      usfmHuman: true,
-      title: true,
-      body: true,
-    },
-    orderBy: [{ language: "asc" }, { usfmReference: "asc" }],
-  });
+  const [groupResult, activeRows] = await Promise.all([
+    prisma.campaignContent.groupBy({
+      by: ["language"],
+      _count: { id: true },
+      where: { campaign: CAMPAIGN, status: "active" },
+    }),
+    prisma.campaignContent.findMany({
+      where: {
+        campaign: CAMPAIGN,
+        status: "active",
+        language: { in: [...new Set([activeLanguage, "en"])] },
+      },
+      select: {
+        id: true,
+        contentType: true,
+        language: true,
+        usfmReference: true,
+        usfmHuman: true,
+        title: true,
+        body: true,
+      },
+      orderBy: [{ language: "asc" }, { usfmReference: "asc" }],
+    }),
+  ]);
 
   // Compute language summaries using en as canonical
-  const enRows = allRows.filter((r) => r.language === "en");
+  const enRows = activeRows.filter((r) => r.language === "en");
   const expectedCount = enRows.length; // 270 = 90 refs × 3 types
 
-  const langCounts = new Map<string, number>();
-  for (const r of allRows) {
-    langCounts.set(r.language, (langCounts.get(r.language) ?? 0) + 1);
-  }
+  const langCounts = new Map(groupResult.map((r) => [r.language, r._count.id]));
 
   const langSummaries: LangSummary[] = Array.from(langCounts.entries())
     .map(([language, total]) => ({
@@ -68,7 +76,7 @@ export default async function PushLibraryPage({
   const allRefs = Array.from(new Set(enRows.map((r) => r.usfmReference)));
 
   // Build verse rows for the active language
-  const langRows = allRows.filter((r) => r.language === activeLanguage);
+  const langRows = activeRows.filter((r) => r.language === activeLanguage);
   const langByKey = new Map(langRows.map((r) => [`${r.usfmReference}:${r.contentType}`, r]));
 
   const verseRows: VerseRow[] = allRefs
