@@ -99,6 +99,12 @@ export async function POST(req: NextRequest) {
     // decisions from, then move on. Do not try to match a specific UserDecision.
     // 14-day window: attributing a send from 89 days ago to a today opt-out is causally wrong.
     if (event.event_name === "push_disabled") {
+      // Idempotency: skip if Hightouch already delivered this event in a previous batch
+      const alreadyProcessedOptOut = await prisma.processedEventId.findUnique({
+        where: { eventId: event.event_id },
+      });
+      if (alreadyProcessedOptOut) { unmatched.push(event.event_id); continue; }
+
       const user = await prisma.trackedUser.findFirst({
         where: { externalId: event.external_user_id },
         select: { personaId: true },
@@ -118,16 +124,28 @@ export async function POST(req: NextRequest) {
         const pushOptOutReward = -1.0;
         for (const d of recentDecisions) {
           if (!d.messageVariantId) continue;
-          await upsertArmStats({
-            personaId: user.personaId,
-            agentId: d.agentId,
-            variantId: d.messageVariantId,
-            deltaAlpha: 0,
-            deltaBeta: 1,
-            deltaWins: 0,
-          }).catch((err) => {
-            console.error("[ingest/events] Failed to update arm stats for push_disabled:", err);
-          });
+          await Promise.all([
+            upsertArmStats({
+              personaId: user.personaId,
+              agentId: d.agentId,
+              variantId: d.messageVariantId,
+              deltaAlpha: 0,
+              deltaBeta: 1,
+              deltaWins: 0,
+            }).catch((err) => {
+              console.error("[ingest/events] Failed to update PersonaArmStats for push_disabled:", err);
+            }),
+            upsertUserArmStats({
+              userId: event.external_user_id,
+              agentId: d.agentId,
+              variantId: d.messageVariantId,
+              deltaAlpha: 0,
+              deltaBeta: 1,
+              deltaWins: 0,
+            }).catch((err) => {
+              console.error("[ingest/events] Failed to update UserArmStats for push_disabled:", err);
+            }),
+          ]);
         }
         await accumulateUserStats({
           externalId: event.external_user_id,
@@ -138,9 +156,16 @@ export async function POST(req: NextRequest) {
           console.error("[ingest/events] Failed to accumulate user stats for push_disabled:", err);
         });
       }
+      await prisma.processedEventId.create({ data: { eventId: event.event_id } }).catch(() => {});
       matched.push(event.event_id);
       continue;
     }
+
+    // Idempotency: skip if already processed in a previous batch
+    const alreadyProcessed = await prisma.processedEventId.findUnique({
+      where: { eventId: event.event_id },
+    });
+    if (alreadyProcessed) { unmatched.push(event.event_id); continue; }
 
     // For plan_completed and other long-horizon events, extend the attribution window to 30 days.
     // Standard short-horizon events use the default 48h window.
@@ -159,6 +184,8 @@ export async function POST(req: NextRequest) {
     });
 
     if (!decision) {
+      // Mark as processed so Hightouch retries don't re-attempt (unmatched is usually permanent)
+      await prisma.processedEventId.create({ data: { eventId: event.event_id } }).catch(() => {});
       unmatched.push(event.event_id);
       continue;
     }
@@ -232,6 +259,8 @@ export async function POST(req: NextRequest) {
       ]);
     }
 
+    // Mark as processed after successful handling
+    await prisma.processedEventId.create({ data: { eventId: event.event_id } }).catch(() => {});
     matched.push(event.event_id);
   }
 
