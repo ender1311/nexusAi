@@ -1,9 +1,14 @@
 export const revalidate = 300;
 
 import { Header } from "@/components/layout/header";
-import { AgentWizard } from "@/components/agents/agent-wizard";
+import dynamic from "next/dynamic";
 import { prisma } from "@/lib/db";
 import type { Persona } from "@/types/persona";
+
+const AgentWizard = dynamic(
+  () => import("@/components/agents/agent-wizard").then((m) => m.AgentWizard),
+  { ssr: false },
+);
 
 export default async function NewAgentPage() {
   const personas = (await prisma.persona.findMany({ orderBy: { name: "asc" } })) as unknown as Persona[];

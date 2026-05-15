@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { revalidateTag } from "next/cache";
 import { prisma } from "@/lib/db";
 import { calculateReward } from "@/lib/engine/reward-calculator";
 import { accumulateUserStats } from "@/lib/engine/user-stats";
@@ -278,6 +279,11 @@ export async function POST(req: NextRequest) {
       },
     },
   }).catch(() => {});
+
+  if (matched.length > 0) {
+    revalidateTag("dashboard-stats", "max");
+    revalidateTag("performance", "max");
+  }
 
   return NextResponse.json({
     ok: true,

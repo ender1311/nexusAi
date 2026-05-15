@@ -2,7 +2,13 @@ import { PrismaClient } from "@/generated/prisma/client";
 import { PrismaNeon } from "@prisma/adapter-neon";
 
 function createPrismaClient() {
-  const adapter = new PrismaNeon({ connectionString: process.env.DATABASE_URL });
+  // connection_limit=1: each serverless instance owns one connection;
+  // PgBouncer on the Neon side handles real pooling.
+  // pool_timeout=0: fail immediately rather than queue, so timeouts surface fast.
+  const url = new URL(process.env.DATABASE_URL!);
+  url.searchParams.set("connection_limit", "1");
+  url.searchParams.set("pool_timeout", "0");
+  const adapter = new PrismaNeon({ connectionString: url.toString() });
   return new PrismaClient({ adapter } as ConstructorParameters<typeof PrismaClient>[0]);
 }
 
