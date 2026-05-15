@@ -28,6 +28,8 @@ graph TB
             API_INGEST_E[/api/ingest/events]
             API_INGEST_U[/api/ingest/users]
             API_SETTINGS[/api/settings]
+            API_DECIDE[/api/decide]
+            API_CRON[/api/cron/select-and-send]
         end
 
         subgraph ENGINE["Bandit Engine (src/lib/engine)"]
@@ -46,7 +48,7 @@ graph TB
             BA[BrazeAnalytics<br/>Campaign metrics]
         end
 
-        DB[(SQLite via libsql<br/>Prisma v7)]
+        DB[(PostgreSQL + Neon<br/>Prisma v7)]
     end
 
     WAREHOUSE -->|sync user profiles| HT

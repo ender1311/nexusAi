@@ -157,7 +157,11 @@ export async function POST(req: NextRequest) {
           console.error("[ingest/events] Failed to accumulate user stats for push_disabled:", err);
         });
       }
-      await prisma.processedEventId.create({ data: { eventId: event.event_id } }).catch(() => {});
+      await prisma.processedEventId.create({ data: { eventId: event.event_id } }).catch((err: unknown) => {
+        if ((err as { code?: string }).code !== "P2002") {
+          console.error("[ingest/events] processedEventId.create failed:", err);
+        }
+      });
       matched.push(event.event_id);
       continue;
     }
@@ -186,7 +190,11 @@ export async function POST(req: NextRequest) {
 
     if (!decision) {
       // Mark as processed so Hightouch retries don't re-attempt (unmatched is usually permanent)
-      await prisma.processedEventId.create({ data: { eventId: event.event_id } }).catch(() => {});
+      await prisma.processedEventId.create({ data: { eventId: event.event_id } }).catch((err: unknown) => {
+        if ((err as { code?: string }).code !== "P2002") {
+          console.error("[ingest/events] processedEventId.create failed:", err);
+        }
+      });
       unmatched.push(event.event_id);
       continue;
     }
@@ -261,7 +269,11 @@ export async function POST(req: NextRequest) {
     }
 
     // Mark as processed after successful handling
-    await prisma.processedEventId.create({ data: { eventId: event.event_id } }).catch(() => {});
+    await prisma.processedEventId.create({ data: { eventId: event.event_id } }).catch((err: unknown) => {
+      if ((err as { code?: string }).code !== "P2002") {
+        console.error("[ingest/events] processedEventId.create failed:", err);
+      }
+    });
     matched.push(event.event_id);
   }
 

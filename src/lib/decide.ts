@@ -263,7 +263,8 @@ export async function decideForUser(input: DecideInput): Promise<DecideResult | 
     selectedVariantId = result.variantId;
   }
 
-  const selected = variants.find((v) => v.id === selectedVariantId)!;
+  const selected = variants.find((v) => v.id === selectedVariantId);
+  if (!selected) throw new Error(`Selected variant ${selectedVariantId} not found — may have been deleted during cron run`);
 
   // 6. Compute recommended send hour from user's app-usage hourly curve
   const recommendedSendHour = computeOptimalSendHour(user.hourlyStats);

@@ -122,21 +122,38 @@ npx prisma migrate dev --name init
 # Database — PostgreSQL (Neon in prod/preview; local Postgres for dev)
 DATABASE_URL=postgresql://user:password@host/dbname
 
-# Ingest API auth (required for Hightouch → Nexus event/user sync)
-HIGHTOUCH_API_KEY=...
+# WorkOS AuthKit (SSO) — from WorkOS dashboard → API Keys
+WORKOS_API_KEY=
+WORKOS_CLIENT_ID=
+WORKOS_REDIRECT_URI=http://localhost:3000/callback        # also register in WorkOS dashboard → Redirects
+NEXT_PUBLIC_WORKOS_REDIRECT_URI=http://localhost:3000/callback
+WORKOS_COOKIE_PASSWORD=                                    # random 32+ char string for session encryption
 
-# Braze integration (optional — app runs without them)
-BRAZE_API_KEY=...
-BRAZE_REST_URL=rest.iad-01.braze.com   # or your cluster's REST endpoint
+# Ingest API auth (Hightouch → Nexus event/user sync)
+HIGHTOUCH_API_KEY=
 
-# Braze app IDs (stored in AppSetting table via Settings UI)
-BRAZE_ANDROID_APP_ID=...
-BRAZE_IOS_APP_ID=...
-BRAZE_WEB_APP_ID=...
-BRAZE_APP_GROUP_ID=...
+# Vercel Cron auth (required for /api/cron/select-and-send)
+CRON_SECRET=
+
+# Braze REST integration
+BRAZE_API_KEY=
+BRAZE_REST_ENDPOINT=https://rest.iad-01.braze.com         # or your cluster endpoint
+
+# Nexus campaign — all sends are attributed to this campaign in Braze analytics
+BRAZE_NEXUS_CAMPAIGN_ID=
+# Per-channel message variation IDs within the Nexus campaign
+BRAZE_NEXUS_IOS_VARIANT_ID=
+BRAZE_NEXUS_ANDROID_VARIANT_ID=
+BRAZE_NEXUS_EMAIL_VARIANT_ID=
+BRAZE_NEXUS_CONTENTCARD_VARIANT_ID=
+
+# Optional — platform app identifiers (used in push payload construction when set)
+# BRAZE_ANDROID_APP_ID=
+# BRAZE_IOS_APP_ID=
+# BRAZE_WEB_APP_ID=
 ```
 
-Braze credentials can also be configured through the Settings UI (`/settings`), which persists them to the `AppSetting` table. The `createBrazeClient()` function reads from `process.env` at runtime; the settings UI saves to DB and the `/api/settings` route syncs them.
+See `.env.example` at the repo root for the canonical reference with inline comments.
 
 ## Engineering Standards
 

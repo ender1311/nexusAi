@@ -62,7 +62,7 @@ export async function GET(
   const enrichedArmStats = armStats.map((s) => ({
     ...s,
     variant: variantMap.get(s.variantId) ?? null,
-    expectedReward: s.alpha / (s.alpha + s.beta),
+    expectedReward: s.alpha / Math.max(1, s.alpha + s.beta),
   }));
 
   return NextResponse.json({
