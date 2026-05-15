@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { discoverPersonas } from "@/lib/engine/persona-discovery";
 import { batchAssignPersonas } from "@/lib/engine/persona-assignment";
+import { requireAdmin } from "@/lib/auth";
 
 /**
  * POST /api/personas/discover
@@ -11,6 +12,8 @@ import { batchAssignPersonas } from "@/lib/engine/persona-assignment";
  * 3. Assign users to personas based on cosine similarity
  */
 export async function POST(req: NextRequest) {
+  const forbidden = await requireAdmin();
+  if (forbidden) return forbidden;
   let config: {
     minInteractions?: number;
     minK?: number;

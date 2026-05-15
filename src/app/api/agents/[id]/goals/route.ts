@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { revalidatePath, revalidateTag } from "next/cache";
 import { prisma } from "@/lib/db";
+import { requireAdmin } from "@/lib/auth";
 
 export async function GET(_req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   try {
@@ -14,6 +15,8 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ id:
 }
 
 export async function POST(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
+  const forbidden = await requireAdmin();
+  if (forbidden) return forbidden;
   try {
     const { id } = await params;
     const body = await req.json();
@@ -43,6 +46,8 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
  * Replace all goals for an agent (delete + recreate pattern).
  */
 export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
+  const forbidden = await requireAdmin();
+  if (forbidden) return forbidden;
   try {
     const { id } = await params;
     const body = await req.json();

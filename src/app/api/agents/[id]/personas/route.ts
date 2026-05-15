@@ -1,12 +1,15 @@
 import { NextRequest, NextResponse } from "next/server";
 import { revalidatePath, revalidateTag } from "next/cache";
 import { prisma } from "@/lib/db";
+import { requireAdmin } from "@/lib/auth";
 
 export async function POST(
   req: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
   const { id: agentId } = await params;
+  const forbidden = await requireAdmin();
+  if (forbidden) return forbidden;
 
   let body: { personaId?: unknown };
   try {

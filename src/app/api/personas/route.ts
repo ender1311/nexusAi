@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
 import { Persona } from "@/types/persona";
+import { requireAdmin } from "@/lib/auth";
 
 function toApiPersona(p: {
   id: string;
@@ -77,6 +78,8 @@ export async function GET() {
 }
 
 export async function POST(req: NextRequest) {
+  const forbidden = await requireAdmin();
+  if (forbidden) return forbidden;
   try {
     const body = await req.json();
 

@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { revalidatePath, revalidateTag } from "next/cache";
 import { prisma } from "@/lib/db";
+import { requireAdmin } from "@/lib/auth";
 
 /** Lean GET — returns only what the scheduling UI needs (name + rule).
  *  Avoids fetching the full agent payload (messages, variants, goals). */
@@ -30,6 +31,8 @@ export async function PUT(
   { params }: { params: Promise<{ id: string }> },
 ) {
   const { id } = await params;
+  const forbidden = await requireAdmin();
+  if (forbidden) return forbidden;
   try {
     const body = await req.json();
     const { frequencyCap, quietHours, blackoutDates, smartSuppress, suppressThresh } = body;

@@ -1,4 +1,5 @@
 import { withAuth, signOut } from "@workos-inc/authkit-nextjs";
+import { NextResponse } from "next/server";
 
 export { signOut };
 
@@ -35,4 +36,11 @@ export async function getAuth(): Promise<{
       }
     : null;
   return { user, isAdmin: auth.roles?.includes("admin") ?? false };
+}
+
+/** Returns a 403 Forbidden response if the current user is not an admin, or null if they are. */
+export async function requireAdmin(): Promise<NextResponse<{ error: string }> | null> {
+  const { isAdmin } = await getAuth();
+  if (!isAdmin) return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+  return null;
 }
