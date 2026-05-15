@@ -1,6 +1,10 @@
 import { afterEach, expect, mock } from "bun:test";
 import * as matchers from "@testing-library/jest-dom/matchers";
 
+// Ensure the API service auth middleware has a secret in test runs.
+// Uses ??= so a real CI value (if set) takes precedence.
+process.env.INTERNAL_API_SECRET ??= "test-secret";
+
 // Extend expect with jest-dom matchers
 expect.extend(matchers);
 

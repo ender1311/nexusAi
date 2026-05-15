@@ -16,6 +16,7 @@
 import { unstable_cache } from "next/cache";
 import { prisma } from "@/lib/db";
 import { LIBRARY_AGENT_NAME } from "@/lib/engine/template-sync";
+import { apiFetch } from "@/lib/api-client";
 
 // ── Agent data ───────────────────────────────────────────────────────────────
 
@@ -39,21 +40,14 @@ export function getCachedAgent(id: string) {
 }
 
 /** Lightweight agent list for dashboard sidebar. */
-export const getCachedAgentList = unstable_cache(
-  () =>
-    prisma.agent.findMany({
-      where: { name: { not: LIBRARY_AGENT_NAME } },
-      select: {
-        id: true,
-        name: true,
-        status: true,
-        _count: { select: { decisions: true } },
-      },
-      orderBy: { updatedAt: "desc" },
-    }),
-  ["agent-list"],
-  { tags: ["agents"], revalidate: 30 }
-);
+export async function getCachedAgentList() {
+  return apiFetch<Array<{
+    id: string;
+    name: string;
+    status: string;
+    _count: { decisions: number; goals: number; messages: number };
+  }>>("/agents", { tags: ["agents"], revalidate: 30 });
+}
 
 /** Agent list for control tower — includes funnelStage and description (60s TTL). */
 export const getCachedControlTowerAgents = unstable_cache(

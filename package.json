@@ -2,8 +2,11 @@
   "name": "nexus",
   "version": "0.1.0",
   "private": true,
+  "workspaces": ["apps/api"],
   "scripts": {
     "dev": "next dev",
+    "dev:api": "bun --cwd apps/api run dev",
+    "dev:all": "bun run dev & bun run dev:api",
     "build": "prisma generate && next build",
     "start": "next start",
     "lint": "eslint",
