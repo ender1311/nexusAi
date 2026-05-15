@@ -1,5 +1,6 @@
 {
   "framework": null,
+  "installCommand": "HUSKY=0 npm install",
   "buildCommand": "npx prisma generate --config prisma.config.ts",
   "rewrites": [{ "source": "/(.*)", "destination": "/api/index" }]
 }
