@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
 import { Persona } from "@/types/persona";
+import { requireAdmin } from "@/lib/auth";
 
 function toApiPersona(p: {
   id: string;
@@ -73,6 +74,8 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ id:
 }
 
 export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
+  const forbidden = await requireAdmin();
+  if (forbidden) return forbidden;
   try {
     const { id } = await params;
     const body = await req.json();
@@ -117,6 +120,8 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
 }
 
 export async function DELETE(_req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
+  const forbidden = await requireAdmin();
+  if (forbidden) return forbidden;
   try {
     const { id } = await params;
     await prisma.persona.update({ where: { id }, data: { isActive: false } });
