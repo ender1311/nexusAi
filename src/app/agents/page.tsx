@@ -8,6 +8,7 @@ import { Button } from "@/components/ui/button";
 import { AgentStatus, FunnelStage, FUNNEL_STAGES, Agent } from "@/types/agent";
 import { Bot, Plus, Search } from "lucide-react";
 import { prisma } from "@/lib/db";
+import { getAuth } from "@/lib/auth";
 
 const PAGE_SIZE = 20;
 
@@ -33,6 +34,7 @@ export default async function AgentsPage({
   searchParams: Promise<{ search?: string; status?: string; stage?: string; page?: string }>;
 }) {
   const { search = "", status = "all", stage, page } = await searchParams;
+  const { isAdmin } = await getAuth();
   const pageNum = Math.max(0, parseInt(page ?? "0", 10) || 0);
 
   const safeStatus: AgentStatus | undefined =
@@ -105,12 +107,14 @@ export default async function AgentsPage({
       <div className="p-4 sm:p-6 space-y-4">
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
           <AgentFilters search={search} status={status} stage={safeStage} />
-          <Link href="/agents/new">
-            <Button size="sm">
-              <Plus className="h-4 w-4 mr-1" />
-              New Agent
-            </Button>
-          </Link>
+          {isAdmin && (
+            <Link href="/agents/new">
+              <Button size="sm">
+                <Plus className="h-4 w-4 mr-1" />
+                New Agent
+              </Button>
+            </Link>
+          )}
         </div>
 
         {agents.length === 0 ? (
@@ -134,12 +138,14 @@ export default async function AgentsPage({
               <p className="text-sm text-muted-foreground mt-1">
                 Create your first Nexus agent to start optimizing message performance.
               </p>
-              <Link href="/agents/new" className="mt-4">
-                <Button size="sm">
-                  <Plus className="h-4 w-4 mr-1" />
-                  Create Agent
-                </Button>
-              </Link>
+              {isAdmin && (
+                <Link href="/agents/new" className="mt-4">
+                  <Button size="sm">
+                    <Plus className="h-4 w-4 mr-1" />
+                    Create Agent
+                  </Button>
+                </Link>
+              )}
             </div>
           )
         ) : (

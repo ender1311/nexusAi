@@ -1,12 +1,15 @@
 import { NextRequest, NextResponse } from "next/server";
 import { revalidatePath, revalidateTag } from "next/cache";
 import { prisma } from "@/lib/db";
+import { requireAdmin } from "@/lib/auth";
 
 export async function DELETE(
   _req: NextRequest,
   { params }: { params: Promise<{ id: string; personaId: string }> }
 ) {
   const { id: agentId, personaId } = await params;
+  const forbidden = await requireAdmin();
+  if (forbidden) return forbidden;
 
   const target = await prisma.agentPersonaTarget.findUnique({
     where: { agentId_personaId: { agentId, personaId } },

@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
+import { requireAdmin } from "@/lib/auth";
 
 /**
  * POST /api/personas/migrate
@@ -41,6 +42,8 @@ type MigrateBody = {
 };
 
 export async function POST(req: NextRequest) {
+  const forbidden = await requireAdmin();
+  if (forbidden) return forbidden;
   let body: unknown;
   try {
     body = await req.json();

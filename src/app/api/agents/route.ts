@@ -4,6 +4,7 @@ import { prisma } from "@/lib/db";
 import { detectTestedVariables } from "@/lib/engine/variant-diff";
 import { MessageVariant, FUNNEL_STAGES } from "@/types/agent";
 import { isPlainObject } from "@/lib/utils";
+import { requireAdmin } from "@/lib/auth";
 
 export async function GET() {
   try {
@@ -25,6 +26,8 @@ export async function GET() {
 const VALID_STAGES = new Set(FUNNEL_STAGES);
 
 export async function POST(req: NextRequest) {
+  const forbidden = await requireAdmin();
+  if (forbidden) return forbidden;
   try {
     const body = await req.json();
     const {

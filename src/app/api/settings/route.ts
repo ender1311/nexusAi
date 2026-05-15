@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { revalidateTag } from "next/cache";
 import { prisma } from "@/lib/db";
+import { requireAdmin } from "@/lib/auth";
 
 export async function GET() {
   try {
@@ -15,6 +16,8 @@ export async function GET() {
 }
 
 export async function POST(req: NextRequest) {
+  const forbidden = await requireAdmin();
+  if (forbidden) return forbidden;
   try {
     const body = await req.json();
     const results: Array<{ key: string; value: string }> = [];

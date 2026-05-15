@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
 import { LIBRARY_AGENT_NAME, TEMPLATE_COPY_FIELDS, syncClonesFromTemplate } from "@/lib/engine/template-sync";
+import { requireAdmin } from "@/lib/auth";
 
 // Fields an operator is allowed to update via PATCH.
 // Excludes id, messageId, sourceTemplateId, createdAt (structural / immutable).
@@ -15,6 +16,8 @@ export async function PATCH(
   { params }: { params: Promise<{ id: string }> }
 ) {
   const { id } = await params;
+  const forbidden = await requireAdmin();
+  if (forbidden) return forbidden;
 
   let body: Record<string, unknown>;
   try {
@@ -68,6 +71,8 @@ export async function DELETE(
   { params }: { params: Promise<{ id: string }> }
 ) {
   const { id } = await params;
+  const forbidden = await requireAdmin();
+  if (forbidden) return forbidden;
 
   try {
     const existing = await prisma.messageVariant.findUnique({

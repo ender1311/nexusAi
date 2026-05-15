@@ -17,6 +17,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from 
 import { TestedVariable, MessageVariant, AgentStatus, FunnelStage } from "@/types/agent";
 import { prisma } from "@/lib/db";
 import { getCachedAgent, getCachedActivePersonas } from "@/lib/cache";
+import { getAuth } from "@/lib/auth";
 import { Skeleton } from "@/components/ui/skeleton";
 import { AgentFunnelConfig } from "@/components/agents/agent-funnel-config";
 import { PersonaTargetManager } from "@/components/agents/persona-target-manager";
@@ -50,9 +51,10 @@ type QuietHours = { start: string; end: string; timezone: string };
 export default async function AgentDetailPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
 
-  const [agent, allPersonas] = await Promise.all([
+  const [agent, allPersonas, { isAdmin }] = await Promise.all([
     getCachedAgent(id),
     getCachedActivePersonas(),
+    getAuth(),
   ]);
 
   if (!agent) notFound();
@@ -93,7 +95,7 @@ export default async function AgentDetailPage({ params }: { params: Promise<{ id
     <>
       <Header
         title={agent.name}
-        titleNode={<AgentNameEditor agentId={agent.id} initialName={agent.name} />}
+        titleNode={isAdmin ? <AgentNameEditor agentId={agent.id} initialName={agent.name} /> : undefined}
         description={agent.description ?? undefined}
       />
       <div className="p-4 sm:p-6 space-y-4">
@@ -107,17 +109,19 @@ export default async function AgentDetailPage({ params }: { params: Promise<{ id
             </Badge>
           </div>
           <div className="flex gap-2">
-            <AgentEditSheet
-              agentId={agent.id}
-              initialName={agent.name}
-              initialDescription={agent.description ?? null}
-              initialAlgorithm={agent.algorithm}
-              initialEpsilon={agent.epsilon}
-              initialFunnelStage={agent.funnelStage as FunnelStage}
-              initialLanguageFilter={agent.languageFilter ?? "all"}
-            />
-            <AgentStatusToggle agentId={agent.id} status={agent.status} />
-            <AgentDeleteButton agentId={agent.id} agentName={agent.name} />
+            {isAdmin && (
+              <AgentEditSheet
+                agentId={agent.id}
+                initialName={agent.name}
+                initialDescription={agent.description ?? null}
+                initialAlgorithm={agent.algorithm}
+                initialEpsilon={agent.epsilon}
+                initialFunnelStage={agent.funnelStage as FunnelStage}
+                initialLanguageFilter={agent.languageFilter ?? "all"}
+              />
+            )}
+            {isAdmin && <AgentStatusToggle agentId={agent.id} status={agent.status} />}
+            {isAdmin && <AgentDeleteButton agentId={agent.id} agentName={agent.name} />}
           </div>
         </div>
 

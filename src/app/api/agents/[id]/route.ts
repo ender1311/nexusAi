@@ -3,6 +3,7 @@ import { revalidatePath, revalidateTag } from "next/cache";
 import { prisma } from "@/lib/db";
 import { FUNNEL_STAGES } from "@/types/agent";
 import { isPlainObject } from "@/lib/utils";
+import { requireAdmin } from "@/lib/auth";
 
 const VALID_STAGES = new Set(FUNNEL_STAGES);
 
@@ -30,6 +31,8 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ id:
 
 export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
+  const forbidden = await requireAdmin();
+  if (forbidden) return forbidden;
   try {
     const body = await req.json();
 
@@ -96,6 +99,8 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
 
 export async function DELETE(_req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
+  const forbidden = await requireAdmin();
+  if (forbidden) return forbidden;
   try {
     await prisma.agent.delete({ where: { id } });
     revalidatePath("/agents");

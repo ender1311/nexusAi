@@ -3,6 +3,7 @@ import { Prisma } from "@/generated/prisma/client";
 import { prisma } from "@/lib/db";
 import { detectTestedVariables } from "@/lib/engine/variant-diff";
 import { MessageVariant } from "@/types/agent";
+import { requireAdmin } from "@/lib/auth";
 
 type VariantInput = {
   name?: string;
@@ -92,6 +93,8 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ id:
 
 export async function POST(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
+  const forbidden = await requireAdmin();
+  if (forbidden) return forbidden;
   try {
     const body = await req.json();
     const { messageId, name, channel, variants = [], variant } = body as {
@@ -206,6 +209,8 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
 
 export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
+  const forbidden = await requireAdmin();
+  if (forbidden) return forbidden;
   try {
     const body = await req.json();
     const { messageId, name, channel, variants } = body;
