@@ -1,4 +1,5 @@
 {
-  "buildCommand": "bun run generate",
+  "framework": null,
+  "buildCommand": "npx prisma generate --config prisma.config.ts",
   "rewrites": [{ "source": "/(.*)", "destination": "/api/index" }]
 }
