@@ -11,6 +11,12 @@ erDiagram
         string status "draft | active | paused"
         string algorithm "thompson | epsilon_greedy | contextual"
         float epsilon "default 0.1"
+        string funnelStage "wau | lapsed | connected | etc"
+        json targetFilter "optional audience filter"
+        int fallbackSendHour "0-23 UTC-naive; null = not set"
+        int audienceCap "max users per cron run; null = unlimited"
+        string languageFilter "all | en | ISO prefix"
+        int staleFunnelStageDays "null = no gate"
         datetime createdAt
         datetime updatedAt
     }
@@ -144,6 +150,20 @@ erDiagram
         string id PK
         string key UK
         string value
+    }
+
+    UserAgentAssignment {
+        string id PK
+        string externalUserId UK
+        string agentId
+        datetime startedAt
+        int sendCount "sends made in this exploration window"
+        datetime windowCompletedAt "null until window complete"
+    }
+
+    ProcessedEventId {
+        string eventId PK "Hightouch event_id for idempotency"
+        datetime createdAt
     }
 
     Agent ||--o{ Goal : "has"
