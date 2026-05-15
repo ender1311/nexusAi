@@ -2,10 +2,25 @@ import { afterEach, beforeEach, describe, expect, it } from "bun:test";
 import { NextRequest } from "next/server";
 import { truncateAll, prisma } from "../helpers/db";
 import { buildRequest } from "../helpers/request";
+import { app } from "../../apps/api/src/app";
 
-// Route handlers — import after env is set
-import { GET as getAgents, POST as postAgent } from "@/app/api/agents/route";
+// Route handlers for [id] routes — still use Prisma directly
 import { GET as getAgent, PATCH as patchAgent, DELETE as deleteAgent } from "@/app/api/agents/[id]/route";
+
+const AUTH = { "Authorization": "Bearer test-secret" };
+const ADMIN = { ...AUTH, "X-User-Role": "admin", "Content-Type": "application/json" };
+
+async function apiPost(path: string, body: unknown) {
+  return app.request(path, {
+    method: "POST",
+    headers: ADMIN,
+    body: JSON.stringify(body),
+  });
+}
+
+async function apiGet(path: string) {
+  return app.request(path, { headers: AUTH });
+}
 
 beforeEach(async () => {
   await truncateAll();
@@ -17,7 +32,7 @@ afterEach(async () => {
 
 describe("POST /api/agents", () => {
   it("creates an agent and returns 201", async () => {
-    const req = buildRequest("POST", {
+    const res = await apiPost("/agents", {
       name: "Test Campaign",
       algorithm: "thompson",
       epsilon: 0.1,
@@ -25,7 +40,6 @@ describe("POST /api/agents", () => {
       goals: [],
       messages: [],
     });
-    const res = await postAgent(req as NextRequest);
     const body = await res.json();
     expect(res.status).toBe(201);
     expect(body.name).toBe("Test Campaign");
@@ -35,7 +49,7 @@ describe("POST /api/agents", () => {
 
 describe("GET /api/agents", () => {
   it("returns empty array when no agents", async () => {
-    const res = await getAgents();
+    const res = await apiGet("/agents");
     const body = await res.json();
     expect(Array.isArray(body)).toBe(true);
     expect(body).toHaveLength(0);
@@ -44,7 +58,7 @@ describe("GET /api/agents", () => {
   it("returns created agents", async () => {
     await prisma.agent.create({ data: { name: "Agent A", algorithm: "thompson", epsilon: 0.1 } });
     await prisma.agent.create({ data: { name: "Agent B", algorithm: "epsilon_greedy", epsilon: 0.2 } });
-    const res = await getAgents();
+    const res = await apiGet("/agents");
     const body = await res.json();
     expect(body).toHaveLength(2);
   });
@@ -135,7 +149,7 @@ describe("PATCH /api/agents/[id]", () => {
 describe("POST /api/agents — funnelStage + targetFilter", () => {
   it("creates agent with valid funnelStage and targetFilter, round-trips both fields", async () => {
     const filter = { attribute: "country", op: "eq", value: "US" };
-    const req = buildRequest("POST", {
+    const res = await apiPost("/agents", {
       name: "Staged Agent",
       algorithm: "thompson",
       epsilon: 0.1,
@@ -144,7 +158,6 @@ describe("POST /api/agents — funnelStage + targetFilter", () => {
       goals: [],
       messages: [],
     });
-    const res = await postAgent(req as NextRequest);
     const body = await res.json();
     expect(res.status).toBe(201);
     expect(body.funnelStage).toBe("lapsed_mau");
@@ -152,34 +165,32 @@ describe("POST /api/agents — funnelStage + targetFilter", () => {
   });
 
   it("returns 400 for invalid funnelStage", async () => {
-    const req = buildRequest("POST", {
+    const res = await apiPost("/agents", {
       name: "Bad Stage Agent",
       algorithm: "thompson",
       funnelStage: "unknown",
       goals: [],
       messages: [],
     });
-    const res = await postAgent(req as NextRequest);
     const body = await res.json();
     expect(res.status).toBe(400);
     expect(body.error).toBe("Invalid funnelStage");
   });
 
   it("returns 400 when funnelStage is missing", async () => {
-    const req = buildRequest("POST", {
+    const res = await apiPost("/agents", {
       name: "No Stage Agent",
       algorithm: "thompson",
       goals: [],
       messages: [],
     });
-    const res = await postAgent(req as NextRequest);
     const body = await res.json();
     expect(res.status).toBe(400);
     expect(body.error).toBe("Invalid funnelStage");
   });
 
   it("returns 400 for invalid targetFilter (array) on POST", async () => {
-    const req = buildRequest("POST", {
+    const res = await apiPost("/agents", {
       name: "Bad Filter Agent",
       algorithm: "thompson",
       funnelStage: "wau",
@@ -187,7 +198,6 @@ describe("POST /api/agents — funnelStage + targetFilter", () => {
       goals: [],
       messages: [],
     });
-    const res = await postAgent(req as NextRequest);
     const body = await res.json();
     expect(res.status).toBe(400);
     expect(body.error).toBe("targetFilter must be a plain object");
@@ -196,7 +206,7 @@ describe("POST /api/agents — funnelStage + targetFilter", () => {
 
 describe("POST /api/agents — sourceTemplateId", () => {
   it("stores sourceTemplateId on variant when provided", async () => {
-    // Create a template message+variant to get a real FK-valid ID
+    // Create template data directly via Prisma for a real FK-valid ID
     const templateAgent = await prisma.agent.create({
       data: { name: "Template Agent", algorithm: "thompson", epsilon: 0.1, funnelStage: "connected" },
     });
@@ -207,7 +217,7 @@ describe("POST /api/agents — sourceTemplateId", () => {
       data: { messageId: templateMessage.id, name: "Template V1", body: "Template body" },
     });
 
-    const body = {
+    const res = await apiPost("/agents", {
       name: "Test Agent",
       funnelStage: "wau",
       messages: [
@@ -225,9 +235,7 @@ describe("POST /api/agents — sourceTemplateId", () => {
           ],
         },
       ],
-    };
-    const req = buildRequest("POST", body);
-    const res = await postAgent(req as NextRequest);
+    });
     const agent = await res.json();
 
     expect(res.status).toBe(201);
