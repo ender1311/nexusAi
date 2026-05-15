@@ -37,13 +37,37 @@ export function PushLibraryClient({ groups, isAdmin }: Props) {
   const [collapsed, setCollapsed] = useState<Record<string, boolean>>({});
   const [search, setSearch] = useState("");
   const [categoryFilter, setCategoryFilter] = useState<string | null>(null);
+  const [subcategoryFilter, setSubcategoryFilter] = useState<string | null>(null);
 
   function toggleSection(key: string) {
     setCollapsed((prev) => ({ ...prev, [key]: !prev[key] }));
   }
 
+  function handleCategoryClick(cat: string | null) {
+    setCategoryFilter(cat);
+    setSubcategoryFilter(null);
+  }
+
+  function formatLabel(slug: string): string {
+    return slug
+      .split("-")
+      .map((w) => w.charAt(0).toUpperCase() + w.slice(1))
+      .join(" ");
+  }
+
   const allVariants = groups.flatMap((g) => g.variants);
   const categories = Array.from(new Set(groups.map((g) => g.category)));
+
+  const subcategoriesForFilter = useMemo(() => {
+    if (!categoryFilter) return [];
+    return Array.from(
+      new Set(
+        groups
+          .filter((g) => g.category === categoryFilter && g.subcategory !== null)
+          .map((g) => g.subcategory as string)
+      )
+    );
+  }, [groups, categoryFilter]);
 
   const filteredVariants = useMemo(() => {
     const q = search.toLowerCase();
@@ -54,9 +78,10 @@ export function PushLibraryClient({ groups, isAdmin }: Props) {
         v.body.toLowerCase().includes(q) ||
         (v.title ?? "").toLowerCase().includes(q);
       const matchCategory = !categoryFilter || v.category === categoryFilter;
-      return matchSearch && matchCategory;
+      const matchSubcategory = !subcategoryFilter || v.subcategory === subcategoryFilter;
+      return matchSearch && matchCategory && matchSubcategory;
     });
-  }, [allVariants, search, categoryFilter]);
+  }, [allVariants, search, categoryFilter, subcategoryFilter]);
 
   return (
     <div className="space-y-4">
@@ -72,32 +97,63 @@ export function PushLibraryClient({ groups, isAdmin }: Props) {
           />
         </div>
 
-        <div className="flex items-center gap-1 flex-wrap">
-          <button
-            onClick={() => setCategoryFilter(null)}
-            className={cn(
-              "px-3 py-1 rounded-full text-xs font-medium border transition-colors",
-              !categoryFilter
-                ? "bg-primary text-primary-foreground border-primary"
-                : "bg-background text-muted-foreground border-border hover:text-foreground hover:border-foreground"
-            )}
-          >
-            All
-          </button>
-          {categories.map((cat) => (
+        <div className="flex flex-col gap-1.5 flex-1">
+          <div className="flex items-center gap-1 flex-wrap">
             <button
-              key={cat}
-              onClick={() => setCategoryFilter(categoryFilter === cat ? null : cat)}
+              onClick={() => handleCategoryClick(null)}
               className={cn(
-                "px-3 py-1 rounded-full text-xs font-medium border transition-colors capitalize",
-                categoryFilter === cat
+                "px-3 py-1 rounded-full text-xs font-medium border transition-colors",
+                !categoryFilter
                   ? "bg-primary text-primary-foreground border-primary"
                   : "bg-background text-muted-foreground border-border hover:text-foreground hover:border-foreground"
               )}
             >
-              {cat}
+              All
             </button>
-          ))}
+            {categories.map((cat) => (
+              <button
+                key={cat}
+                onClick={() => handleCategoryClick(categoryFilter === cat ? null : cat)}
+                className={cn(
+                  "px-3 py-1 rounded-full text-xs font-medium border transition-colors capitalize",
+                  categoryFilter === cat
+                    ? "bg-primary text-primary-foreground border-primary"
+                    : "bg-background text-muted-foreground border-border hover:text-foreground hover:border-foreground"
+                )}
+              >
+                {cat}
+              </button>
+            ))}
+          </div>
+          {subcategoriesForFilter.length > 0 && (
+            <div className="flex items-center gap-1 flex-wrap">
+              <button
+                onClick={() => setSubcategoryFilter(null)}
+                className={cn(
+                  "px-3 py-1 rounded-full text-xs font-medium border transition-colors capitalize",
+                  !subcategoryFilter
+                    ? "bg-primary text-primary-foreground border-primary"
+                    : "bg-background text-muted-foreground border-border hover:text-foreground hover:border-foreground"
+                )}
+              >
+                All {categoryFilter}
+              </button>
+              {subcategoriesForFilter.map((sub) => (
+                <button
+                  key={sub}
+                  onClick={() => setSubcategoryFilter(subcategoryFilter === sub ? null : sub)}
+                  className={cn(
+                    "px-3 py-1 rounded-full text-xs font-medium border transition-colors",
+                    subcategoryFilter === sub
+                      ? "bg-primary text-primary-foreground border-primary"
+                      : "bg-background text-muted-foreground border-border hover:text-foreground hover:border-foreground"
+                  )}
+                >
+                  {formatLabel(sub)}
+                </button>
+              ))}
+            </div>
+          )}
         </div>
 
         <div className="flex items-center gap-1 border rounded-lg p-1 shrink-0">

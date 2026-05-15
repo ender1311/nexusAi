@@ -17,7 +17,7 @@ async function getGroups(): Promise<TemplateGroup[]> {
   if (!agent) return [];
 
   const variants = await prisma.messageVariant.findMany({
-    where: { message: { agentId: agent.id }, status: "active" },
+    where: { message: { agentId: agent.id }, status: { not: "archived" } },
     select: {
       id: true,
       name: true,
