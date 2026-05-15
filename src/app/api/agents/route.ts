@@ -5,10 +5,12 @@ import { detectTestedVariables } from "@/lib/engine/variant-diff";
 import { MessageVariant, FUNNEL_STAGES } from "@/types/agent";
 import { isPlainObject } from "@/lib/utils";
 import { requireAdmin } from "@/lib/auth";
+import { LIBRARY_AGENT_NAME } from "@/lib/engine/template-sync";
 
 export async function GET() {
   try {
     const agents = await prisma.agent.findMany({
+      where: { name: { not: LIBRARY_AGENT_NAME } },
       include: {
         _count: { select: { goals: true, messages: true, decisions: true } },
       },
