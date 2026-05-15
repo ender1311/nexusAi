@@ -9,6 +9,7 @@ import { AgentStatus, FunnelStage, FUNNEL_STAGES, Agent } from "@/types/agent";
 import { Bot, Plus, Search } from "lucide-react";
 import { prisma } from "@/lib/db";
 import { getAuth } from "@/lib/auth";
+import { LIBRARY_AGENT_NAME } from "@/lib/engine/template-sync";
 
 const PAGE_SIZE = 20;
 
@@ -48,6 +49,7 @@ export default async function AgentsPage({
       : undefined;
 
   const where = {
+    name: { not: LIBRARY_AGENT_NAME },
     ...(search
       ? {
           OR: [

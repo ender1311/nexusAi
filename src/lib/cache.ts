@@ -15,6 +15,7 @@
  */
 import { unstable_cache } from "next/cache";
 import { prisma } from "@/lib/db";
+import { LIBRARY_AGENT_NAME } from "@/lib/engine/template-sync";
 
 // ── Agent data ───────────────────────────────────────────────────────────────
 
@@ -41,6 +42,7 @@ export function getCachedAgent(id: string) {
 export const getCachedAgentList = unstable_cache(
   () =>
     prisma.agent.findMany({
+      where: { name: { not: LIBRARY_AGENT_NAME } },
       select: {
         id: true,
         name: true,
@@ -57,6 +59,7 @@ export const getCachedAgentList = unstable_cache(
 export const getCachedControlTowerAgents = unstable_cache(
   () =>
     prisma.agent.findMany({
+      where: { name: { not: LIBRARY_AGENT_NAME } },
       select: { id: true, name: true, description: true, status: true, funnelStage: true },
       orderBy: { updatedAt: "desc" },
     }),
@@ -167,6 +170,7 @@ export const getCachedPerformanceMetrics = unstable_cache(
     const thirtyDaysAgo = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000);
     const [agents, sendsByAgent, conversionsByAgent] = await Promise.all([
       prisma.agent.findMany({
+        where: { name: { not: LIBRARY_AGENT_NAME } },
         select: { id: true, name: true, status: true },
         orderBy: { updatedAt: "desc" },
       }),
