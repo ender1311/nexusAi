@@ -1,0 +1,4 @@
+{
+  "buildCommand": "bun run generate",
+  "rewrites": [{ "source": "/(.*)", "destination": "/api/index" }]
+}
