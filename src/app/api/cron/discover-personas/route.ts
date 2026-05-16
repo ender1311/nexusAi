@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { revalidateTag } from "next/cache";
 import { discoverPersonas } from "@/lib/engine/persona-discovery";
 import { batchAssignPersonas } from "@/lib/engine/persona-assignment";
 
@@ -21,6 +22,8 @@ export async function POST(req: NextRequest) {
 
   // Reassign all users to nearest persona
   const usersReassigned = await batchAssignPersonas();
+
+  revalidateTag("personas", "max");
 
   console.log(
     `[cron/discover-personas] personasCreated=${discoveryResult.personasCreated} personasUpdated=${discoveryResult.personasUpdated} usersReassigned=${usersReassigned} silhouetteScore=${discoveryResult.silhouetteScore.toFixed(3)} k=${discoveryResult.k}`

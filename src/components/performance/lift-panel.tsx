@@ -48,29 +48,16 @@ export async function LiftPanel({ nexusSendsCount: sendsProp, nexusConversionsCo
 
   // Sparkline — from cached chart decisions (already limited to last 30 days).
   // Filter further to the lift window if a start date is configured.
-  const rawDecisions = await getCachedChartDecisions();
-  const liftSinceMs = liftSince?.getTime() ?? 0;
+  const { rewardByDate } = await getCachedChartDecisions();
+  const liftSinceStr = liftSince?.toISOString().slice(0, 10) ?? null;
 
-  // Bucket by calendar day: date string → { sends, conversions }
-  const dayBuckets = new Map<string, { sends: number; conversions: number }>();
-  for (const row of rawDecisions) {
-    if (row.reward === null) continue; // only scored sends
-    const sentMs = new Date(row.sentAt).getTime();
-    if (sentMs < liftSinceMs) continue;
-    const dayKey = row.sentAt.slice(0, 10); // "YYYY-MM-DD"
-    const bucket = dayBuckets.get(dayKey) ?? { sends: 0, conversions: 0 };
-    bucket.sends += 1;
-    if (row.reward > 0) bucket.conversions += 1;
-    dayBuckets.set(dayKey, bucket);
-  }
-
-  const sparklineData: TimeSeriesPoint[] = [...dayBuckets.entries()]
-    .sort(([a], [b]) => a.localeCompare(b))
-    .map(([date, { sends, conversions }]) => ({
+  const sparklineData: TimeSeriesPoint[] = rewardByDate
+    .filter((r) => !liftSinceStr || r.date >= liftSinceStr)
+    .map(({ date, scored, positive }) => ({
       date,
-      sends,
-      conversions,
-      conversionRate: sends > 0 ? parseFloat(((conversions / sends) * 100).toFixed(2)) : 0,
+      sends: scored,
+      conversions: positive,
+      conversionRate: scored > 0 ? parseFloat(((positive / scored) * 100).toFixed(2)) : 0,
     }));
 
   // Display helpers

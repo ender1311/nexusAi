@@ -105,7 +105,7 @@ return { scheduledAt: fallback, inLocalTime: true }`}</code>
         window:
       </p>
       <pre className="text-xs bg-muted rounded-lg p-4 overflow-x-auto border my-3">
-        <code>{`isInQuietHours(timezone, start, end, now):
+        <code>{`isInQuietHours(start, end, timezone, now):
   tzTime = format(now, { timeZone: timezone, hour12: false })  // "HH:MM"
 
   if start > end:  // overnight range e.g. "21:00"–"06:00"

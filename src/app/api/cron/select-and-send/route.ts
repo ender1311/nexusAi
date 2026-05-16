@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { revalidateTag } from "next/cache";
 import { randomUUID } from "crypto";
 import { prisma } from "@/lib/db";
 import { createBrazeClient } from "@/lib/braze/client";
@@ -458,7 +459,7 @@ export async function POST(req: NextRequest) {
     const metricsBefore = { sent: totalSent, suppressed: totalSuppressed, errors: totalErrors };
     const personaIds = agent.personaTargets.map((pt) => pt.personaId);
     if (personaIds.length === 0) continue;
-    const suppress = { freqCap: 0, smartSuppress: 0, dailyCap: 0, targetFilter: 0, audienceCap: 0 };
+    const suppress = { freqCap: 0, smartSuppress: 0, dailyCap: 0, quietHours: 0, targetFilter: 0, audienceCap: 0 };
 
     // Derive the users assigned to this agent by the lottery
     const assignedUserIds = [...lotteryMap.entries()]
@@ -510,27 +511,18 @@ export async function POST(req: NextRequest) {
     // Evaluate agent-level scheduling checks once (not per user)
     const rule = agent.schedulingRule;
 
-    const quietHoursConfig = rule?.quietHours as { start?: string; end?: string; timezone?: string } | null;
-    // When timezone === "user", skip the agent-level check; enforce per-user below.
-    const inLocalTime = quietHoursConfig?.timezone === "user";
-
-    // 4a. Quiet hours — agent-level check (single timezone, checked once per agent per run)
-    if (rule && !inLocalTime) {
-      if (quietHoursConfig?.start && quietHoursConfig?.end) {
-        if (isInQuietHours(quietHoursConfig.timezone ?? "UTC", quietHoursConfig.start, quietHoursConfig.end, now)) {
-          console.log("[cron/select-and-send] agent suppressed — quiet hours", {
-            agentId: agent.id, agentName: agent.name, timezone: quietHoursConfig.timezone ?? "UTC",
-          });
-          continue;
-        }
-      }
-    }
+    // When timezone === "user", skip server-side quiet hours check and let Braze
+    // deliver in each user's local timezone via in_local_time: true.
+    const inLocalTime = (rule?.quietHours as { timezone?: string } | null)?.timezone === "user";
+    const quietHoursConfig = !inLocalTime
+      ? (rule?.quietHours as { start?: string; end?: string; timezone?: string } | null) ?? null
+      : null;
 
     // Pre-seed PersonaArmStats for all persona × variant combinations so
     // concurrent decideForUser calls don't race on the upsert — run in parallel.
     const allVariantIds = agent.messages.flatMap((m) => m.variants.map((v) => v.id));
-    const initialAlpha = agent.algorithm === "thompson" ? 1 : 0;
-    const initialBeta  = agent.algorithm === "thompson" ? 30 : 0;
+    const initialAlpha = agent.algorithm !== "linucb" ? 1 : 0;
+    const initialBeta  = agent.algorithm !== "linucb" ? 30 : 0;
     await Promise.all(
       personaIds.flatMap((personaId) =>
         allVariantIds.map((variantId) =>
@@ -637,16 +629,32 @@ export async function POST(req: NextRequest) {
         }
       }
 
-      // Count suppressed users (freq cap + smart suppress + global daily cap)
+      // 4d. Quiet hours — per user, using the user's own timezone from attributes.
+      // Falls back to the agent's configured timezone when the user has none stored.
+      const quietHoursUserIds = new Set<string>();
+      if (quietHoursConfig?.start && quietHoursConfig?.end) {
+        const agentTz = quietHoursConfig.timezone ?? "UTC";
+        for (const u of users) {
+          const attrs = u.attributes as Record<string, unknown>;
+          const userTz = typeof attrs?.timezone === "string" ? attrs.timezone : agentTz;
+          if (isInQuietHours(quietHoursConfig.start, quietHoursConfig.end, userTz, now)) {
+            quietHoursUserIds.add(u.externalId);
+          }
+        }
+      }
+
+      // Count suppressed users (freq cap + smart suppress + global daily cap + quiet hours)
       for (const u of users) {
         const isFreqCapped  = freqCappedUserIds.has(u.externalId);
         const isSmartSup    = smartSuppressedUserIds.has(u.externalId);
         const isDailyCapped = sentTodayIds.has(u.externalId);
-        if (isFreqCapped || isSmartSup || isDailyCapped) {
+        const isQuietHours  = quietHoursUserIds.has(u.externalId);
+        if (isFreqCapped || isSmartSup || isDailyCapped || isQuietHours) {
           totalSuppressed++;
           if (isFreqCapped)  suppress.freqCap++;
           if (isSmartSup)    suppress.smartSuppress++;
           if (isDailyCapped) suppress.dailyCap++;
+          if (isQuietHours)  suppress.quietHours++;
         }
       }
 
@@ -655,7 +663,8 @@ export async function POST(req: NextRequest) {
         (u) =>
           !freqCappedUserIds.has(u.externalId) &&
           !smartSuppressedUserIds.has(u.externalId) &&
-          !sentTodayIds.has(u.externalId)
+          !sentTodayIds.has(u.externalId) &&
+          !quietHoursUserIds.has(u.externalId)
       );
 
       // Push-enabled filter: exclude users who have explicitly set push_enabled: false.
@@ -695,16 +704,7 @@ export async function POST(req: NextRequest) {
       });
       suppress.targetFilter += langFiltered.length - targetFiltered.length;
 
-      // Per-user quiet hours: when timezone === "user", suppress users whose stored
-      // IANA timezone is currently inside the configured quiet window.
-      // Users with no timezone stored are passed through (can't enforce, don't suppress).
-      const quietFiltered = (inLocalTime && quietHoursConfig?.start && quietHoursConfig?.end)
-        ? targetFiltered.filter((u) => {
-            if (!u.timezone) return true;
-            return !isInQuietHours(u.timezone, quietHoursConfig!.start!, quietHoursConfig!.end!, now);
-          })
-        : targetFiltered;
-      suppress.targetFilter += targetFiltered.length - quietFiltered.length;
+      const quietFiltered = targetFiltered;
 
       // Batch-decide for lottery users: load arm stats once, select variant in-memory,
       // then bulk-create all UserDecision records in a single createManyAndReturn call.
@@ -830,6 +830,11 @@ export async function POST(req: NextRequest) {
             agent.fallbackSendHour ?? 8,
             now,
           );
+
+          // Timing window: only select users whose preferred send time is within the next 2 hours.
+          // Users on the fallback path (isFallback=true) have no behavioral preference and are
+          // always eligible — Braze handles per-user timing via in_local_time scheduling.
+          if (!isFallback && scheduledAt.getTime() - now.getTime() > 2 * 60 * 60 * 1000) continue;
 
           lotteryDecisionInputs.push({ user, variantId: selectedVariantId, scheduledAt, inLocalTime: isFallback });
         }
@@ -1050,13 +1055,7 @@ export async function POST(req: NextRequest) {
         return isTimingMatch(hourlyStats, dailyStats, assignment.sendCount, currentHourET, currentDayET);
       });
 
-      // Per-user quiet hours for window path (same logic as lottery path above)
-      const quietWindowUsers = (inLocalTime && quietHoursConfig?.start && quietHoursConfig?.end)
-        ? eligibleWindowUsers.filter((u) => {
-            if (!u.timezone) return true;
-            return !isInQuietHours(u.timezone, quietHoursConfig!.start!, quietHoursConfig!.end!, now);
-          })
-        : eligibleWindowUsers;
+      const quietWindowUsers = eligibleWindowUsers;
 
       // Batch-decide for in-window users: load arm stats once, select variant in-memory,
       // then bulk-create all UserDecision records in a single createMany call.
@@ -1353,6 +1352,12 @@ export async function POST(req: NextRequest) {
       errors: totalErrors,
     },
   });
+
+  // Invalidate dashboard/performance caches once per cron run when decisions were recorded.
+  if (totalSent > 0) {
+    revalidateTag("dashboard-stats", "max");
+    revalidateTag("performance", "max");
+  }
 
   return NextResponse.json({
     ok: true,

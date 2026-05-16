@@ -1,6 +1,7 @@
-export const revalidate = 30;
+export const revalidate = 900;
 
 import { notFound } from "next/navigation";
+import { unstable_cache } from "next/cache";
 import { Header } from "@/components/layout/header";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -17,16 +18,22 @@ import { prisma } from "@/lib/db";
 import { TimingHeatmap } from "@/components/charts/timing-heatmap";
 import type { TimingHeatmapCell } from "@/types/metrics";
 
-async function getPersona(id: string): Promise<Persona | null> {
-  try {
-    const row = await prisma.persona.findUnique({
-      where: { id },
-      include: { _count: { select: { trackedUsers: true } } },
-    });
-    return row as unknown as Persona | null;
-  } catch {
-    return null;
-  }
+function getPersona(id: string) {
+  return unstable_cache(
+    async (): Promise<Persona | null> => {
+      try {
+        const row = await prisma.persona.findUnique({
+          where: { id },
+          include: { _count: { select: { trackedUsers: true } } },
+        });
+        return row as unknown as Persona | null;
+      } catch {
+        return null;
+      }
+    },
+    ["persona", id],
+    { tags: [`persona-${id}`, "personas"], revalidate: 900 }
+  )();
 }
 
 // Deterministic pseudo-random from a string seed + index

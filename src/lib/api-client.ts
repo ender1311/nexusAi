@@ -34,6 +34,7 @@ export async function apiFetch<T>(path: string, options: FetchOptions = {}): Pro
 
   const res = await fetch(`${API_BASE}${path}`, {
     ...init,
+    signal: AbortSignal.timeout(5000),
     headers: {
       ...(init.headers as Record<string, string> | undefined),
       ...(hasBody && { "Content-Type": "application/json" }),

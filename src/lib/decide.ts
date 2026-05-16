@@ -5,6 +5,7 @@ import { assignUserToPersona } from "@/lib/engine/persona-assignment";
 import { computeFeatureVector } from "@/lib/engine/feature-vector";
 import { FEATURE_DIM } from "@/lib/engine/feature-vector";
 import { evaluateTargetFilter, buildComputedKeys } from "@/lib/engine/target-filter";
+import { isInQuietHours } from "@/lib/engine/scheduling";
 import { prisma } from "@/lib/db";
 import type { BanditArm } from "@/lib/engine/types";
 import type { Prisma } from "@/generated/prisma/client";
@@ -152,22 +153,15 @@ export async function decideForUser(input: DecideInput): Promise<DecideResult | 
   const now = new Date();
 
   if (rule && !skipSchedulingChecks) {
-    // 4a. Quiet hours
+    // 4a. Quiet hours — per user, using the user's timezone from attributes (same logic as cron route)
     const quietHours = rule.quietHours as unknown as { start?: string; end?: string; timezone?: string };
     if (quietHours?.start && quietHours?.end) {
-      const tzTime = new Intl.DateTimeFormat("en-US", {
-        timeZone: quietHours.timezone ?? "UTC",
-        hour: "2-digit",
-        minute: "2-digit",
-        hour12: false,
-      }).format(now);
-      const { start, end } = quietHours;
-      // Handle overnight windows (e.g., 22:00–08:00)
-      const inQuiet =
-        start > end
-          ? tzTime >= start || tzTime < end
-          : tzTime >= start && tzTime < end;
-      if (inQuiet) return { suppressed: true, reason: "quiet_hours" };
+      const agentTz = quietHours.timezone ?? "UTC";
+      const attrs = user.attributes as Record<string, unknown>;
+      const userTz = typeof attrs?.timezone === "string" ? attrs.timezone : agentTz;
+      if (isInQuietHours(quietHours.start, quietHours.end, userTz, now)) {
+        return { suppressed: true, reason: "quiet_hours" };
+      }
     }
 
     // 4b. Frequency cap — count recent decisions in the configured window

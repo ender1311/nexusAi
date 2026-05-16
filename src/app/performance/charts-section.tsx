@@ -11,23 +11,10 @@ import type { TimeSeriesPoint, TimingHeatmapCell } from "@/types/metrics";
 async function Charts() {
   const now = new Date();
 
-  const rows = await getCachedChartDecisions();
+  const { byDate: byDateRows, heatmap: heatmapRows } = await getCachedChartDecisions();
 
-  // Single pass: build both byDate (time series) and heatmapCounts simultaneously.
-  // rows contain ISO date strings (pre-serialized in cache to survive JSON round-trip).
-  const byDate = new Map<string, { sends: number; conversions: number }>();
-  const heatmapCounts = new Map<string, number>();
-  for (const d of rows) {
-    const dateKey = d.sentAt.slice(0, 10); // "YYYY-MM-DD" — no Date object needed
-    const entry = byDate.get(dateKey) ?? { sends: 0, conversions: 0 };
-    entry.sends++;
-    if (d.conversionAt) entry.conversions++;
-    byDate.set(dateKey, entry);
-
-    const sentAt = new Date(d.sentAt);
-    const hKey = `${sentAt.getUTCHours()}:${sentAt.getUTCDay()}`;
-    heatmapCounts.set(hKey, (heatmapCounts.get(hKey) ?? 0) + 1);
-  }
+  const byDate = new Map(byDateRows.map((r) => [r.date, { sends: r.sends, conversions: r.conversions }]));
+  const heatmapCounts = new Map(heatmapRows.map((r) => [`${r.hour}:${r.dow}`, r.count]));
 
   const last30Days: TimeSeriesPoint[] = [];
   for (let i = 29; i >= 0; i--) {

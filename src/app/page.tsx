@@ -1,4 +1,4 @@
-export const revalidate = 60;
+export const revalidate = 900;
 
 import { Suspense } from "react";
 import { Header } from "@/components/layout/header";
@@ -32,16 +32,9 @@ type AgentSummary = {
 
 async function TimeSeriesSection() {
   const now = new Date();
-  const last7Decisions = await getCachedDashboardTimeSeries();
+  const rows = await getCachedDashboardTimeSeries();
 
-  const byDate = new Map<string, { sends: number; conversions: number }>();
-  for (const d of last7Decisions) {
-    const key = d.sentAt.slice(0, 10);
-    const e = byDate.get(key) ?? { sends: 0, conversions: 0 };
-    e.sends++;
-    if (d.conversionAt) e.conversions++;
-    byDate.set(key, e);
-  }
+  const byDate = new Map(rows.map((r) => [r.date, { sends: r.sends, conversions: r.conversions }]));
 
   const last7Days: TimeSeriesPoint[] = [];
   for (let i = 6; i >= 0; i--) {
@@ -67,11 +60,12 @@ async function TimeSeriesSection() {
 
 async function RecentSendsSection({ agents }: { agents: AgentSummary[] }) {
   const recentDecisionsRaw = await getCachedRecentDecisions();
+  const agentNameById = new Map(agents.map((a) => [a.id, a.name]));
 
   const recentSends: DecisionLog[] = recentDecisionsRaw.map((d) => ({
     id: d.id,
     userId: d.userId,
-    agentName: agents.find((a) => a.id === d.agentId)?.name ?? "Unknown",
+    agentName: agentNameById.get(d.agentId) ?? "Unknown",
     channel: d.channel,
     variantName: d.variant?.name ?? "—",
     sentAt: d.sentAt,

@@ -8,6 +8,7 @@ import {
   Send,
   CheckCircle2,
   XCircle,
+  MinusCircle,
   ChevronRight,
   ArrowLeft,
   Loader2,
@@ -652,6 +653,7 @@ function ResultsStep({
           <p className="text-sm text-muted-foreground">
             {results.sent} sent · {results.errors} error
             {results.errors !== 1 ? "s" : ""}
+            {results.skipped > 0 ? ` · ${results.skipped} skipped (push opt-out)` : ""}
           </p>
         </div>
         <Button variant="outline" size="sm" onClick={onReset}>
@@ -695,6 +697,7 @@ function ResultsStep({
         {assignments.map((a) => {
           const result = resultMap.get(a.userId);
           const ok = result?.status === "sent";
+          const isSkipped = result?.status === "skipped";
           const colors = getPersonaColor(a.persona.color);
           return (
             <div
@@ -703,6 +706,8 @@ function ResultsStep({
             >
               {ok ? (
                 <CheckCircle2 className="w-5 h-5 text-[#57a16c] shrink-0" />
+              ) : isSkipped ? (
+                <MinusCircle className="w-5 h-5 text-muted-foreground shrink-0" />
               ) : (
                 <XCircle className="w-5 h-5 text-red-500 shrink-0" />
               )}
@@ -714,7 +719,9 @@ function ResultsStep({
                 {a.variant.title ?? a.variant.body.slice(0, 40)}
               </span>
               {!ok && result?.error && (
-                <span className="text-xs text-red-600 shrink-0">{result.error}</span>
+                <span className={`text-xs shrink-0 ${isSkipped ? "text-muted-foreground" : "text-red-600"}`}>
+                  {result.error}
+                </span>
               )}
             </div>
           );

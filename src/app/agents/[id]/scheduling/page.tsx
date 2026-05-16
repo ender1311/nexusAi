@@ -1,21 +1,24 @@
-export const revalidate = 30;
+export const revalidate = 900;
 
 import { notFound } from "next/navigation";
 import { Header } from "@/components/layout/header";
 import { SchedulingEditor } from "@/components/scheduling/scheduling-editor";
+import { unstable_cache } from "next/cache";
 import { prisma } from "@/lib/db";
 import { FrequencyCap, QuietHours, SchedulingRule } from "@/types/agent";
 
 export default async function SchedulingPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
 
-  const agent = await prisma.agent.findUnique({
-    where: { id },
-    select: {
-      name: true,
-      schedulingRule: true,
-    },
-  });
+  const agent = await unstable_cache(
+    () =>
+      prisma.agent.findUnique({
+        where: { id },
+        select: { name: true, schedulingRule: true },
+      }),
+    ["agent-scheduling", id],
+    { tags: [`agent-${id}`], revalidate: 900 }
+  )();
 
   if (!agent) notFound();
 

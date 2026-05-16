@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { revalidateTag } from "next/cache";
 import { prisma } from "@/lib/db";
 import { Persona } from "@/types/persona";
 import { requireAdmin } from "@/lib/auth";
@@ -104,6 +105,8 @@ export async function POST(req: NextRequest) {
       },
       include: { _count: { select: { trackedUsers: true } } },
     });
+
+    revalidateTag("personas", "max");
 
     return NextResponse.json(toApiPersona(persona), { status: 201 });
   } catch (error) {

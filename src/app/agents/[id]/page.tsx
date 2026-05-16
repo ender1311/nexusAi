@@ -1,4 +1,4 @@
-export const revalidate = 30;
+export const revalidate = 900;
 
 import { Suspense } from "react";
 import { notFound } from "next/navigation";
@@ -15,8 +15,7 @@ import { TestedVariablesBadges } from "@/components/agents/tested-variables-badg
 import { VariantDiffTable } from "@/components/agents/variant-diff-table";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { TestedVariable, MessageVariant, AgentStatus, FunnelStage } from "@/types/agent";
-import { prisma } from "@/lib/db";
-import { getCachedAgent, getCachedActivePersonas } from "@/lib/cache";
+import { getCachedAgent, getCachedActivePersonas, getCachedAgentAudienceData } from "@/lib/cache";
 import { getAuth } from "@/lib/auth";
 import { Skeleton } from "@/components/ui/skeleton";
 import { AgentFunnelConfig } from "@/components/agents/agent-funnel-config";
@@ -61,23 +60,7 @@ export default async function AgentDetailPage({ params }: { params: Promise<{ id
 
   // Count users per target persona for the Audience tab
   const targetPersonaIds = agent.personaTargets.map((pt) => pt.personaId);
-  const [userCountRows, previewUsers] = await Promise.all([
-    targetPersonaIds.length > 0
-      ? prisma.trackedUser.groupBy({
-          by: ["personaId"],
-          where: { personaId: { in: targetPersonaIds } },
-          _count: { personaId: true },
-        })
-      : Promise.resolve([]),
-    // Preview: up to 20 users (display only — independent of audienceCap)
-    targetPersonaIds.length > 0
-      ? prisma.trackedUser.findMany({
-          where: { personaId: { in: targetPersonaIds } },
-          select: { externalId: true, personaId: true, attributes: true },
-          take: 20,
-        })
-      : Promise.resolve([]),
-  ]);
+  const { userCountRows, previewUsers } = await getCachedAgentAudienceData(id, targetPersonaIds);
   const userCountByPersona = new Map(userCountRows.map((r) => [r.personaId, r._count.personaId]));
 
   const freqCap = agent.schedulingRule?.frequencyCap as FrequencyCap | null;

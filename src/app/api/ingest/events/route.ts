@@ -277,6 +277,13 @@ export async function POST(req: NextRequest) {
     matched.push(event.event_id);
   }
 
+  // Invalidate dashboard/performance caches once per batch if any conversions landed.
+  // Called once (not per event) to avoid hammering the cache invalidation API.
+  if (matched.length > 0) {
+    revalidateTag("dashboard-stats", "max");
+    revalidateTag("performance", "max");
+  }
+
   // Persist aggregate throughput without emitting one billable Vercel log event
   // per Hightouch batch or per attributed event.
   await prisma.ingestSyncLog.create({
@@ -291,11 +298,6 @@ export async function POST(req: NextRequest) {
       },
     },
   }).catch(() => {});
-
-  if (matched.length > 0) {
-    revalidateTag("dashboard-stats", "max");
-    revalidateTag("performance", "max");
-  }
 
   return NextResponse.json({
     ok: true,

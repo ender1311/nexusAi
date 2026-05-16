@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { revalidateTag } from "next/cache";
 import { discoverPersonas } from "@/lib/engine/persona-discovery";
 import { batchAssignPersonas } from "@/lib/engine/persona-assignment";
 import { requireAdmin } from "@/lib/auth";
@@ -45,6 +46,8 @@ export async function POST(req: NextRequest) {
   const assigned = await batchAssignPersonas({
     minInteractions: config.minInteractions ?? 20,
   });
+
+  revalidateTag("personas", "max");
 
   return NextResponse.json({
     ok: true,
