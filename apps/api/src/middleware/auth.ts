@@ -1,14 +1,20 @@
-import { timingSafeEqual } from "crypto";
 import { createMiddleware } from "hono/factory";
+
+// Pure-JS constant-time comparison (XOR loop) — works on both Node.js and edge runtimes.
+function timingSafeEqual(a: string, b: string): boolean {
+  if (a.length !== b.length) return false;
+  let result = 0;
+  for (let i = 0; i < a.length; i++) {
+    result |= a.charCodeAt(i) ^ b.charCodeAt(i);
+  }
+  return result === 0;
+}
 
 export const serviceAuth = createMiddleware(async (c, next) => {
   const header = c.req.header("Authorization") ?? "";
   const token = header.startsWith("Bearer ") ? header.slice(7) : "";
   const expected = process.env.INTERNAL_API_SECRET ?? "";
-  const isValid =
-    token.length > 0 &&
-    token.length === expected.length &&
-    timingSafeEqual(Buffer.from(token), Buffer.from(expected));
+  const isValid = token.length > 0 && timingSafeEqual(token, expected);
   if (!isValid) {
     return c.json({ error: "Unauthorized" }, 401);
   }
