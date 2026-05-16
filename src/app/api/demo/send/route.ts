@@ -7,7 +7,7 @@ import type { DemoAssignment } from "../preview/route";
 
 export type DemoSendResult = {
   userId: string;
-  status: "sent" | "error";
+  status: "sent" | "error" | "skipped";
   error?: string;
 };
 
@@ -15,6 +15,7 @@ export type DemoSendResponse = {
   results: DemoSendResult[];
   sent: number;
   errors: number;
+  skipped: number;
 };
 
 export async function POST(req: NextRequest) {
@@ -46,15 +47,35 @@ export async function POST(req: NextRequest) {
     const factory = new PayloadFactory();
     const typedAssignments = assignments as DemoAssignment[];
 
+    // Batch-fetch push opt-out status for all users in one query
+    const allUserIds = typedAssignments.map((a) => a.userId).filter(Boolean);
+    const userRows = await prisma.trackedUser.findMany({
+      where: { externalId: { in: allUserIds } },
+      select: { externalId: true, attributes: true },
+    });
+    const pushOptedOut = new Set(
+      userRows
+        .filter((u) => (u.attributes as Record<string, unknown>)?.push_enabled === false)
+        .map((u) => u.externalId)
+    );
+
     const results: DemoSendResult[] = [];
     let sent = 0;
     let errors = 0;
+    let skipped = 0;
 
     for (const assignment of typedAssignments) {
       const { userId, variant } = assignment;
       if (!userId || !variant) {
         results.push({ userId: String(userId ?? "unknown"), status: "error", error: "Invalid assignment" });
         errors++;
+        continue;
+      }
+
+      // Skip users who have explicitly opted out of push notifications
+      if (pushOptedOut.has(userId)) {
+        results.push({ userId, status: "skipped", error: "Push opted out" });
+        skipped++;
         continue;
       }
 
@@ -102,7 +123,7 @@ export async function POST(req: NextRequest) {
       }
     }
 
-    return NextResponse.json<DemoSendResponse>({ results, sent, errors });
+    return NextResponse.json<DemoSendResponse>({ results, sent, errors, skipped });
   } catch (error) {
     console.error("POST /api/demo/send error:", error);
     return NextResponse.json({ error: "Failed to send demo messages" }, { status: 500 });

@@ -148,59 +148,66 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ ok: true, received: events.length, matched: 0, rewarded: 0 });
   }
 
-  // Batch-load persona IDs for all affected users in one query
-  const userIds = [...new Set(clickEvents.map((e) => extractFields(e).userId).filter(Boolean))];
-  const trackedUsers = await prisma.trackedUser.findMany({
-    where: { externalId: { in: userIds } },
-    select: { externalId: true, personaId: true },
-  });
-  const personaByUserId = new Map(
-    trackedUsers
-      .filter((u): u is { externalId: string; personaId: string } => u.personaId !== null)
-      .map((u) => [u.externalId, u.personaId])
-  );
-
-  let matched = 0;
-  let rewarded = 0;
   const now = new Date();
-
   // Match window: Braze Currents events fire within seconds to minutes of delivery,
   // but we allow 48h to cover delayed delivery and Hightouch sync lag.
   const matchWindowStart = new Date(now.getTime() - 48 * 60 * 60 * 1000);
 
-  for (const event of clickEvents) {
-    const { eventType, userId, sendId } = extractFields(event);
-    if (!userId) continue;
+  // 1. Batch: persona IDs + already-processed event IDs + unresolved decisions — all upfront
+  const allUserIds = [...new Set(clickEvents.map((e) => extractFields(e).userId).filter(Boolean))];
+  const allEventKeys = clickEvents.map((e) => e.id).filter((id): id is string => !!id);
 
-    // Idempotency: Braze Currents retries can replay the same event — skip if already processed
-    const eventKey = event.id;
-    if (eventKey) {
-      const alreadyProcessed = await prisma.processedEventId.findUnique({
-        where: { eventId: eventKey },
-      });
-      if (alreadyProcessed) continue;
-    }
-
-
-    // Match by userId + recent unresolved decision. We do NOT match by brazeSendId
-    // because Braze auto-assigns send_id — we never pass one in the payload.
-    // Daily cap ensures at most 1 send per user per day, so ordering by sentAt desc
-    // picks the most recent unresolved send within the window.
-    const decision = await prisma.userDecision.findFirst({
+  const [trackedUsers, processedRows, decisionRows] = await Promise.all([
+    prisma.trackedUser.findMany({
+      where: { externalId: { in: allUserIds } },
+      select: { externalId: true, personaId: true },
+    }),
+    allEventKeys.length > 0
+      ? prisma.processedEventId.findMany({
+          where: { eventId: { in: allEventKeys } },
+          select: { eventId: true },
+        })
+      : Promise.resolve([]),
+    prisma.userDecision.findMany({
       where: {
-        userId,
+        userId: { in: allUserIds },
         reward: null,
         brazeAnalyticsFetchedAt: null,
         sentAt: { gte: matchWindowStart },
       },
       orderBy: { sentAt: "desc" },
-    });
+    }),
+  ]);
 
+  const personaByUserId = new Map(
+    trackedUsers
+      .filter((u): u is { externalId: string; personaId: string } => u.personaId !== null)
+      .map((u) => [u.externalId, u.personaId])
+  );
+  const processedSet = new Set(processedRows.map((r) => r.eventId));
+  // Most-recent unresolved decision per userId (rows already sorted desc by sentAt)
+  const decisionByUserId = new Map<string, typeof decisionRows[number]>();
+  for (const d of decisionRows) {
+    if (!decisionByUserId.has(d.userId)) decisionByUserId.set(d.userId, d);
+  }
+
+  let matched = 0;
+  let rewarded = 0;
+  const newEventKeys: string[] = [];
+
+  // 2. Process all events in parallel — per-row updates are inherently different per decision
+  await Promise.all(clickEvents.map(async (event) => {
+    const { eventType, userId, sendId } = extractFields(event);
+    if (!userId) return;
+
+    // Skip already-processed (idempotency)
+    const eventKey = event.id;
+    if (eventKey && processedSet.has(eventKey)) return;
+
+    const decision = decisionByUserId.get(userId);
     if (!decision?.messageVariantId) {
-      if (eventKey) {
-        await prisma.processedEventId.create({ data: { eventId: eventKey } }).catch(() => {});
-      }
-      continue;
+      if (eventKey) newEventKeys.push(eventKey);
+      return;
     }
     matched++;
 
@@ -242,10 +249,16 @@ export async function POST(req: NextRequest) {
       }),
     ]);
 
-    if (eventKey) {
-      await prisma.processedEventId.create({ data: { eventId: eventKey } }).catch(() => {});
-    }
+    if (eventKey) newEventKeys.push(eventKey);
     rewarded++;
+  }));
+
+  // 3. Batch-insert all processed event IDs at once
+  if (newEventKeys.length > 0) {
+    await prisma.processedEventId.createMany({
+      data: newEventKeys.map((eventId) => ({ eventId })),
+      skipDuplicates: true,
+    }).catch(() => {});
   }
 
   await prisma.ingestSyncLog.create({

@@ -2,7 +2,7 @@
  * Shared `unstable_cache` wrappers for expensive DB queries.
  *
  * Two-layer caching:
- *   ISR (`revalidate = 30` on pages) → CDN-cached HTML, <100ms on hit
+ *   ISR (`revalidate = 900` on pages) → CDN-cached HTML, <100ms on hit
  *   unstable_cache here → server-side data cache; when ISR misses, re-render
  *   reads from here instead of hitting the DB (~50ms vs ~1.5s).
  *
@@ -35,7 +35,32 @@ export function getCachedAgent(id: string) {
         },
       }),
     ["agent", id],
-    { tags: [`agent-${id}`, "agents"], revalidate: 30 }
+    { tags: [`agent-${id}`, "agents"], revalidate: 900 }
+  )();
+}
+
+/** User count by persona + preview users for an agent's audience tab. */
+export function getCachedAgentAudienceData(agentId: string, personaIds: string[]) {
+  const key = personaIds.slice().sort().join(",");
+  return unstable_cache(
+    async () => {
+      if (personaIds.length === 0) return { userCountRows: [], previewUsers: [] };
+      const [userCountRows, previewUsers] = await Promise.all([
+        prisma.trackedUser.groupBy({
+          by: ["personaId"],
+          where: { personaId: { in: personaIds } },
+          _count: { personaId: true },
+        }),
+        prisma.trackedUser.findMany({
+          where: { personaId: { in: personaIds } },
+          select: { externalId: true, personaId: true, attributes: true },
+          take: 20,
+        }),
+      ]);
+      return { userCountRows, previewUsers };
+    },
+    ["agent-audience", agentId, key],
+    { tags: [`agent-${agentId}`, "agents"], revalidate: 900 }
   )();
 }
 
@@ -58,7 +83,7 @@ export const getCachedControlTowerAgents = unstable_cache(
       orderBy: { updatedAt: "desc" },
     }),
   ["control-tower-agents"],
-  { tags: ["agents"], revalidate: 60 }
+  { tags: ["agents"], revalidate: 900 }
 );
 
 // ── Persona data ─────────────────────────────────────────────────────────────
@@ -72,7 +97,7 @@ export const getCachedActivePersonas = unstable_cache(
       orderBy: { name: "asc" },
     }),
   ["personas-active"],
-  { tags: ["personas"], revalidate: 300 }
+  { tags: ["personas"], revalidate: 900 }
 );
 
 /** Persona distribution with user counts for the dashboard chart. */
@@ -84,12 +109,12 @@ export const getCachedPersonaDistribution = unstable_cache(
       orderBy: { name: "asc" },
     }),
   ["personas-distribution"],
-  { tags: ["personas"], revalidate: 60 }
+  { tags: ["personas"], revalidate: 900 }
 );
 
 // ── Dashboard counts ──────────────────────────────────────────────────────────
 
-/** Aggregate counts shown in dashboard metric cards (60s TTL — near-real-time). */
+/** Aggregate counts shown in dashboard metric cards. */
 export const getCachedDashboardCounts = unstable_cache(
   async () => {
     const now = new Date();
@@ -103,33 +128,38 @@ export const getCachedDashboardCounts = unstable_cache(
     return { sentLast24h, totalDecisions, totalConversions, trackedUsers };
   },
   ["dashboard-counts"],
-  { tags: ["dashboard-stats"], revalidate: 60 }
+  { tags: ["dashboard-stats"], revalidate: 900 }
 );
 
 // ── Dashboard time-series and recent-sends ────────────────────────────────────
 
 /**
- * 7-day decision rows for the dashboard conversion-rate chart (60s TTL).
- * Dates are pre-serialized to ISO strings — same rationale as getCachedChartDecisions.
+ * 7-day pre-aggregated send/conversion counts for the dashboard chart.
+ * DB-side GROUP BY replaces a 50k-row JS scan — counts are always exact.
  */
 export const getCachedDashboardTimeSeries = unstable_cache(
   async () => {
     const sevenDaysAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000);
-    const rows = await prisma.userDecision.findMany({
-      where: { sentAt: { gte: sevenDaysAgo } },
-      select: { sentAt: true, conversionAt: true },
-      take: 50000,
-    });
+    const rows = await prisma.$queryRaw<Array<{ date: string; sends: bigint; conversions: bigint }>>`
+      SELECT TO_CHAR("sentAt" AT TIME ZONE 'UTC', 'YYYY-MM-DD') AS date,
+             COUNT(*)::bigint                                     AS sends,
+             COUNT("conversionAt")::bigint                       AS conversions
+      FROM "UserDecision"
+      WHERE "sentAt" >= ${sevenDaysAgo}
+      GROUP BY 1
+      ORDER BY 1 ASC
+    `;
     return rows.map((r) => ({
-      sentAt: r.sentAt.toISOString(),
-      conversionAt: r.conversionAt?.toISOString() ?? null,
+      date: r.date,
+      sends: Number(r.sends),
+      conversions: Number(r.conversions),
     }));
   },
   ["dashboard-timeseries"],
-  { tags: ["dashboard-stats"], revalidate: 60 }
+  { tags: ["dashboard-stats"], revalidate: 900 }
 );
 
-/** Last 10 decisions for the dashboard recent-sends feed (30s TTL). */
+/** Last 10 decisions for the dashboard recent-sends feed. */
 export const getCachedRecentDecisions = unstable_cache(
   async () => {
     const rows = await prisma.userDecision.findMany({
@@ -153,12 +183,12 @@ export const getCachedRecentDecisions = unstable_cache(
     }));
   },
   ["dashboard-recent-decisions"],
-  { tags: ["dashboard-stats"], revalidate: 30 }
+  { tags: ["dashboard-stats"], revalidate: 900 }
 );
 
 // ── Performance page data ─────────────────────────────────────────────────────
 
-/** Per-agent send/conversion aggregates for the last 30 days (5-min TTL). */
+/** Per-agent send/conversion aggregates for the last 30 days. */
 export const getCachedPerformanceMetrics = unstable_cache(
   async () => {
     const thirtyDaysAgo = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000);
@@ -182,7 +212,7 @@ export const getCachedPerformanceMetrics = unstable_cache(
     return { agents, sendsByAgent, conversionsByAgent };
   },
   ["performance-metrics"],
-  { tags: ["performance"], revalidate: 300 }
+  { tags: ["performance"], revalidate: 900 }
 );
 
 /** Per-variant send/conversion/reward aggregates for the last 30 days. */
@@ -209,36 +239,86 @@ export const getCachedVariantMetrics = unstable_cache(
     return { variantSends, variantConversions, variantRewards };
   },
   ["performance-variants"],
-  { tags: ["performance"], revalidate: 300 }
+  { tags: ["performance"], revalidate: 900 }
+);
+
+/** All variant id+name pairs for display in performance tables. */
+export const getCachedAllVariantNames = unstable_cache(
+  () => prisma.messageVariant.findMany({ select: { id: true, name: true } }),
+  ["all-variant-names"],
+  { tags: ["agents"], revalidate: 900 }
 );
 
 /**
- * Raw 30-day decision rows for timeseries/heatmap charts.
- * Most expensive query in the app — scans up to 50k rows.
- * 5-min TTL keeps chart rendering fast on cache miss windows.
+ * Pre-aggregated 30-day decision data for timeseries/heatmap charts.
+ * Three parallel DB aggregations replace a 50k-row JS scan — no row cap
+ * means counts are always exact regardless of send volume.
  *
- * Dates are pre-serialized to ISO strings so that JSON cache serialization
- * (unstable_cache stores via JSON.stringify) doesn't silently convert Date
- * objects to strings that then break .toISOString() / .getUTCHours() calls
- * in the consumer.
+ *  byDate      — per-day send/conversion counts (time series)
+ *  heatmap     — per-hour/day-of-week counts (timing heatmap)
+ *  rewardByDate — per-day scored/positive counts (lift panel sparkline)
  */
 export const getCachedChartDecisions = unstable_cache(
   async () => {
     const thirtyDaysAgo = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000);
-    const rows = await prisma.userDecision.findMany({
-      where: { sentAt: { gte: thirtyDaysAgo } },
-      select: { sentAt: true, conversionAt: true, reward: true },
-      take: 50000,
-    });
-    return rows.map((r) => ({
-      sentAt: r.sentAt.toISOString(),
-      conversionAt: r.conversionAt?.toISOString() ?? null,
-      reward: r.reward,
-    }));
+    const [byDateRows, heatmapRows, rewardRows] = await Promise.all([
+      // Per-day send/conversion counts (for time series)
+      prisma.$queryRaw<Array<{ date: string; sends: bigint; conversions: bigint }>>`
+        SELECT TO_CHAR("sentAt" AT TIME ZONE 'UTC', 'YYYY-MM-DD') AS date,
+               COUNT(*)::bigint                                     AS sends,
+               COUNT("conversionAt")::bigint                       AS conversions
+        FROM "UserDecision"
+        WHERE "sentAt" >= ${thirtyDaysAgo}
+        GROUP BY 1
+        ORDER BY 1 ASC
+      `,
+      // Per-hour/day-of-week counts (for timing heatmap)
+      prisma.$queryRaw<Array<{ hour: bigint; dow: bigint; count: bigint }>>`
+        SELECT EXTRACT(HOUR FROM "sentAt")::bigint     AS hour,
+               EXTRACT(DOW  FROM "sentAt")::bigint     AS dow,
+               COUNT(*)::bigint                        AS count
+        FROM "UserDecision"
+        WHERE "sentAt" >= ${thirtyDaysAgo}
+        GROUP BY 1, 2
+      `,
+      // Per-day scored/positive counts (for lift panel sparkline)
+      prisma.$queryRaw<Array<{ date: string; scored: bigint; positive: bigint }>>`
+        SELECT TO_CHAR("sentAt" AT TIME ZONE 'UTC', 'YYYY-MM-DD') AS date,
+               COUNT(*)::bigint                                     AS scored,
+               SUM(CASE WHEN reward > 0 THEN 1 ELSE 0 END)::bigint AS positive
+        FROM "UserDecision"
+        WHERE "sentAt" >= ${thirtyDaysAgo}
+          AND reward IS NOT NULL
+        GROUP BY 1
+        ORDER BY 1 ASC
+      `,
+    ]);
+    return {
+      byDate: byDateRows.map((r) => ({ date: r.date, sends: Number(r.sends), conversions: Number(r.conversions) })),
+      heatmap: heatmapRows.map((r) => ({ hour: Number(r.hour), dow: Number(r.dow), count: Number(r.count) })),
+      rewardByDate: rewardRows.map((r) => ({ date: r.date, scored: Number(r.scored), positive: Number(r.positive) })),
+    };
   },
   ["chart-decisions"],
-  { tags: ["performance"], revalidate: 300 }
+  { tags: ["performance"], revalidate: 900 }
 );
+
+/** Lift send/conversion counts for the performance page, keyed by liftSince date. */
+export function getCachedLiftCounts(liftSince: Date | null) {
+  const liftSinceKey = liftSince instanceof Date ? liftSince.toISOString() : (liftSince ?? "all");
+  return unstable_cache(
+    async () => {
+      const filter = liftSince ? { gte: liftSince } : undefined;
+      const [sendsCount, conversionsCount] = await Promise.all([
+        prisma.userDecision.count({ where: { sentAt: filter, reward: { not: null } } }),
+        prisma.userDecision.count({ where: { sentAt: filter, reward: { gt: 0 } } }),
+      ]);
+      return { sendsCount, conversionsCount };
+    },
+    ["lift-counts", String(liftSinceKey)],
+    { tags: ["performance"], revalidate: 900 }
+  )();
+}
 
 /**
  * Lift measurement configuration from AppSetting.
@@ -288,5 +368,5 @@ export const getCachedControlTowerStats = unstable_cache(
     };
   },
   ["control-tower-stats"],
-  { tags: ["dashboard-stats", "agents", "personas"], revalidate: 60 }
+  { tags: ["dashboard-stats", "agents", "personas"], revalidate: 900 }
 );

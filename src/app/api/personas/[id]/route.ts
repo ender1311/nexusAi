@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { revalidateTag } from "next/cache";
 import { prisma } from "@/lib/db";
 import { Persona } from "@/types/persona";
 import { requireAdmin } from "@/lib/auth";
@@ -112,6 +113,9 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
       include: { _count: { select: { trackedUsers: true } } },
     });
 
+    revalidateTag("personas", "max");
+    revalidateTag(`persona-${id}`, "max");
+
     return NextResponse.json(toApiPersona(persona));
   } catch (error) {
     console.error("PUT /api/personas/[id] error:", error);
@@ -125,6 +129,8 @@ export async function DELETE(_req: NextRequest, { params }: { params: Promise<{ 
   try {
     const { id } = await params;
     await prisma.persona.update({ where: { id }, data: { isActive: false } });
+    revalidateTag("personas", "max");
+    revalidateTag(`persona-${id}`, "max");
     return NextResponse.json({ ok: true });
   } catch (error) {
     console.error("DELETE /api/personas/[id] error:", error);

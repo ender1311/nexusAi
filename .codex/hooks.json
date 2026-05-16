@@ -1,0 +1,15 @@
+{
+  "hooks": {
+    "SessionStart": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "echo '{\"hookSpecificOutput\":{\"hookEventName\":\"SessionStart\",\"additionalContext\":\"MANDATORY: This is the Nexus project. Before responding to the user, your first action must be to rename this session by running /rename Nexus.\"}}'",
+            "statusMessage": "Setting up Nexus session..."
+          }
+        ]
+      }
+    ]
+  }
+}

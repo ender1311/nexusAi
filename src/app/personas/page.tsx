@@ -1,4 +1,4 @@
-export const revalidate = 30;
+export const revalidate = 900;
 
 import { Header } from "@/components/layout/header";
 import { MetricCard } from "@/components/charts/metric-card";
@@ -9,22 +9,39 @@ import { Users2, TrendingUp, Star, Sparkles } from "lucide-react";
 import { AudienceDistribution } from "@/components/personas/audience-distribution";
 import { formatNumber } from "@/lib/utils";
 import { prisma } from "@/lib/db";
+import { unstable_cache } from "next/cache";
 import Link from "next/link";
 
-async function getPersonas(): Promise<Persona[]> {
-  try {
+const getPersonas = unstable_cache(
+  async (): Promise<Persona[]> => {
     const rows = await prisma.persona.findMany({
       orderBy: { createdAt: "asc" },
-      include: { _count: { select: { trackedUsers: true } } },
+      select: {
+        id: true,
+        name: true,
+        label: true,
+        icon: true,
+        color: true,
+        source: true,
+        isActive: true,
+        description: true,
+        tags: true,
+        clusterSize: true,
+        silhouetteScore: true,
+        discoveredAt: true,
+        createdAt: true,
+        updatedAt: true,
+        _count: { select: { trackedUsers: true } },
+      },
     });
     return rows as unknown as Persona[];
-  } catch {
-    return [];
-  }
-}
+  },
+  ["personas-list"],
+  { tags: ["personas"], revalidate: 900 }
+);
 
 export default async function PersonasPage() {
-  const personas = await getPersonas();
+  const personas = await getPersonas().catch(() => [] as Persona[]);
 
   const manualPersonas = personas.filter((p) => p.source === "manual");
   const discoveredPersonas = personas.filter((p) => p.source === "discovered");

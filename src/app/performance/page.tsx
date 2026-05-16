@@ -1,4 +1,4 @@
-export const revalidate = 60;
+export const revalidate = 900;
 
 import { Header } from "@/components/layout/header";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -9,9 +9,8 @@ import { VariantComparison } from "@/components/charts/variant-comparison";
 import { AgentStatusBadge } from "@/components/agents/agent-status-badge";
 import { ChartsSection } from "./charts-section";
 import { LiftPanel } from "@/components/performance/lift-panel";
-import { getCachedPerformanceMetrics, getCachedVariantMetrics, getCachedLiftSettings } from "@/lib/cache";
+import { getCachedPerformanceMetrics, getCachedVariantMetrics, getCachedLiftSettings, getCachedLiftCounts, getCachedAllVariantNames } from "@/lib/cache";
 import { baselineLiftSignificance } from "@/lib/engine/lift-significance";
-import { prisma } from "@/lib/db";
 import { formatNumber, formatPercent } from "@/lib/utils";
 import { AgentMetric, VariantMetric } from "@/types/metrics";
 import Link from "next/link";
@@ -73,11 +72,9 @@ export default async function PerformancePage() {
     getCachedLiftSettings(),
   ]);
 
-  const liftSinceFilter = liftSince ? { gte: liftSince } : undefined;
-  const [liftSendsCount, liftConversionsCount] = await Promise.all([
-    prisma.userDecision.count({ where: { sentAt: liftSinceFilter, reward: { not: null } } }),
-    prisma.userDecision.count({ where: { sentAt: liftSinceFilter, reward: { gt: 0 } } }),
-  ]);
+  const liftSinceDate = liftSince ? new Date(liftSince as unknown as string) : null;
+  const { sendsCount: liftSendsCount, conversionsCount: liftConversionsCount } =
+    await getCachedLiftCounts(liftSinceDate);
   const nexusLift = baselineLiftSignificance(liftSendsCount, liftConversionsCount, baselineRate);
 
   const sendCountByAgent = new Map(sendsByAgent.map((r) => [r.agentId, r._count.id]));
@@ -111,14 +108,8 @@ export default async function PerformancePage() {
 
   // Top variants — variant name lookup joined after cache fetch
 
-  const variantIds = [...new Set(variantSends.map((r) => r.messageVariantId as string))];
-  const variantNameRows = variantIds.length > 0
-    ? await prisma.messageVariant.findMany({
-        where: { id: { in: variantIds } },
-        select: { id: true, name: true },
-      })
-    : [];
-  const variantNameById = new Map(variantNameRows.map((v) => [v.id, v.name]));
+  const allVariantNames = await getCachedAllVariantNames();
+  const variantNameById = new Map(allVariantNames.map((v) => [v.id, v.name]));
   const convByVariant = new Map(variantConversions.map((r) => [r.messageVariantId as string, r._count.id]));
   const rewardByVariant = new Map(variantRewards.map((r) => [r.messageVariantId as string, r._sum.reward ?? 0]));
 

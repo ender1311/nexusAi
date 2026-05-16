@@ -1,4 +1,4 @@
-export const revalidate = 30;
+export const revalidate = 900;
 
 import Link from "next/link";
 import { Header } from "@/components/layout/header";
@@ -7,6 +7,7 @@ import { AgentFilters } from "@/components/agents/agent-filters";
 import { Button } from "@/components/ui/button";
 import { AgentStatus, FunnelStage, FUNNEL_STAGES, Agent } from "@/types/agent";
 import { Bot, Plus, Search } from "lucide-react";
+import { unstable_cache } from "next/cache";
 import { prisma } from "@/lib/db";
 import { getAuth } from "@/lib/auth";
 import { LIBRARY_AGENT_NAME } from "@/lib/engine/template-sync";
@@ -62,19 +63,38 @@ export default async function AgentsPage({
     ...(safeStage ? { funnelStage: safeStage } : {}),
   };
 
-  const [dbAgents, totalCount] = await Promise.all([
-    prisma.agent.findMany({
-      where,
-      include: {
-        _count: { select: { goals: true, messages: true, decisions: true } },
-        messages: { select: { _count: { select: { variants: true } } } },
-      },
-      orderBy: { updatedAt: "desc" },
-      take: PAGE_SIZE,
-      skip: pageNum * PAGE_SIZE,
-    }),
-    prisma.agent.count({ where }),
-  ]);
+  // unstable_cache gives a server-side data cache so ISR cache misses (~every 30s)
+  // read from memory instead of hitting the DB. Invalidated by revalidateTag("agents")
+  // which the mutation routes already call on create/update/delete.
+  const { dbAgents, totalCount } = await unstable_cache(
+    async () => {
+      const [agents, count] = await Promise.all([
+        prisma.agent.findMany({
+          where,
+          include: {
+            _count: { select: { goals: true, messages: true, decisions: true } },
+            messages: { select: { _count: { select: { variants: true } } } },
+          },
+          orderBy: { updatedAt: "desc" },
+          take: PAGE_SIZE,
+          skip: pageNum * PAGE_SIZE,
+        }),
+        prisma.agent.count({ where }),
+      ]);
+      // Pre-serialize dates — unstable_cache uses JSON.stringify internally so
+      // Date objects become strings on deserialization; doing it here keeps types correct.
+      return {
+        dbAgents: agents.map((a) => ({
+          ...a,
+          createdAt: a.createdAt.toISOString(),
+          updatedAt: a.updatedAt.toISOString(),
+        })),
+        totalCount: count,
+      };
+    },
+    ["agents-list", search, safeStatus ?? "", safeStage ?? "", String(pageNum)],
+    { tags: ["agents"], revalidate: 900 },
+  )();
 
   const totalPages = Math.ceil(totalCount / PAGE_SIZE);
   const hasNext = pageNum < totalPages - 1;
@@ -93,8 +113,8 @@ export default async function AgentsPage({
     epsilon: a.epsilon,
     funnelStage: a.funnelStage as FunnelStage,
     targetFilter: null,
-    createdAt: a.createdAt.toISOString(),
-    updatedAt: a.updatedAt.toISOString(),
+    createdAt: a.createdAt,
+    updatedAt: a.updatedAt,
     _count: {
       goals: a._count.goals,
       messages: a._count.messages,

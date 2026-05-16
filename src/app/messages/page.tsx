@@ -1,6 +1,7 @@
-export const dynamic = "force-dynamic";
+export const revalidate = 900;
 
 import { BookOpen } from "lucide-react";
+import { unstable_cache } from "next/cache";
 import { Header } from "@/components/layout/header";
 import { Button } from "@/components/ui/button";
 import { prisma } from "@/lib/db";
@@ -10,45 +11,49 @@ import { TemplateFormSheet } from "@/components/push-library/template-form-sheet
 import { PushLibraryClient } from "@/components/push-library/push-library-client";
 import type { TemplateGroup, TemplateVariant } from "@/components/push-library/push-library-client";
 
-async function getGroups(): Promise<TemplateGroup[]> {
-  const agent = await prisma.agent.findFirst({
-    where: { name: LIBRARY_AGENT_NAME },
-  });
-  if (!agent) return [];
+const getGroups = unstable_cache(
+  async (): Promise<TemplateGroup[]> => {
+    const agent = await prisma.agent.findFirst({
+      where: { name: LIBRARY_AGENT_NAME },
+    });
+    if (!agent) return [];
 
-  const variants = await prisma.messageVariant.findMany({
-    where: { message: { agentId: agent.id }, status: { not: "archived" } },
-    select: {
-      id: true,
-      name: true,
-      title: true,
-      body: true,
-      deeplink: true,
-      cta: true,
-      category: true,
-      subcategory: true,
-    },
-    orderBy: [{ category: "asc" }, { subcategory: "asc" }, { createdAt: "asc" }],
-  });
+    const variants = await prisma.messageVariant.findMany({
+      where: { message: { agentId: agent.id }, status: { not: "archived" } },
+      select: {
+        id: true,
+        name: true,
+        title: true,
+        body: true,
+        deeplink: true,
+        cta: true,
+        category: true,
+        subcategory: true,
+      },
+      orderBy: [{ category: "asc" }, { subcategory: "asc" }, { createdAt: "asc" }],
+    });
 
-  const grouped = new Map<string, Map<string | null, TemplateVariant[]>>();
-  for (const v of variants) {
-    const cat = v.category ?? "uncategorized";
-    if (!grouped.has(cat)) grouped.set(cat, new Map());
-    const subMap = grouped.get(cat)!;
-    const sub = v.subcategory ?? null;
-    if (!subMap.has(sub)) subMap.set(sub, []);
-    subMap.get(sub)!.push(v);
-  }
+    const grouped = new Map<string, Map<string | null, TemplateVariant[]>>();
+    for (const v of variants) {
+      const cat = v.category ?? "uncategorized";
+      if (!grouped.has(cat)) grouped.set(cat, new Map());
+      const subMap = grouped.get(cat)!;
+      const sub = v.subcategory ?? null;
+      if (!subMap.has(sub)) subMap.set(sub, []);
+      subMap.get(sub)!.push(v);
+    }
 
-  return Array.from(grouped.entries()).flatMap(([category, subMap]) =>
-    Array.from(subMap.entries()).map(([subcategory, vs]) => ({
-      category,
-      subcategory,
-      variants: vs,
-    }))
-  );
-}
+    return Array.from(grouped.entries()).flatMap(([category, subMap]) =>
+      Array.from(subMap.entries()).map(([subcategory, vs]) => ({
+        category,
+        subcategory,
+        variants: vs,
+      }))
+    );
+  },
+  ["push-library-groups"],
+  { tags: ["agents"], revalidate: 900 }
+);
 
 export default async function MessagesPage() {
   const { user } = await getAuth();

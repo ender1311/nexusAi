@@ -10,16 +10,19 @@ export interface AssignmentConfig {
  * Assign a single user to the best matching persona based on their feature vector.
  * Low-data users get a reduced effective confidence.
  */
+type DiscoveredPersona = Awaited<ReturnType<typeof prisma.persona.findMany>>[number];
+
 export async function assignUserToPersona(
   externalId: string,
-  config: AssignmentConfig = {}
+  config: AssignmentConfig = {},
+  preloadedPersonas?: DiscoveredPersona[]
 ): Promise<{ personaId: string | null; confidence: number }> {
   const minInteractions = config.minInteractions ?? 20;
 
   const user = await prisma.trackedUser.findUnique({ where: { externalId } });
   if (!user) return { personaId: null, confidence: 0 };
 
-  const discoveredPersonas = await prisma.persona.findMany({
+  const discoveredPersonas = preloadedPersonas ?? await prisma.persona.findMany({
     where: { source: "discovered", isActive: true, centroid: { not: Prisma.DbNull } },
   });
 
@@ -81,13 +84,20 @@ export async function assignUserToPersona(
  * Returns count of assignments made.
  */
 export async function batchAssignPersonas(config: AssignmentConfig = {}): Promise<number> {
-  const users = await prisma.trackedUser.findMany({ select: { externalId: true } });
-  let assigned = 0;
+  const [users, discoveredPersonas] = await Promise.all([
+    prisma.trackedUser.findMany({ select: { externalId: true } }),
+    prisma.persona.findMany({
+      where: { source: "discovered", isActive: true, centroid: { not: Prisma.DbNull } },
+    }),
+  ]);
 
+  let assigned = 0;
   const BATCH_SIZE = 50;
   for (let i = 0; i < users.length; i += BATCH_SIZE) {
     const batch = users.slice(i, i + BATCH_SIZE);
-    const results = await Promise.all(batch.map((u) => assignUserToPersona(u.externalId, config)));
+    const results = await Promise.all(
+      batch.map((u) => assignUserToPersona(u.externalId, config, discoveredPersonas))
+    );
     assigned += results.filter((r) => r.personaId !== null).length;
   }
 
