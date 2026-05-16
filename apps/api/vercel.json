@@ -1,7 +1,7 @@
 {
   "framework": null,
   "installCommand": "npm install --ignore-scripts",
-  "buildCommand": "npx prisma generate --config prisma.config.ts && npx esbuild api/_index.ts --bundle --platform=node --format=cjs --outfile=api/index.js --packages=external",
+  "buildCommand": "npx prisma generate --config prisma.config.ts",
   "build": {
     "env": {
       "HUSKY": "0"
