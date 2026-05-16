@@ -1,20 +1,21 @@
+import { createHmac, timingSafeEqual } from "node:crypto";
 import { createMiddleware } from "hono/factory";
 
-// Pure-JS constant-time comparison (XOR loop) — works on both Node.js and edge runtimes.
-function timingSafeEqual(a: string, b: string): boolean {
-  if (a.length !== b.length) return false;
-  let result = 0;
-  for (let i = 0; i < a.length; i++) {
-    result |= a.charCodeAt(i) ^ b.charCodeAt(i);
-  }
-  return result === 0;
+const HMAC_KEY = Buffer.from("nexus-token-comparison");
+
+// HMAC-hash both strings to a fixed-length buffer before comparing so that
+// string length differences don't produce a timing side-channel.
+function safeEqual(a: string, b: string): boolean {
+  const ah = createHmac("sha256", HMAC_KEY).update(a).digest();
+  const bh = createHmac("sha256", HMAC_KEY).update(b).digest();
+  return timingSafeEqual(ah, bh);
 }
 
 export const serviceAuth = createMiddleware(async (c, next) => {
   const header = c.req.header("Authorization") ?? "";
   const token = header.startsWith("Bearer ") ? header.slice(7) : "";
   const expected = process.env.INTERNAL_API_SECRET ?? "";
-  const isValid = token.length > 0 && timingSafeEqual(token, expected);
+  const isValid = token.length > 0 && safeEqual(token, expected);
   if (!isValid) {
     return c.json({ error: "Unauthorized" }, 401);
   }
