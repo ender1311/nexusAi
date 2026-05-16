@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useCallback, useRef } from "react";
+import { useState, useCallback, useRef, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import {
   Zap,
@@ -21,6 +21,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import type { DemoAssignment, DemoPreviewResponse } from "@/app/api/demo/preview/route";
 import type { DemoSendResponse } from "@/app/api/demo/send/route";
+import type { DemoUserGroupRecord } from "@/app/api/demo/groups/route";
 
 // ─── Types ─────────────────────────────────────────────────────────────────────
 
@@ -227,39 +228,70 @@ function UserAssignmentCard({ assignment }: { assignment: DemoAssignment }) {
 
 // ─── Steps ──────────────────────────────────────────────────────────────────────
 
-const GROUPS_KEY = "nexus_demo_user_groups";
+// localStorage key used by the old implementation — read once on mount to migrate, then clear.
+const LEGACY_GROUPS_KEY = "nexus_demo_user_groups";
 
-type SavedGroup = { name: string; ids: string[] };
-
-function readGroups(): SavedGroup[] {
-  try {
-    const stored = localStorage.getItem(GROUPS_KEY);
-    return stored ? (JSON.parse(stored) as SavedGroup[]) : [];
-  } catch {
-    return [];
-  }
-}
+type SavedGroup = { id?: string; name: string; ids: string[] };
 
 function useSavedGroups() {
-  const [groups, setGroups] = useState<SavedGroup[]>(() => {
-    if (typeof window === "undefined") return [];
-    return readGroups();
-  });
+  const [groups, setGroups] = useState<SavedGroup[]>([]);
 
-  const save = useCallback((name: string, ids: string[]) => {
-    setGroups((prev) => {
-      const next = [{ name, ids }, ...prev.filter((g) => g.name !== name)].slice(0, 10);
-      localStorage.setItem(GROUPS_KEY, JSON.stringify(next));
-      return next;
-    });
+  // Load from DB on mount; migrate any legacy localStorage groups.
+  useEffect(() => {
+    async function load() {
+      // One-time migration: push any localStorage groups to the DB.
+      try {
+        const stored = localStorage.getItem(LEGACY_GROUPS_KEY);
+        if (stored) {
+          const legacy = JSON.parse(stored) as Array<{ name: string; ids: string[] }>;
+          await Promise.all(
+            legacy.map((g) =>
+              fetch("/api/demo/groups", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ name: g.name, userIds: g.ids }),
+              }).catch(() => {})
+            )
+          );
+          localStorage.removeItem(LEGACY_GROUPS_KEY);
+        }
+      } catch {}
+
+      // Fetch current groups from DB.
+      try {
+        const res = await fetch("/api/demo/groups");
+        if (res.ok) {
+          const { data } = (await res.json()) as { data: DemoUserGroupRecord[] };
+          setGroups(data.map((g) => ({ id: g.id, name: g.name, ids: g.userIds })));
+        }
+      } catch {}
+    }
+    load();
   }, []);
 
-  const remove = useCallback((name: string) => {
-    setGroups((prev) => {
-      const next = prev.filter((g) => g.name !== name);
-      localStorage.setItem(GROUPS_KEY, JSON.stringify(next));
-      return next;
-    });
+  const save = useCallback(async (name: string, ids: string[]) => {
+    // Optimistic update.
+    setGroups((prev) => [{ name, ids }, ...prev.filter((g) => g.name !== name)].slice(0, 20));
+    try {
+      const res = await fetch("/api/demo/groups", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ name, userIds: ids }),
+      });
+      if (res.ok) {
+        const { data } = (await res.json()) as { data: DemoUserGroupRecord };
+        setGroups((prev) =>
+          prev.map((g) => (g.name === name ? { id: data.id, name: data.name, ids: data.userIds } : g))
+        );
+      }
+    } catch {}
+  }, []);
+
+  const remove = useCallback(async (name: string, id?: string) => {
+    setGroups((prev) => prev.filter((g) => g.name !== name));
+    if (id) {
+      await fetch(`/api/demo/groups/${id}`, { method: "DELETE" }).catch(() => {});
+    }
   }, []);
 
   return { groups, save, remove };
@@ -453,7 +485,7 @@ function SetupStep({
                   </button>
                   <button
                     type="button"
-                    onClick={() => removeGroup(g.name)}
+                    onClick={() => removeGroup(g.name, g.id)}
                     className="text-muted-foreground hover:text-destructive ml-0.5"
                     aria-label={`Remove ${g.name}`}
                   >
