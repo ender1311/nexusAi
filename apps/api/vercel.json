@@ -3,5 +3,10 @@
   "installCommand": "npm install --ignore-scripts",
   "buildCommand": "npx prisma generate --config prisma.config.ts",
   "outputDirectory": ".",
+  "build": {
+    "env": {
+      "HUSKY": "0"
+    }
+  },
   "rewrites": [{ "source": "/(.*)", "destination": "/api/index" }]
 }
