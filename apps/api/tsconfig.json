@@ -1,13 +1,13 @@
 {
   "compilerOptions": {
     "target": "ESNext",
-    "module": "ESNext",
-    "moduleResolution": "bundler",
+    "module": "CommonJS",
+    "moduleResolution": "node",
     "lib": ["ESNext"],
     "strict": true,
     "skipLibCheck": true,
     "noEmit": true,
     "baseUrl": "."
   },
-  "include": ["src/**/*.ts"]
+  "include": ["src/**/*.ts", "api/**/*.ts"]
 }

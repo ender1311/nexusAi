@@ -1,16 +1,26 @@
-import { afterEach, beforeEach, describe, expect, it } from "bun:test";
+import { beforeEach, describe, expect, it, mock } from "bun:test";
 import { NextRequest } from "next/server";
 import { truncateAll, prisma } from "../helpers/db";
 import { buildRequest } from "../helpers/request";
 import { createAgent, createMessage, createVariant } from "../helpers/builders";
-import { POST as postMessage } from "@/app/api/agents/[id]/messages/route";
-import { PATCH as patchVariant, DELETE as deleteVariant } from "@/app/api/variants/[id]/route";
+
+// Must mock before importing routes that call requireAdmin()
+mock.module("@workos-inc/authkit-nextjs", () => ({
+  withAuth: () =>
+    Promise.resolve({
+      user: { id: "test-user", email: "test@youversion.com", firstName: "Test", lastName: "User" },
+      roles: ["admin"],
+      sessionId: "sess1",
+      accessToken: "tok1",
+    }),
+  signOut: async () => {},
+}));
+
+// Import AFTER mock.module so the mock takes effect
+const { POST: postMessage } = await import("@/app/api/agents/[id]/messages/route");
+const { PATCH: patchVariant, DELETE: deleteVariant } = await import("@/app/api/variants/[id]/route");
 
 beforeEach(async () => {
-  await truncateAll();
-});
-
-afterEach(async () => {
   await truncateAll();
 });
 

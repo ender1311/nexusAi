@@ -18,6 +18,16 @@ mock.module("next/navigation", () => ({
   notFound: () => { throw new Error("not_found"); },
 }));
 
+// WorkOS auth mock: integration tests run outside a Next.js request context so
+// withAuth() cannot call headers(). Stub it to behave as an authenticated admin.
+mock.module("@workos-inc/authkit-nextjs", () => ({
+  withAuth: async () => ({
+    user: { id: "test-user", email: "test@youversion.com", firstName: "Test", lastName: "User" },
+    roles: ["admin"],
+  }),
+  signOut: () => Promise.resolve(),
+}));
+
 mock.module("next/cache", () => ({
   revalidatePath: () => {},
   revalidateTag: () => {},

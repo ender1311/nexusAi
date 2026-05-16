@@ -1,0 +1,11 @@
+{
+  "framework": null,
+  "installCommand": "npm install --ignore-scripts",
+  "buildCommand": "npx prisma generate --config prisma.config.ts",
+  "build": {
+    "env": {
+      "HUSKY": "0"
+    }
+  },
+  "rewrites": [{ "source": "/(.*)", "destination": "/api/index" }]
+}

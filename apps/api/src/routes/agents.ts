@@ -79,7 +79,11 @@ agents.post("/", async (c) => {
       targetFilter,
     } = body;
 
-    if (!VALID_STAGES.has(funnelStage as (typeof FUNNEL_STAGES)[number])) {
+    if (typeof name !== "string" || name.trim().length === 0) {
+      return c.json({ error: "name is required" }, 400);
+    }
+
+    if (funnelStage === undefined || funnelStage === null || !VALID_STAGES.has(funnelStage as (typeof FUNNEL_STAGES)[number])) {
       return c.json({ error: "Invalid funnelStage" }, 400);
     }
 
