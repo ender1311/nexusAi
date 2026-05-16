@@ -17,7 +17,7 @@
     "test:watch": "bun test --watch tests/unit",
     "check": "bun run typecheck && bun run lint && bun run test",
     "check:quick": "bun run typecheck && bun run lint && bun run test:quick",
-    "prepare": "husky"
+    "prepare": "[ -f node_modules/.bin/husky ] && husky || true"
   },
   "dependencies": {
     "@base-ui/react": "^1.2.0",
