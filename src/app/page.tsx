@@ -12,7 +12,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { getCachedAgentList, getCachedPersonaDistribution, getCachedDashboardCounts, getCachedDashboardTimeSeries, getCachedRecentDecisions } from "@/lib/cache";
 import { formatNumber, formatDate } from "@/lib/utils";
 import { TimeSeriesPoint, DecisionLog } from "@/types/metrics";
-import { Bot, Send, TrendingUp, Users, Plus, CheckCircle2, XCircle } from "lucide-react";
+import { Bot, Send, TrendingUp, Users, Plus, CheckCircle2, XCircle, Eye } from "lucide-react";
 import Link from "next/link";
 
 // ---------------------------------------------------------------------------
@@ -128,11 +128,12 @@ export default async function DashboardPage() {
     getCachedPersonaDistribution(),
     getCachedDashboardCounts(),
   ]);
-  const { sentLast24h, totalDecisions, totalConversions, trackedUsers } = dashCounts;
+  const { sentLast24h, totalDecisions, totalConversions, trackedUsers, totalPushSends, totalPushOpens } = dashCounts;
 
   // Derived metrics
   const activeAgents = agents.filter((a) => a.status === "active").length;
   const avgConvRate = totalDecisions > 0 ? (totalConversions / totalDecisions) * 100 : 0;
+  const pushOpenRate = totalPushSends > 0 ? (totalPushOpens / totalPushSends) * 100 : 0;
 
   // Persona distribution (computed from fast data)
   const totalPersonaUsers = personasRaw.reduce((s, p) => s + p._count.trackedUsers, 0);
@@ -153,7 +154,7 @@ export default async function DashboardPage() {
       <Header title="Dashboard" description="Nexus platform overview" />
       <div className="p-4 sm:p-6 space-y-4 sm:space-y-6">
         {/* Metric cards — render immediately from fast count queries */}
-        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3 sm:gap-4">
+        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3 sm:gap-4">
           <MetricCard
             title="Tracked Users"
             value={formatNumber(trackedUsers)}
@@ -184,6 +185,12 @@ export default async function DashboardPage() {
             value={formatNumber(totalDecisions)}
             description="lifetime total"
             icon={Send}
+          />
+          <MetricCard
+            title="Push Open Rate"
+            value={totalPushSends > 0 ? `${pushOpenRate.toFixed(2)}%` : "—"}
+            description="push notifications"
+            icon={Eye}
           />
         </div>
 

@@ -14,7 +14,7 @@ import { baselineLiftSignificance } from "@/lib/engine/lift-significance";
 import { formatNumber, formatPercent } from "@/lib/utils";
 import { AgentMetric, VariantMetric } from "@/types/metrics";
 import Link from "next/link";
-import { TrendingUp, TrendingDown, Minus, Send, Zap, GitCompare } from "lucide-react";
+import { TrendingUp, TrendingDown, Minus, Send, Zap, GitCompare, Eye } from "lucide-react";
 import { AgentStatus } from "@/types/agent";
 import { liftSignificance } from "@/lib/engine/lift-significance";
 
@@ -63,7 +63,7 @@ function LiftBadge({
 export default async function PerformancePage() {
   // Per-agent send/conversion counts — aggregated in the DB, not in JS
   const [
-    { agents, sendsByAgent, conversionsByAgent },
+    { agents, sendsByAgent, conversionsByAgent, pushSendsByAgent, pushOpensByAgent },
     { variantSends, variantConversions, variantRewards },
     { baselineRate, liftSince },
   ] = await Promise.all([
@@ -79,10 +79,16 @@ export default async function PerformancePage() {
 
   const sendCountByAgent = new Map(sendsByAgent.map((r) => [r.agentId, r._count.id]));
   const convCountByAgent = new Map(conversionsByAgent.map((r) => [r.agentId, r._count.id]));
+  const pushSendCountByAgent = new Map(pushSendsByAgent.map((r) => [r.agentId, r._count.id]));
+  const pushOpenCountByAgent = new Map(pushOpensByAgent.map((r) => [r.agentId, r._count.id]));
 
   const fleetSendsTotal = sendsByAgent.reduce((s, r) => s + r._count.id, 0);
   const fleetConversionsTotal = conversionsByAgent.reduce((s, r) => s + r._count.id, 0);
   const fleetConvRate = fleetSendsTotal > 0 ? (fleetConversionsTotal / fleetSendsTotal) * 100 : 0;
+
+  const fleetPushSendsTotal = pushSendsByAgent.reduce((s, r) => s + r._count.id, 0);
+  const fleetPushOpensTotal = pushOpensByAgent.reduce((s, r) => s + r._count.id, 0);
+  const fleetPushOpenRate = fleetPushSendsTotal > 0 ? (fleetPushOpensTotal / fleetPushSendsTotal) * 100 : 0;
 
   const agentMetricsReal: AgentMetric[] = agents.map((a) => {
     const sends = sendCountByAgent.get(a.id) ?? 0;
@@ -91,6 +97,9 @@ export default async function PerformancePage() {
     const { lift, significant, insufficient } = liftSignificance(
       sends, conversions, fleetSendsTotal, fleetConversionsTotal,
     );
+    const agentPushSends = pushSendCountByAgent.get(a.id) ?? 0;
+    const agentPushOpens = pushOpenCountByAgent.get(a.id) ?? 0;
+    const agentPushOpenRate = agentPushSends > 0 ? (agentPushOpens / agentPushSends) * 100 : 0;
     return {
       agentId: a.id,
       agentName: a.name,
@@ -102,6 +111,8 @@ export default async function PerformancePage() {
       liftSignificant: significant,
       liftInsufficient: insufficient,
       exploreRatio: 0,
+      pushSends: agentPushSends,
+      pushOpenRate: agentPushOpenRate,
     };
   });
 
@@ -139,7 +150,7 @@ export default async function PerformancePage() {
       <Header title="Performance" description="Global Nexus metrics" />
       <div className="p-4 sm:p-6 space-y-4 sm:space-y-6">
         {/* KPIs */}
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-3 sm:gap-4">
+        <div className="grid grid-cols-2 md:grid-cols-5 gap-3 sm:gap-4">
           <MetricCard
             title="Total Sends (30d)"
             value={formatNumber(fleetSendsTotal)}
@@ -165,6 +176,11 @@ export default async function PerformancePage() {
             title="Active Variants"
             value={topVariants.length}
             icon={GitCompare}
+          />
+          <MetricCard
+            title="Avg Push Open Rate"
+            value={fleetPushSendsTotal > 0 ? formatPercent(fleetPushOpenRate) : "—"}
+            icon={Eye}
           />
         </div>
 
@@ -197,6 +213,7 @@ export default async function PerformancePage() {
                   <TableHead className="text-right font-semibold">Sends</TableHead>
                   <TableHead className="text-right font-semibold hidden sm:table-cell">Conversions</TableHead>
                   <TableHead className="text-right font-semibold">Conv. Rate</TableHead>
+                  <TableHead className="text-right font-semibold hidden md:table-cell">Push Open %</TableHead>
                   <TableHead className="text-right font-semibold hidden md:table-cell">Lift vs Avg</TableHead>
                   <TableHead className="text-right font-semibold hidden md:table-cell">Explore %</TableHead>
                   <TableHead />
@@ -215,6 +232,12 @@ export default async function PerformancePage() {
                       {formatPercent(m.conversionRate)}
                     </TableCell>
                     <TableCell className="text-right hidden md:table-cell">
+                      {m.pushSends && m.pushSends > 0
+                        ? <span className="font-medium text-primary">{m.pushOpenRate?.toFixed(1)}%</span>
+                        : <span className="text-muted-foreground">—</span>
+                      }
+                    </TableCell>
+                    <TableCell className="text-right hidden md:table-cell">
                       <LiftBadge lift={m.liftVsControl} significant={m.liftSignificant} insufficient={m.liftInsufficient} />
                     </TableCell>
                     <TableCell className="text-right text-muted-foreground hidden md:table-cell">{m.exploreRatio}%</TableCell>
@@ -227,7 +250,7 @@ export default async function PerformancePage() {
                 ))}
                 {agentMetricsReal.length === 0 && (
                   <TableRow>
-                    <TableCell colSpan={8} className="text-center text-muted-foreground text-sm py-6">
+                    <TableCell colSpan={9} className="text-center text-muted-foreground text-sm py-6">
                       No agents found
                     </TableCell>
                   </TableRow>
