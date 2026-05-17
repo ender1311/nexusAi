@@ -45,8 +45,8 @@ export async function GET(
       : DEFAULT_LIMIT;
 
     const rawStatus = searchParams.get("status") ?? "all";
-    const statusFilter = ["all", "success", "failed", "converted"].includes(rawStatus)
-      ? (rawStatus as "all" | "success" | "failed" | "converted")
+    const statusFilter = ["all", "success", "failed", "converted", "pending"].includes(rawStatus)
+      ? (rawStatus as "all" | "success" | "failed" | "converted" | "pending")
       : "all";
     const rawChannel = searchParams.get("channel") ?? "all";
     const channelFilter = rawChannel !== "all" && rawChannel.length > 0 ? rawChannel : "all";
@@ -81,6 +81,7 @@ export async function GET(
       id?: { in: string[] } | { notIn: string[] };
       channel?: string;
       conversionAt?: { not: null };
+      scheduledFor?: { gt: Date } | { lte: Date };
       OR?: Array<{ scheduledFor: null } | { scheduledFor: { lte: Date } }>;
     };
     const whereExtra: WhereExtra = {};
@@ -94,6 +95,8 @@ export async function GET(
       whereExtra.OR = [{ scheduledFor: null }, { scheduledFor: { lte: now } }];
     } else if (statusFilter === "converted") {
       whereExtra.conversionAt = { not: null };
+    } else if (statusFilter === "pending") {
+      whereExtra.scheduledFor = { gt: now };
     }
 
     if (channelFilter !== "all") {

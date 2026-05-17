@@ -35,8 +35,22 @@ export default function DeepDiveLayout({ children }: { children: React.ReactNode
         </div>
       </div>
 
+      {/* Mobile chapter picker — full-width, above content */}
+      <div className="md:hidden mb-4">
+        <select
+          className="w-full rounded-md border bg-background px-3 py-2 text-sm"
+          value={pathname}
+          onChange={(e) => { window.location.href = e.target.value; }}
+        >
+          {CHAPTERS.map(({ slug, label }) => {
+            const href = slug ? `/demo/deep-dive/${slug}` : "/demo/deep-dive";
+            return <option key={slug} value={href}>{label}</option>;
+          })}
+        </select>
+      </div>
+
       <div className="flex gap-8 items-start">
-        {/* Sidebar */}
+        {/* Sidebar — desktop only */}
         <nav className="hidden md:block w-56 shrink-0 sticky top-8">
           <p className="text-[11px] uppercase tracking-widest text-muted-foreground font-semibold mb-3 px-2">
             Chapters
@@ -65,20 +79,6 @@ export default function DeepDiveLayout({ children }: { children: React.ReactNode
             })}
           </ul>
         </nav>
-
-        {/* Mobile chapter picker */}
-        <div className="md:hidden w-full mb-4">
-          <select
-            className="w-full rounded-md border bg-background px-3 py-2 text-sm"
-            value={pathname}
-            onChange={(e) => { window.location.href = e.target.value; }}
-          >
-            {CHAPTERS.map(({ slug, label }) => {
-              const href = slug ? `/demo/deep-dive/${slug}` : "/demo/deep-dive";
-              return <option key={slug} value={href}>{label}</option>;
-            })}
-          </select>
-        </div>
 
         {/* Content */}
         <main className="flex-1 min-w-0">{children}</main>

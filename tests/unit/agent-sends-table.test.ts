@@ -27,7 +27,7 @@ type SortField = "sentAt" | "channel" | "persona" | "variant";
 type SortDir = "asc" | "desc";
 
 type Filters = {
-  status: "all" | "success" | "failed" | "converted";
+  status: "all" | "success" | "failed" | "converted" | "pending";
   channel: string;
   persona: string;
 };
@@ -45,11 +45,12 @@ function formatShortTime(isoStr: string): string {
   return m === 0 ? `${hour12}${suffix}` : `${hour12}:${String(m).padStart(2, "0")}${suffix}`;
 }
 
-function applyFilters(rows: SendRow[], filters: Filters): SendRow[] {
+function applyFilters(rows: SendRow[], filters: Filters, nowMs: number): SendRow[] {
   return rows.filter((r) => {
     if (filters.status === "success" && r.failed) return false;
     if (filters.status === "failed" && !r.failed) return false;
     if (filters.status === "converted" && !r.conversionAt) return false;
+    if (filters.status === "pending" && !(r.scheduledFor && r.scheduledFor > new Date(nowMs).toISOString())) return false;
     if (filters.channel !== "all" && r.channel !== filters.channel) return false;
     if (filters.persona !== "all" && (r.personaName ?? "none") !== filters.persona) return false;
     return true;
@@ -154,62 +155,76 @@ describe("applyFilters", () => {
   const rows = [success, failed, converted, emailRow, noPersona];
 
   const allFilters: Filters = { status: "all", channel: "all", persona: "all" };
+  const nowMs = 1715382000000; // 2024-05-10T08:00:00.000Z
 
   it("returns all rows when all filters are 'all'", () => {
-    expect(applyFilters(rows, allFilters)).toHaveLength(rows.length);
+    expect(applyFilters(rows, allFilters, nowMs)).toHaveLength(rows.length);
   });
 
   it("status=success excludes failed rows", () => {
-    const result = applyFilters(rows, { ...allFilters, status: "success" });
+    const result = applyFilters(rows, { ...allFilters, status: "success" }, nowMs);
     expect(result.every((r) => !r.failed)).toBe(true);
     expect(result.find((r) => r.id === "f1")).toBeUndefined();
   });
 
   it("status=failed excludes non-failed rows", () => {
-    const result = applyFilters(rows, { ...allFilters, status: "failed" });
+    const result = applyFilters(rows, { ...allFilters, status: "failed" }, nowMs);
     expect(result.every((r) => r.failed)).toBe(true);
     expect(result).toHaveLength(1);
     expect(result[0].id).toBe("f1");
   });
 
   it("status=converted excludes rows without conversionAt", () => {
-    const result = applyFilters(rows, { ...allFilters, status: "converted" });
+    const result = applyFilters(rows, { ...allFilters, status: "converted" }, nowMs);
     expect(result).toHaveLength(1);
     expect(result[0].id).toBe("c1");
   });
 
+  it("status=pending includes only rows with scheduledFor in the future", () => {
+    const now = Date.now();
+    const future = new Date(now + 3600000).toISOString(); // 1 hour from now
+    const past = new Date(now - 3600000).toISOString();   // 1 hour ago
+    const pendingRow = makeRow({ id: "pend1", scheduledFor: future, failed: false });
+    const pastRow = makeRow({ id: "past1", scheduledFor: past, failed: false });
+    const noschedule = makeRow({ id: "nosched1", scheduledFor: null, failed: false });
+    const testRows = [pendingRow, pastRow, noschedule];
+    const result = applyFilters(testRows, { ...allFilters, status: "pending" }, now);
+    expect(result).toHaveLength(1);
+    expect(result[0].id).toBe("pend1");
+  });
+
   it("channel filter matches exact channel name", () => {
-    const result = applyFilters(rows, { ...allFilters, channel: "email" });
+    const result = applyFilters(rows, { ...allFilters, channel: "email" }, nowMs);
     expect(result).toHaveLength(1);
     expect(result[0].id).toBe("e1");
   });
 
   it("channel=all passes all channels through", () => {
-    const result = applyFilters(rows, { ...allFilters, channel: "all" });
+    const result = applyFilters(rows, { ...allFilters, channel: "all" }, nowMs);
     expect(result).toHaveLength(rows.length);
   });
 
   it("persona filter matches exact persona name", () => {
-    const result = applyFilters(rows, { ...allFilters, persona: "Seekers" });
+    const result = applyFilters(rows, { ...allFilters, persona: "Seekers" }, nowMs);
     // success, failed, converted, email all have personaName="Seekers"; noPersona does not
     expect(result.every((r) => r.personaName === "Seekers")).toBe(true);
     expect(result.find((r) => r.id === "np1")).toBeUndefined();
   });
 
   it("persona='none' matches rows with null personaName", () => {
-    const result = applyFilters(rows, { ...allFilters, persona: "none" });
+    const result = applyFilters(rows, { ...allFilters, persona: "none" }, nowMs);
     expect(result).toHaveLength(1);
     expect(result[0].id).toBe("np1");
   });
 
   it("combines status and channel filters", () => {
-    const result = applyFilters(rows, { ...allFilters, status: "success", channel: "email" });
+    const result = applyFilters(rows, { ...allFilters, status: "success", channel: "email" }, nowMs);
     expect(result).toHaveLength(1);
     expect(result[0].id).toBe("e1");
   });
 
   it("returns empty array when no rows match", () => {
-    const result = applyFilters(rows, { ...allFilters, channel: "sms" });
+    const result = applyFilters(rows, { ...allFilters, channel: "sms" }, nowMs);
     expect(result).toHaveLength(0);
   });
 });
