@@ -30,6 +30,8 @@ export interface AgentMetric {
   /** True when there are fewer than 200 sends — significance verdict withheld */
   liftInsufficient: boolean;
   exploreRatio: number;
+  pushSends?: number;
+  pushOpenRate?: number;
 }
 
 export interface TimingHeatmapCell {
