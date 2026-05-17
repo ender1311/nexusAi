@@ -407,3 +407,13 @@ model CampaignContent {
   @@index([campaign, language, contentType])
   @@index([campaign, status])
 }
+
+// Named collections of test-user IDs for the Live Send Demo.
+// DB-backed so groups survive browser clears and are shared across devices.
+model DemoUserGroup {
+  id        String   @id @default(cuid())
+  name      String   @unique
+  userIds   Json     @default("[]")  // string[]
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}

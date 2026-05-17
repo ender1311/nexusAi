@@ -241,3 +241,116 @@ describe("GET /api/agents/[id]/sends", () => {
     expect(body.data[0].personaColor).toBeNull();
   });
 });
+
+describe("status filter param", () => {
+  it("status=failed returns only failed decisions", async () => {
+    const agent = await createAgent();
+    const msg = await createMessage(agent.id);
+    const variant = await createVariant(msg.id);
+    await createUser("usr-sf1");
+    await createUser("usr-sf2");
+    const goodDecision = await createUserDecision({ agentId: agent.id, userId: "usr-sf1", messageVariantId: variant.id });
+    const badDecision  = await createUserDecision({ agentId: agent.id, userId: "usr-sf2", messageVariantId: variant.id });
+    await createFailedSend(agent.id, variant.id, [badDecision.id]);
+
+    const { res, body } = await getSends(agent.id, { status: "failed" });
+    expect(res.status).toBe(200);
+    const ids = body.data.map((r: { id: string }) => r.id);
+    expect(ids).toContain(badDecision.id);
+    expect(ids).not.toContain(goodDecision.id);
+  });
+
+  it("status=failed returns empty when no failures exist", async () => {
+    const agent = await createAgent();
+    const msg = await createMessage(agent.id);
+    const variant = await createVariant(msg.id);
+    await createUser("usr-sf3");
+    await createUserDecision({ agentId: agent.id, userId: "usr-sf3", messageVariantId: variant.id });
+
+    const { res, body } = await getSends(agent.id, { status: "failed" });
+    expect(res.status).toBe(200);
+    expect(body.data).toHaveLength(0);
+  });
+
+  it("status=success excludes failed decisions", async () => {
+    const agent = await createAgent();
+    const msg = await createMessage(agent.id);
+    const variant = await createVariant(msg.id);
+    await createUser("usr-ss1");
+    await createUser("usr-ss2");
+    const goodDecision = await createUserDecision({ agentId: agent.id, userId: "usr-ss1", messageVariantId: variant.id });
+    const badDecision  = await createUserDecision({ agentId: agent.id, userId: "usr-ss2", messageVariantId: variant.id });
+    await createFailedSend(agent.id, variant.id, [badDecision.id]);
+
+    const { res, body } = await getSends(agent.id, { status: "success" });
+    expect(res.status).toBe(200);
+    const ids = body.data.map((r: { id: string }) => r.id);
+    expect(ids).toContain(goodDecision.id);
+    expect(ids).not.toContain(badDecision.id);
+  });
+
+  it("status=success excludes future scheduled sends", async () => {
+    const agent = await createAgent();
+    const msg = await createMessage(agent.id);
+    const variant = await createVariant(msg.id);
+    await createUser("usr-ss3");
+    await createUser("usr-ss4");
+    const future = new Date(Date.now() + 60 * 60 * 1000); // 1h from now
+    const scheduledDecision = await createUserDecision({ agentId: agent.id, userId: "usr-ss3", messageVariantId: variant.id, scheduledFor: future });
+    const normalDecision    = await createUserDecision({ agentId: agent.id, userId: "usr-ss4", messageVariantId: variant.id });
+
+    const { res, body } = await getSends(agent.id, { status: "success" });
+    expect(res.status).toBe(200);
+    const ids = body.data.map((r: { id: string }) => r.id);
+    expect(ids).toContain(normalDecision.id);
+    expect(ids).not.toContain(scheduledDecision.id);
+  });
+
+  it("status=converted returns only decisions with conversionAt set", async () => {
+    const agent = await createAgent();
+    const msg = await createMessage(agent.id);
+    const variant = await createVariant(msg.id);
+    await createUser("usr-sc1");
+    await createUser("usr-sc2");
+    const convertedDecision = await createUserDecision({ agentId: agent.id, userId: "usr-sc1", messageVariantId: variant.id, conversionAt: new Date() });
+    const plainDecision     = await createUserDecision({ agentId: agent.id, userId: "usr-sc2", messageVariantId: variant.id });
+
+    const { res, body } = await getSends(agent.id, { status: "converted" });
+    expect(res.status).toBe(200);
+    const ids = body.data.map((r: { id: string }) => r.id);
+    expect(ids).toContain(convertedDecision.id);
+    expect(ids).not.toContain(plainDecision.id);
+  });
+});
+
+describe("channel filter param", () => {
+  it("channel=push returns only push decisions", async () => {
+    const agent = await createAgent();
+    const msg = await createMessage(agent.id);
+    const variant = await createVariant(msg.id);
+    await createUser("usr-ch1");
+    await createUser("usr-ch2");
+    const pushDecision  = await createUserDecision({ agentId: agent.id, userId: "usr-ch1", messageVariantId: variant.id, channel: "push" });
+    const emailDecision = await createUserDecision({ agentId: agent.id, userId: "usr-ch2", messageVariantId: variant.id, channel: "email" });
+
+    const { res, body } = await getSends(agent.id, { channel: "push" });
+    expect(res.status).toBe(200);
+    const ids = body.data.map((r: { id: string }) => r.id);
+    expect(ids).toContain(pushDecision.id);
+    expect(ids).not.toContain(emailDecision.id);
+  });
+
+  it("channel=all returns all channels", async () => {
+    const agent = await createAgent();
+    const msg = await createMessage(agent.id);
+    const variant = await createVariant(msg.id);
+    await createUser("usr-ch3");
+    await createUser("usr-ch4");
+    await createUserDecision({ agentId: agent.id, userId: "usr-ch3", messageVariantId: variant.id, channel: "push" });
+    await createUserDecision({ agentId: agent.id, userId: "usr-ch4", messageVariantId: variant.id, channel: "email" });
+
+    const { res, body } = await getSends(agent.id, { channel: "all" });
+    expect(res.status).toBe(200);
+    expect(body.data).toHaveLength(2);
+  });
+});
