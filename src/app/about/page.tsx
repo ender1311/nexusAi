@@ -325,15 +325,15 @@ export default function AboutPage() {
           </section>
 
           {/* ── Stats strip ──────────────────────────────────────────── */}
-          <section className="px-16 pb-24">
-            <div className="grid grid-cols-4 border rounded-xl overflow-hidden bg-card">
+          <section className="px-4 sm:px-16 pb-12 sm:pb-24">
+            <div className="grid grid-cols-2 sm:grid-cols-4 border rounded-xl overflow-hidden bg-card divide-x divide-y sm:divide-y-0">
               {[
                 ["+34%", "lift over broadcast",       "weighted, last 30d"],
                 ["2.4M", "decisions / month",          "across 4 production agents"],
                 ["12",   "behavioral personas",        "auto-clustered, weekly"],
                 ["6.84%","avg conversion",             "up from 5.2% baseline"],
-              ].map(([n, l, s], i) => (
-                <div key={l} className={`px-8 py-9 ${i < 3 ? "border-r" : ""}`}>
+              ].map(([n, l, s]) => (
+                <div key={l} className="px-6 sm:px-8 py-7 sm:py-9">
                   <div className="text-5xl font-semibold tracking-tight leading-none">{n}</div>
                   <div className="text-sm font-medium mt-3">{l}</div>
                   <div className="text-xs text-muted-foreground mt-1">{s}</div>
