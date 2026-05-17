@@ -53,6 +53,7 @@ export default async function AgentPerformancePage({
         id: true,
         sentAt: true,
         conversionAt: true,
+        pushOpenAt: true,
         reward: true,
         channel: true,
         messageVariantId: true,
@@ -155,6 +156,9 @@ export default async function AgentPerformancePage({
   const sends = decisions.length;
   const conversions = decisions.filter((d) => d.conversionAt !== null).length;
   const convRate = sends > 0 ? (conversions / sends) * 100 : 0;
+  const pushSends = decisions.filter((d) => d.channel === "push").length;
+  const pushOpens = decisions.filter((d) => d.channel === "push" && d.pushOpenAt !== null).length;
+  const pushOpenRate = pushSends > 0 ? (pushOpens / pushSends) * 100 : 0;
   const { lift, significant: liftSignificant, insufficient: liftInsufficient } = liftSignificance(
     sends, conversions, fleetSends, fleetConversions,
   );
@@ -249,7 +253,7 @@ export default async function AgentPerformancePage({
     <>
       <Header title="Agent Performance" description={agent.name} />
       <div className="p-4 sm:p-6 space-y-4 sm:space-y-6">
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-3 sm:gap-4">
+        <div className={`grid gap-3 sm:gap-4 ${pushSends > 0 ? "grid-cols-2 md:grid-cols-5" : "grid-cols-2 md:grid-cols-4"}`}>
           <Card>
             <CardContent className="p-4">
               <p className="text-xs text-muted-foreground">Total Sends</p>
@@ -292,6 +296,15 @@ export default async function AgentPerformancePage({
               </p>
             </CardContent>
           </Card>
+          {pushSends > 0 && (
+            <Card>
+              <CardContent className="p-4">
+                <p className="text-xs text-muted-foreground">Push Open Rate</p>
+                <p className="text-2xl font-bold mt-1 text-primary">{pushOpenRate.toFixed(2)}%</p>
+                <p className="text-xs text-muted-foreground mt-0.5">{formatNumber(pushOpens)} of {formatNumber(pushSends)} push</p>
+              </CardContent>
+            </Card>
+          )}
         </div>
 
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">

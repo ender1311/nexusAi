@@ -119,13 +119,15 @@ export const getCachedDashboardCounts = unstable_cache(
   async () => {
     const now = new Date();
     const twentyFourHoursAgo = new Date(now.getTime() - 24 * 60 * 60 * 1000);
-    const [sentLast24h, totalDecisions, totalConversions, trackedUsers] = await Promise.all([
+    const [sentLast24h, totalDecisions, totalConversions, trackedUsers, totalPushSends, totalPushOpens] = await Promise.all([
       prisma.userDecision.count({ where: { sentAt: { gte: twentyFourHoursAgo } } }),
       prisma.userDecision.count(),
       prisma.userDecision.count({ where: { conversionAt: { not: null } } }),
       prisma.trackedUser.count(),
+      prisma.userDecision.count({ where: { channel: "push" } }),
+      prisma.userDecision.count({ where: { channel: "push", pushOpenAt: { not: null } } }),
     ]);
-    return { sentLast24h, totalDecisions, totalConversions, trackedUsers };
+    return { sentLast24h, totalDecisions, totalConversions, trackedUsers, totalPushSends, totalPushOpens };
   },
   ["dashboard-counts"],
   { tags: ["dashboard-stats"], revalidate: 900 }
@@ -192,7 +194,7 @@ export const getCachedRecentDecisions = unstable_cache(
 export const getCachedPerformanceMetrics = unstable_cache(
   async () => {
     const thirtyDaysAgo = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000);
-    const [agents, sendsByAgent, conversionsByAgent] = await Promise.all([
+    const [agents, sendsByAgent, conversionsByAgent, pushSendsByAgent, pushOpensByAgent] = await Promise.all([
       prisma.agent.findMany({
         where: { name: { not: LIBRARY_AGENT_NAME } },
         select: { id: true, name: true, status: true },
@@ -208,8 +210,18 @@ export const getCachedPerformanceMetrics = unstable_cache(
         where: { sentAt: { gte: thirtyDaysAgo }, conversionAt: { not: null } },
         _count: { id: true },
       }),
+      prisma.userDecision.groupBy({
+        by: ["agentId"],
+        where: { sentAt: { gte: thirtyDaysAgo }, channel: "push" },
+        _count: { id: true },
+      }),
+      prisma.userDecision.groupBy({
+        by: ["agentId"],
+        where: { sentAt: { gte: thirtyDaysAgo }, channel: "push", pushOpenAt: { not: null } },
+        _count: { id: true },
+      }),
     ]);
-    return { agents, sendsByAgent, conversionsByAgent };
+    return { agents, sendsByAgent, conversionsByAgent, pushSendsByAgent, pushOpensByAgent };
   },
   ["performance-metrics"],
   { tags: ["performance"], revalidate: 900 }
