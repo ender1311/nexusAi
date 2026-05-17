@@ -172,11 +172,12 @@ function groupByDate(rows: SendRow[]): GroupedRows {
   return Array.from(map.entries()).map(([dateKey, { label, rows }]) => ({ dateKey, label, rows }));
 }
 
-function applyFilters(rows: SendRow[], filters: Filters): SendRow[] {
+function applyFilters(rows: SendRow[], filters: Filters, nowMs: number): SendRow[] {
   return rows.filter((r) => {
     if (filters.status === "success" && r.failed) return false;
     if (filters.status === "failed" && !r.failed) return false;
     if (filters.status === "converted" && !r.conversionAt) return false;
+    if (filters.status === "pending" && !(r.scheduledFor && r.scheduledFor > new Date(nowMs).toISOString())) return false;
     if (filters.channel !== "all" && r.channel !== filters.channel) return false;
     if (filters.persona !== "all" && (r.personaName ?? "none") !== filters.persona) return false;
     return true;
@@ -497,7 +498,7 @@ export function AgentSendsTable({ agentId }: Props) {
   const scheduledRows = rows.filter((r) => r.scheduledFor && r.scheduledFor > nowIso);
   const sentRows = rows.filter((r) => !r.scheduledFor || r.scheduledFor <= nowIso);
 
-  const filteredSentRows = useMemo(() => applyFilters(sentRows, filters), [sentRows, filters]);
+  const filteredSentRows = useMemo(() => applyFilters(sentRows, filters, nowMs), [sentRows, filters, nowMs]);
   const groups = useMemo(
     () => applySortToGroups(groupByDate(filteredSentRows), sortField, sortDir),
     [filteredSentRows, sortField, sortDir],
