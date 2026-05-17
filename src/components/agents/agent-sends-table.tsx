@@ -37,7 +37,7 @@ type SortField = "sentAt" | "channel" | "persona" | "variant";
 type SortDir = "asc" | "desc";
 
 type Filters = {
-  status: "all" | "success" | "failed" | "converted";
+  status: "all" | "success" | "failed" | "converted" | "pending";
   channel: string; // "all" or channel name
   persona: string; // "all" or persona name
 };
@@ -550,15 +550,38 @@ export function AgentSendsTable({ agentId }: Props) {
           )}
         </Button>
 
-        {/* Active filter pills */}
-        {filters.status !== "all" && (
-          <span className="flex items-center gap-1 rounded-full border bg-muted/60 px-2 py-0.5 text-xs">
-            {filters.status === "success" ? "Delivered" : filters.status}
-            <button onClick={() => setFilters((f) => ({ ...f, status: "all" }))}>
-              <X className="h-2.5 w-2.5 text-muted-foreground hover:text-foreground" />
+        {/* Status quick-filter chips */}
+        {(["failed", "pending", "success"] as const).map((s) => {
+          const isActive = filters.status === s;
+          const label = s === "success" ? "Delivered" : s === "pending" ? "Pending" : "Failed";
+          return (
+            <button
+              key={s}
+              onClick={() => setFilters((f) => ({ ...f, status: isActive ? "all" : s }))}
+              className={cn(
+                "flex items-center gap-1.5 rounded-full border px-2.5 py-0.5 text-xs font-medium transition-colors",
+                s === "failed" && !isActive && "border-border text-muted-foreground hover:border-red-300 hover:text-red-600 dark:hover:border-red-700 dark:hover:text-red-400",
+                s === "failed" && isActive  && "border-red-400 bg-red-100 text-red-700 dark:border-red-700 dark:bg-red-950/50 dark:text-red-400",
+                s === "pending" && !isActive && "border-border text-muted-foreground hover:border-amber-300 hover:text-amber-600 dark:hover:border-amber-700 dark:hover:text-amber-400",
+                s === "pending" && isActive  && "border-amber-400 bg-amber-100 text-amber-700 dark:border-amber-700 dark:bg-amber-950/50 dark:text-amber-400",
+                s === "success" && !isActive && "border-border text-muted-foreground hover:border-emerald-300 hover:text-emerald-600 dark:hover:border-emerald-700 dark:hover:text-emerald-400",
+                s === "success" && isActive  && "border-emerald-400 bg-emerald-100 text-emerald-700 dark:border-emerald-700 dark:bg-emerald-950/50 dark:text-emerald-400",
+              )}
+            >
+              <span
+                className={cn(
+                  "h-1.5 w-1.5 rounded-full",
+                  s === "failed"  && "bg-red-500",
+                  s === "pending" && "bg-amber-400",
+                  s === "success" && "bg-emerald-500",
+                )}
+              />
+              {label}
             </button>
-          </span>
-        )}
+          );
+        })}
+
+        {/* Active filter pills */}
         {filters.channel !== "all" && (
           <span className="flex items-center gap-1 rounded-full border bg-muted/60 px-2 py-0.5 text-xs capitalize">
             {filters.channel}
@@ -607,6 +630,7 @@ export function AgentSendsTable({ agentId }: Props) {
                 <SelectItem value="all" className="text-xs">All</SelectItem>
                 <SelectItem value="success" className="text-xs">Delivered</SelectItem>
                 <SelectItem value="failed" className="text-xs">Failed</SelectItem>
+                <SelectItem value="pending" className="text-xs">Pending</SelectItem>
                 <SelectItem value="converted" className="text-xs">Converted</SelectItem>
               </SelectContent>
             </Select>

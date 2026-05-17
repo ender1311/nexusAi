@@ -306,6 +306,23 @@ describe("status filter param", () => {
     expect(ids).not.toContain(scheduledDecision.id);
   });
 
+  it("status=pending returns only future-scheduled decisions", async () => {
+    const agent = await createAgent();
+    const msg = await createMessage(agent.id);
+    const variant = await createVariant(msg.id);
+    await createUser("usr-pend1");
+    await createUser("usr-pend2");
+    const future = new Date(Date.now() + 60 * 60 * 1000);
+    const scheduledDecision = await createUserDecision({ agentId: agent.id, userId: "usr-pend1", messageVariantId: variant.id, scheduledFor: future });
+    const pastDecision      = await createUserDecision({ agentId: agent.id, userId: "usr-pend2", messageVariantId: variant.id });
+
+    const { res, body } = await getSends(agent.id, { status: "pending" });
+    expect(res.status).toBe(200);
+    const ids = body.data.map((r: { id: string }) => r.id);
+    expect(ids).toContain(scheduledDecision.id);
+    expect(ids).not.toContain(pastDecision.id);
+  });
+
   it("status=converted returns only decisions with conversionAt set", async () => {
     const agent = await createAgent();
     const msg = await createMessage(agent.id);
