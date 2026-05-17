@@ -162,6 +162,7 @@ export async function createUserDecision(params: {
   messageVariantId?: string;
   channel?: string;
   sentAt?: Date;
+  scheduledFor?: Date;
   conversionEvent?: string;
   conversionAt?: Date;
   pushOpenAt?: Date;
@@ -173,6 +174,7 @@ export async function createUserDecision(params: {
       messageVariantId: params.messageVariantId,
       channel: params.channel ?? "push",
       sentAt: params.sentAt ?? new Date(),
+      ...(params.scheduledFor && { scheduledFor: params.scheduledFor }),
       ...(params.conversionEvent && { conversionEvent: params.conversionEvent }),
       ...(params.conversionAt && { conversionAt: params.conversionAt }),
       ...(params.pushOpenAt && { pushOpenAt: params.pushOpenAt }),

@@ -418,9 +418,15 @@ export function AgentSendsTable({ agentId }: Props) {
     let cancelled = false;
 
     async function fetchInitial() {
+      setRows([]);
+      setCursor(null);
+      setHasMore(false);
       setStatus("loading");
       try {
-        const res = await fetch(`/api/agents/${agentId}/sends?limit=50`);
+        const qs = new URLSearchParams({ limit: "50" });
+        if (filters.status !== "all") qs.set("status", filters.status);
+        if (filters.channel !== "all") qs.set("channel", filters.channel);
+        const res = await fetch(`/api/agents/${agentId}/sends?${qs.toString()}`);
         if (!res.ok) throw new Error("non-ok response");
         const json = (await res.json()) as { data: SendRow[] };
         if (cancelled) return;
@@ -437,13 +443,16 @@ export function AgentSendsTable({ agentId }: Props) {
 
     void fetchInitial();
     return () => { cancelled = true; };
-  }, [agentId]);
+  }, [agentId, filters.status, filters.channel]);
 
   async function loadMore() {
     if (!cursor || loadingMore) return;
     setLoadingMore(true);
     try {
-      const res = await fetch(`/api/agents/${agentId}/sends?limit=50&cursor=${cursor}`);
+      const qs = new URLSearchParams({ limit: "50", cursor });
+      if (filters.status !== "all") qs.set("status", filters.status);
+      if (filters.channel !== "all") qs.set("channel", filters.channel);
+      const res = await fetch(`/api/agents/${agentId}/sends?${qs.toString()}`);
       if (!res.ok) throw new Error("non-ok response");
       const json = (await res.json()) as { data: SendRow[] };
       const fetched = json.data;
