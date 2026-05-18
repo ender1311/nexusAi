@@ -181,11 +181,6 @@ See `.env.example` at the repo root for the canonical reference with inline comm
 - Name things for what they represent, not how they're implemented (`getEligibleVariants` not `filterLoop`).
 - Don't add error handling, fallbacks, or validation for impossible paths. Trust the type system and internal invariants.
 
-### Engine / algorithmic code
-- Bandit engine functions (`reward-calculator`, `thompson-sampling`, `epsilon-greedy`, `persona-discovery`) must remain **pure** — no DB calls, no side effects, no global state — so they stay unit-testable in isolation.
-- Side effects (DB writes, API calls, logging) belong in API route handlers and service layer functions, never in component render paths or engine logic.
-- When touching statistical logic, leave a comment with the formula/reference so reviewers can verify correctness without re-deriving it.
-
 ## Testing
 
 - Every new API endpoint → integration test in `tests/integration/`
@@ -195,3 +190,10 @@ See `.env.example` at the repo root for the canonical reference with inline comm
 - Run `bun run check` before opening an MR (typecheck + lint + full test suite)
 - CI enforces all checks — MRs with failing pipelines are not merged
 - `tests/helpers/builders.ts` contains DB factory functions; use them instead of raw `prisma.create` calls in tests
+
+## Self-learning setup
+
+- **Stop hook**: auto-reviews each session's git diff and writes new non-obvious learnings to `~/.claude/projects/…/memory/` so they surface in future sessions
+- **PostToolUse hook**: ESLint auto-fixes `.ts`/`.tsx` files on every write — no need to remember to run lint after edits
+- **SessionStart hook**: loads session context and renames the terminal tab to "Nexus"
+- Sub-directory `CLAUDE.md` files carry local conventions: `src/lib/engine/` (pure function contract), `src/app/api/` (route shape + auth pattern)
