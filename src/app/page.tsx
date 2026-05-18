@@ -31,6 +31,41 @@ type AgentSummary = {
 // Async sub-components
 // ---------------------------------------------------------------------------
 
+function MetricCardsSkeleton() {
+  return (
+    <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3 sm:gap-4">
+      {[1, 2, 3, 4, 5, 6].map((i) => (
+        <div key={i} className="rounded-xl border bg-card p-4 space-y-2">
+          <Skeleton className="h-3 w-24" />
+          <Skeleton className="h-7 w-16" />
+          <Skeleton className="h-3 w-20" />
+        </div>
+      ))}
+    </div>
+  );
+}
+
+async function MetricCardsSection({ activeAgents }: { activeAgents: number }) {
+  const { sentLast24h, totalConversions, totalDecisions, trackedUsers, totalPushSends, totalPushOpens } =
+    await getCachedDashboardCounts();
+  const avgConvRate = totalDecisions > 0 ? (totalConversions / totalDecisions) * 100 : 0;
+  const pushOpenRate = totalPushSends > 0 ? (totalPushOpens / totalPushSends) * 100 : 0;
+
+  return (
+    <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3 sm:gap-4">
+      <MetricCard title="Tracked Users" value={formatNumber(trackedUsers)} description="synced from Hightouch" icon={Users} />
+      <MetricCard title="Active Agents" value={activeAgents} description="currently running" icon={Bot} trend={0} />
+      <MetricCard title="Messages Sent (24h)" value={formatNumber(sentLast24h)} description="across all channels" icon={Send} />
+      <MetricCard title="Avg Conversion Rate" value={`${avgConvRate.toFixed(2)}%`} description="across active agents" icon={TrendingUp} />
+      <MetricCard title="Total Sends" value={formatNumber(totalPushSends)} description="push notifications" icon={Send} />
+      <PushOpenRateCard
+        value={totalPushSends > 0 ? `${pushOpenRate.toFixed(2)}%` : "—"}
+        description="push notifications"
+      />
+    </div>
+  );
+}
+
 async function TimeSeriesSection() {
   const now = new Date();
   const rows = await getCachedDashboardTimeSeries();
@@ -122,19 +157,14 @@ async function RecentSendsSection({ agents }: { agents: AgentSummary[] }) {
 // ---------------------------------------------------------------------------
 
 export default async function DashboardPage() {
-  // Fast queries — counts + lists needed for metric cards and sidebars.
-  // last7Decisions is intentionally excluded; TimeSeriesSection fetches it.
-  const [agents, personasRaw, dashCounts] = await Promise.all([
+  // Fast queries only — getCachedDashboardCounts (6 COUNT queries) moves into
+  // MetricCardsSection so metric cards don't block agents sidebar / persona chart.
+  const [agents, personasRaw] = await Promise.all([
     getCachedAgentList(),
     getCachedPersonaDistribution(),
-    getCachedDashboardCounts(),
   ]);
-  const { sentLast24h, totalDecisions, totalConversions, trackedUsers, totalPushSends, totalPushOpens } = dashCounts;
 
-  // Derived metrics
   const activeAgents = agents.filter((a) => a.status === "active").length;
-  const avgConvRate = totalDecisions > 0 ? (totalConversions / totalDecisions) * 100 : 0;
-  const pushOpenRate = totalPushSends > 0 ? (totalPushOpens / totalPushSends) * 100 : 0;
 
   // Persona distribution (computed from fast data)
   const totalPersonaUsers = personasRaw.reduce((s, p) => s + p._count.trackedUsers, 0);
@@ -154,44 +184,10 @@ export default async function DashboardPage() {
     <>
       <Header title="Dashboard" description="Nexus platform overview" />
       <div className="p-4 sm:p-6 space-y-4 sm:space-y-6">
-        {/* Metric cards — render immediately from fast count queries */}
-        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3 sm:gap-4">
-          <MetricCard
-            title="Tracked Users"
-            value={formatNumber(trackedUsers)}
-            description="synced from Hightouch"
-            icon={Users}
-          />
-          <MetricCard
-            title="Active Agents"
-            value={activeAgents}
-            description="currently running"
-            icon={Bot}
-            trend={0}
-          />
-          <MetricCard
-            title="Messages Sent (24h)"
-            value={formatNumber(sentLast24h)}
-            description="across all channels"
-            icon={Send}
-          />
-          <MetricCard
-            title="Avg Conversion Rate"
-            value={`${avgConvRate.toFixed(2)}%`}
-            description="across active agents"
-            icon={TrendingUp}
-          />
-          <MetricCard
-            title="Total Sends"
-            value={formatNumber(totalPushSends)}
-            description="push notifications"
-            icon={Send}
-          />
-          <PushOpenRateCard
-            value={totalPushSends > 0 ? `${pushOpenRate.toFixed(2)}%` : "—"}
-            description="push notifications"
-          />
-        </div>
+        {/* Metric cards — Suspense boundary so COUNT queries don't block first paint */}
+        <Suspense fallback={<MetricCardsSkeleton />}>
+          <MetricCardsSection activeAgents={activeAgents} />
+        </Suspense>
 
         {/* Time series chart (slow — 7-day aggregation) + agents sidebar */}
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 sm:gap-6">
