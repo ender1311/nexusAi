@@ -14,6 +14,14 @@ import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
 import { formatNumber, formatDate } from "@/lib/utils";
 
+type BrazeStats = {
+  sends: number;
+  directOpens: number;
+  totalOpens: number;
+  directOpenRate: number;
+  totalOpenRate: number;
+};
+
 type PushSummaryData = {
   totalPushSends: number;
   totalPushOpens: number;
@@ -28,6 +36,7 @@ type PushSummaryData = {
     openRate: number;
     firstPushAt: string;
   }>;
+  brazeStats?: BrazeStats;
 };
 
 interface PushOpenRateCardProps {
@@ -118,36 +127,62 @@ export function PushOpenRateCard({
 
           {data && !loading && (
             <div className="space-y-5">
-              {/* Stats grid */}
-              <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 rounded-lg border p-4 bg-muted/30">
-                <div>
-                  <p className="text-xs text-muted-foreground">
-                    Total Push Sends
-                  </p>
-                  <p className="text-xl font-bold mt-0.5">
-                    {formatNumber(data.totalPushSends)}
-                  </p>
+              {/* Braze Campaign Analytics — authoritative source */}
+              {data.brazeStats && (
+                <div className="space-y-2">
+                  <div className="flex items-center gap-2">
+                    <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Braze Campaign</p>
+                    <span className="text-[10px] bg-primary/10 text-primary px-1.5 py-0.5 rounded font-medium">Authoritative</span>
+                  </div>
+                  <div className="grid grid-cols-2 sm:grid-cols-5 gap-3 rounded-lg border p-4 bg-muted/30">
+                    <div>
+                      <p className="text-xs text-muted-foreground">Sends</p>
+                      <p className="text-lg font-bold mt-0.5">{formatNumber(data.brazeStats.sends)}</p>
+                    </div>
+                    <div>
+                      <p className="text-xs text-muted-foreground">Direct Opens</p>
+                      <p className="text-lg font-bold mt-0.5">{formatNumber(data.brazeStats.directOpens)}</p>
+                    </div>
+                    <div>
+                      <p className="text-xs text-muted-foreground">Total Opens</p>
+                      <p className="text-lg font-bold mt-0.5">{formatNumber(data.brazeStats.totalOpens)}</p>
+                    </div>
+                    <div>
+                      <p className="text-xs text-muted-foreground">Direct Open Rate</p>
+                      <p className="text-lg font-bold mt-0.5 text-primary">{data.brazeStats.directOpenRate.toFixed(2)}%</p>
+                    </div>
+                    <div>
+                      <p className="text-xs text-muted-foreground">Total Open Rate</p>
+                      <p className="text-lg font-bold mt-0.5">{data.brazeStats.totalOpenRate.toFixed(2)}%</p>
+                    </div>
+                  </div>
                 </div>
-                <div>
-                  <p className="text-xs text-muted-foreground">Push Opens</p>
-                  <p className="text-xl font-bold mt-0.5">
-                    {formatNumber(data.totalPushOpens)}
-                  </p>
+              )}
+
+              {/* Nexus DB counts */}
+              <div className="space-y-2">
+                <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Nexus DB</p>
+                <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 rounded-lg border p-4">
+                  <div>
+                    <p className="text-xs text-muted-foreground">Push Sends</p>
+                    <p className="text-xl font-bold mt-0.5">{formatNumber(data.totalPushSends)}</p>
+                  </div>
+                  <div>
+                    <p className="text-xs text-muted-foreground">Opens Tracked</p>
+                    <p className="text-xl font-bold mt-0.5">{formatNumber(data.totalPushOpens)}</p>
+                  </div>
+                  <div>
+                    <p className="text-xs text-muted-foreground">Open Rate</p>
+                    <p className="text-xl font-bold mt-0.5 text-primary">{data.openRate.toFixed(2)}%</p>
+                  </div>
+                  <div>
+                    <p className="text-xs text-muted-foreground">Tracking Since</p>
+                    <p className="text-xl font-bold mt-0.5">
+                      {data.firstPushAt ? formatDate(data.firstPushAt) : "—"}
+                    </p>
+                  </div>
                 </div>
-                <div>
-                  <p className="text-xs text-muted-foreground">Open Rate</p>
-                  <p className="text-xl font-bold mt-0.5 text-primary">
-                    {data.openRate.toFixed(2)}%
-                  </p>
-                </div>
-                <div>
-                  <p className="text-xs text-muted-foreground">
-                    Tracking Since
-                  </p>
-                  <p className="text-xl font-bold mt-0.5">
-                    {data.firstPushAt ? formatDate(data.firstPushAt) : "—"}
-                  </p>
-                </div>
+                <p className="text-xs text-muted-foreground">Analytics counted from May 16, 2026 · earlier push sends excluded</p>
               </div>
 
               {/* Per-agent breakdown */}
