@@ -15,6 +15,7 @@
  */
 import { unstable_cache } from "next/cache";
 import { prisma } from "@/lib/db";
+import { createBrazeClient } from "@/lib/braze/client";
 import { LIBRARY_AGENT_NAME } from "@/lib/engine/template-sync";
 
 // ── Agent data ───────────────────────────────────────────────────────────────
@@ -363,6 +364,53 @@ export const getCachedLiftSettings = unstable_cache(
   },
   ["lift-settings"],
   { tags: ["lift-settings"], revalidate: 86400 }
+);
+
+// ── Braze campaign stats ──────────────────────────────────────────────────────
+
+/** Braze campaign direct/total open rates, cached 15 min. Returns null when Braze is unconfigured. */
+export const getCachedBrazeStats = unstable_cache(
+  async () => {
+    const campaignId = process.env.BRAZE_NEXUS_CAMPAIGN_ID;
+    if (!campaignId) return null;
+    const brazeClient = createBrazeClient();
+    if (!brazeClient) return null;
+    try {
+      const daysSince = Math.ceil((Date.now() - new Date("2026-05-16").getTime()) / (86400 * 1000)) + 2;
+      const res = await brazeClient.get("/campaigns/data_series", {
+        campaign_id: campaignId,
+        length: Math.max(daysSince, 3),
+      });
+      if (!res.ok) return null;
+      const data = await res.json() as { data?: Array<{ messages?: Record<string, unknown[]> }> };
+      let sends = 0, directOpens = 0, totalOpens = 0;
+      for (const point of (data.data ?? [])) {
+        if (!point.messages) continue;
+        for (const variations of Object.values(point.messages)) {
+          if (!Array.isArray(variations)) continue;
+          for (const v of variations) {
+            const s = v as Record<string, unknown>;
+            if (typeof s.sent === "number") sends += s.sent;
+            else if (typeof s.sends === "number") sends += s.sends;
+            if (typeof s.direct_opens === "number") directOpens += s.direct_opens;
+            if (typeof s.total_opens === "number") totalOpens += s.total_opens;
+          }
+        }
+      }
+      if (sends === 0) return null;
+      return {
+        sends,
+        directOpens,
+        totalOpens,
+        directOpenRate: parseFloat(((directOpens / sends) * 100).toFixed(2)),
+        totalOpenRate: parseFloat(((totalOpens / sends) * 100).toFixed(2)),
+      };
+    } catch {
+      return null;
+    }
+  },
+  ["braze-campaign-stats"],
+  { tags: ["braze-stats"], revalidate: 900 }
 );
 
 // ── Control Tower stats ───────────────────────────────────────────────────────

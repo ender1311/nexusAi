@@ -9,7 +9,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
-import { getCachedAgentList, getCachedPersonaDistribution, getCachedDashboardCounts, getCachedDashboardTimeSeries, getCachedRecentDecisions } from "@/lib/cache";
+import { getCachedAgentList, getCachedPersonaDistribution, getCachedDashboardCounts, getCachedDashboardTimeSeries, getCachedRecentDecisions, getCachedBrazeStats } from "@/lib/cache";
 import { formatNumber, formatDate } from "@/lib/utils";
 import { TimeSeriesPoint, DecisionLog } from "@/types/metrics";
 import { Bot, Send, TrendingUp, Users, Plus, CheckCircle2, XCircle } from "lucide-react";
@@ -46,10 +46,11 @@ function MetricCardsSkeleton() {
 }
 
 async function MetricCardsSection({ activeAgents }: { activeAgents: number }) {
-  const { sentLast24h, totalConversions, totalDecisions, trackedUsers, totalPushSends, totalPushOpens } =
-    await getCachedDashboardCounts();
+  const [{ sentLast24h, totalConversions, totalDecisions, trackedUsers, totalPushSends, totalPushOpens }, brazeStats] =
+    await Promise.all([getCachedDashboardCounts(), getCachedBrazeStats()]);
   const avgConvRate = totalDecisions > 0 ? (totalConversions / totalDecisions) * 100 : 0;
-  const pushOpenRate = totalPushSends > 0 ? (totalPushOpens / totalPushSends) * 100 : 0;
+  const nexusOpenRate = totalPushSends > 0 ? (totalPushOpens / totalPushSends) * 100 : 0;
+  const bestOpenRate = Math.max(nexusOpenRate, brazeStats?.directOpenRate ?? 0);
 
   return (
     <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3 sm:gap-4">
@@ -59,7 +60,7 @@ async function MetricCardsSection({ activeAgents }: { activeAgents: number }) {
       <MetricCard title="Avg Conversion Rate" value={`${avgConvRate.toFixed(2)}%`} description="across active agents" icon={TrendingUp} />
       <MetricCard title="Total Sends" value={formatNumber(totalPushSends)} description="push notifications" icon={Send} />
       <PushOpenRateCard
-        value={totalPushSends > 0 ? `${pushOpenRate.toFixed(2)}%` : "—"}
+        value={totalPushSends > 0 || brazeStats ? `${bestOpenRate.toFixed(2)}%` : "—"}
         description="push notifications"
       />
     </div>
