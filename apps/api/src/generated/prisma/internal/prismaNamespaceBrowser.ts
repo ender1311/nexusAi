@@ -73,7 +73,8 @@ export const ModelName = {
   FailedBrazeSend: 'FailedBrazeSend',
   ProcessedEventId: 'ProcessedEventId',
   IngestSyncLog: 'IngestSyncLog',
-  CampaignContent: 'CampaignContent'
+  CampaignContent: 'CampaignContent',
+  DemoUserGroup: 'DemoUserGroup'
 } as const
 
 export type ModelName = (typeof ModelName)[keyof typeof ModelName]
@@ -437,6 +438,17 @@ export const CampaignContentScalarFieldEnum = {
 } as const
 
 export type CampaignContentScalarFieldEnum = (typeof CampaignContentScalarFieldEnum)[keyof typeof CampaignContentScalarFieldEnum]
+
+
+export const DemoUserGroupScalarFieldEnum = {
+  id: 'id',
+  name: 'name',
+  userIds: 'userIds',
+  createdAt: 'createdAt',
+  updatedAt: 'updatedAt'
+} as const
+
+export type DemoUserGroupScalarFieldEnum = (typeof DemoUserGroupScalarFieldEnum)[keyof typeof DemoUserGroupScalarFieldEnum]
 
 
 export const SortOrder = {

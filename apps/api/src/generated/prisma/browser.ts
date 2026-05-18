@@ -132,3 +132,8 @@ export type IngestSyncLog = Prisma.IngestSyncLogModel
  * 
  */
 export type CampaignContent = Prisma.CampaignContentModel
+/**
+ * Model DemoUserGroup
+ * 
+ */
+export type DemoUserGroup = Prisma.DemoUserGroupModel

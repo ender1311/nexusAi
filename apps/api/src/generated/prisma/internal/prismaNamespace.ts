@@ -406,7 +406,8 @@ export const ModelName = {
   FailedBrazeSend: 'FailedBrazeSend',
   ProcessedEventId: 'ProcessedEventId',
   IngestSyncLog: 'IngestSyncLog',
-  CampaignContent: 'CampaignContent'
+  CampaignContent: 'CampaignContent',
+  DemoUserGroup: 'DemoUserGroup'
 } as const
 
 export type ModelName = (typeof ModelName)[keyof typeof ModelName]
@@ -422,7 +423,7 @@ export type TypeMap<ExtArgs extends runtime.Types.Extensions.InternalArgs = runt
     omit: GlobalOmitOptions
   }
   meta: {
-    modelProps: "agent" | "goal" | "message" | "messageVariant" | "deeplink" | "userDecision" | "trackedUser" | "persona" | "agentPersonaTarget" | "personaArmStats" | "userArmStats" | "linUCBArm" | "schedulingRule" | "modelMetric" | "planSet" | "planSetMember" | "appSetting" | "userAgentAssignment" | "cronRun" | "failedBrazeSend" | "processedEventId" | "ingestSyncLog" | "campaignContent"
+    modelProps: "agent" | "goal" | "message" | "messageVariant" | "deeplink" | "userDecision" | "trackedUser" | "persona" | "agentPersonaTarget" | "personaArmStats" | "userArmStats" | "linUCBArm" | "schedulingRule" | "modelMetric" | "planSet" | "planSetMember" | "appSetting" | "userAgentAssignment" | "cronRun" | "failedBrazeSend" | "processedEventId" | "ingestSyncLog" | "campaignContent" | "demoUserGroup"
     txIsolationLevel: TransactionIsolationLevel
   }
   model: {
@@ -2128,6 +2129,80 @@ export type TypeMap<ExtArgs extends runtime.Types.Extensions.InternalArgs = runt
         }
       }
     }
+    DemoUserGroup: {
+      payload: Prisma.$DemoUserGroupPayload<ExtArgs>
+      fields: Prisma.DemoUserGroupFieldRefs
+      operations: {
+        findUnique: {
+          args: Prisma.DemoUserGroupFindUniqueArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$DemoUserGroupPayload> | null
+        }
+        findUniqueOrThrow: {
+          args: Prisma.DemoUserGroupFindUniqueOrThrowArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$DemoUserGroupPayload>
+        }
+        findFirst: {
+          args: Prisma.DemoUserGroupFindFirstArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$DemoUserGroupPayload> | null
+        }
+        findFirstOrThrow: {
+          args: Prisma.DemoUserGroupFindFirstOrThrowArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$DemoUserGroupPayload>
+        }
+        findMany: {
+          args: Prisma.DemoUserGroupFindManyArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$DemoUserGroupPayload>[]
+        }
+        create: {
+          args: Prisma.DemoUserGroupCreateArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$DemoUserGroupPayload>
+        }
+        createMany: {
+          args: Prisma.DemoUserGroupCreateManyArgs<ExtArgs>
+          result: BatchPayload
+        }
+        createManyAndReturn: {
+          args: Prisma.DemoUserGroupCreateManyAndReturnArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$DemoUserGroupPayload>[]
+        }
+        delete: {
+          args: Prisma.DemoUserGroupDeleteArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$DemoUserGroupPayload>
+        }
+        update: {
+          args: Prisma.DemoUserGroupUpdateArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$DemoUserGroupPayload>
+        }
+        deleteMany: {
+          args: Prisma.DemoUserGroupDeleteManyArgs<ExtArgs>
+          result: BatchPayload
+        }
+        updateMany: {
+          args: Prisma.DemoUserGroupUpdateManyArgs<ExtArgs>
+          result: BatchPayload
+        }
+        updateManyAndReturn: {
+          args: Prisma.DemoUserGroupUpdateManyAndReturnArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$DemoUserGroupPayload>[]
+        }
+        upsert: {
+          args: Prisma.DemoUserGroupUpsertArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$DemoUserGroupPayload>
+        }
+        aggregate: {
+          args: Prisma.DemoUserGroupAggregateArgs<ExtArgs>
+          result: runtime.Types.Utils.Optional<Prisma.AggregateDemoUserGroup>
+        }
+        groupBy: {
+          args: Prisma.DemoUserGroupGroupByArgs<ExtArgs>
+          result: runtime.Types.Utils.Optional<Prisma.DemoUserGroupGroupByOutputType>[]
+        }
+        count: {
+          args: Prisma.DemoUserGroupCountArgs<ExtArgs>
+          result: runtime.Types.Utils.Optional<Prisma.DemoUserGroupCountAggregateOutputType> | number
+        }
+      }
+    }
   }
 } & {
   other: {
@@ -2514,6 +2589,17 @@ export const CampaignContentScalarFieldEnum = {
 export type CampaignContentScalarFieldEnum = (typeof CampaignContentScalarFieldEnum)[keyof typeof CampaignContentScalarFieldEnum]
 
 
+export const DemoUserGroupScalarFieldEnum = {
+  id: 'id',
+  name: 'name',
+  userIds: 'userIds',
+  createdAt: 'createdAt',
+  updatedAt: 'updatedAt'
+} as const
+
+export type DemoUserGroupScalarFieldEnum = (typeof DemoUserGroupScalarFieldEnum)[keyof typeof DemoUserGroupScalarFieldEnum]
+
+
 export const SortOrder = {
   asc: 'asc',
   desc: 'desc'
@@ -2777,6 +2863,7 @@ export type GlobalOmitConfig = {
   processedEventId?: Prisma.ProcessedEventIdOmit
   ingestSyncLog?: Prisma.IngestSyncLogOmit
   campaignContent?: Prisma.CampaignContentOmit
+  demoUserGroup?: Prisma.DemoUserGroupOmit
 }
 
 /* Types for Logging */
