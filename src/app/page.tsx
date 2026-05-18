@@ -183,8 +183,8 @@ export default async function DashboardPage() {
           />
           <MetricCard
             title="Total Sends"
-            value={formatNumber(totalDecisions)}
-            description="lifetime total"
+            value={formatNumber(totalPushSends)}
+            description="push notifications"
             icon={Send}
           />
           <PushOpenRateCard

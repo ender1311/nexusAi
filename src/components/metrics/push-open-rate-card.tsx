@@ -6,13 +6,12 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import {
   Dialog,
   DialogContent,
-  DialogDescription,
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
-import { formatNumber, formatDate } from "@/lib/utils";
+import { formatNumber } from "@/lib/utils";
 
 type BrazeStats = {
   sends: number;
@@ -96,9 +95,6 @@ export function PushOpenRateCard({
         <DialogContent className="max-w-2xl max-h-[85vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle>Push Open Rate Details</DialogTitle>
-            <DialogDescription>
-              Fleet-wide push notification analytics
-            </DialogDescription>
           </DialogHeader>
 
           {loading && (
@@ -132,7 +128,6 @@ export function PushOpenRateCard({
                 <div className="space-y-2">
                   <div className="flex items-center gap-2">
                     <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Braze Campaign</p>
-                    <span className="text-[10px] bg-primary/10 text-primary px-1.5 py-0.5 rounded font-medium">Authoritative</span>
                   </div>
                   <div className="grid grid-cols-2 sm:grid-cols-5 gap-3 rounded-lg border p-4 bg-muted/30">
                     <div>
@@ -159,10 +154,10 @@ export function PushOpenRateCard({
                 </div>
               )}
 
-              {/* Nexus DB counts */}
+              {/* Braze Currents counts */}
               <div className="space-y-2">
-                <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Nexus DB</p>
-                <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 rounded-lg border p-4">
+                <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Braze Currents</p>
+                <div className="grid grid-cols-2 sm:grid-cols-3 gap-4 rounded-lg border p-4">
                   <div>
                     <p className="text-xs text-muted-foreground">Push Sends</p>
                     <p className="text-xl font-bold mt-0.5">{formatNumber(data.totalPushSends)}</p>
@@ -175,14 +170,7 @@ export function PushOpenRateCard({
                     <p className="text-xs text-muted-foreground">Open Rate</p>
                     <p className="text-xl font-bold mt-0.5 text-primary">{data.openRate.toFixed(2)}%</p>
                   </div>
-                  <div>
-                    <p className="text-xs text-muted-foreground">Tracking Since</p>
-                    <p className="text-xl font-bold mt-0.5">
-                      {data.firstPushAt ? formatDate(data.firstPushAt) : "—"}
-                    </p>
-                  </div>
                 </div>
-                <p className="text-xs text-muted-foreground">Analytics counted from May 16, 2026 · earlier push sends excluded</p>
               </div>
 
               {/* Per-agent breakdown */}

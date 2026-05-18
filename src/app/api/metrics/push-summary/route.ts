@@ -52,7 +52,8 @@ export async function GET(): Promise<
             if (!Array.isArray(variations)) continue;
             for (const v of variations) {
               const s = v as Record<string, unknown>;
-              if (typeof s.sends === "number") sends += s.sends;
+              if (typeof s.sent === "number") sends += s.sent;
+              else if (typeof s.sends === "number") sends += s.sends;
               if (typeof s.direct_opens === "number") directOpens += s.direct_opens;
               if (typeof s.total_opens === "number") totalOpens += s.total_opens;
             }
