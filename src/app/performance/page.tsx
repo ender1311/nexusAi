@@ -14,7 +14,8 @@ import { baselineLiftSignificance } from "@/lib/engine/lift-significance";
 import { formatNumber, formatPercent } from "@/lib/utils";
 import { AgentMetric, VariantMetric } from "@/types/metrics";
 import Link from "next/link";
-import { TrendingUp, TrendingDown, Minus, Send, Zap, GitCompare, Eye } from "lucide-react";
+import { TrendingUp, TrendingDown, Minus, Send, Zap, GitCompare } from "lucide-react";
+import { PushOpenRateCard } from "@/components/metrics/push-open-rate-card";
 import { AgentStatus } from "@/types/agent";
 import { liftSignificance } from "@/lib/engine/lift-significance";
 
@@ -177,10 +178,9 @@ export default async function PerformancePage() {
             value={topVariants.length}
             icon={GitCompare}
           />
-          <MetricCard
+          <PushOpenRateCard
             title="Avg Push Open Rate"
             value={fleetPushSendsTotal > 0 ? formatPercent(fleetPushOpenRate) : "—"}
-            icon={Eye}
           />
         </div>
 

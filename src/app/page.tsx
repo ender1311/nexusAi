@@ -12,7 +12,8 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { getCachedAgentList, getCachedPersonaDistribution, getCachedDashboardCounts, getCachedDashboardTimeSeries, getCachedRecentDecisions } from "@/lib/cache";
 import { formatNumber, formatDate } from "@/lib/utils";
 import { TimeSeriesPoint, DecisionLog } from "@/types/metrics";
-import { Bot, Send, TrendingUp, Users, Plus, CheckCircle2, XCircle, Eye } from "lucide-react";
+import { Bot, Send, TrendingUp, Users, Plus, CheckCircle2, XCircle } from "lucide-react";
+import { PushOpenRateCard } from "@/components/metrics/push-open-rate-card";
 import Link from "next/link";
 
 // ---------------------------------------------------------------------------
@@ -186,11 +187,9 @@ export default async function DashboardPage() {
             description="lifetime total"
             icon={Send}
           />
-          <MetricCard
-            title="Push Open Rate"
+          <PushOpenRateCard
             value={totalPushSends > 0 ? `${pushOpenRate.toFixed(2)}%` : "—"}
             description="push notifications"
-            icon={Eye}
           />
         </div>
 
