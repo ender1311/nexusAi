@@ -38,8 +38,7 @@ model Agent {
   metrics        ModelMetric[]
   personaTargets AgentPersonaTarget[]
 
-  @@index([updatedAt])
-  @@index([status])
+  @@index([status, updatedAt(sort: Desc)])
 }
 
 model Goal {
@@ -148,6 +147,7 @@ model UserDecision {
   @@index([userId, sentAt])           // global daily cap + event attribution (userId + window)
   @@index([agentId, sentAt])          // per-agent performance page (agentId + 30d window)
   @@index([sentAt, brazeSendId])      // cron budget count (sentAt >= today AND brazeSendId NOT NULL)
+  @@index([channel, sentAt])          // push-specific groupBy queries (WHERE channel='push' AND sentAt >= N)
 }
 
 // YouVersion app user — ingested from Hightouch/Braze, used by bandit engine
