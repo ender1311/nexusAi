@@ -40,6 +40,7 @@ export type SerializedAgent = {
   description: string | null;
   status: string;
   funnelStage: string;
+  color: string;
 };
 
 const STAGE_WEIGHTS: Record<string, ControlAgent["impactWeights"]> = {
@@ -61,7 +62,7 @@ function mapDbAgents(agents: SerializedAgent[]): ControlAgent[] {
     name: a.name,
     description: a.description ?? "",
     icon: "Bot",
-    color: STAGE_COLORS[a.funnelStage] ?? "#ff3d4d",
+    color: a.color || STAGE_COLORS[a.funnelStage] || "#6366f1",
     defaultEnabled: a.status === "active",
     impactWeights: STAGE_WEIGHTS[a.funnelStage] ?? { responseRate: 0.5, revenue: 0.3, churnReduction: 0.3, funnelProgression: 0.4 },
   }));
@@ -70,9 +71,10 @@ function mapDbAgents(agents: SerializedAgent[]): ControlAgent[] {
 interface ControlTowerUIProps {
   agents: SerializedAgent[];
   stats: StatsData | null;
+  brazeSends: number | null;
 }
 
-export function ControlTowerUI({ agents, stats }: ControlTowerUIProps) {
+export function ControlTowerUI({ agents, stats, brazeSends }: ControlTowerUIProps) {
   // Initialize agent pool: use real DB agents if available, fall back to mock
   const initialPool = agents.length > 0 ? mapDbAgents(agents) : controlAgents;
 
@@ -233,7 +235,7 @@ export function ControlTowerUI({ agents, stats }: ControlTowerUIProps) {
         <span className="text-muted-foreground/40">·</span>
         <span className="text-muted-foreground">
           <span className="font-medium text-foreground">
-            {stats ? formatNumber(stats.totalDecisions) : "—"}
+            {brazeSends != null ? formatNumber(brazeSends) : stats ? formatNumber(stats.totalDecisions) : "—"}
           </span>
           {" "}messages sent
         </span>

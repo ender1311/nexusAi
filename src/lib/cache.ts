@@ -86,7 +86,7 @@ export const getCachedControlTowerAgents = unstable_cache(
   () =>
     prisma.agent.findMany({
       where: { name: { not: LIBRARY_AGENT_NAME } },
-      select: { id: true, name: true, description: true, status: true, funnelStage: true },
+      select: { id: true, name: true, description: true, status: true, funnelStage: true, color: true },
       orderBy: { updatedAt: "desc" },
     }),
   ["control-tower-agents"],

@@ -54,8 +54,9 @@ export function AgentToggleCard({
         <div
           className={cn(
             "mt-0.5 flex h-8 w-8 shrink-0 items-center justify-center rounded-lg",
-            enabled ? "bg-primary/10" : "bg-muted"
+            !enabled && "bg-muted"
           )}
+          style={enabled ? { backgroundColor: agent.color + "20" } : undefined}
         >
           <Icon
             className="h-4 w-4"
