@@ -30,6 +30,33 @@ export const FUNNEL_STAGE_META: Record<FunnelStage, { label: string }> = {
 export type AgentStatus = "draft" | "active" | "paused";
 export type Algorithm = "thompson" | "epsilon_greedy" | "contextual";
 
+export const AGENT_PALETTE: string[] = [
+  // Reds
+  "#ef4444", "#f87171", "#dc2626", "#b91c1c",
+  // Orange / Amber
+  "#f97316", "#fb923c", "#f59e0b", "#fbbf24",
+  // Yellow / Lime
+  "#eab308", "#facc15", "#84cc16", "#a3e635",
+  // Green
+  "#22c55e", "#4ade80", "#16a34a", "#15803d",
+  // Emerald / Teal
+  "#10b981", "#34d399", "#14b8a6", "#2dd4bf",
+  // Cyan / Sky
+  "#06b6d4", "#22d3ee", "#0ea5e9", "#38bdf8",
+  // Blue
+  "#3b82f6", "#60a5fa", "#2563eb", "#1d4ed8",
+  // Indigo / Violet
+  "#6366f1", "#818cf8", "#8b5cf6", "#a78bfa",
+  // Purple / Fuchsia
+  "#a855f7", "#c084fc", "#d946ef", "#e879f9",
+  // Pink / Rose
+  "#ec4899", "#f472b6", "#f43f5e", "#fb7185",
+  // Slate / Gray
+  "#64748b", "#94a3b8", "#6b7280", "#9ca3af",
+  // Stone / Zinc
+  "#78716c", "#a8a29e", "#71717a", "#a1a1aa",
+];
+
 export interface Agent {
   id: string;
   name: string;
@@ -38,6 +65,7 @@ export interface Agent {
   algorithm: Algorithm;
   epsilon: number;
   funnelStage: FunnelStage;
+  color: string;
   targetFilter?: Record<string, unknown> | null;
   createdAt: string;
   updatedAt: string;

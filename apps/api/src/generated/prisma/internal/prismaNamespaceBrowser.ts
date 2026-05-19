@@ -106,6 +106,7 @@ export const AgentScalarFieldEnum = {
   audienceCap: 'audienceCap',
   languageFilter: 'languageFilter',
   staleFunnelStageDays: 'staleFunnelStageDays',
+  color: 'color',
   createdAt: 'createdAt',
   updatedAt: 'updatedAt'
 } as const

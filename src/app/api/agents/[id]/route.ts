@@ -70,6 +70,12 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
       }
     }
 
+    if (body.color !== undefined) {
+      if (typeof body.color !== "string" || !/^#[0-9a-fA-F]{6}$/.test(body.color)) {
+        return NextResponse.json({ error: "color must be a 6-digit hex value" }, { status: 400 });
+      }
+    }
+
     const agent = await prisma.agent.update({
       where: { id },
       data: {
@@ -83,6 +89,7 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
         ...(body.fallbackSendHour !== undefined ? { fallbackSendHour: body.fallbackSendHour } : {}),
         ...(body.audienceCap !== undefined ? { audienceCap: body.audienceCap } : {}),
         ...(body.languageFilter !== undefined ? { languageFilter: body.languageFilter } : {}),
+        ...(body.color !== undefined ? { color: body.color } : {}),
       },
     });
     revalidatePath(`/agents/${id}`);

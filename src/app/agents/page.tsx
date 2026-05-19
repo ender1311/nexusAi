@@ -112,6 +112,7 @@ export default async function AgentsPage({
     algorithm: a.algorithm as Agent["algorithm"],
     epsilon: a.epsilon,
     funnelStage: a.funnelStage as FunnelStage,
+    color: a.color,
     targetFilter: null,
     createdAt: a.createdAt,
     updatedAt: a.updatedAt,

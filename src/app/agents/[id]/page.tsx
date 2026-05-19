@@ -16,6 +16,7 @@ import { VariantDiffTable } from "@/components/agents/variant-diff-table";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { TestedVariable, MessageVariant, AgentStatus, FunnelStage } from "@/types/agent";
 import { getCachedAgent, getCachedActivePersonas, getCachedAgentAudienceData } from "@/lib/cache";
+import { prisma } from "@/lib/db";
 import { getAuth } from "@/lib/auth";
 import { Skeleton } from "@/components/ui/skeleton";
 import { AgentFunnelConfig } from "@/components/agents/agent-funnel-config";
@@ -50,10 +51,11 @@ type QuietHours = { start: string; end: string; timezone: string };
 export default async function AgentDetailPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
 
-  const [agent, allPersonas, { isAdmin }] = await Promise.all([
+  const [agent, allPersonas, { isAdmin }, otherAgents] = await Promise.all([
     getCachedAgent(id),
     getCachedActivePersonas(),
     getAuth(),
+    prisma.agent.findMany({ where: { id: { not: id } }, select: { color: true } }),
   ]);
 
   if (!agent) notFound();
@@ -101,6 +103,8 @@ export default async function AgentDetailPage({ params }: { params: Promise<{ id
                 initialEpsilon={agent.epsilon}
                 initialFunnelStage={agent.funnelStage as FunnelStage}
                 initialLanguageFilter={agent.languageFilter ?? "all"}
+                initialColor={agent.color ?? "#6366f1"}
+                usedColors={otherAgents.map((a) => a.color)}
               />
             )}
             {isAdmin && <AgentStatusToggle agentId={agent.id} status={agent.status} />}

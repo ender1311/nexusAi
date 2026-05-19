@@ -8,7 +8,7 @@ import { Badge } from "@/components/ui/badge";
 import { Agent, FUNNEL_STAGE_META } from "@/types/agent";
 import { AgentStatusBadge } from "./agent-status-badge";
 import { formatNumber } from "@/lib/utils";
-import { MessageSquare, Target, Trash2 } from "lucide-react";
+import { Bot, MessageSquare, Target, Trash2 } from "lucide-react";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -56,14 +56,22 @@ export function AgentCard({ agent, conversionRate, onDelete }: AgentCardProps) {
           <Card className="hover:shadow-md hover:border-primary/30 transition-shadow cursor-pointer h-full">
             <CardHeader className="pb-3">
               <div className="flex items-start justify-between gap-2">
-                <div className="flex-1 min-w-0">
-                  <p className="font-semibold text-sm truncate">{agent.name}</p>
-                  {agent.description && (
-                    <p className="text-xs text-muted-foreground mt-0.5 line-clamp-2">{agent.description}</p>
-                  )}
-                  <Badge variant="secondary" className="mt-1.5 text-xs font-normal max-w-full truncate block">
-                    {FUNNEL_STAGE_META[agent.funnelStage]?.label ?? agent.funnelStage}
-                  </Badge>
+                <div className="flex items-start gap-2.5 flex-1 min-w-0">
+                  <div
+                    className="h-8 w-8 rounded-lg flex items-center justify-center shrink-0 mt-0.5"
+                    style={{ backgroundColor: `${agent.color}20` }}
+                  >
+                    <Bot className="h-4 w-4" style={{ color: agent.color }} />
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <p className="font-semibold text-sm truncate">{agent.name}</p>
+                    {agent.description && (
+                      <p className="text-xs text-muted-foreground mt-0.5 line-clamp-2">{agent.description}</p>
+                    )}
+                    <Badge variant="secondary" className="mt-1.5 text-xs font-normal max-w-full truncate block">
+                      {FUNNEL_STAGE_META[agent.funnelStage]?.label ?? agent.funnelStage}
+                    </Badge>
+                  </div>
                 </div>
                 <div className="flex items-center gap-1 shrink-0">
                   <AgentStatusBadge status={agent.status} />

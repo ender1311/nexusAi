@@ -9,6 +9,7 @@ export const mockAgents: Agent[] = [
     algorithm: "thompson",
     epsilon: 0.1,
     funnelStage: "wau",
+    color: "#6366f1",
     createdAt: new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString(),
     updatedAt: new Date(Date.now() - 2 * 60 * 60 * 1000).toISOString(),
     goals: [
@@ -63,6 +64,7 @@ export const mockAgents: Agent[] = [
     algorithm: "contextual",
     epsilon: 0.15,
     funnelStage: "lapsed_mau",
+    color: "#10b981",
     createdAt: new Date(Date.now() - 45 * 24 * 60 * 60 * 1000).toISOString(),
     updatedAt: new Date(Date.now() - 1 * 60 * 60 * 1000).toISOString(),
     goals: [
@@ -105,6 +107,7 @@ export const mockAgents: Agent[] = [
     algorithm: "epsilon_greedy",
     epsilon: 0.2,
     funnelStage: "dau4",
+    color: "#f59e0b",
     createdAt: new Date(Date.now() - 20 * 24 * 60 * 60 * 1000).toISOString(),
     updatedAt: new Date(Date.now() - 30 * 60 * 1000).toISOString(),
     goals: [
@@ -145,6 +148,7 @@ export const mockAgents: Agent[] = [
     algorithm: "thompson",
     epsilon: 0.1,
     funnelStage: "lapsed_mau",
+    color: "#ec4899",
     createdAt: new Date(Date.now() - 5 * 24 * 60 * 60 * 1000).toISOString(),
     updatedAt: new Date(Date.now() - 5 * 24 * 60 * 60 * 1000).toISOString(),
     goals: [],
