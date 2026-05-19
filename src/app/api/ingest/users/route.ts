@@ -105,7 +105,7 @@ function normalizeHtFlatUserRow(row: HtFlatUserRow): UserRecord {
     external_user_id: row.user_id?.trim() || undefined,
     braze_id: row.braze_user_id_latest?.trim() || undefined,
     attributes: attrs,
-    ...(row.funnel_stage ? { funnel_stage: row.funnel_stage === "lapsed_dau4" ? "lapsed_dau" : row.funnel_stage } : {}),
+    ...(row.funnel_stage ? { funnel_stage: row.funnel_stage === "lapsed_dau" ? "lapsed_dau4" : row.funnel_stage } : {}),
   };
 }
 

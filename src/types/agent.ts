@@ -3,8 +3,8 @@ export type FunnelStage =
   | "dau4"         // Daily active — opens 4+ days/week
   | "wau"          // Weekly active — opens 1–3 days/week
   | "mau"          // Monthly active — opens at least once/month
-  | "lapsed_dau"   // Lapsed DAU — canonical stage sent by Hightouch
-  | "lapsed_dau4"  // Legacy alias for lapsed_dau; normalized on ingest
+  | "lapsed_dau4"  // Lapsed DAU — canonical DB value
+  | "lapsed_dau"   // HT alias for lapsed_dau4; normalized to lapsed_dau4 on ingest
   | "lapsed_wau"   // Previously WAU, now inactive
   | "lapsed_mau";  // Previously MAU, now inactive
 
@@ -13,8 +13,8 @@ export const FUNNEL_STAGES: FunnelStage[] = [
   "dau4",
   "wau",
   "mau",
-  "lapsed_dau",
   "lapsed_dau4",
+  "lapsed_dau",
   "lapsed_wau",
   "lapsed_mau",
 ];
@@ -24,8 +24,8 @@ export const FUNNEL_STAGE_META: Record<FunnelStage, { label: string }> = {
   dau4:        { label: "DAU4" },
   wau:         { label: "WAU" },
   mau:         { label: "MAU" },
+  lapsed_dau4: { label: "Lapsed DAU4" },
   lapsed_dau:  { label: "Lapsed DAU" },
-  lapsed_dau4: { label: "Lapsed DAU4 (legacy)" },
   lapsed_wau:  { label: "Lapsed WAU" },
   lapsed_mau:  { label: "Lapsed MAU" },
 };
