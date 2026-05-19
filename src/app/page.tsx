@@ -9,7 +9,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
-import { getCachedAgentList, getCachedPersonaDistribution, getCachedDashboardCounts, getCachedDashboardTimeSeries, getCachedRecentDecisions, getCachedBrazeStats } from "@/lib/cache";
+import { getCachedAgentList, getCachedPersonaDistribution, getCachedDashboardCounts, getCachedDashboardTimeSeries, getCachedRecentDecisions, getCachedBrazeStats, getCachedAllVariantNames } from "@/lib/cache";
 import { formatNumber, formatDate } from "@/lib/utils";
 import { TimeSeriesPoint, DecisionLog } from "@/types/metrics";
 import { Bot, Send, TrendingUp, Users, Plus, CheckCircle2, XCircle } from "lucide-react";
@@ -117,14 +117,16 @@ async function TimeSeriesSection() {
 
 async function RecentSendsSection({ agents }: { agents: AgentSummary[] }) {
   const recentDecisionsRaw = await getCachedRecentDecisions();
+  const variantNames = await getCachedAllVariantNames();
   const agentNameById = new Map(agents.map((a) => [a.id, a.name]));
+  const variantNameById = new Map(variantNames.map((v) => [v.id, v.name]));
 
   const recentSends: DecisionLog[] = recentDecisionsRaw.map((d) => ({
     id: d.id,
     userId: d.userId,
     agentName: agentNameById.get(d.agentId) ?? "Unknown",
     channel: d.channel,
-    variantName: d.variant?.name ?? "—",
+    variantName: (d.messageVariantId ? variantNameById.get(d.messageVariantId) : undefined) ?? "—",
     sentAt: d.sentAt,
     converted: d.conversionAt !== null,
     reward: d.reward ?? undefined,

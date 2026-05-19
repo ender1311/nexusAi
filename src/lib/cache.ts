@@ -180,7 +180,7 @@ export const getCachedRecentDecisions = unstable_cache(
         conversionAt: true,
         reward: true,
         agentId: true,
-        variant: { select: { name: true } },
+        messageVariantId: true,
       },
       orderBy: { sentAt: "desc" },
       take: 10,
