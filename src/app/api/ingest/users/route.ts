@@ -76,7 +76,7 @@ type PushOpenRow = {
  * Flat Hightouch user sync row — raw column names when no Liquid template is applied.
  * Distinguishable from push open rows by the absence of last_updated_timestamp.
  * e.g. "Lapsed Habitual DAU4" sync sends: braze_user_id_latest, user_id,
- * language_tag, plan_locale_latest, push_enabled, "Email Enabled", "User Last Seen".
+ * language_tag, plan_locale_latest, newsletter_push_enabled, newsletter_email_enabled, "User Last Seen".
  */
 type HtFlatUserRow = {
   user_id?: string | null;
@@ -85,8 +85,8 @@ type HtFlatUserRow = {
   "User Last Seen"?: string;
   language_tag?: string;
   plan_locale_latest?: string;
-  push_enabled?: boolean;
-  "Email Enabled"?: boolean;
+  newsletter_push_enabled?: boolean;
+  newsletter_email_enabled?: boolean;
   timezone?: string;
   funnel_stage?: string;
   [key: string]: unknown;
@@ -98,8 +98,8 @@ function normalizeHtFlatUserRow(row: HtFlatUserRow): UserRecord {
   if (lastSeen)                       attrs.last_seen_at    = lastSeen;
   if (row.language_tag !== undefined) attrs.language_tag    = row.language_tag;
   if (row.plan_locale_latest !== undefined) attrs.plan_locale = row.plan_locale_latest;
-  if (row.push_enabled !== undefined) attrs.push_enabled    = row.push_enabled;
-  if (row["Email Enabled"] !== undefined) attrs.email_enabled = row["Email Enabled"];
+  if (row.newsletter_push_enabled !== undefined)  attrs.newsletter_push_enabled  = row.newsletter_push_enabled;
+  if (row.newsletter_email_enabled !== undefined) attrs.newsletter_email_enabled = row.newsletter_email_enabled;
   if (row.timezone !== undefined)      attrs.timezone        = row.timezone;
   return {
     external_user_id: row.user_id?.trim() || undefined,
@@ -572,6 +572,23 @@ export async function POST(req: NextRequest) {
       const brazeId = user.braze_id?.trim() || null;
       // Unverified users (no external_user_id): use braze_id as the Nexus primary key.
       const externalId = externalUserId ?? brazeId!;
+
+      // Identity resolution: a user may have been stored as unverified (externalId = brazeId)
+      // and now arrives with a real external_user_id. Re-key the old record to avoid a
+      // unique constraint violation on brazeId when creating the verified record.
+      if (externalUserId && brazeId && externalUserId !== brazeId) {
+        const [realRecord, brazeRecord] = await Promise.all([
+          prisma.trackedUser.findUnique({ where: { externalId: externalUserId }, select: { id: true } }),
+          prisma.trackedUser.findUnique({ where: { externalId: brazeId }, select: { id: true } }),
+        ]);
+        if (brazeRecord && !realRecord) {
+          // Promote: re-key unverified record to the real external ID
+          await prisma.trackedUser.update({ where: { externalId: brazeId }, data: { externalId: externalUserId } });
+        } else if (brazeRecord && realRecord) {
+          // Both exist: drop the stale unverified duplicate, keep the real record
+          await prisma.trackedUser.delete({ where: { externalId: brazeId } });
+        }
+      }
       const raw = (user.attributes ?? {}) as Record<string, unknown>;
 
       const timezone = typeof raw["timezone"] === "string" && raw["timezone"].trim()

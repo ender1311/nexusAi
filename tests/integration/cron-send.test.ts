@@ -689,9 +689,9 @@ describe("Phase 0: exploration window assignment", () => {
   });
 });
 
-// ── push_enabled + language_tag eligibility filters ───────────────────────
-describe("push_enabled and language_tag filters", () => {
-  it("does not send push to user with push_enabled: false", async () => {
+// ── newsletter channel eligibility + language_tag filters ─────────────────
+describe("newsletter channel eligibility and language_tag filters", () => {
+  it("does not send push to user with newsletter_push_enabled: false", async () => {
     const persona = await createPersona();
     const agent = await createAgent({ funnelStage: "wau" });
     const msg = await createMessage(agent.id, { channel: "push", brazeCampaignId: "camp_push" });
@@ -699,11 +699,10 @@ describe("push_enabled and language_tag filters", () => {
     await linkAgentToPersona(agent.id, persona.id);
     await createSchedulingRule(agent.id);
 
-    // User explicitly has push_enabled: false
     await createUser("usr_no_push", {
       personaId: persona.id,
       funnelStage: "wau",
-      attributes: { push_enabled: false, language_tag: "en" },
+      attributes: { newsletter_push_enabled: false, language_tag: "en" },
     });
 
     const req = buildRequest("POST", undefined, CRON_AUTH);
@@ -711,12 +710,11 @@ describe("push_enabled and language_tag filters", () => {
     const body = await res.json();
 
     expect(res.status).toBe(200);
-    // User should be filtered out — no push sent
     expect(body.sent).toBe(0);
     expect(brazeRequests.length).toBe(0);
   });
 
-  it("sends push to user without push_enabled attribute (opt-out model — missing = allowed)", async () => {
+  it("sends push to user without newsletter_push_enabled attribute (opt-out model — missing = allowed)", async () => {
     const persona = await createPersona();
     const agent = await createAgent({ funnelStage: "wau" });
     const msg = await createMessage(agent.id, { channel: "push", brazeCampaignId: "camp_push2" });
@@ -724,14 +722,14 @@ describe("push_enabled and language_tag filters", () => {
     await linkAgentToPersona(agent.id, persona.id);
     await createSchedulingRule(agent.id);
 
-    // User has no push_enabled attribute (e.g. legacy user) — treated as opted-in
+    // No newsletter_push_enabled attribute — treated as opted-in
     await prisma.trackedUser.create({
       data: {
         externalId: "usr_no_attr",
         personaId: persona.id,
         personaConfidence: 1.0,
         funnelStage: "wau",
-        attributes: { language_tag: "en" }, // no push_enabled
+        attributes: { language_tag: "en" },
       },
     });
 
@@ -744,7 +742,7 @@ describe("push_enabled and language_tag filters", () => {
     expect(brazeRequests.length).toBeGreaterThan(0);
   });
 
-  it("sends push to user with push_enabled: true", async () => {
+  it("sends push to user with newsletter_push_enabled: true", async () => {
     const persona = await createPersona();
     const agent = await createAgent({ funnelStage: "wau" });
     const msg = await createMessage(agent.id, { channel: "push", brazeCampaignId: "camp_push3" });
@@ -752,8 +750,57 @@ describe("push_enabled and language_tag filters", () => {
     await linkAgentToPersona(agent.id, persona.id);
     await createSchedulingRule(agent.id);
 
-    // createUser defaults to push_enabled: true, language_tag: "en"
     await createUser("usr_push_ok", { personaId: persona.id, funnelStage: "wau" });
+
+    const req = buildRequest("POST", undefined, CRON_AUTH);
+    const res = await POST(req as NextRequest);
+    const body = await res.json();
+
+    expect(res.status).toBe(200);
+    expect(body.sent).toBe(1);
+    expect(brazeRequests.length).toBeGreaterThan(0);
+  });
+
+  it("does not send email to user with newsletter_email_enabled: false", async () => {
+    const persona = await createPersona();
+    const agent = await createAgent({ funnelStage: "wau" });
+    const msg = await createMessage(agent.id, { channel: "email", brazeCampaignId: "camp_email1" });
+    await createVariant(msg.id, { brazeVariantId: "var_email1" });
+    await linkAgentToPersona(agent.id, persona.id);
+    await createSchedulingRule(agent.id);
+
+    await createUser("usr_no_email", {
+      personaId: persona.id,
+      funnelStage: "wau",
+      attributes: { newsletter_email_enabled: false, language_tag: "en" },
+    });
+
+    const req = buildRequest("POST", undefined, CRON_AUTH);
+    const res = await POST(req as NextRequest);
+    const body = await res.json();
+
+    expect(res.status).toBe(200);
+    expect(body.sent).toBe(0);
+    expect(brazeRequests.length).toBe(0);
+  });
+
+  it("sends email to user without newsletter_email_enabled attribute (missing = allowed)", async () => {
+    const persona = await createPersona();
+    const agent = await createAgent({ funnelStage: "wau" });
+    const msg = await createMessage(agent.id, { channel: "email", brazeCampaignId: "camp_email2" });
+    await createVariant(msg.id, { brazeVariantId: "var_email2" });
+    await linkAgentToPersona(agent.id, persona.id);
+    await createSchedulingRule(agent.id);
+
+    await prisma.trackedUser.create({
+      data: {
+        externalId: "usr_no_email_attr",
+        personaId: persona.id,
+        personaConfidence: 1.0,
+        funnelStage: "wau",
+        attributes: { language_tag: "en" },
+      },
+    });
 
     const req = buildRequest("POST", undefined, CRON_AUTH);
     const res = await POST(req as NextRequest);
@@ -775,7 +822,7 @@ describe("push_enabled and language_tag filters", () => {
     await createUser("usr_es", {
       personaId: persona.id,
       funnelStage: "wau",
-      attributes: { push_enabled: true, language_tag: "es" },
+      attributes: { language_tag: "es" },
     });
 
     const req = buildRequest("POST", undefined, CRON_AUTH);
@@ -798,7 +845,7 @@ describe("push_enabled and language_tag filters", () => {
     await createUser("usr_en_us", {
       personaId: persona.id,
       funnelStage: "wau",
-      attributes: { push_enabled: true, language_tag: "en-US" },
+      attributes: { language_tag: "en-US" },
     });
 
     const req = buildRequest("POST", undefined, CRON_AUTH);

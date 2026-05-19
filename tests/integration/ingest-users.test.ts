@@ -777,8 +777,8 @@ describe("flat Hightouch user sync rows", () => {
       user_id: "usr_flat_1",
       language_tag: "en",
       plan_locale_latest: "en-US",
-      push_enabled: true,
-      "Email Enabled": false,
+      newsletter_push_enabled: true,
+      newsletter_email_enabled: false,
       "User Last Seen": new Date(Date.now() - 3 * 24 * 60 * 60 * 1000).toISOString(),
     };
 
@@ -794,8 +794,8 @@ describe("flat Hightouch user sync rows", () => {
     const attrs = user!.attributes as Record<string, unknown>;
     expect(attrs.language_tag).toBe("en");
     expect(attrs.plan_locale).toBe("en-US");
-    expect(attrs.push_enabled).toBe(true);
-    expect(attrs.email_enabled).toBe(false);
+    expect(attrs.newsletter_push_enabled).toBe(true);
+    expect(attrs.newsletter_email_enabled).toBe(false);
     expect(attrs.last_seen_at).toBeTruthy();
     // preferredSendHour should be derived from User Last Seen
     expect(user!.preferredSendHour).toBeGreaterThanOrEqual(0);
@@ -808,7 +808,7 @@ describe("flat Hightouch user sync rows", () => {
       user_id: "usr_last_seen_timestamp",
       last_seen_timestamp: lastSeen,
       language_tag: "en",
-      push_enabled: true,
+      newsletter_push_enabled: true,
     };
 
     const res = await POST(buildRequest("POST", payload, AUTH) as NextRequest);
@@ -832,7 +832,7 @@ describe("flat Hightouch user sync rows", () => {
           braze_user_id_latest: "braze_wrapped_latest",
           last_seen_timestamp: "2026-05-13T16:30:00.000Z",
           language_tag: "en",
-          push_enabled: true,
+          newsletter_push_enabled: true,
         },
       ],
     };
@@ -849,7 +849,7 @@ describe("flat Hightouch user sync rows", () => {
     const attrs = user!.attributes as Record<string, unknown>;
     expect(attrs.last_seen_at).toBe("2026-05-13T16:30:00.000Z");
     expect(attrs.language_tag).toBe("en");
-    expect(attrs.push_enabled).toBe(true);
+    expect(attrs.newsletter_push_enabled).toBe(true);
   });
 
   it("does NOT treat the flat user sync row as a push_open_rows (matched=0, unmatched=1 regression)", async () => {
@@ -859,7 +859,7 @@ describe("flat Hightouch user sync rows", () => {
       braze_user_id_latest: "braze_xyz789",
       user_id: "usr_flat_2",
       "User Last Seen": new Date().toISOString(),
-      push_enabled: false,
+      newsletter_push_enabled: false,
     };
 
     const res = await POST(buildRequest("POST", payload, AUTH) as NextRequest);
@@ -871,6 +871,44 @@ describe("flat Hightouch user sync rows", () => {
     // user_sync responses have no matched/unmatched fields
     expect(body.matched).toBeUndefined();
     expect(body.unmatched).toBeUndefined();
+  });
+
+  it("promotes unverified braze-only record when verified user arrives with same braze_id (500 regression)", async () => {
+    // Regression: user first ingested as unverified (externalId = brazeId = "braze_promote_test").
+    // Later arrives verified with real external_user_id. The unique constraint on brazeId caused
+    // a 500 because the old record already held that brazeId value.
+    await prisma.trackedUser.create({
+      data: {
+        externalId: "braze_promote_test",
+        brazeId: "braze_promote_test",
+        attributes: { language_tag: "en" },
+      },
+    });
+
+    const payload = {
+      users: [
+        {
+          external_user_id: "verified_user_789",
+          braze_id: "braze_promote_test",
+          funnel_stage: "lapsed_wau",
+          attributes: { language_tag: "en" },
+        },
+      ],
+    };
+
+    const res = await POST(buildRequest("POST", payload, AUTH) as NextRequest);
+    const body = await res.json();
+
+    expect(res.status).toBe(200);
+    expect(body.upserted).toBe(1);
+
+    // Old unverified record should be gone, replaced by the real externalId
+    const oldRecord = await prisma.trackedUser.findUnique({ where: { externalId: "braze_promote_test" } });
+    expect(oldRecord).toBeNull();
+
+    const newRecord = await prisma.trackedUser.findUnique({ where: { externalId: "verified_user_789" } });
+    expect(newRecord).not.toBeNull();
+    expect(newRecord!.brazeId).toBe("braze_promote_test");
   });
 
   it("still treats rows WITH last_updated_timestamp as push open rows", async () => {
