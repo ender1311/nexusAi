@@ -113,7 +113,8 @@ export const getCachedPersonaDistribution = unstable_cache(
     prisma.persona.findMany({
       where: { isActive: true },
       select: { name: true, label: true, color: true, _count: { select: { trackedUsers: true } } },
-      orderBy: { name: "asc" },
+      orderBy: { trackedUsers: { _count: "desc" } },
+      take: 20,
     }),
   ["personas-distribution"],
   { tags: ["personas"], revalidate: 900 }

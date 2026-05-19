@@ -2,6 +2,16 @@
   "$schema": "https://openapi.vercel.sh/vercel.json",
   "framework": "nextjs",
   "buildCommand": "bun run build",
+  "functions": {
+    "src/app/page.tsx": {
+      "memory": 1024,
+      "maxDuration": 30
+    },
+    "src/app/agents/page.tsx": {
+      "memory": 512,
+      "maxDuration": 20
+    }
+  },
   "crons": [
     {
       "path": "/api/cron/select-and-send",

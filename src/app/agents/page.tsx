@@ -1,4 +1,4 @@
-export const revalidate = 900;
+export const revalidate = 60;
 
 import Link from "next/link";
 import { Header } from "@/components/layout/header";
