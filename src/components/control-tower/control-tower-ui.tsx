@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import { CheckCircle2, RotateCcw, Users, Zap } from "lucide-react";
+import { formatNumber } from "@/lib/utils";
 import { Header } from "@/components/layout/header";
 import { AgentToggleCard } from "@/components/control-tower/agent-toggle-card";
 import { OptimizationObjective } from "@/components/control-tower/optimization-objective";
@@ -218,7 +219,7 @@ export function ControlTowerUI({ agents, stats }: ControlTowerUIProps) {
         <span className="flex items-center gap-1.5 text-muted-foreground">
           <Users className="h-3.5 w-3.5" />
           <span className="font-medium text-foreground">
-            {stats ? stats.trackedUsers.toLocaleString() : "—"}
+            {stats ? formatNumber(stats.trackedUsers) : "—"}
           </span>
           <span>users tracked</span>
         </span>
@@ -232,7 +233,7 @@ export function ControlTowerUI({ agents, stats }: ControlTowerUIProps) {
         <span className="text-muted-foreground/40">·</span>
         <span className="text-muted-foreground">
           <span className="font-medium text-foreground">
-            {stats ? stats.totalDecisions.toLocaleString() : "—"}
+            {stats ? formatNumber(stats.totalDecisions) : "—"}
           </span>
           {" "}messages sent
         </span>
