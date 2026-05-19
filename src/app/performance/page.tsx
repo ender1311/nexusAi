@@ -9,7 +9,7 @@ import { VariantComparison } from "@/components/charts/variant-comparison";
 import { AgentStatusBadge } from "@/components/agents/agent-status-badge";
 import { ChartsSection } from "./charts-section";
 import { LiftPanel } from "@/components/performance/lift-panel";
-import { getCachedPerformanceMetrics, getCachedVariantMetrics, getCachedLiftSettings, getCachedLiftCounts, getCachedAllVariantNames } from "@/lib/cache";
+import { getCachedPerformanceMetrics, getCachedVariantMetrics, getCachedLiftSettings, getCachedLiftCounts, getCachedAllVariantNames, getCachedBrazeStats } from "@/lib/cache";
 import { baselineLiftSignificance } from "@/lib/engine/lift-significance";
 import { formatNumber, formatPercent } from "@/lib/utils";
 import { AgentMetric, VariantMetric } from "@/types/metrics";
@@ -67,10 +67,12 @@ export default async function PerformancePage() {
     { agents, sendsByAgent, conversionsByAgent, pushSendsByAgent, pushOpensByAgent },
     { variantSends, variantConversions, variantRewards },
     { baselineRate, liftSince },
+    brazeStats,
   ] = await Promise.all([
     getCachedPerformanceMetrics(),
     getCachedVariantMetrics(),
     getCachedLiftSettings(),
+    getCachedBrazeStats().catch(() => null),
   ]);
 
   const liftSinceDate = liftSince ? new Date(liftSince as unknown as string) : null;
@@ -89,7 +91,8 @@ export default async function PerformancePage() {
 
   const fleetPushSendsTotal = pushSendsByAgent.reduce((s, r) => s + r._count.id, 0);
   const fleetPushOpensTotal = pushOpensByAgent.reduce((s, r) => s + r._count.id, 0);
-  const fleetPushOpenRate = fleetPushSendsTotal > 0 ? (fleetPushOpensTotal / fleetPushSendsTotal) * 100 : 0;
+  const dbPushOpenRate = fleetPushSendsTotal > 0 ? (fleetPushOpensTotal / fleetPushSendsTotal) * 100 : 0;
+  const fleetPushOpenRate = Math.max(dbPushOpenRate, brazeStats?.directOpenRate ?? 0);
 
   const agentMetricsReal: AgentMetric[] = agents.map((a) => {
     const sends = sendCountByAgent.get(a.id) ?? 0;
@@ -180,7 +183,7 @@ export default async function PerformancePage() {
           />
           <PushOpenRateCard
             title="Avg Push Open Rate"
-            value={fleetPushSendsTotal > 0 ? formatPercent(fleetPushOpenRate) : "—"}
+            value={fleetPushSendsTotal > 0 || brazeStats ? formatPercent(fleetPushOpenRate) : "—"}
           />
         </div>
 
