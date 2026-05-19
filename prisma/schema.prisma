@@ -27,6 +27,7 @@ model Agent {
   // How many days after a user falls out of the Hightouch audience we keep targeting them.
   // null = no staleness gate (backward compat). Lapsed agents typically use 14; others use 2.
   staleFunnelStageDays Int?
+  color            String      @default("#6366f1") // hex accent color shown on agent card and avatar
   createdAt        DateTime    @default(now())
   updatedAt        DateTime    @updatedAt
 

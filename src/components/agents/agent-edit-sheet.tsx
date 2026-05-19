@@ -21,6 +21,7 @@ import {
   SheetTrigger,
 } from "@/components/ui/sheet";
 import { FunnelStage, FUNNEL_STAGES, FUNNEL_STAGE_META } from "@/types/agent";
+import { AgentColorPicker } from "./agent-color-picker";
 
 const ALGORITHM_OPTIONS = [
   { value: "thompson", label: "Thompson Sampling" },
@@ -36,6 +37,8 @@ type Props = {
   initialEpsilon: number;
   initialFunnelStage: FunnelStage;
   initialLanguageFilter: string;
+  initialColor: string;
+  usedColors: string[];
 };
 
 export function AgentEditSheet({
@@ -46,6 +49,8 @@ export function AgentEditSheet({
   initialEpsilon,
   initialFunnelStage,
   initialLanguageFilter,
+  initialColor,
+  usedColors,
 }: Props) {
   const router = useRouter();
   const [open, setOpen] = useState(false);
@@ -174,6 +179,8 @@ export function AgentEditSheet({
             </div>
             <Switch checked={englishOnly} onCheckedChange={setEnglishOnly} />
           </div>
+
+          <AgentColorPicker agentId={agentId} currentColor={initialColor} usedColors={usedColors} />
 
           <div className="flex gap-2 pt-2">
             <Button
