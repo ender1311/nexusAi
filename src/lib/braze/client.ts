@@ -26,12 +26,13 @@ export class BrazeClient {
     });
   }
 
-  async get(endpoint: string, params: Record<string, string | number | boolean> = {}): Promise<Response> {
+  async get(endpoint: string, params: Record<string, string | number | boolean> = {}, signal?: AbortSignal): Promise<Response> {
     const url = new URL(`${this.restUrl}${endpoint}`);
     Object.entries(params).forEach(([k, v]) => url.searchParams.set(k, String(v)));
     return fetch(url.toString(), {
       method: "GET",
       headers: this.headers(),
+      signal,
     });
   }
 
