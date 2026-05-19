@@ -234,7 +234,7 @@ export function ControlTowerUI({ agents, stats }: ControlTowerUIProps) {
           <span className="font-medium text-foreground">
             {stats ? stats.totalDecisions.toLocaleString() : "—"}
           </span>
-          {" "}decisions made
+          {" "}messages sent
         </span>
         {stats && stats.totalDecisions > 0 && (
           <>
