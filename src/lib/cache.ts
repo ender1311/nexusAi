@@ -113,7 +113,8 @@ export const getCachedPersonaDistribution = unstable_cache(
     prisma.persona.findMany({
       where: { isActive: true },
       select: { name: true, label: true, color: true, _count: { select: { trackedUsers: true } } },
-      orderBy: { name: "asc" },
+      orderBy: { trackedUsers: { _count: "desc" } },
+      take: 20,
     }),
   ["personas-distribution"],
   { tags: ["personas"], revalidate: 900 }
@@ -180,7 +181,7 @@ export const getCachedRecentDecisions = unstable_cache(
         conversionAt: true,
         reward: true,
         agentId: true,
-        variant: { select: { name: true } },
+        messageVariantId: true,
       },
       orderBy: { sentAt: "desc" },
       take: 10,
@@ -377,10 +378,18 @@ export const getCachedBrazeStats = unstable_cache(
     if (!brazeClient) return null;
     try {
       const daysSince = Math.ceil((Date.now() - new Date("2026-05-16").getTime()) / (86400 * 1000)) + 2;
-      const res = await brazeClient.get("/campaigns/data_series", {
-        campaign_id: campaignId,
-        length: Math.max(daysSince, 3),
-      });
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 3000);
+      let res: Response;
+      try {
+        res = await brazeClient.get(
+          "/campaigns/data_series",
+          { campaign_id: campaignId, length: Math.max(daysSince, 3) },
+          controller.signal,
+        );
+      } finally {
+        clearTimeout(timeoutId);
+      }
       if (!res.ok) return null;
       const data = await res.json() as { data?: Array<{ messages?: Record<string, unknown[]> }> };
       let sends = 0, directOpens = 0, totalOpens = 0;
