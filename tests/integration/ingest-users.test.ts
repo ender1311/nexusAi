@@ -873,6 +873,44 @@ describe("flat Hightouch user sync rows", () => {
     expect(body.unmatched).toBeUndefined();
   });
 
+  it("promotes unverified braze-only record when verified user arrives with same braze_id (500 regression)", async () => {
+    // Regression: user first ingested as unverified (externalId = brazeId = "braze_promote_test").
+    // Later arrives verified with real external_user_id. The unique constraint on brazeId caused
+    // a 500 because the old record already held that brazeId value.
+    await prisma.trackedUser.create({
+      data: {
+        externalId: "braze_promote_test",
+        brazeId: "braze_promote_test",
+        attributes: { language_tag: "en" },
+      },
+    });
+
+    const payload = {
+      users: [
+        {
+          external_user_id: "verified_user_789",
+          braze_id: "braze_promote_test",
+          funnel_stage: "lapsed_wau",
+          attributes: { language_tag: "en" },
+        },
+      ],
+    };
+
+    const res = await POST(buildRequest("POST", payload, AUTH) as NextRequest);
+    const body = await res.json();
+
+    expect(res.status).toBe(200);
+    expect(body.upserted).toBe(1);
+
+    // Old unverified record should be gone, replaced by the real externalId
+    const oldRecord = await prisma.trackedUser.findUnique({ where: { externalId: "braze_promote_test" } });
+    expect(oldRecord).toBeNull();
+
+    const newRecord = await prisma.trackedUser.findUnique({ where: { externalId: "verified_user_789" } });
+    expect(newRecord).not.toBeNull();
+    expect(newRecord!.brazeId).toBe("braze_promote_test");
+  });
+
   it("still treats rows WITH last_updated_timestamp as push open rows", async () => {
     // Rows with last_updated_timestamp are push open events, not user sync.
     const payload = {

@@ -572,6 +572,23 @@ export async function POST(req: NextRequest) {
       const brazeId = user.braze_id?.trim() || null;
       // Unverified users (no external_user_id): use braze_id as the Nexus primary key.
       const externalId = externalUserId ?? brazeId!;
+
+      // Identity resolution: a user may have been stored as unverified (externalId = brazeId)
+      // and now arrives with a real external_user_id. Re-key the old record to avoid a
+      // unique constraint violation on brazeId when creating the verified record.
+      if (externalUserId && brazeId && externalUserId !== brazeId) {
+        const [realRecord, brazeRecord] = await Promise.all([
+          prisma.trackedUser.findUnique({ where: { externalId: externalUserId }, select: { id: true } }),
+          prisma.trackedUser.findUnique({ where: { externalId: brazeId }, select: { id: true } }),
+        ]);
+        if (brazeRecord && !realRecord) {
+          // Promote: re-key unverified record to the real external ID
+          await prisma.trackedUser.update({ where: { externalId: brazeId }, data: { externalId: externalUserId } });
+        } else if (brazeRecord && realRecord) {
+          // Both exist: drop the stale unverified duplicate, keep the real record
+          await prisma.trackedUser.delete({ where: { externalId: brazeId } });
+        }
+      }
       const raw = (user.attributes ?? {}) as Record<string, unknown>;
 
       const timezone = typeof raw["timezone"] === "string" && raw["timezone"].trim()
