@@ -1,4 +1,5 @@
 export const revalidate = 60;
+export const maxDuration = 20;
 
 import Link from "next/link";
 import { Header } from "@/components/layout/header";
