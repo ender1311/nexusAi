@@ -377,10 +377,18 @@ export const getCachedBrazeStats = unstable_cache(
     if (!brazeClient) return null;
     try {
       const daysSince = Math.ceil((Date.now() - new Date("2026-05-16").getTime()) / (86400 * 1000)) + 2;
-      const res = await brazeClient.get("/campaigns/data_series", {
-        campaign_id: campaignId,
-        length: Math.max(daysSince, 3),
-      });
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 3000);
+      let res: Response;
+      try {
+        res = await brazeClient.get(
+          "/campaigns/data_series",
+          { campaign_id: campaignId, length: Math.max(daysSince, 3) },
+          controller.signal,
+        );
+      } finally {
+        clearTimeout(timeoutId);
+      }
       if (!res.ok) return null;
       const data = await res.json() as { data?: Array<{ messages?: Record<string, unknown[]> }> };
       let sends = 0, directOpens = 0, totalOpens = 0;

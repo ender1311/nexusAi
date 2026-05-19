@@ -33,37 +33,57 @@ type AgentSummary = {
 
 function MetricCardsSkeleton() {
   return (
-    <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3 sm:gap-4">
-      {[1, 2, 3, 4, 5, 6].map((i) => (
+    <>
+      {[1, 2, 3, 4, 5].map((i) => (
         <div key={i} className="rounded-xl border bg-card p-4 space-y-2">
           <Skeleton className="h-3 w-24" />
           <Skeleton className="h-7 w-16" />
           <Skeleton className="h-3 w-20" />
         </div>
       ))}
+    </>
+  );
+}
+
+function PushRateSkeleton() {
+  return (
+    <div className="rounded-xl border bg-card p-4 space-y-2">
+      <Skeleton className="h-3 w-24" />
+      <Skeleton className="h-7 w-16" />
+      <Skeleton className="h-3 w-20" />
     </div>
   );
 }
 
 async function MetricCardsSection({ activeAgents }: { activeAgents: number }) {
-  const [{ sentLast24h, totalConversions, totalDecisions, trackedUsers, totalPushSends, totalPushOpens }, brazeStats] =
-    await Promise.all([getCachedDashboardCounts(), getCachedBrazeStats()]);
+  const { sentLast24h, totalConversions, totalDecisions, trackedUsers, totalPushSends } =
+    await getCachedDashboardCounts();
   const avgConvRate = totalDecisions > 0 ? (totalConversions / totalDecisions) * 100 : 0;
-  const nexusOpenRate = totalPushSends > 0 ? (totalPushOpens / totalPushSends) * 100 : 0;
-  const bestOpenRate = Math.max(nexusOpenRate, brazeStats?.directOpenRate ?? 0);
 
   return (
-    <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3 sm:gap-4">
+    <>
       <MetricCard title="Tracked Users" value={formatNumber(trackedUsers)} description="synced from Hightouch" icon={Users} />
       <MetricCard title="Active Agents" value={activeAgents} description="currently running" icon={Bot} trend={0} />
       <MetricCard title="Messages Sent (24h)" value={formatNumber(sentLast24h)} description="across all channels" icon={Send} />
       <MetricCard title="Avg Conversion Rate" value={`${avgConvRate.toFixed(2)}%`} description="across active agents" icon={TrendingUp} />
       <MetricCard title="Total Sends" value={formatNumber(totalPushSends)} description="push notifications" icon={Send} />
-      <PushOpenRateCard
-        value={totalPushSends > 0 || brazeStats ? `${bestOpenRate.toFixed(2)}%` : "—"}
-        description="push notifications"
-      />
-    </div>
+    </>
+  );
+}
+
+async function PushOpenRateSection() {
+  const [{ totalPushSends, totalPushOpens }, brazeStats] = await Promise.all([
+    getCachedDashboardCounts(),
+    getCachedBrazeStats(),
+  ]);
+  const nexusOpenRate = totalPushSends > 0 ? (totalPushOpens / totalPushSends) * 100 : 0;
+  const bestOpenRate = Math.max(nexusOpenRate, brazeStats?.directOpenRate ?? 0);
+
+  return (
+    <PushOpenRateCard
+      value={totalPushSends > 0 || brazeStats ? `${bestOpenRate.toFixed(2)}%` : "—"}
+      description="push notifications"
+    />
   );
 }
 
@@ -185,10 +205,15 @@ export default async function DashboardPage() {
     <>
       <Header title="Dashboard" description="Nexus platform overview" />
       <div className="p-4 sm:p-6 space-y-4 sm:space-y-6">
-        {/* Metric cards — Suspense boundary so COUNT queries don't block first paint */}
-        <Suspense fallback={<MetricCardsSkeleton />}>
-          <MetricCardsSection activeAgents={activeAgents} />
-        </Suspense>
+        {/* Metric cards — fast 5 cards and slow Braze push-rate card in separate Suspense boundaries */}
+        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3 sm:gap-4">
+          <Suspense fallback={<MetricCardsSkeleton />}>
+            <MetricCardsSection activeAgents={activeAgents} />
+          </Suspense>
+          <Suspense fallback={<PushRateSkeleton />}>
+            <PushOpenRateSection />
+          </Suspense>
+        </div>
 
         {/* Time series chart (slow — 7-day aggregation) + agents sidebar */}
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 sm:gap-6">
