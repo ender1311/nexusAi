@@ -357,10 +357,12 @@ export async function POST(req: NextRequest) {
       for (const agent of explorationAgents) {
         if (!agentPersonaSets.get(agent.id)?.has(user.personaId)) continue;
         const attrs = user.attributes as Record<string, unknown>;
-        // Push-enabled filter: exclude users who have explicitly set push_enabled: false.
-        // Users without the attribute are treated as opted-in (opt-out model).
+        // Channel eligibility: newsletter_push_enabled / newsletter_email_enabled must not be
+        // explicitly false. Absent or true = eligible (opt-out model; HT default: true).
         const agentHasPush = agent.messages.some((m) => m.channel === "push");
-        if (agentHasPush && attrs?.push_enabled === false) continue;
+        if (agentHasPush && attrs?.newsletter_push_enabled === false) continue;
+        const agentHasEmail = agent.messages.some((m) => m.channel === "email");
+        if (agentHasEmail && attrs?.newsletter_email_enabled === false) continue;
         // Language filter: agent.languageFilter takes precedence;
         // push agents without explicit filter default to English-only sends.
         const effectiveLang =
@@ -667,17 +669,18 @@ export async function POST(req: NextRequest) {
           !quietHoursUserIds.has(u.externalId)
       );
 
-      // Push-enabled filter: exclude users who have explicitly set push_enabled: false.
-      // Users without the attribute are treated as opted-in (opt-out model).
-      // Checked in-memory for reliability (JSONB boolean comparison via Prisma path filter is fragile).
+      // Channel eligibility: newsletter_push_enabled / newsletter_email_enabled must not be
+      // explicitly false. Absent or true = eligible (opt-out model; HT default: true).
+      // Checked in-memory (JSONB boolean comparison via Prisma path filter is fragile).
       const hasPushMessages = agent.messages.some((m) => m.channel === "push");
-      const pushFiltered = hasPushMessages
-        ? eligibleUsers.filter((u) => {
-            const attrs = u.attributes as Record<string, unknown>;
-            return attrs?.push_enabled !== false;
-          })
-        : eligibleUsers;
-      suppress.targetFilter += eligibleUsers.length - pushFiltered.length;
+      const hasEmailMessages = agent.messages.some((m) => m.channel === "email");
+      const channelFiltered = eligibleUsers.filter((u) => {
+        const attrs = u.attributes as Record<string, unknown>;
+        if (hasPushMessages && attrs?.newsletter_push_enabled === false) return false;
+        if (hasEmailMessages && attrs?.newsletter_email_enabled === false) return false;
+        return true;
+      });
+      suppress.targetFilter += eligibleUsers.length - channelFiltered.length;
 
       // Language filter for push agents: English-only sends by default.
       // Checked in-memory for reliability (JSONB path filter is fragile with Neon HTTP adapter).
@@ -686,13 +689,13 @@ export async function POST(req: NextRequest) {
           ? agent.languageFilter
           : hasPushMessages ? "en" : null;
       const langFiltered = effectiveAgentLang
-        ? pushFiltered.filter((u) => {
+        ? channelFiltered.filter((u) => {
             const attrs = u.attributes as Record<string, unknown>;
             const lang = attrs?.language_tag as string | undefined;
             return lang?.startsWith(effectiveAgentLang) === true;
           })
-        : pushFiltered;
-      suppress.targetFilter += pushFiltered.length - langFiltered.length;
+        : channelFiltered;
+      suppress.targetFilter += channelFiltered.length - langFiltered.length;
 
       // Apply targetFilter in-memory on the already-loaded page (V1: no SQL-side JSON filtering)
       const targetFiltered = langFiltered.filter((u) => {

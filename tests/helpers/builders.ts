@@ -96,9 +96,9 @@ export async function createUser(
   } = {}
 ) {
   // Default personaConfidence to 1.0 so tests pass the MIN_PERSONA_CONFIDENCE filter.
-  // Default push_enabled: true and language_tag: "en" so users are eligible for push sends
-  // by default; individual tests can override via attributes: { push_enabled: false } etc.
-  const defaultAttrs = { push_enabled: true, language_tag: "en" };
+  // Default newsletter_push_enabled/newsletter_email_enabled: true and language_tag: "en"
+  // so users are eligible by default; individual tests can override via attributes: { newsletter_push_enabled: false }.
+  const defaultAttrs = { newsletter_push_enabled: true, newsletter_email_enabled: true, language_tag: "en" };
   const mergedAttrs = overrides.attributes
     ? { ...defaultAttrs, ...(overrides.attributes as Record<string, unknown>) }
     : defaultAttrs;

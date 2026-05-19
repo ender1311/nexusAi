@@ -55,7 +55,7 @@ export async function POST(req: NextRequest) {
     });
     const pushOptedOut = new Set(
       userRows
-        .filter((u) => (u.attributes as Record<string, unknown>)?.push_enabled === false)
+        .filter((u) => (u.attributes as Record<string, unknown>)?.newsletter_push_enabled === false)
         .map((u) => u.externalId)
     );
 
