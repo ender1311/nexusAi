@@ -10,11 +10,12 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
-import { getCachedAgentList, getCachedPersonaDistribution, getCachedDashboardCounts, getCachedDashboardTimeSeries, getCachedRecentDecisions, getCachedBrazeStats, getCachedAllVariantNames } from "@/lib/cache";
+import { getCachedAgentList, getCachedPersonaDistribution, getCachedDashboardCounts, getCachedDashboardTimeSeries, getCachedRecentDecisions, getCachedBrazeStats, getCachedAllVariantNames, getCachedFunnelStageBreakdown } from "@/lib/cache";
 import { formatNumber, formatDate } from "@/lib/utils";
 import { TimeSeriesPoint, DecisionLog } from "@/types/metrics";
 import { Bot, Send, TrendingUp, Users, Plus, CheckCircle2, XCircle } from "lucide-react";
 import { PushOpenRateCard } from "@/components/metrics/push-open-rate-card";
+import { FunnelStageBreakdown } from "@/components/charts/funnel-stage-breakdown";
 import Link from "next/link";
 
 // ---------------------------------------------------------------------------
@@ -183,9 +184,10 @@ async function RecentSendsSection({ agents }: { agents: AgentSummary[] }) {
 export default async function DashboardPage() {
   // Fast queries only — getCachedDashboardCounts (6 COUNT queries) moves into
   // MetricCardsSection so metric cards don't block agents sidebar / persona chart.
-  const [agents, personasRaw] = await Promise.all([
+  const [agents, personasRaw, funnelBreakdown] = await Promise.all([
     getCachedAgentList(),
     getCachedPersonaDistribution(),
+    getCachedFunnelStageBreakdown().catch(() => []),
   ]);
 
   const activeAgents = agents.filter((a) => a.status === "active").length;
@@ -298,6 +300,8 @@ export default async function DashboardPage() {
           </Suspense>
 
           <div className="space-y-4">
+            <FunnelStageBreakdown rows={funnelBreakdown} />
+
             <Card>
               <CardHeader className="flex flex-row items-center justify-between">
                 <CardTitle className="text-sm font-semibold">Persona Distribution</CardTitle>

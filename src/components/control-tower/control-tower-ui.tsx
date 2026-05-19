@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import { CheckCircle2, RotateCcw, Users, Zap } from "lucide-react";
+import { FunnelStageBreakdown } from "@/components/charts/funnel-stage-breakdown";
 import { formatNumber } from "@/lib/utils";
 import { Header } from "@/components/layout/header";
 import { AgentToggleCard } from "@/components/control-tower/agent-toggle-card";
@@ -72,9 +73,10 @@ interface ControlTowerUIProps {
   agents: SerializedAgent[];
   stats: StatsData | null;
   brazeSends: number | null;
+  funnelBreakdown: Array<{ stage: string; count: number }>;
 }
 
-export function ControlTowerUI({ agents, stats, brazeSends }: ControlTowerUIProps) {
+export function ControlTowerUI({ agents, stats, brazeSends, funnelBreakdown }: ControlTowerUIProps) {
   // Initialize agent pool: use real DB agents if available, fall back to mock
   const initialPool = agents.length > 0 ? mapDbAgents(agents) : controlAgents;
 
@@ -277,8 +279,11 @@ export function ControlTowerUI({ agents, stats, brazeSends }: ControlTowerUIProp
             </div>
           </div>
 
-          {/* Sliders + activate button */}
+          {/* Funnel breakdown + sliders + activate */}
           <div className="space-y-4">
+            {funnelBreakdown.length > 0 && (
+              <FunnelStageBreakdown rows={funnelBreakdown} title="Users by Stage" />
+            )}
             <OptimizationObjective
               config={config}
               onChange={setConfig}

@@ -425,6 +425,19 @@ export const getCachedBrazeStats = unstable_cache(
 // ── Control Tower stats ───────────────────────────────────────────────────────
 
 /** Aggregate counts for the control tower page (60s TTL). */
+export const getCachedFunnelStageBreakdown = unstable_cache(
+  async () => {
+    const rows = await prisma.trackedUser.groupBy({
+      by: ["funnelStage"],
+      _count: { _all: true },
+      orderBy: { _count: { funnelStage: "desc" } },
+    });
+    return rows.map((r) => ({ stage: r.funnelStage ?? "unknown", count: r._count._all }));
+  },
+  ["funnel-stage-breakdown"],
+  { tags: ["dashboard-stats"], revalidate: 900 }
+);
+
 export const getCachedControlTowerStats = unstable_cache(
   async () => {
     const [trackedUsers, personas, agents, decisions, totalConversions] = await Promise.all([
