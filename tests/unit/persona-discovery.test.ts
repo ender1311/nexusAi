@@ -124,77 +124,80 @@ describe("runKMeans", () => {
 });
 
 describe("deriveTrait", () => {
-  it("identifies push as dominant channel when dim 0 is highest", () => {
-    const centroid = vec({ 0: 0.8, 1: 0.2, 2: 0.1 });
+  // 10-dim layout: [0]=push, [1]=email, [2]=morning, [3]=evening, [4]=weekend,
+  //                [5]=conv_rate, [6]=recency, [7]=giving, [8]=spiritual, [9]=freq
+
+  it("identifies push as dominant channel when dim 0 > dim 1", () => {
+    const centroid = vec({ 0: 0.8, 1: 0.2 });
     expect(deriveTrait(centroid).dominantChannel).toBe("push");
   });
 
-  it("identifies email as dominant channel when dim 1 is highest", () => {
-    const centroid = vec({ 0: 0.1, 1: 0.9, 2: 0.1 });
+  it("identifies email as dominant channel when dim 1 > dim 0", () => {
+    const centroid = vec({ 0: 0.1, 1: 0.9 });
     expect(deriveTrait(centroid).dominantChannel).toBe("email");
   });
 
-  it("identifies sms as dominant channel when dim 2 is highest", () => {
-    const centroid = vec({ 0: 0.1, 1: 0.2, 2: 0.8 });
-    expect(deriveTrait(centroid).dominantChannel).toBe("sms");
-  });
-
   it("defaults to push when all channel rates are 0", () => {
-    const centroid = vec();
-    expect(deriveTrait(centroid).dominantChannel).toBe("push");
+    expect(deriveTrait(vec()).dominantChannel).toBe("push");
   });
 
-  it("peakHour is the index of the max hourly rate (dims 3–26)", () => {
-    const centroid = vec({ 15: 0.9 }); // hour 15–3=12 → hourlyRates[12]
-    // hourlyRates = centroid.slice(3, 27), so index 15 in centroid = index 12 in hourlyRates
-    expect(deriveTrait(centroid).peakHour).toBe(12);
+  it("peakHour=9 when morning ratio (dim 2) dominates evening (dim 3)", () => {
+    expect(deriveTrait(vec({ 2: 0.6, 3: 0.1 })).peakHour).toBe(9);
   });
 
-  it("returns engagementLevel=daily when freq > 0.7 (dim 35)", () => {
-    expect(deriveTrait(vec({ 35: 0.8 })).engagementLevel).toBe("daily");
+  it("peakHour=20 when evening ratio (dim 3) dominates morning (dim 2)", () => {
+    expect(deriveTrait(vec({ 2: 0.1, 3: 0.6 })).peakHour).toBe(20);
+  });
+
+  it("peakHour=14 (midday) when morning and evening are similar", () => {
+    expect(deriveTrait(vec({ 2: 0.3, 3: 0.3 })).peakHour).toBe(14);
+    expect(deriveTrait(vec()).peakHour).toBe(14);
+  });
+
+  it("returns engagementLevel=daily when freq > 0.7 (dim 9)", () => {
+    expect(deriveTrait(vec({ 9: 0.8 })).engagementLevel).toBe("daily");
   });
 
   it("returns engagementLevel=regular when 0.5 < freq <= 0.7", () => {
-    expect(deriveTrait(vec({ 35: 0.6 })).engagementLevel).toBe("regular");
+    expect(deriveTrait(vec({ 9: 0.6 })).engagementLevel).toBe("regular");
   });
 
   it("returns engagementLevel=moderate when 0.3 < freq <= 0.5", () => {
-    expect(deriveTrait(vec({ 35: 0.4 })).engagementLevel).toBe("moderate");
+    expect(deriveTrait(vec({ 9: 0.4 })).engagementLevel).toBe("moderate");
   });
 
   it("returns engagementLevel=weekly when 0.15 < freq <= 0.3", () => {
-    expect(deriveTrait(vec({ 35: 0.2 })).engagementLevel).toBe("weekly");
+    expect(deriveTrait(vec({ 9: 0.2 })).engagementLevel).toBe("weekly");
   });
 
   it("returns engagementLevel=sporadic when freq <= 0.15", () => {
-    expect(deriveTrait(vec({ 35: 0.1 })).engagementLevel).toBe("sporadic");
-    expect(deriveTrait(vec({ 35: 0 })).engagementLevel).toBe("sporadic");
+    expect(deriveTrait(vec({ 9: 0.1 })).engagementLevel).toBe("sporadic");
+    expect(deriveTrait(vec({ 9: 0 })).engagementLevel).toBe("sporadic");
   });
 
-  it("returns giverProfile=sower when dim 37 >= 0.9", () => {
-    expect(deriveTrait(vec({ 37: 0.95 })).giverProfile).toBe("sower");
-    expect(deriveTrait(vec({ 37: 0.9 })).giverProfile).toBe("sower");
+  it("returns giverProfile=sower when dim 7 >= 0.9", () => {
+    expect(deriveTrait(vec({ 7: 0.95 })).giverProfile).toBe("sower");
+    expect(deriveTrait(vec({ 7: 0.9 })).giverProfile).toBe("sower");
   });
 
-  it("returns giverProfile=giver when 0.4 <= dim 37 < 0.9", () => {
-    expect(deriveTrait(vec({ 37: 0.5 })).giverProfile).toBe("giver");
-    expect(deriveTrait(vec({ 37: 0.4 })).giverProfile).toBe("giver");
+  it("returns giverProfile=giver when 0.4 <= dim 7 < 0.9", () => {
+    expect(deriveTrait(vec({ 7: 0.5 })).giverProfile).toBe("giver");
+    expect(deriveTrait(vec({ 7: 0.4 })).giverProfile).toBe("giver");
   });
 
-  it("returns giverProfile=non-giver when dim 37 < 0.4", () => {
-    expect(deriveTrait(vec({ 37: 0.1 })).giverProfile).toBe("non-giver");
+  it("returns giverProfile=non-giver when dim 7 < 0.4", () => {
+    expect(deriveTrait(vec({ 7: 0.1 })).giverProfile).toBe("non-giver");
     expect(deriveTrait(vec()).giverProfile).toBe("non-giver");
   });
 
-  it("passes through streakDepth from dim 38 and planDepth from dim 40", () => {
-    const centroid = vec({ 38: 0.75, 40: 0.55 });
+  it("streakDepth and planDepth reflect spiritual composite (dim 8)", () => {
+    const centroid = vec({ 8: 0.65 });
     const t = deriveTrait(centroid);
-    expect(t.streakDepth).toBeCloseTo(0.75);
-    expect(t.planDepth).toBeCloseTo(0.55);
+    expect(t.streakDepth).toBeCloseTo(0.65);
+    expect(t.planDepth).toBeCloseTo(0.65);
   });
 
-  it("conversionRate comes from dim 34", () => {
-    const centroid = vec({ 34: 0.42 });
-    expect(deriveTrait(centroid).conversionRate).toBeCloseTo(0.42);
+  it("conversionRate comes from dim 5", () => {
+    expect(deriveTrait(vec({ 5: 0.42 })).conversionRate).toBeCloseTo(0.42);
   });
 });

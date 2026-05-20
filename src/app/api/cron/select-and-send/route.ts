@@ -11,7 +11,7 @@ import { isTimingMatch } from "@/lib/engine/send-timing";
 import { ThompsonSampling } from "@/lib/engine/thompson-sampling";
 import { EpsilonGreedy } from "@/lib/engine/epsilon-greedy";
 import { LinUCB } from "@/lib/engine/linucb";
-import { computeFeatureVector } from "@/lib/engine/feature-vector";
+import { computeFeatureVector, FEATURE_DIM } from "@/lib/engine/feature-vector";
 import type { BanditArm } from "@/lib/engine/types";
 import { recencyMultiplier } from "@/lib/engine/beta-pdf";
 import type { BrazeRecipient } from "@/lib/braze/payload-factory";
@@ -751,10 +751,12 @@ export async function POST(req: NextRequest) {
           userArmsByUser.get(row.userId)!.set(row.variantId, row);
         }
 
-        // For LinUCB: load per-agent LinUCB arms once (keyed by variantId)
+        // For LinUCB: load per-agent LinUCB arms once (keyed by variantId).
+        // Discard any arm whose aInv has wrong dimension (stale from old feature space).
         const linucbArmsByVariant = agent.algorithm === "linucb"
           ? new Map(
               (await prisma.linUCBArm.findMany({ where: { agentId: agent.id, variantId: { in: allVariantIds } } }))
+                .filter((r) => (r.aInv as number[]).length === FEATURE_DIM * FEATURE_DIM)
                 .map((r) => [r.variantId, { id: r.variantId, aInv: r.aInv as number[], b: r.b as number[] }])
             )
           : new Map<string, { id: string; aInv: number[]; b: number[] }>();
@@ -788,18 +790,21 @@ export async function POST(req: NextRequest) {
               .filter(Boolean) as Array<{ id: string; aInv: number[]; b: number[] }>;
             if (linucbArms.length === 0) continue;
 
-            // Use stored feature vector or compute on the fly from user behavioral stats
-            const context: number[] = Array.isArray(user.featureVector)
-              ? (user.featureVector as number[])
-              : computeFeatureVector({
-                  totalDecisions:   user.totalDecisions,
-                  totalConversions: user.totalConversions,
-                  totalReward:      user.totalReward,
-                  channelStats:     user.channelStats,
-                  hourlyStats:      user.hourlyStats,
-                  dailyStats:       user.dailyStats,
-                  attributes:       (user.attributes as Record<string, unknown>) ?? {},
-                });
+            // Use stored feature vector only if it matches the current FEATURE_DIM;
+            // stale vectors from the old 44-dim layout are recomputed on the fly.
+            const storedVec = user.featureVector as number[];
+            const context: number[] =
+              Array.isArray(storedVec) && storedVec.length === FEATURE_DIM
+                ? storedVec
+                : computeFeatureVector({
+                    totalDecisions:   user.totalDecisions,
+                    totalConversions: user.totalConversions,
+                    totalReward:      user.totalReward,
+                    channelStats:     user.channelStats,
+                    hourlyStats:      user.hourlyStats,
+                    dailyStats:       user.dailyStats,
+                    attributes:       (user.attributes as Record<string, unknown>) ?? {},
+                  });
             selectedVariantId = new LinUCB().select(linucbArms, context).variantId;
           } else {
             // Thompson / EpsilonGreedy: blend persona prior with user-specific posterior
@@ -1102,10 +1107,11 @@ export async function POST(req: NextRequest) {
           windowUserArmsByUser.get(row.userId)!.set(row.variantId, row);
         }
 
-        // For LinUCB: load per-agent LinUCB arms once
+        // For LinUCB: load per-agent LinUCB arms once. Discard stale-dimension arms.
         const windowLinucbArmsByVariant = agent.algorithm === "linucb"
           ? new Map(
               (await prisma.linUCBArm.findMany({ where: { agentId: agent.id, variantId: { in: allVariantIds } } }))
+                .filter((r) => (r.aInv as number[]).length === FEATURE_DIM * FEATURE_DIM)
                 .map((r) => [r.variantId, { id: r.variantId, aInv: r.aInv as number[], b: r.b as number[] }])
             )
           : new Map<string, { id: string; aInv: number[]; b: number[] }>();
@@ -1138,17 +1144,19 @@ export async function POST(req: NextRequest) {
               .map((v) => windowLinucbArmsByVariant.get(v.id))
               .filter(Boolean) as Array<{ id: string; aInv: number[]; b: number[] }>;
             if (linucbArms.length === 0) continue;
-            const context: number[] = Array.isArray(user.featureVector)
-              ? (user.featureVector as number[])
-              : computeFeatureVector({
-                  totalDecisions:   user.totalDecisions,
-                  totalConversions: user.totalConversions,
-                  totalReward:      user.totalReward,
-                  channelStats:     user.channelStats,
-                  hourlyStats:      user.hourlyStats,
-                  dailyStats:       user.dailyStats,
-                  attributes:       (user.attributes as Record<string, unknown>) ?? {},
-                });
+            const storedVec2 = user.featureVector as number[];
+            const context: number[] =
+              Array.isArray(storedVec2) && storedVec2.length === FEATURE_DIM
+                ? storedVec2
+                : computeFeatureVector({
+                    totalDecisions:   user.totalDecisions,
+                    totalConversions: user.totalConversions,
+                    totalReward:      user.totalReward,
+                    channelStats:     user.channelStats,
+                    hourlyStats:      user.hourlyStats,
+                    dailyStats:       user.dailyStats,
+                    attributes:       (user.attributes as Record<string, unknown>) ?? {},
+                  });
             selectedVariantId = new LinUCB().select(linucbArms, context).variantId;
           } else {
             const personaArms = armStatsByPersona.get(pid) ?? new Map(
