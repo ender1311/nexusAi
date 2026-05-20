@@ -522,7 +522,7 @@ export function AgentSendsTable({ agentId }: Props) {
     return <p className="text-center py-8 text-sm text-red-500/80">Failed to load sends.</p>;
   }
 
-  if (rows.length === 0) {
+  if (rows.length === 0 && !filtersActive(filters)) {
     return (
       <div className="flex flex-col items-center justify-center py-12 text-center text-muted-foreground">
         <Send className="h-8 w-8 mx-auto mb-2 opacity-40" />
