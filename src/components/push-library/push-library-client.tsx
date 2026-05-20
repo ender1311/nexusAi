@@ -32,6 +32,8 @@ type Props = {
   isAdmin: boolean;
 };
 
+const CATEGORY_ORDER = ["reader", "votd", "plans", "guided-scripture", "guided-prayer"];
+
 export function PushLibraryClient({ groups, isAdmin }: Props) {
   const [view, setView] = useState<"grid" | "table">("table");
   const [collapsed, setCollapsed] = useState<Record<string, boolean>>({});
@@ -54,8 +56,6 @@ export function PushLibraryClient({ groups, isAdmin }: Props) {
       .map((w) => w.charAt(0).toUpperCase() + w.slice(1))
       .join(" ");
   }
-
-  const CATEGORY_ORDER = ["reader", "votd", "plans", "guided-scripture", "guided-prayer"];
 
   const allVariants = groups.flatMap((g) => g.variants);
   const categories = Array.from(new Set(groups.map((g) => g.category))).sort(

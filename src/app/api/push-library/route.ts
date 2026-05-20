@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { revalidateTag } from "next/cache";
 import { prisma } from "@/lib/db";
 import { getAuth } from "@/lib/auth";
 import { LIBRARY_AGENT_NAME } from "@/lib/engine/template-sync";
@@ -137,9 +138,10 @@ export async function POST(req: NextRequest) {
       },
     });
 
+    revalidateTag("agents", "max");
     return NextResponse.json({ data: variant }, { status: 201 });
   } catch (error) {
     console.error("POST /api/push-library error:", error);
-    return NextResponse.json({ error: "Failed to create template" }, { status: 500 });
+    return NextResponse.json({ error: "Failed to create push" }, { status: 500 });
   }
 }

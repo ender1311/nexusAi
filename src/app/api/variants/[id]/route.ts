@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { revalidateTag } from "next/cache";
 import { prisma } from "@/lib/db";
 import { LIBRARY_AGENT_NAME, TEMPLATE_COPY_FIELDS, syncClonesFromTemplate } from "@/lib/engine/template-sync";
 import { requireAdmin } from "@/lib/auth";
@@ -61,6 +62,7 @@ export async function PATCH(
       TEMPLATE_COPY_FIELDS.map((f) => [f, (updated as Record<string, unknown>)[f]])
     );
     clonesUpdated = await syncClonesFromTemplate(id, copyData);
+    revalidateTag("agents", "max");
   }
 
   return NextResponse.json({ data: updated, clonesUpdated });

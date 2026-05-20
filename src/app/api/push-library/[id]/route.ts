@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { revalidateTag } from "next/cache";
 import { prisma } from "@/lib/db";
 import { getAuth } from "@/lib/auth";
 import { LIBRARY_AGENT_NAME } from "@/lib/engine/template-sync";
@@ -33,6 +34,7 @@ export async function DELETE(
       data: { status: "archived" },
     });
 
+    revalidateTag("agents", "max");
     return NextResponse.json({ data: { id } });
   } catch (error) {
     console.error("DELETE /api/push-library/[id] error:", error);

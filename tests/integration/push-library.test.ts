@@ -208,4 +208,24 @@ describe("DELETE /api/push-library/[id]", () => {
     const body = await res.json();
     expect(body).toHaveProperty("error");
   });
+
+  it("returns 400 when deleting a variant that belongs to a non-library agent", async () => {
+    // Regression: DELETE must reject variants outside the library agent to prevent
+    // operators from accidentally archiving production send variants via this endpoint.
+    mockAuth.roles = ["admin"];
+    const agent = await createAgent({ name: "Regular Agent", status: "active" });
+    const msg = await createMessage(agent.id);
+    const variant = await createVariant(msg.id, { name: "Regular Variant", body: "body", status: "active" });
+
+    const req = buildRequest("DELETE") as NextRequest;
+    const res = await DELETE(req, { params: Promise.resolve({ id: variant.id }) });
+
+    expect(res.status).toBe(400);
+    const body = await res.json();
+    expect(body).toHaveProperty("error");
+
+    // Verify not archived
+    const inDb = await prisma.messageVariant.findUnique({ where: { id: variant.id } });
+    expect(inDb!.status).toBe("active");
+  });
 });

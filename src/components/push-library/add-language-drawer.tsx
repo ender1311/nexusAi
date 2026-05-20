@@ -70,25 +70,31 @@ export function AddLanguageDrawer({ campaign, language, enVerseRefs, onClose, on
     });
   }
 
+  async function runBatched(fns: (() => Promise<void>)[], batchSize = 20): Promise<void> {
+    for (let i = 0; i < fns.length; i += batchSize) {
+      await Promise.all(fns.slice(i, i + batchSize).map((fn) => fn()));
+    }
+  }
+
   async function handleSave() {
     setSaving(true);
-    const tasks: Promise<void>[] = [];
+    const tasks: (() => Promise<void>)[] = [];
 
     for (const [usfmReference, vals] of Object.entries(translations)) {
       const ref = enVerseRefs.find((r) => r.usfmReference === usfmReference);
       if (vals.aTitle.trim()) {
-        tasks.push(postContent(campaign, langCode, usfmReference, ref?.usfmHuman, "a-title", vals.aTitle.trim()));
+        tasks.push(() => postContent(campaign, langCode, usfmReference, ref?.usfmHuman, "a-title", vals.aTitle.trim()));
       }
       if (vals.bTitle.trim()) {
-        tasks.push(postContent(campaign, langCode, usfmReference, ref?.usfmHuman, "b-title", vals.bTitle.trim()));
+        tasks.push(() => postContent(campaign, langCode, usfmReference, ref?.usfmHuman, "b-title", vals.bTitle.trim()));
       }
       if (vals.verseText.trim()) {
-        tasks.push(postContent(campaign, langCode, usfmReference, ref?.usfmHuman, "verse-text", vals.verseText.trim()));
+        tasks.push(() => postContent(campaign, langCode, usfmReference, ref?.usfmHuman, "verse-text", vals.verseText.trim()));
       }
     }
 
     try {
-      await Promise.all(tasks);
+      await runBatched(tasks);
       setError(null);
       onSaved();
     } catch {

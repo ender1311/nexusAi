@@ -28,13 +28,21 @@ export function DeleteConfirmDialog({
   const router = useRouter();
   const [open, setOpen] = useState(false);
   const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
   async function handleDelete() {
     setLoading(true);
+    setError(null);
     try {
-      await fetch(`/api/push-library/${variantId}`, { method: "DELETE" });
+      const res = await fetch(`/api/push-library/${variantId}`, { method: "DELETE" });
+      if (!res.ok) {
+        setError("Failed to delete. Please try again.");
+        return;
+      }
       setOpen(false);
       router.refresh();
+    } catch {
+      setError("Failed to delete. Please try again.");
     } finally {
       setLoading(false);
     }
@@ -50,6 +58,7 @@ export function DeleteConfirmDialog({
             <strong>{variantName}</strong> will be archived. Agents that cloned this
             template keep their current copy; the nightly sync will no longer update them.
           </AlertDialogDescription>
+          {error && <p className="text-sm text-destructive mt-2">{error}</p>}
         </AlertDialogHeader>
         <AlertDialogFooter>
           <AlertDialogCancel disabled={loading}>Cancel</AlertDialogCancel>

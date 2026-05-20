@@ -58,6 +58,7 @@ export function TemplateFormSheet({ mode, variant, children }: Props) {
   const router = useRouter();
   const [open, setOpen] = useState(false);
   const [loading, setLoading] = useState(false);
+  const [formError, setFormError] = useState<string | null>(null);
 
   const [name, setName] = useState(variant?.name ?? "");
   const [category, setCategory] = useState(variant?.category ?? "");
@@ -84,6 +85,7 @@ export function TemplateFormSheet({ mode, variant, children }: Props) {
   async function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
     setLoading(true);
+    setFormError(null);
     try {
       let res: Response;
       if (mode === "create") {
@@ -118,6 +120,8 @@ export function TemplateFormSheet({ mode, variant, children }: Props) {
       setOpen(false);
       resetForm();
       router.refresh();
+    } catch {
+      setFormError("Something went wrong. Please try again.");
     } finally {
       setLoading(false);
     }
@@ -128,7 +132,7 @@ export function TemplateFormSheet({ mode, variant, children }: Props) {
       open={open}
       onOpenChange={(v) => {
         setOpen(v);
-        if (!v) resetForm();
+        if (!v) { resetForm(); setFormError(null); }
       }}
     >
       <SheetTrigger render={<span />}>{children}</SheetTrigger>
@@ -245,6 +249,7 @@ export function TemplateFormSheet({ mode, variant, children }: Props) {
             />
           </div>
 
+          {formError && <p className="text-sm text-destructive">{formError}</p>}
           <SheetFooter className="pt-2">
             <Button type="submit" disabled={loading} className="w-full">
               {loading
