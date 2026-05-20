@@ -132,13 +132,13 @@ export function TemplateFormSheet({ mode, variant, children }: Props) {
       }}
     >
       <SheetTrigger render={<span />}>{children}</SheetTrigger>
-      <SheetContent className="w-full sm:max-w-lg overflow-y-auto">
-        <SheetHeader>
+      <SheetContent className="w-full sm:max-w-lg overflow-y-auto flex flex-col">
+        <SheetHeader className="pb-2">
           <SheetTitle>
-            {mode === "create" ? "New Template" : "Edit Template"}
+            {mode === "create" ? "New Push" : "Edit Push"}
           </SheetTitle>
         </SheetHeader>
-        <form onSubmit={handleSubmit} className="space-y-4 mt-4">
+        <form onSubmit={handleSubmit} className="space-y-5 mt-6 flex-1 pb-4">
           <div className="space-y-1.5">
             <Label htmlFor="name">Name</Label>
             <Input
@@ -245,14 +245,14 @@ export function TemplateFormSheet({ mode, variant, children }: Props) {
             />
           </div>
 
-          <SheetFooter>
+          <SheetFooter className="pt-2">
             <Button type="submit" disabled={loading} className="w-full">
               {loading
                 ? mode === "create"
                   ? "Creating…"
                   : "Saving…"
                 : mode === "create"
-                ? "Create Template"
+                ? "Create Push"
                 : "Save Changes"}
             </Button>
           </SheetFooter>
