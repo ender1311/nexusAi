@@ -6,6 +6,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { CopyableId } from "@/components/ui/copyable-id";
 import { cn } from "@/lib/utils";
 import {
   getAgentSendDeliveryStatus,
@@ -308,7 +309,7 @@ function ExpandedContent({ row, nowMs }: { row: SendRow; nowMs: number }) {
         )}
         <div>
           <p className="text-[10px] font-medium text-muted-foreground uppercase tracking-wide mb-0.5">User ID</p>
-          <p className="text-xs font-mono text-muted-foreground">{row.userId}</p>
+          <CopyableId id={row.userId} className="text-xs text-muted-foreground" />
         </div>
         {row.scheduledFor && (
           <div>
@@ -377,9 +378,11 @@ function ScheduledSection({ rows, expanded, onToggle, nowMs }: {
                     </span>
                   )}
                 </div>
-                <p className="text-xs text-muted-foreground font-mono mt-0.5">
-                  {row.userId.length > 14 ? `${row.userId.slice(0, 14)}…` : row.userId}
-                </p>
+                <CopyableId
+                  id={row.userId}
+                  display={row.userId.length > 14 ? `${row.userId.slice(0, 14)}…` : row.userId}
+                  className="text-xs text-muted-foreground mt-0.5"
+                />
               </div>
               <div className="flex items-center gap-2 shrink-0">
                 <Badge variant="outline" className="text-xs border-amber-300 text-amber-700 dark:border-amber-700 dark:text-amber-400">
@@ -778,8 +781,11 @@ export function AgentSendsTable({ agentId }: Props) {
                             </TableCell>
 
                             {/* User */}
-                            <TableCell className="font-mono text-xs text-muted-foreground">
-                              {row.userId.length > 12 ? `${row.userId.slice(0, 12)}…` : row.userId}
+                            <TableCell className="text-xs text-muted-foreground">
+                              <CopyableId
+                                id={row.userId}
+                                display={row.userId.length > 12 ? `${row.userId.slice(0, 12)}…` : row.userId}
+                              />
                             </TableCell>
 
                             {/* Variant + title preview */}

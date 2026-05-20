@@ -4,6 +4,7 @@ import { useState } from "react";
 import { Search, User, CheckCircle, XCircle, Clock, Brain } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
+import { CopyableId } from "@/components/ui/copyable-id";
 import { cn } from "@/lib/utils";
 
 interface ArmStat {
@@ -135,9 +136,10 @@ export function UserInspector() {
               <div className="flex items-start justify-between gap-4 flex-wrap">
                 <div>
                   <div className="flex items-center gap-2 mb-1">
-                    <code className="text-xs bg-muted px-2 py-0.5 rounded font-mono">
-                      {result.user.externalId}
-                    </code>
+                    <CopyableId
+                      id={result.user.externalId}
+                      className="text-xs bg-muted px-2 py-0.5 rounded"
+                    />
                     {result.user.personaName && (
                       <Badge variant="secondary" className="text-xs">
                         {result.user.personaName}
