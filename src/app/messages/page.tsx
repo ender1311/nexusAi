@@ -61,14 +61,14 @@ export default async function MessagesPage() {
   const groups = await getGroups();
 
   const totalVariants = groups.reduce((s, g) => s + g.variants.length, 0);
-  const description = `${totalVariants} template${totalVariants !== 1 ? "s" : ""} across ${groups.length} group${groups.length !== 1 ? "s" : ""}`;
+  const description = `${totalVariants} push${totalVariants !== 1 ? "es" : ""} across ${groups.length} group${groups.length !== 1 ? "s" : ""}`;
 
   return (
     <>
       <Header title="Push Library" description={description}>
         {isAdmin ? (
           <TemplateFormSheet mode="create">
-            <Button size="sm">+ New Template</Button>
+            <Button size="sm">+ New Push</Button>
           </TemplateFormSheet>
         ) : null}
       </Header>
