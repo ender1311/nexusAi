@@ -130,7 +130,9 @@ export function SchedulingEditor({ agentId, initialRule }: Props) {
         </CardHeader>
         <CardContent className="space-y-3">
           <p className="text-xs text-muted-foreground">
-            No messages are sent during these hours. Times apply in each user&apos;s local timezone via Braze&apos;s in-local-time delivery.
+            {quietHours.timezone === "user"
+              ? "No messages are sent during these hours. Nexus skips the server-side check and Braze delivers in each user’s own local timezone via in-local-time."
+              : `No messages are sent during these hours. Times are checked server-side using each user’s stored timezone; users without one fall back to ${quietHours.timezone}.`}
           </p>
           <div className="flex flex-wrap gap-3">
             <div className="flex-1 min-w-[7rem]">
@@ -152,7 +154,7 @@ export function SchedulingEditor({ agentId, initialRule }: Props) {
               />
             </div>
             <div className="flex-1 min-w-[11rem]">
-              <label className="text-xs text-muted-foreground block mb-1">Reference timezone</label>
+              <label className="text-xs text-muted-foreground block mb-1">{quietHours.timezone === "user" ? "Timezone mode" : "Fallback timezone"}</label>
               <Select
                 value={quietHours.timezone}
                 onValueChange={(v) => v && setQuietHours((q) => ({ ...q, timezone: v }))}
