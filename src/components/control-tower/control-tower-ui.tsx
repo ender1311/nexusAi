@@ -157,15 +157,16 @@ export function ControlTowerUI({ agents, stats, brazeSends, funnelBreakdown }: C
     notifTimerRef.current = setTimeout(() => setNotification(null), 3500);
   };
 
-  const updateAgentStatus = async (agentId: string, status: "active" | "draft") => {
+  const updateAgentStatus = async (agentId: string, status: "active" | "draft"): Promise<boolean> => {
     try {
-      await fetch(`/api/agents/${agentId}`, {
+      const res = await fetch(`/api/agents/${agentId}`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ status }),
       });
-    } catch (err) {
-      console.error("[control-tower] Failed to update agent status:", err);
+      return res.ok;
+    } catch {
+      return false;
     }
   };
 
@@ -174,9 +175,14 @@ export function ControlTowerUI({ agents, stats, brazeSends, funnelBreakdown }: C
       setPendingOff(agentId); // show confirmation dialog
       return;
     }
-    // Turning on: no confirmation needed
+    // Turning on: optimistic update; rollback on failure
     setEnabledAgents((prev) => ({ ...prev, [agentId]: true }));
-    void updateAgentStatus(agentId, "active");
+    void updateAgentStatus(agentId, "active").then((ok) => {
+      if (!ok) {
+        setEnabledAgents((prev) => ({ ...prev, [agentId]: false }));
+        showNotification("Failed to activate agent — please try again");
+      }
+    });
   };
 
   const confirmTurnOff = async () => {
@@ -184,7 +190,12 @@ export function ControlTowerUI({ agents, stats, brazeSends, funnelBreakdown }: C
     const agentId = pendingOff;
     setPendingOff(null);
     setEnabledAgents((prev) => ({ ...prev, [agentId]: false }));
-    await updateAgentStatus(agentId, "draft");
+    const ok = await updateAgentStatus(agentId, "draft");
+    if (!ok) {
+      setEnabledAgents((prev) => ({ ...prev, [agentId]: true }));
+      showNotification("Failed to deactivate agent — please try again");
+      return;
+    }
     const name = agentPool.find((a) => a.id === agentId)?.name ?? "Agent";
     showNotification(`${name} has been turned off`);
   };

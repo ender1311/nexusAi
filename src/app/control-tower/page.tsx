@@ -1,15 +1,16 @@
 export const revalidate = 900;
 
 import { ControlTowerUI } from "@/components/control-tower/control-tower-ui";
-import { getCachedControlTowerAgents, getCachedControlTowerStats, getCachedBrazeStats, getCachedFunnelStageBreakdown } from "@/lib/cache";
+import { getCachedControlTowerAgents, getCachedControlTowerStats, getCachedFunnelStageBreakdown } from "@/lib/cache";
 
 export default async function ControlTowerPage() {
-  const [agents, stats, brazeStats, funnelBreakdown] = await Promise.all([
+  const [agents, stats, funnelBreakdown] = await Promise.all([
     getCachedControlTowerAgents().catch(() => []),
     getCachedControlTowerStats().catch(() => null),
-    getCachedBrazeStats().catch(() => null),
     getCachedFunnelStageBreakdown().catch(() => []),
   ]);
 
-  return <ControlTowerUI agents={agents} stats={stats} brazeSends={brazeStats?.sends ?? null} funnelBreakdown={funnelBreakdown} />;
+  // brazeSends omitted from render path — external HTTP call (up to 3s on cold start)
+  // blocks the entire server component. stats.totalDecisions is a reliable fallback.
+  return <ControlTowerUI agents={agents} stats={stats} brazeSends={null} funnelBreakdown={funnelBreakdown} />;
 }

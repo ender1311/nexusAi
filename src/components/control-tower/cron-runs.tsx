@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { Activity, CheckCircle2, XCircle, Clock } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
+import { Skeleton } from "@/components/ui/skeleton";
 import { cn } from "@/lib/utils";
 
 type CronRun = {
@@ -38,7 +39,19 @@ export function CronRuns() {
       </div>
 
       {loading ? (
-        <p className="text-sm text-muted-foreground">Loading…</p>
+        <Card>
+          <CardContent className="pt-3 pb-3 px-0">
+            <div className="divide-y">
+              {Array.from({ length: 3 }).map((_, i) => (
+                <div key={i} className="flex items-center gap-3 px-4 py-2.5">
+                  <Skeleton className="h-3.5 w-3.5 rounded-full shrink-0" />
+                  <Skeleton className="h-3.5 flex-1" />
+                  <Skeleton className="h-3.5 w-16 shrink-0" />
+                </div>
+              ))}
+            </div>
+          </CardContent>
+        </Card>
       ) : runs.length === 0 ? (
         <p className="text-sm text-muted-foreground">No cron runs recorded yet.</p>
       ) : (
