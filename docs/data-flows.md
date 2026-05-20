@@ -11,7 +11,7 @@ sequenceDiagram
     participant DW as Data Warehouse
     participant HT as Hightouch
     participant API as POST /api/ingest/users
-    participant DB as SQLite DB
+    participant DB as PostgreSQL
 
     DW->>HT: User profile records
     HT->>API: POST { users: [{externalId, attributes}] }
@@ -32,7 +32,7 @@ sequenceDiagram
     participant RC as RewardCalculator
     participant US as UserStats
     participant ARM as PersonaArmStats
-    participant DB as SQLite DB
+    participant DB as PostgreSQL
 
     APP->>HT: Conversion event (e.g. plan_started)
     HT->>API: POST { events: [{externalId, name, timestamp, properties}] }
@@ -68,7 +68,7 @@ How a variant is chosen for a user at send time.
 sequenceDiagram
     participant CALLER as Send Trigger
     participant ALGO as Bandit Algorithm
-    participant DB as SQLite DB
+    participant DB as PostgreSQL
     participant BRAZE as Braze
 
     CALLER->>DB: Lookup User → personaId
@@ -81,6 +81,9 @@ sequenceDiagram
     else algorithm = epsilon_greedy
         CALLER->>ALGO: epsilonGreedySelect(arms, epsilon)
         ALGO-->>CALLER: variantId (explore or exploit)
+    else algorithm = linucb
+        CALLER->>ALGO: linUCB.select(arms, featureVec)
+        ALGO-->>CALLER: variantId (UCB score maximiser)
     end
 
     CALLER->>DB: INSERT UserDecision<br/>{ agentId, userId, variantId, channel, sentAt }
@@ -100,15 +103,15 @@ sequenceDiagram
     participant FV as FeatureVector
     participant PD as PersonaDiscovery
     participant PA as PersonaAssignment
-    participant DB as SQLite DB
+    participant DB as PostgreSQL
 
     ADMIN->>API: POST /api/personas/discover<br/>{ minK, maxK, minInteractions }
 
     API->>DB: Load users with totalDecisions >= 20
     loop for each user
         API->>FV: computeFeatureVector(user)
-        Note over FV: 37 dims: channel rates [0-2]<br/>hour histogram [3-26]<br/>day histogram [27-33]<br/>conversion rate [34]<br/>frequency [35]<br/>avg reward [36]
-        FV-->>API: float[37]
+        Note over FV: 10 dims: push/email rates [0-1]<br/>morning/evening/weekend ratios [2-4]<br/>conv rate, recency [5-6]<br/>giving tier, spiritual depth, freq [7-9]
+        FV-->>API: float[10]
     end
 
     API->>PD: discoverPersonas(users, featureVectors, config)

@@ -48,8 +48,10 @@ next-env.d.ts
 /apps/api/src/generated/prisma
 .env*.local
 
-# Claude Code internals
-.claude/
+# Claude Code internals (personal state excluded; project hooks committed)
+.claude/*
+!.claude/settings.json
+!.claude/arch-doc-check.sh
 
 # Playwright MCP artifacts
 .playwright-mcp/

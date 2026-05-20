@@ -2,26 +2,28 @@
 
 How users are clustered into personas using unsupervised ML.
 
-## Feature Vector — 37 Dimensions
+## Feature Vector — 10 Dimensions
 
 ```mermaid
 block-beta
-  columns 3
-  block:CHANNEL["Channel Rates [0-2]"]:1
+  columns 2
+  block:CHANNEL["Channel Rates [0–1]"]:1
     C0["[0] push conv rate"]
     C1["[1] email conv rate"]
-    C2["[2] sms conv rate"]
   end
-  block:HOUR["Hour Histogram [3-26]"]:1
-    H["24 dims — normalized<br/>message activity by<br/>hour of day (0-23)"]
+  block:TIMING["Timing Ratios [2–4]"]:1
+    T2["[2] morning ratio\nhours 5–11 share"]
+    T3["[3] evening ratio\nhours 17–22 share"]
+    T4["[4] weekend ratio\nSun+Sat share"]
   end
-  block:DAY["Day Histogram [27-33]"]:1
-    D["7 dims — normalized<br/>message activity by<br/>day of week (0=Sun)"]
+  block:BEHAVIOR["Behavioral Scalars [5–6]"]:1
+    B5["[5] overall conv rate"]
+    B6["[6] recency score\n1 − days_since_open/90"]
   end
-  block:OTHER["Scalars [34-36]"]:1
-    S34["[34] overall conv rate"]
-    S35["[35] engagement freq<br/>log(decisions/week)"]
-    S36["[36] avg reward magnitude"]
+  block:SEMANTIC["Semantic / YouVersion [7–9]"]:1
+    S7["[7] giving tier\n0=none  0.5=giver  1=sower"]
+    S8["[8] spiritual depth\nmean(streak+plan+prayer\n+scripture+badge)"]
+    S9["[9] engagement freq\nlog-scaled decisions/week"]
   end
 ```
 
@@ -47,7 +49,7 @@ flowchart TD
     BEST -->|no| KLOOP
     KLOOP -->|k > maxK| TRAITS
 
-    TRAITS[Derive traits for each cluster:<br/>- Dominant channel<br/>- Peak hour of day<br/>- Engagement level bucket<br/>- Average conversion rate]
+    TRAITS[Derive traits for each cluster:<br/>- Dominant channel (push vs email)<br/>- Peak hour: morning→9, evening→20, mixed→14<br/>- Engagement level from freq (dim 9)<br/>- Giver profile from giving tier (dim 7)<br/>- Spiritual depth from composite (dim 8)]
 
     TRAITS --> COLORS[Assign colors cycling through:<br/>blue → green → purple → orange →<br/>pink → red → teal → yellow]
 
@@ -89,11 +91,12 @@ will have feature vectors pointing in the same direction → high cosine similar
 
 ## Engagement Level Buckets
 
-Derived from `featureVector[35]` (log-scaled decisions/week):
+Derived from `featureVector[9]` (log-scaled engagement frequency, range 0–1):
 
-| Level | Decisions / week |
-|-------|-----------------|
-| `daily` | ≥ 7 |
-| `regular` | ≥ 3 |
-| `moderate` | ≥ 1 |
-| `sporadic` | < 1 |
+| Level | Condition |
+|-------|-----------|
+| `daily` | freq > 0.7 |
+| `regular` | 0.5 < freq ≤ 0.7 |
+| `moderate` | 0.3 < freq ≤ 0.5 |
+| `weekly` | 0.15 < freq ≤ 0.3 |
+| `sporadic` | freq ≤ 0.15 |

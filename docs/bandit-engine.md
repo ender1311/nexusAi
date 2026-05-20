@@ -10,7 +10,7 @@ flowchart TD
 
     ALGO -->|thompson| TS_FLOW[Thompson Sampling]
     ALGO -->|epsilon_greedy| EG_FLOW[Epsilon-Greedy]
-    ALGO -->|contextual| CTX[Contextual Bandit<br/>future / not yet implemented]
+    ALGO -->|linucb| LU_FLOW[LinUCB<br/>Contextual Bandit]
 
     subgraph TS["Thompson Sampling (thompson-sampling.ts)"]
         TS_FLOW --> TS1[Load PersonaArmStats<br/>for this persona + agent]
@@ -28,10 +28,18 @@ flowchart TD
         EG2 -->|no| EG4[Exploit: pick arm with<br/>highest wins/tries rate]
     end
 
+    subgraph LU["LinUCB (linucb.ts)"]
+        LU_FLOW --> LU1[Load/init LinUCBArm rows<br/>aInv d×d + b d-float<br/>keyed by agentId+variantId]
+        LU1 --> LU2[Compute user feature vector x<br/>10-dim behavioral + semantic]
+        LU2 --> LU3[For each arm:<br/>θ = A⁻¹b<br/>score = θᵀx + α√xᵀA⁻¹x]
+        LU3 --> LU4[Pick arm with highest UCB score]
+    end
+
     TS5 --> RESULT([Return variantId + explore flag])
     TS6 --> RESULT
     EG3 --> RESULT
     EG4 --> RESULT
+    LU4 --> RESULT
 ```
 
 ## Reward Update Flow
@@ -102,3 +110,32 @@ flowchart LR
     E1 --> E2["epsilon × 0.995 × 0.995 ..."]
     E2 --> FLOOR["floor at 0.01 — always 1% exploration"]
 ```
+
+## LinUCB — Contextual Bandit
+
+Uses the user's 10-dim feature vector as context to personalise variant selection.
+
+```mermaid
+flowchart LR
+    X["Context x (10-dim)"] --> THETA["θ = A⁻¹b"]
+    THETA --> EXPLOIT["exploit = θᵀx"]
+    X --> UNCERTAIN["uncertainty = α√(xᵀA⁻¹x)"]
+    EXPLOIT --> SCORE["UCB score = exploit + uncertainty"]
+    UNCERTAIN --> SCORE
+    SCORE --> SELECT["Select arm with highest score"]
+```
+
+**Arm state (LinUCBArm table):**
+- `aInv` — flattened d×d inverse design matrix (100 floats for d=10); initialised to identity I
+- `b` — d-float accumulated reward vector; initialised to zero
+- `tries` — total selections
+
+**Update rule (Sherman-Morrison rank-1 inverse update):**
+```
+A⁻¹_new = A⁻¹ − (A⁻¹x)(A⁻¹x)ᵀ / (1 + xᵀA⁻¹x)
+b_new   = b + reward · x
+```
+
+Unlike Thompson Sampling and Epsilon-Greedy, LinUCB arms are **not** segmented by persona — the context vector x already carries the user's behavioral profile, so a single model per (agentId, variantId) pair is sufficient.
+
+**Reference:** Chu et al. (2011) "Contextual Bandits with Linear Payoff Functions"

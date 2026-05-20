@@ -8,6 +8,7 @@ Every function in this directory must remain **pure**: no DB calls, no API calls
 - `thompson-sampling.ts` / `epsilon-greedy.ts` — arm selection; only inputs are arm stats + config
 - `persona-discovery.ts` — k-means clustering on feature vectors; pure transform
 - `persona-assignment.ts` — assigns users to nearest centroid; pure transform
+- `linucb.ts` — LinUCB contextual bandit (arm storage + UCB selection + Sherman-Morrison update)
 
 Side effects (DB writes, API calls, cron triggers) belong in `src/app/api/` route handlers, not here.
 

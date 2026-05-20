@@ -1,0 +1,16 @@
+{
+  "hooks": {
+    "PostToolUse": [
+      {
+        "matcher": "Write|Edit",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "REPO=$(git rev-parse --show-toplevel 2>/dev/null) && bash \"$REPO/.claude/arch-doc-check.sh\"",
+            "timeout": 10
+          }
+        ]
+      }
+    ]
+  }
+}

@@ -35,10 +35,11 @@ graph TB
         subgraph ENGINE["Bandit Engine (src/lib/engine)"]
             TS[Thompson Sampling]
             EG[Epsilon-Greedy]
+            LU[LinUCB<br/>Contextual Bandit]
             RC[Reward Calculator]
             PD[Persona Discovery<br/>K-Means Clustering]
             PA[Persona Assignment<br/>Cosine Similarity]
-            FV[Feature Vector<br/>37 dimensions]
+            FV[Feature Vector<br/>10 dimensions]
             US[User Stats<br/>Accumulator]
         end
 
@@ -90,7 +91,8 @@ graph TB
 | **Agent** | An optimization campaign. Has goals, messages, a bandit algorithm, and target personas |
 | **Message / Variant** | A message (channel + name) with A/B variants the bandit chooses between |
 | **Goal** | A conversion event (e.g. `plan_started`) mapped to a reward tier |
-| **Persona** | A user segment discovered by k-means clustering on 37-dim feature vectors |
+| **Persona** | A user segment discovered by k-means clustering on 10-dim feature vectors |
 | **PersonaArmStats** | Per-persona Beta distribution params (α/β) for each agent×variant arm |
 | **UserDecision** | A record of each message send + optional conversion link |
-| **Feature Vector** | 37-float representation of a user: channel affinity, timing, frequency, reward |
+| **Feature Vector** | 10-float representation of a user: channel/timing ratios, conversion rate, recency, giving tier, spiritual depth, engagement freq |
+| **LinUCBArm** | Per-arm A⁻¹ matrix + b vector for contextual bandit; keyed by (agentId, variantId) |
