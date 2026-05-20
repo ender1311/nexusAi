@@ -19,11 +19,18 @@ export class BrazeClient {
 
   async post(endpoint: string, body: Record<string, unknown> = {}): Promise<Response> {
     const url = `${this.restUrl}${endpoint}`;
-    return fetch(url, {
-      method: "POST",
-      headers: this.headers(),
-      body: JSON.stringify(body),
-    });
+    const controller = new AbortController();
+    const timer = setTimeout(() => controller.abort(), 10_000);
+    try {
+      return await fetch(url, {
+        method: "POST",
+        headers: this.headers(),
+        body: JSON.stringify(body),
+        signal: controller.signal,
+      });
+    } finally {
+      clearTimeout(timer);
+    }
   }
 
   async get(endpoint: string, params: Record<string, string | number | boolean> = {}, signal?: AbortSignal): Promise<Response> {

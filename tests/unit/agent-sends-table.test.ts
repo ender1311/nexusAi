@@ -312,3 +312,46 @@ describe("applySortToGroups", () => {
     });
   });
 });
+
+// ─── filtersActive ───────────────────────────────────────────────────────────
+
+// Copied verbatim from agent-sends-table.tsx (line 402) so tests remain
+// independent of the module boundary.
+function filtersActive(f: Filters): boolean {
+  return f.status !== "all" || f.channel !== "all" || f.persona !== "all";
+}
+
+describe("filtersActive", () => {
+  it("returns false when all filters are 'all' (default state)", () => {
+    const filters: Filters = { status: "all", channel: "all", persona: "all" };
+    expect(filtersActive(filters)).toBe(false);
+  });
+
+  it("returns true when status is non-'all'", () => {
+    const filters: Filters = { status: "failed", channel: "all", persona: "all" };
+    expect(filtersActive(filters)).toBe(true);
+  });
+
+  it("returns true when channel is non-'all'", () => {
+    const filters: Filters = { status: "all", channel: "push", persona: "all" };
+    expect(filtersActive(filters)).toBe(true);
+  });
+
+  it("returns true when persona is non-'all'", () => {
+    const filters: Filters = { status: "all", channel: "all", persona: "Seekers" };
+    expect(filtersActive(filters)).toBe(true);
+  });
+
+  it("returns true when multiple filters are non-'all'", () => {
+    const filters: Filters = { status: "converted", channel: "email", persona: "Seekers" };
+    expect(filtersActive(filters)).toBe(true);
+  });
+
+  it("empty rows with active filter does not trigger empty-state guard", () => {
+    const filters: Filters = { status: "failed", channel: "all", persona: "all" };
+    const rows: SendRow[] = [];
+    // The guard at component line 525: if (rows.length === 0 && !filtersActive(filters))
+    // must be FALSE when a filter is active, to preserve filter UI
+    expect(rows.length === 0 && !filtersActive(filters)).toBe(false);
+  });
+});

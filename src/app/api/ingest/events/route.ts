@@ -81,6 +81,14 @@ export async function POST(req: NextRequest) {
     );
   }
 
+  const invalidDates = events.filter((e) => isNaN(new Date(e.occurred_at).getTime()));
+  if (invalidDates.length > 0) {
+    return NextResponse.json(
+      { error: "Each event must have a valid ISO 8601 occurred_at", invalid_count: invalidDates.length },
+      { status: 400 }
+    );
+  }
+
   // Deduplicate by event_id within this batch
   const seen = new Set<string>();
   const deduped = events.filter((e) => {
