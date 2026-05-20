@@ -46,6 +46,18 @@ describe("BrazeClient", () => {
     await client.post("/endpoint");
     expect(fake.requests[0].url).toBe("https://rest.test.braze.com/endpoint");
   });
+
+  it("post passes a signal to fetch (enabling timeout/abort)", async () => {
+    let capturedSignal: AbortSignal | null | undefined;
+    (globalThis as Record<string, unknown>).fetch = async (_input: unknown, init?: RequestInit) => {
+      capturedSignal = init?.signal;
+      return new Response("{}", { status: 200 });
+    };
+    const client = new BrazeClient("key", "https://rest.test.braze.com");
+    await client.post("/test");
+    expect(capturedSignal).toBeDefined();
+    expect(capturedSignal).toBeInstanceOf(AbortSignal);
+  });
 });
 
 describe("PayloadFactory", () => {
