@@ -82,10 +82,12 @@ src/
 ```
 
 **Bandit engine (`src/lib/engine/`):**
-- Two algorithms: Thompson Sampling (`thompson-sampling.ts`) and Epsilon-Greedy (`epsilon-greedy.ts`)
-- Each agent stores per-arm Beta distribution stats (`alpha`/`beta`) in `PersonaArmStats` table, segmented by persona
+- Three algorithms: Thompson Sampling (`thompson-sampling.ts`), Epsilon-Greedy (`epsilon-greedy.ts`), and LinUCB (`linucb.ts`)
+- Thompson Sampling / Epsilon-Greedy store per-arm Beta stats (`alpha`/`beta`) in `PersonaArmStats`, segmented by persona
+- LinUCB stores a per-arm inverse design matrix (`aInv`, 10×10) + reward vector (`b`) in `LinUCBArm`; uses the 10-dim user feature vector as context; no persona segmentation needed
 - `reward-calculator.ts` maps conversion events to scalar rewards using goal tiers and weights
-- `persona-discovery.ts` runs k-means clustering on user feature vectors to discover personas
+- `feature-vector.ts` computes the 10-dim user feature vector: push/email rates, morning/evening/weekend ratios, conv rate, recency, giving tier, spiritual depth, engagement freq
+- `persona-discovery.ts` runs k-means clustering on 10-dim feature vectors to discover personas
 - `persona-assignment.ts` assigns users to nearest persona centroid
 
 **Braze integration (`src/lib/braze/`):**
