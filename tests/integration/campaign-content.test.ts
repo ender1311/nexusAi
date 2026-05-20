@@ -5,18 +5,20 @@ import { truncateAll, prisma } from "../helpers/db";
 import { createCampaignContent } from "../helpers/builders";
 import { buildRequest } from "../helpers/request";
 
-// Mutable auth state — null user = unauthenticated
+// Mutable auth state — null user = unauthenticated, roles controls admin access
 const mockAuth: {
   user: { id: string; email: string; firstName: null; lastName: null } | null;
+  roles: string[];
 } = {
   user: { id: "u1", email: "test@youversion.com", firstName: null, lastName: null },
+  roles: ["admin"],
 };
 
 mock.module("@workos-inc/authkit-nextjs", () => ({
   withAuth: () =>
     Promise.resolve({
       user: mockAuth.user,
-      roles: [],
+      roles: mockAuth.roles,
       sessionId: "sess1",
       accessToken: "tok1",
     }),
@@ -30,6 +32,7 @@ const { PATCH, DELETE } = await import("@/app/api/campaign-content/[id]/route");
 beforeEach(async () => {
   await truncateAll();
   mockAuth.user = { id: "u1", email: "test@youversion.com", firstName: null, lastName: null };
+  mockAuth.roles = ["admin"];
 });
 afterEach(async () => {
   await truncateAll();
@@ -82,6 +85,7 @@ describe("GET /api/campaign-content", () => {
 describe("POST /api/campaign-content", () => {
   it("returns 403 when unauthenticated", async () => {
     mockAuth.user = null;
+    mockAuth.roles = [];
     const req = buildRequest("POST", {
       campaign: "resurrection-push",
       contentType: "a-title",
@@ -171,6 +175,7 @@ describe("POST /api/campaign-content", () => {
 describe("PATCH /api/campaign-content/[id]", () => {
   it("returns 403 when unauthenticated", async () => {
     mockAuth.user = null;
+    mockAuth.roles = [];
     const row = await createCampaignContent({ usfmReference: "GEN.1.1", contentType: "a-title", title: "Original" });
     const req = buildRequest("PATCH", { title: "Updated" }) as NextRequest;
     const res = await PATCH(req, { params: Promise.resolve({ id: row.id }) });
@@ -208,6 +213,7 @@ describe("PATCH /api/campaign-content/[id]", () => {
 describe("DELETE /api/campaign-content/[id]", () => {
   it("returns 403 when unauthenticated", async () => {
     mockAuth.user = null;
+    mockAuth.roles = [];
     const row = await createCampaignContent({ usfmReference: "GEN.1.1" });
     const req = buildRequest("DELETE") as NextRequest;
     const res = await DELETE(req, { params: Promise.resolve({ id: row.id }) });
