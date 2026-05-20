@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
-import { getAuth } from "@/lib/auth";
+import { requireAdmin } from "@/lib/auth";
 
 const VALID_CONTENT_TYPES = new Set(["a-title", "b-title", "verse-text"]);
 
@@ -30,10 +30,8 @@ export async function GET(req: NextRequest): Promise<NextResponse> {
 }
 
 export async function POST(req: NextRequest): Promise<NextResponse> {
-  const { user } = await getAuth();
-  if (!user) {
-    return NextResponse.json({ error: "Forbidden" }, { status: 403 });
-  }
+  const forbidden = await requireAdmin();
+  if (forbidden) return forbidden;
 
   let body: Record<string, unknown>;
   try {

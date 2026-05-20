@@ -154,28 +154,32 @@ export default async function PerformancePage() {
       <Header title="Performance" description="Global Nexus metrics" />
       <div className="p-4 sm:p-6 space-y-4 sm:space-y-6">
         {/* KPIs */}
-        <div className="grid grid-cols-2 md:grid-cols-5 gap-3 sm:gap-4">
+        <div className={`grid grid-cols-2 ${fleetConversionsTotal > 0 ? "md:grid-cols-5" : "md:grid-cols-3"} gap-3 sm:gap-4`}>
           <MetricCard
             title="Total Sends (30d)"
             value={formatNumber(fleetSendsTotal)}
             icon={Send}
           />
-          <MetricCard
-            title="Avg Conv. Rate"
-            value={formatPercent(fleetConvRate)}
-            icon={TrendingUp}
-          />
-          <MetricCard
-            title="Nexus Lift vs Baseline"
-            value={
-              nexusLift.nexusSends === 0
-                ? "—"
-                : nexusLift.insufficient
-                ? `~${nexusLift.relativeLift >= 0 ? "+" : ""}${nexusLift.relativeLift.toFixed(0)}%`
-                : `${nexusLift.relativeLift >= 0 ? "+" : ""}${nexusLift.relativeLift.toFixed(0)}%`
-            }
-            icon={Zap}
-          />
+          {fleetConversionsTotal > 0 && (
+            <MetricCard
+              title="Avg Conv. Rate"
+              value={formatPercent(fleetConvRate)}
+              icon={TrendingUp}
+            />
+          )}
+          {fleetConversionsTotal > 0 && (
+            <MetricCard
+              title="Nexus Lift vs Baseline"
+              value={
+                nexusLift.nexusSends === 0
+                  ? "—"
+                  : nexusLift.insufficient
+                  ? `~${nexusLift.relativeLift >= 0 ? "+" : ""}${nexusLift.relativeLift.toFixed(0)}%`
+                  : `${nexusLift.relativeLift >= 0 ? "+" : ""}${nexusLift.relativeLift.toFixed(0)}%`
+              }
+              icon={Zap}
+            />
+          )}
           <MetricCard
             title="Active Variants"
             value={topVariants.length}
