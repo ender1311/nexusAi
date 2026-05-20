@@ -30,7 +30,7 @@ function centroidOf(vectors: number[][]): number[] {
   return sum.map((x) => x / vectors.length);
 }
 
-function kMeansOnce(vectors: number[][], k: number): { centroids: number[][]; assignments: number[] } {
+export function kMeansOnce(vectors: number[][], k: number): { centroids: number[][]; assignments: number[] } {
   if (vectors.length <= k) {
     const centroids = vectors.slice(0, k);
     while (centroids.length < k) centroids.push(new Array(FEATURE_DIM).fill(0));
@@ -88,7 +88,7 @@ function kMeansOnce(vectors: number[][], k: number): { centroids: number[][]; as
   return { centroids, assignments };
 }
 
-function computeSilhouette(vectors: number[][], assignments: number[], k: number): number {
+export function computeSilhouette(vectors: number[][], assignments: number[], k: number): number {
   if (vectors.length < 2 * k) return 0;
   const scores: number[] = [];
 
@@ -117,7 +117,7 @@ function computeSilhouette(vectors: number[][], assignments: number[], k: number
 }
 
 /** Run k-means for a given k, multiple times for stability */
-function runKMeans(vectors: number[][], k: number, runs: number): ClusterResult {
+export function runKMeans(vectors: number[][], k: number, runs: number): ClusterResult {
   let best: { centroids: number[][]; assignments: number[]; score: number } | null = null;
 
   for (let r = 0; r < runs; r++) {
@@ -136,7 +136,7 @@ function runKMeans(vectors: number[][], k: number, runs: number): ClusterResult 
   };
 }
 
-function deriveTrait(centroid: number[]): {
+export function deriveTrait(centroid: number[]): {
   dominantChannel: string;
   peakHour: number;
   engagementLevel: string;
