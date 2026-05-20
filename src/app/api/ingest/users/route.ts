@@ -572,20 +572,30 @@ export async function POST(req: NextRequest) {
       const brazeId = user.braze_id?.trim() || null;
       // Unverified users (no external_user_id): use braze_id as the Nexus primary key.
       const externalId = externalUserId ?? brazeId!;
+      let writeBrazeId = brazeId !== null;
 
       // Identity resolution: a user may have been stored as unverified (externalId = brazeId)
       // and now arrives with a real external_user_id. Re-key the old record to avoid a
       // unique constraint violation on brazeId when creating the verified record.
       if (externalUserId && brazeId && externalUserId !== brazeId) {
-        const [realRecord, brazeRecord] = await Promise.all([
-          prisma.trackedUser.findUnique({ where: { externalId: externalUserId }, select: { id: true } }),
-          prisma.trackedUser.findUnique({ where: { externalId: brazeId }, select: { id: true } }),
+        const [realRecord, brazeExternalRecord, brazeOwner] = await Promise.all([
+          prisma.trackedUser.findUnique({ where: { externalId: externalUserId }, select: { id: true, externalId: true } }),
+          prisma.trackedUser.findUnique({ where: { externalId: brazeId }, select: { id: true, externalId: true } }),
+          prisma.trackedUser.findUnique({ where: { brazeId }, select: { id: true, externalId: true } }),
         ]);
-        if (brazeRecord && !realRecord) {
-          // Promote: re-key unverified record to the real external ID
+
+        if (brazeOwner && brazeOwner.externalId !== externalUserId && brazeOwner.externalId !== brazeId) {
+          console.warn("[ingest/users] braze_id conflict; storing user without brazeId", {
+            externalUserId,
+            brazeId,
+            existingExternalId: brazeOwner.externalId,
+          });
+          writeBrazeId = false;
+        } else if (brazeExternalRecord && !realRecord) {
+          // Promote: re-key unverified record to the real external ID.
           await prisma.trackedUser.update({ where: { externalId: brazeId }, data: { externalId: externalUserId } });
-        } else if (brazeRecord && realRecord) {
-          // Both exist: drop the stale unverified duplicate, keep the real record
+        } else if (brazeExternalRecord && realRecord) {
+          // Both exist: drop the stale unverified duplicate, keep the real record.
           await prisma.trackedUser.delete({ where: { externalId: brazeId } });
         }
       }
@@ -642,7 +652,7 @@ export async function POST(req: NextRequest) {
         where: { externalId },
         create: {
           externalId,
-          ...(brazeId !== null && { brazeId }),
+          ...(writeBrazeId && { brazeId }),
           attributes,
           ...(preferredSendHour !== undefined && { preferredSendHour, preferredSendMinute }),
           ...(timezone !== undefined && { timezone }),
@@ -650,7 +660,7 @@ export async function POST(req: NextRequest) {
           ...personaData,
         },
         update: {
-          ...(brazeId !== null && { brazeId }),
+          ...(writeBrazeId && { brazeId }),
           attributes,
           ...(preferredSendHour !== undefined && { preferredSendHour, preferredSendMinute }),
           ...(timezone !== undefined && { timezone }),
