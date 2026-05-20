@@ -55,8 +55,19 @@ export function PushLibraryClient({ groups, isAdmin }: Props) {
       .join(" ");
   }
 
+  const CATEGORY_ORDER = ["reader", "votd", "plans", "guided-scripture", "guided-prayer"];
+
   const allVariants = groups.flatMap((g) => g.variants);
-  const categories = Array.from(new Set(groups.map((g) => g.category)));
+  const categories = Array.from(new Set(groups.map((g) => g.category))).sort(
+    (a, b) => {
+      const ai = CATEGORY_ORDER.indexOf(a);
+      const bi = CATEGORY_ORDER.indexOf(b);
+      if (ai === -1 && bi === -1) return a.localeCompare(b);
+      if (ai === -1) return 1;
+      if (bi === -1) return -1;
+      return ai - bi;
+    }
+  );
 
   const subcategoriesForFilter = useMemo(() => {
     if (!categoryFilter) return [];
@@ -115,13 +126,13 @@ export function PushLibraryClient({ groups, isAdmin }: Props) {
                 key={cat}
                 onClick={() => handleCategoryClick(categoryFilter === cat ? null : cat)}
                 className={cn(
-                  "px-3 py-1 rounded-full text-xs font-medium border transition-colors capitalize",
+                  "px-3 py-1 rounded-full text-xs font-medium border transition-colors",
                   categoryFilter === cat
                     ? "bg-primary text-primary-foreground border-primary"
                     : "bg-background text-muted-foreground border-border hover:text-foreground hover:border-foreground"
                 )}
               >
-                {cat}
+                {formatLabel(cat)}
               </button>
             ))}
           </div>
@@ -136,7 +147,7 @@ export function PushLibraryClient({ groups, isAdmin }: Props) {
                     : "bg-background text-muted-foreground border-border hover:text-foreground hover:border-foreground"
                 )}
               >
-                All {categoryFilter}
+                All {categoryFilter ? formatLabel(categoryFilter) : ""}
               </button>
               {subcategoriesForFilter.map((sub) => (
                 <button
@@ -238,7 +249,7 @@ export function PushLibraryClient({ groups, isAdmin }: Props) {
           </table>
           {filteredVariants.length > 0 && (
             <div className="px-4 py-2 border-t bg-muted/30 text-xs text-muted-foreground">
-              {filteredVariants.length} of {allVariants.length} templates
+              {filteredVariants.length} of {allVariants.length} pushes
             </div>
           )}
         </div>
