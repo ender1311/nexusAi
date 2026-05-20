@@ -22,10 +22,21 @@ const PESSIMISTIC_PRIOR: { alpha: number; beta: number; tries: number; wins: num
 // Probability of forcing a warmup variant when any are still in warmup period
 const WARMUP_FORCE_PROBABILITY = 0.1;
 
+function isCronAuthorized(req: NextRequest): boolean {
+  const token = req.headers.get("authorization")?.replace("Bearer ", "");
+  const secret = process.env.CRON_SECRET;
+  if (!secret) return false;
+  return token === secret;
+}
+
 export async function POST(
   req: NextRequest,
   { params }: { params: Promise<{ id: string }> },
 ): Promise<NextResponse<DecideSuccessResponse | DecideErrorResponse>> {
+  if (!isCronAuthorized(req)) {
+    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  }
+
   const { id } = await params;
 
   let body: unknown;

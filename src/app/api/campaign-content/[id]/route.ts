@@ -1,15 +1,13 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
-import { getAuth } from "@/lib/auth";
+import { requireAdmin } from "@/lib/auth";
 
 export async function PATCH(
   req: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ): Promise<NextResponse> {
-  const { user } = await getAuth();
-  if (!user) {
-    return NextResponse.json({ error: "Forbidden" }, { status: 403 });
-  }
+  const forbidden = await requireAdmin();
+  if (forbidden) return forbidden;
 
   const { id } = await params;
 
@@ -48,10 +46,8 @@ export async function DELETE(
   req: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ): Promise<NextResponse> {
-  const { user } = await getAuth();
-  if (!user) {
-    return NextResponse.json({ error: "Forbidden" }, { status: 403 });
-  }
+  const forbidden = await requireAdmin();
+  if (forbidden) return forbidden;
 
   const { id } = await params;
 

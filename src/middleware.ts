@@ -24,7 +24,9 @@ export async function middleware(request: NextRequest, event: NextFetchEvent) {
   // to WorkOS proxy. Public routes still go through authProxy so withAuth() works
   // in the root layout (which renders on every page including /login).
   const cookieName = process.env.WORKOS_COOKIE_NAME ?? "wos-session";
-  if (!isPublic(pathname) && !request.cookies.has(cookieName)) {
+  // Bearer-token requests (cron, ingest, machine-to-machine) carry their own auth — let them through
+  const hasBearerToken = request.headers.get("authorization")?.startsWith("Bearer ");
+  if (!isPublic(pathname) && !request.cookies.has(cookieName) && !hasBearerToken) {
     // API routes return 401 JSON; page routes redirect to login
     if (pathname.startsWith("/api/")) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
