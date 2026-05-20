@@ -62,6 +62,22 @@ describe("computeFeatureVector", () => {
     expect(computeFeatureVector(emptyStats)[3]).toBe(0);
   });
 
+  it("[2] morning window boundary — hour 4 excluded, hour 5 included, hour 11 included, hour 12 excluded", () => {
+    const build = (hour: number) => { const h = Array(24).fill(0); h[hour] = 1; return h; };
+    expect(computeFeatureVector({ ...emptyStats, hourlyStats: build(4)  })[2]).toBe(0);   // before morning
+    expect(computeFeatureVector({ ...emptyStats, hourlyStats: build(5)  })[2]).toBe(1);   // first morning hour
+    expect(computeFeatureVector({ ...emptyStats, hourlyStats: build(11) })[2]).toBe(1);   // last morning hour
+    expect(computeFeatureVector({ ...emptyStats, hourlyStats: build(12) })[2]).toBe(0);   // after morning
+  });
+
+  it("[3] evening window boundary — hour 16 excluded, hour 17 included, hour 22 included, hour 23 excluded", () => {
+    const build = (hour: number) => { const h = Array(24).fill(0); h[hour] = 1; return h; };
+    expect(computeFeatureVector({ ...emptyStats, hourlyStats: build(16) })[3]).toBe(0);   // before evening
+    expect(computeFeatureVector({ ...emptyStats, hourlyStats: build(17) })[3]).toBe(1);   // first evening hour
+    expect(computeFeatureVector({ ...emptyStats, hourlyStats: build(22) })[3]).toBe(1);   // last evening hour
+    expect(computeFeatureVector({ ...emptyStats, hourlyStats: build(23) })[3]).toBe(0);   // after evening
+  });
+
   it("[4] weekend ratio — Sun (0) + Sat (6) share", () => {
     const dailyStats = Array(7).fill(0);
     dailyStats[0] = 2; // Sunday
@@ -69,6 +85,13 @@ describe("computeFeatureVector", () => {
     dailyStats[1] = 5; // Monday — weekday
     const vec = computeFeatureVector({ ...emptyStats, dailyStats });
     expect(vec[4]).toBeCloseTo(5 / 10, 5); // (2+3) out of 10
+  });
+
+  it("[4] weekday-only activity → weekend ratio 0", () => {
+    const dailyStats = Array(7).fill(0);
+    dailyStats[1] = 5; // Monday
+    dailyStats[3] = 3; // Wednesday
+    expect(computeFeatureVector({ ...emptyStats, dailyStats })[4]).toBe(0);
   });
 
   it("[5] overall conversion rate", () => {
@@ -122,6 +145,13 @@ describe("computeFeatureVector", () => {
 
   it("[8] spiritual depth is 0 with no attributes", () => {
     expect(computeFeatureVector(emptyStats)[8]).toBe(0);
+  });
+
+  it("[8] spiritual depth with partial attributes — missing signals contribute 0", () => {
+    // Only plan depth provided; other 4 signals default to 0 → composite = plan/5
+    const plan = Math.log(1 + 100) / Math.log(501);
+    const vec = computeFeatureVector({ ...emptyStats, attributes: { plan_finish_lifetime_count: 100 } });
+    expect(vec[8]).toBeCloseTo(plan / 5, 5);
   });
 
   it("[9] engagement frequency increases with more decisions", () => {

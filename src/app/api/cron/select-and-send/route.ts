@@ -751,10 +751,12 @@ export async function POST(req: NextRequest) {
           userArmsByUser.get(row.userId)!.set(row.variantId, row);
         }
 
-        // For LinUCB: load per-agent LinUCB arms once (keyed by variantId)
+        // For LinUCB: load per-agent LinUCB arms once (keyed by variantId).
+        // Discard any arm whose aInv has wrong dimension (stale from old feature space).
         const linucbArmsByVariant = agent.algorithm === "linucb"
           ? new Map(
               (await prisma.linUCBArm.findMany({ where: { agentId: agent.id, variantId: { in: allVariantIds } } }))
+                .filter((r) => (r.aInv as number[]).length === FEATURE_DIM * FEATURE_DIM)
                 .map((r) => [r.variantId, { id: r.variantId, aInv: r.aInv as number[], b: r.b as number[] }])
             )
           : new Map<string, { id: string; aInv: number[]; b: number[] }>();
@@ -1105,10 +1107,11 @@ export async function POST(req: NextRequest) {
           windowUserArmsByUser.get(row.userId)!.set(row.variantId, row);
         }
 
-        // For LinUCB: load per-agent LinUCB arms once
+        // For LinUCB: load per-agent LinUCB arms once. Discard stale-dimension arms.
         const windowLinucbArmsByVariant = agent.algorithm === "linucb"
           ? new Map(
               (await prisma.linUCBArm.findMany({ where: { agentId: agent.id, variantId: { in: allVariantIds } } }))
+                .filter((r) => (r.aInv as number[]).length === FEATURE_DIM * FEATURE_DIM)
                 .map((r) => [r.variantId, { id: r.variantId, aInv: r.aInv as number[], b: r.b as number[] }])
             )
           : new Map<string, { id: string; aInv: number[]; b: number[] }>();

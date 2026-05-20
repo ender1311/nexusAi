@@ -206,12 +206,16 @@ export async function decideForUser(input: DecideInput): Promise<DecideResult | 
           create: { agentId, variantId: v.id, aInv: initial.aInv, b: initial.b, tries: 0 },
           update: {},
         });
-        // If stored arm was fit in the old 44-dim space it's invalid for the new 10-dim space; reset.
+        // If the stored arm was fit in the old feature space (wrong dimension), reset it in DB.
         const storedAInv = row.aInv as number[];
-        const arm = storedAInv.length === FEATURE_DIM * FEATURE_DIM
-          ? { aInv: storedAInv, b: row.b as number[] }
-          : initial;
-        return { id: v.id, ...arm };
+        if (storedAInv.length !== FEATURE_DIM * FEATURE_DIM) {
+          await prisma.linUCBArm.update({
+            where: { agentId_variantId: { agentId, variantId: v.id } },
+            data: { aInv: initial.aInv as unknown as Prisma.InputJsonValue, b: initial.b as unknown as Prisma.InputJsonValue, tries: 0 },
+          });
+          return { id: v.id, ...initial };
+        }
+        return { id: v.id, aInv: storedAInv, b: row.b as number[] };
       })
     );
 
