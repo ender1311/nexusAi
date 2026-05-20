@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect, useRef } from "react";
 import {
   Dialog,
   DialogContent,
@@ -20,6 +20,9 @@ type Props = {
   aTitleId?: string;
   bTitleId?: string;
   verseTextId?: string;
+  existingATitle?: string;
+  existingBTitle?: string;
+  existingVerseText?: string;
   enRef: { aTitle?: string; bTitle?: string; verseText?: string };
   onClose: () => void;
   onSaved: () => void;
@@ -68,18 +71,37 @@ export function EditContentModal({
   language,
   usfmReference,
   usfmHuman,
+  prefillContentType,
   aTitleId,
   bTitleId,
   verseTextId,
+  existingATitle,
+  existingBTitle,
+  existingVerseText,
   enRef,
   onClose,
   onSaved,
 }: Props) {
-  const [aTitle, setATitle] = useState("");
-  const [bTitle, setBTitle] = useState("");
-  const [verseText, setVerseText] = useState("");
+  const [aTitle, setATitle] = useState(existingATitle ?? "");
+  const [bTitle, setBTitle] = useState(existingBTitle ?? "");
+  const [verseText, setVerseText] = useState(existingVerseText ?? "");
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  const aTitleRef = useRef<HTMLTextAreaElement>(null);
+  const bTitleRef = useRef<HTMLTextAreaElement>(null);
+  const verseTextRef = useRef<HTMLTextAreaElement>(null);
+
+  useEffect(() => {
+    const refMap = {
+      "a-title": aTitleRef,
+      "b-title": bTitleRef,
+      "verse-text": verseTextRef,
+    } as const;
+    if (prefillContentType) {
+      refMap[prefillContentType].current?.focus();
+    }
+  }, [prefillContentType]);
 
   const hasChanges = aTitle.trim() || bTitle.trim() || verseText.trim();
 
@@ -123,6 +145,7 @@ export function EditContentModal({
           <div className="space-y-1.5">
             <Label>A-Title <span className="text-xs text-muted-foreground font-normal">(clickbait)</span></Label>
             <Textarea
+              ref={aTitleRef}
               value={aTitle}
               onChange={(e) => setATitle(e.target.value)}
               placeholder="e.g. 🌱 God is about to do something new…"
@@ -136,6 +159,7 @@ export function EditContentModal({
           <div className="space-y-1.5">
             <Label>B-Title <span className="text-xs text-muted-foreground font-normal">(verse reference)</span></Label>
             <Textarea
+              ref={bTitleRef}
               value={bTitle}
               onChange={(e) => setBTitle(e.target.value)}
               placeholder="e.g. Reflect on Isaiah 43:18-19 today."
@@ -149,6 +173,7 @@ export function EditContentModal({
           <div className="space-y-1.5">
             <Label>Verse Text</Label>
             <Textarea
+              ref={verseTextRef}
               value={verseText}
               onChange={(e) => setVerseText(e.target.value)}
               placeholder="Enter the verse text…"

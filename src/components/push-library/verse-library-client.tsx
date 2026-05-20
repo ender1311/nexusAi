@@ -32,6 +32,9 @@ type EditTarget = {
   aTitleId?: string;
   bTitleId?: string;
   verseTextId?: string;
+  existingATitle?: string;
+  existingBTitle?: string;
+  existingVerseText?: string;
 };
 
 export function VerseLibraryClient({
@@ -56,6 +59,9 @@ export function VerseLibraryClient({
       aTitleId: row.aTitle?.id,
       bTitleId: row.bTitle?.id,
       verseTextId: row.verseText?.id,
+      existingATitle: row.aTitle?.text,
+      existingBTitle: row.bTitle?.text,
+      existingVerseText: row.verseText?.text,
     });
   }
 
@@ -220,6 +226,9 @@ export function VerseLibraryClient({
           aTitleId={editTarget.aTitleId}
           bTitleId={editTarget.bTitleId}
           verseTextId={editTarget.verseTextId}
+          existingATitle={editTarget.existingATitle}
+          existingBTitle={editTarget.existingBTitle}
+          existingVerseText={editTarget.existingVerseText}
           enRef={enByRef[editTarget.usfmReference] ?? {}}
           onClose={() => setEditTarget(null)}
           onSaved={() => {
