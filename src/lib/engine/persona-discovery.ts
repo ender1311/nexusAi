@@ -145,16 +145,22 @@ export function deriveTrait(centroid: number[]): {
   streakDepth: number;
   planDepth: number;
 } {
-  const CHANNELS = ["push", "email", "sms"];
-  const channelRates = centroid.slice(0, 3);
-  const dominantChannelIdx = channelRates.indexOf(Math.max(...channelRates));
-  const dominantChannel = CHANNELS[dominantChannelIdx] ?? "push";
+  // 10-dim layout: [0]=push, [1]=email, [2]=morning, [3]=evening, [4]=weekend,
+  //                [5]=conv_rate, [6]=recency, [7]=giving, [8]=spiritual, [9]=freq
+  const pushRate  = centroid[0] ?? 0;
+  const emailRate = centroid[1] ?? 0;
+  const dominantChannel = emailRate > pushRate ? "email" : "push";
 
-  const hourlyRates = centroid.slice(3, 27);
-  const peakHour = hourlyRates.indexOf(Math.max(...hourlyRates));
+  // Approximate peak hour from morning/evening ratios:
+  //   morning dominant (5–11 am) → 9, evening dominant (5–10 pm) → 20, mixed → 14
+  const morningRatio = centroid[2] ?? 0;
+  const eveningRatio = centroid[3] ?? 0;
+  const peakHour = morningRatio > eveningRatio + 0.1 ? 9
+    : eveningRatio > morningRatio + 0.1 ? 20
+    : 14;
 
-  const conversionRate = centroid[34] ?? 0;
-  const freq = centroid[35] ?? 0;
+  const conversionRate = centroid[5] ?? 0;
+  const freq = centroid[9] ?? 0;
 
   let engagementLevel = "sporadic";
   if (freq > 0.7) engagementLevel = "daily";
@@ -162,13 +168,14 @@ export function deriveTrait(centroid: number[]): {
   else if (freq > 0.3) engagementLevel = "moderate";
   else if (freq > 0.15) engagementLevel = "weekly";
 
-  // Semantic dims [37-43]
-  const giverScore = centroid[37] ?? 0;
+  const giverScore = centroid[7] ?? 0;
   const giverProfile = giverScore >= 0.9 ? "sower" : giverScore >= 0.4 ? "giver" : "non-giver";
-  const streakDepth = centroid[38] ?? 0;
-  const planDepth = centroid[40] ?? 0;
 
-  return { dominantChannel, peakHour, engagementLevel, conversionRate, giverProfile, streakDepth, planDepth };
+  // spiritual_depth [8] is a composite of streak + plan + prayer + scripture + badge;
+  // surface as both streakDepth and planDepth until individual dims are restored via PCA.
+  const spiritualDepth = centroid[8] ?? 0;
+
+  return { dominantChannel, peakHour, engagementLevel, conversionRate, giverProfile, streakDepth: spiritualDepth, planDepth: spiritualDepth };
 }
 
 /**

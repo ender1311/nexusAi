@@ -206,7 +206,12 @@ export async function decideForUser(input: DecideInput): Promise<DecideResult | 
           create: { agentId, variantId: v.id, aInv: initial.aInv, b: initial.b, tries: 0 },
           update: {},
         });
-        return { id: v.id, aInv: row.aInv as number[], b: row.b as number[] };
+        // If stored arm was fit in the old 44-dim space it's invalid for the new 10-dim space; reset.
+        const storedAInv = row.aInv as number[];
+        const arm = storedAInv.length === FEATURE_DIM * FEATURE_DIM
+          ? { aInv: storedAInv, b: row.b as number[] }
+          : initial;
+        return { id: v.id, ...arm };
       })
     );
 

@@ -17,22 +17,23 @@ describe("computeFeatureVector", () => {
     expect(vec.every(v => v === 0)).toBe(true);
   });
 
-  it("channel affinity: push at [0], email at [1], sms at [2]", () => {
+  it("[0] push conversion rate", () => {
     const stats: UserStatsInput = {
       ...emptyStats,
-      channelStats: {
-        push:  { sent: 10, converted: 7 },
-        email: { sent: 5,  converted: 1 },
-        sms:   { sent: 4,  converted: 2 },
-      },
+      channelStats: { push: { sent: 10, converted: 7 } },
     };
-    const vec = computeFeatureVector(stats);
-    expect(vec[0]).toBeCloseTo(0.7, 5); // push: 7/10
-    expect(vec[1]).toBeCloseTo(0.2, 5); // email: 1/5
-    expect(vec[2]).toBeCloseTo(0.5, 5); // sms: 2/4
+    expect(computeFeatureVector(stats)[0]).toBeCloseTo(0.7, 5);
   });
 
-  it("channel with zero sends contributes 0", () => {
+  it("[1] email conversion rate", () => {
+    const stats: UserStatsInput = {
+      ...emptyStats,
+      channelStats: { email: { sent: 5, converted: 1 } },
+    };
+    expect(computeFeatureVector(stats)[1]).toBeCloseTo(0.2, 5);
+  });
+
+  it("[0/1] zero sends → 0 (no division)", () => {
     const stats: UserStatsInput = {
       ...emptyStats,
       channelStats: { push: { sent: 0, converted: 0 } },
@@ -40,52 +41,93 @@ describe("computeFeatureVector", () => {
     expect(computeFeatureVector(stats)[0]).toBe(0);
   });
 
-  it("hourly curve at [3..26] is normalized (sums to 1 when non-zero)", () => {
+  it("[2] morning ratio — hours 5–11 share", () => {
     const hourlyStats = Array(24).fill(0);
-    hourlyStats[9]  = 3;
-    hourlyStats[14] = 7;
+    hourlyStats[9] = 3;   // 9 am — inside morning window
+    hourlyStats[20] = 7;  // 8 pm — outside morning window
     const vec = computeFeatureVector({ ...emptyStats, hourlyStats });
-    const sum = vec.slice(3, 27).reduce((a, b) => a + b, 0);
-    expect(sum).toBeCloseTo(1.0, 5);
-    expect(vec[3 + 9]).toBeCloseTo(0.3, 5);  // 3/(3+7)
-    expect(vec[3 + 14]).toBeCloseTo(0.7, 5); // 7/(3+7)
+    expect(vec[2]).toBeCloseTo(3 / 10, 5); // 3 out of 10 total
   });
 
-  it("daily curve at [27..33] is normalized", () => {
+  it("[3] evening ratio — hours 17–22 share", () => {
+    const hourlyStats = Array(24).fill(0);
+    hourlyStats[9]  = 3;  // 9 am — outside evening window
+    hourlyStats[20] = 7;  // 8 pm — inside evening window
+    const vec = computeFeatureVector({ ...emptyStats, hourlyStats });
+    expect(vec[3]).toBeCloseTo(7 / 10, 5); // 7 out of 10 total
+  });
+
+  it("[2/3] zero hourly activity → both 0", () => {
+    expect(computeFeatureVector(emptyStats)[2]).toBe(0);
+    expect(computeFeatureVector(emptyStats)[3]).toBe(0);
+  });
+
+  it("[4] weekend ratio — Sun (0) + Sat (6) share", () => {
     const dailyStats = Array(7).fill(0);
-    dailyStats[1] = 1; // Monday
-    dailyStats[5] = 4; // Saturday
+    dailyStats[0] = 2; // Sunday
+    dailyStats[6] = 3; // Saturday
+    dailyStats[1] = 5; // Monday — weekday
     const vec = computeFeatureVector({ ...emptyStats, dailyStats });
-    const sum = vec.slice(27, 34).reduce((a, b) => a + b, 0);
-    expect(sum).toBeCloseTo(1.0, 5);
+    expect(vec[4]).toBeCloseTo(5 / 10, 5); // (2+3) out of 10
   });
 
-  it("overall conversion rate at [34]", () => {
+  it("[5] overall conversion rate", () => {
     const vec = computeFeatureVector({
       ...emptyStats,
       totalDecisions: 10,
       totalConversions: 4,
     });
-    expect(vec[34]).toBeCloseTo(0.4, 5);
+    expect(vec[5]).toBeCloseTo(0.4, 5);
   });
 
-  it("[34] is 0 when no decisions", () => {
-    expect(computeFeatureVector(emptyStats)[34]).toBe(0);
+  it("[5] is 0 when no decisions", () => {
+    expect(computeFeatureVector(emptyStats)[5]).toBe(0);
   });
 
-  it("[35] engagement frequency increases with more decisions", () => {
-    const low  = computeFeatureVector({ ...emptyStats, totalDecisions: 1  })[35];
-    const high = computeFeatureVector({ ...emptyStats, totalDecisions: 100 })[35];
+  it("[6] recency score — 0 days ago → 1.0", () => {
+    const vec = computeFeatureVector({ ...emptyStats, attributes: { days_since_last_open: 0 } });
+    expect(vec[6]).toBeCloseTo(1.0, 5);
+  });
+
+  it("[6] recency score — 90+ days ago → 0", () => {
+    const vec = computeFeatureVector({ ...emptyStats, attributes: { days_since_last_open: 90 } });
+    expect(vec[6]).toBeCloseTo(0, 5);
+  });
+
+  it("[6] recency absent → 0 (no signal)", () => {
+    expect(computeFeatureVector(emptyStats)[6]).toBe(0);
+  });
+
+  it("[7] giving tier encoding", () => {
+    const sower  = computeFeatureVector({ ...emptyStats, attributes: { giving_tier: "sower" } })[7];
+    const giver  = computeFeatureVector({ ...emptyStats, attributes: { giving_tier: "giver" } })[7];
+    const none   = computeFeatureVector({ ...emptyStats, attributes: { giving_tier: "none"  } })[7];
+    expect(sower).toBeCloseTo(1.0, 5);
+    expect(giver).toBeCloseTo(0.5, 5);
+    expect(none).toBe(0);
+  });
+
+  it("[8] spiritual depth composite in [0,1]", () => {
+    const attrs = {
+      plan_day_current_month_count: 31,
+      plan_finish_lifetime_count: 500,
+      gp_current_month_count: 30,
+      gs_current_month_count: 30,
+      badge_lifetime_count: 200,
+    };
+    const val = computeFeatureVector({ ...emptyStats, attributes: attrs })[8];
+    expect(val).toBeGreaterThan(0);
+    expect(val).toBeLessThanOrEqual(1);
+  });
+
+  it("[8] spiritual depth is 0 with no attributes", () => {
+    expect(computeFeatureVector(emptyStats)[8]).toBe(0);
+  });
+
+  it("[9] engagement frequency increases with more decisions", () => {
+    const low  = computeFeatureVector({ ...emptyStats, totalDecisions: 1   })[9];
+    const high = computeFeatureVector({ ...emptyStats, totalDecisions: 100 })[9];
     expect(high).toBeGreaterThan(low);
-  });
-
-  it("[36] avg reward magnitude capped at 1", () => {
-    const vec = computeFeatureVector({
-      ...emptyStats,
-      totalConversions: 1,
-      totalReward: 999,
-    });
-    expect(vec[36]).toBeLessThanOrEqual(1.0);
   });
 });
 
