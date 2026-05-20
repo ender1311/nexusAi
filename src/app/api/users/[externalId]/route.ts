@@ -16,7 +16,7 @@ export async function GET(
     return NextResponse.json({ error: "User not found" }, { status: 404 });
   }
 
-  const [recentDecisions, armStats] = await Promise.all([
+  const [recentDecisions, totalDecisions, totalConversions, rewardAgg, armStats] = await Promise.all([
     prisma.userDecision.findMany({
       where: { userId: externalId },
       orderBy: { sentAt: "desc" },
@@ -33,6 +33,9 @@ export async function GET(
         },
       },
     }),
+    prisma.userDecision.count({ where: { userId: externalId } }),
+    prisma.userDecision.count({ where: { userId: externalId, conversionAt: { not: null } } }),
+    prisma.userDecision.aggregate({ where: { userId: externalId }, _sum: { reward: true } }),
     user.personaId
       ? prisma.personaArmStats.findMany({
           where: { personaId: user.personaId },
@@ -72,9 +75,9 @@ export async function GET(
         personaId: user.personaId,
         personaName: user.persona?.name ?? null,
         personaConfidence: user.personaConfidence,
-        totalDecisions: user.totalDecisions,
-        totalConversions: user.totalConversions,
-        totalReward: user.totalReward,
+        totalDecisions,
+        totalConversions,
+        totalReward: rewardAgg._sum.reward ?? 0,
       },
       recentDecisions,
       armStats: enrichedArmStats,
