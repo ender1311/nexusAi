@@ -6,31 +6,29 @@ import { Header } from "@/components/layout/header";
 import { MetricCard } from "@/components/charts/metric-card";
 import { TimeSeriesChart } from "@/components/charts/time-series-chart";
 import { PersonaDistributionChart } from "@/components/charts/persona-distribution";
+import { FunnelStageBreakdown } from "@/components/charts/funnel-stage-breakdown";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
-import { getCachedAgentList, getCachedPersonaDistribution, getCachedDashboardCounts, getCachedDashboardTimeSeries, getCachedRecentDecisions, getCachedBrazeStats, getCachedAllVariantNames, getCachedFunnelStageBreakdown } from "@/lib/cache";
+import {
+  getCachedAgentList,
+  getCachedPersonaDistribution,
+  getCachedDashboardCounts,
+  getCachedDashboardTimeSeries,
+  getCachedRecentDecisions,
+  getCachedBrazeStats,
+  getCachedAllVariantNames,
+  getCachedFunnelStageBreakdown,
+} from "@/lib/cache";
 import { formatNumber, formatDate } from "@/lib/utils";
 import { TimeSeriesPoint, DecisionLog } from "@/types/metrics";
 import { Bot, Send, TrendingUp, Users, Plus, CheckCircle2, XCircle } from "lucide-react";
 import { PushOpenRateCard } from "@/components/metrics/push-open-rate-card";
-import { FunnelStageBreakdown } from "@/components/charts/funnel-stage-breakdown";
 import Link from "next/link";
 
 // ---------------------------------------------------------------------------
-// Types shared between sub-components
-// ---------------------------------------------------------------------------
-
-type AgentSummary = {
-  id: string;
-  name: string;
-  status: string;
-  _count: { decisions: number };
-};
-
-// ---------------------------------------------------------------------------
-// Async sub-components
+// Skeletons
 // ---------------------------------------------------------------------------
 
 function MetricCardsSkeleton() {
@@ -57,10 +55,43 @@ function PushRateSkeleton() {
   );
 }
 
-async function MetricCardsSection({ activeAgents }: { activeAgents: number }) {
-  const { sentLast24h, totalConversions, totalDecisions, trackedUsers, totalPushSends } =
-    await getCachedDashboardCounts();
+function CardSkeleton({ colSpan2 = false }: { colSpan2?: boolean }) {
+  return (
+    <Card className={colSpan2 ? "lg:col-span-2" : undefined}>
+      <CardHeader>
+        <Skeleton className="h-4 w-32" />
+      </CardHeader>
+      <CardContent>
+        <Skeleton className="h-[180px] w-full rounded-md" />
+      </CardContent>
+    </Card>
+  );
+}
+
+function ListCardSkeleton() {
+  return (
+    <Card>
+      <CardHeader>
+        <Skeleton className="h-4 w-24" />
+      </CardHeader>
+      <CardContent className="space-y-2">
+        {[1, 2, 3, 4, 5].map((i) => (
+          <Skeleton key={i} className="h-8 w-full" />
+        ))}
+      </CardContent>
+    </Card>
+  );
+}
+
+// ---------------------------------------------------------------------------
+// Async sub-components — each owns its own data fetch, streams independently
+// ---------------------------------------------------------------------------
+
+async function MetricCardsSection() {
+  const [{ sentLast24h, totalConversions, totalDecisions, trackedUsers, totalPushSends }, agents] =
+    await Promise.all([getCachedDashboardCounts(), getCachedAgentList()]);
   const avgConvRate = totalDecisions > 0 ? (totalConversions / totalDecisions) * 100 : 0;
+  const activeAgents = agents.filter((a) => a.status === "active").length;
 
   return (
     <>
@@ -92,7 +123,6 @@ async function PushOpenRateSection() {
 async function TimeSeriesSection() {
   const now = new Date();
   const rows = await getCachedDashboardTimeSeries();
-
   const byDate = new Map(rows.map((r) => [r.date, { sends: r.sends, conversions: r.conversions }]));
 
   const last7Days: TimeSeriesPoint[] = [];
@@ -117,9 +147,52 @@ async function TimeSeriesSection() {
   );
 }
 
-async function RecentSendsSection({ agents }: { agents: AgentSummary[] }) {
-  const recentDecisionsRaw = await getCachedRecentDecisions();
-  const variantNames = await getCachedAllVariantNames();
+async function AgentsSidebar() {
+  const agents = await getCachedAgentList();
+
+  return (
+    <Card>
+      <CardHeader className="flex flex-row items-center justify-between">
+        <CardTitle className="text-sm font-semibold">Agents</CardTitle>
+        <Link href="/agents/new">
+          <Button size="sm" variant="outline" className="h-7 text-xs">
+            <Plus className="h-3 w-3 mr-1" />
+            New
+          </Button>
+        </Link>
+      </CardHeader>
+      <CardContent className="space-y-1">
+        {agents.map((agent) => (
+          <Link key={agent.id} href={`/agents/${agent.id}`}>
+            <div className="flex items-center justify-between p-2 rounded-lg hover:bg-muted transition-colors cursor-pointer">
+              <div className="flex-1 min-w-0">
+                <p className="text-xs font-medium truncate">{agent.name}</p>
+                <p className="text-xs text-muted-foreground capitalize">{agent.status}</p>
+              </div>
+              {agent._count.decisions > 0 ? (
+                <span className="text-xs font-bold text-primary ml-2">
+                  {formatNumber(agent._count.decisions)} sends
+                </span>
+              ) : (
+                <Badge variant="outline" className="text-xs">Draft</Badge>
+              )}
+            </div>
+          </Link>
+        ))}
+        {agents.length === 0 && (
+          <p className="text-xs text-muted-foreground text-center py-4">No agents yet</p>
+        )}
+      </CardContent>
+    </Card>
+  );
+}
+
+async function RecentSendsSection() {
+  const [recentDecisionsRaw, variantNames, agents] = await Promise.all([
+    getCachedRecentDecisions(),
+    getCachedAllVariantNames(),
+    getCachedAgentList(),
+  ]);
   const agentNameById = new Map(agents.map((a) => [a.id, a.name]));
   const variantNameById = new Map(variantNames.map((v) => [v.id, v.name]));
 
@@ -177,22 +250,8 @@ async function RecentSendsSection({ agents }: { agents: AgentSummary[] }) {
   );
 }
 
-// ---------------------------------------------------------------------------
-// Main page
-// ---------------------------------------------------------------------------
-
-export default async function DashboardPage() {
-  // Fast queries only — getCachedDashboardCounts (6 COUNT queries) moves into
-  // MetricCardsSection so metric cards don't block agents sidebar / persona chart.
-  const [agents, personasRaw, funnelBreakdown] = await Promise.all([
-    getCachedAgentList(),
-    getCachedPersonaDistribution(),
-    getCachedFunnelStageBreakdown().catch(() => []),
-  ]);
-
-  const activeAgents = agents.filter((a) => a.status === "active").length;
-
-  // Persona distribution (computed from fast data)
+async function PersonaSidebarSection() {
+  const personasRaw = await getCachedPersonaDistribution();
   const totalPersonaUsers = personasRaw.reduce((s, p) => s + p._count.trackedUsers, 0);
   const personaData = personasRaw
     .filter((p) => p._count.trackedUsers > 0)
@@ -203,79 +262,81 @@ export default async function DashboardPage() {
       percent: totalPersonaUsers > 0 ? Math.round((p._count.trackedUsers / totalPersonaUsers) * 100) : 0,
       color: p.color,
     }));
-
   const topPersona = personasRaw.slice().sort((a, b) => b._count.trackedUsers - a._count.trackedUsers)[0];
 
   return (
     <>
+      <Card>
+        <CardHeader className="flex flex-row items-center justify-between">
+          <CardTitle className="text-sm font-semibold">Persona Distribution</CardTitle>
+          <Link href="/personas">
+            <Button variant="ghost" size="sm" className="h-7 text-xs">View all</Button>
+          </Link>
+        </CardHeader>
+        <CardContent>
+          <PersonaDistributionChart data={personaData} />
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader>
+          <CardTitle className="text-sm font-semibold">Top Persona</CardTitle>
+        </CardHeader>
+        <CardContent>
+          {topPersona && topPersona._count.trackedUsers > 0 ? (
+            <div className="rounded-lg p-2 -m-2">
+              <p className="text-sm font-medium">{topPersona.name}</p>
+              <p className="text-xs text-muted-foreground mt-0.5">{topPersona.label ?? topPersona.name}</p>
+              <div className="flex items-center gap-3 mt-2">
+                <span className="text-xs text-muted-foreground">
+                  <span className="font-semibold text-foreground">{formatNumber(topPersona._count.trackedUsers)}</span> users
+                </span>
+              </div>
+            </div>
+          ) : (
+            <p className="text-xs text-muted-foreground">No persona data yet</p>
+          )}
+        </CardContent>
+      </Card>
+    </>
+  );
+}
+
+async function FunnelBreakdownSection() {
+  const rows = await getCachedFunnelStageBreakdown().catch(() => []);
+  return <FunnelStageBreakdown rows={rows} />;
+}
+
+// ---------------------------------------------------------------------------
+// Main page — synchronous shell, all data streams via Suspense
+// ---------------------------------------------------------------------------
+
+export default function DashboardPage() {
+  return (
+    <>
       <Header title="Dashboard" description="Nexus platform overview" />
       <div className="p-4 sm:p-6 space-y-4 sm:space-y-6">
-        {/* Metric cards — fast 5 cards and slow Braze push-rate card in separate Suspense boundaries */}
+        {/* Metric cards row */}
         <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3 sm:gap-4">
           <Suspense fallback={<MetricCardsSkeleton />}>
-            <MetricCardsSection activeAgents={activeAgents} />
+            <MetricCardsSection />
           </Suspense>
           <Suspense fallback={<PushRateSkeleton />}>
             <PushOpenRateSection />
           </Suspense>
         </div>
 
-        {/* Time series chart (slow — 7-day aggregation) + agents sidebar */}
+        {/* Time series + agents sidebar */}
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 sm:gap-6">
-          <Suspense
-            fallback={
-              <div className="lg:col-span-2">
-                <Card className="lg:col-span-2">
-                  <CardHeader className="flex flex-row items-center justify-between">
-                    <Skeleton className="h-4 w-40" />
-                    <Skeleton className="h-5 w-20" />
-                  </CardHeader>
-                  <CardContent>
-                    <Skeleton className="h-[220px] w-full rounded-md" />
-                  </CardContent>
-                </Card>
-              </div>
-            }
-          >
+          <Suspense fallback={<CardSkeleton colSpan2 />}>
             <TimeSeriesSection />
           </Suspense>
-
-          <Card>
-            <CardHeader className="flex flex-row items-center justify-between">
-              <CardTitle className="text-sm font-semibold">Agents</CardTitle>
-              <Link href="/agents/new">
-                <Button size="sm" variant="outline" className="h-7 text-xs">
-                  <Plus className="h-3 w-3 mr-1" />
-                  New
-                </Button>
-              </Link>
-            </CardHeader>
-            <CardContent className="space-y-1">
-              {agents.map((agent) => (
-                <Link key={agent.id} href={`/agents/${agent.id}`}>
-                  <div className="flex items-center justify-between p-2 rounded-lg hover:bg-muted transition-colors cursor-pointer">
-                    <div className="flex-1 min-w-0">
-                      <p className="text-xs font-medium truncate">{agent.name}</p>
-                      <p className="text-xs text-muted-foreground capitalize">{agent.status}</p>
-                    </div>
-                    {agent._count.decisions > 0 ? (
-                      <span className="text-xs font-bold text-primary ml-2">
-                        {formatNumber(agent._count.decisions)} sends
-                      </span>
-                    ) : (
-                      <Badge variant="outline" className="text-xs">Draft</Badge>
-                    )}
-                  </div>
-                </Link>
-              ))}
-              {agents.length === 0 && (
-                <p className="text-xs text-muted-foreground text-center py-4">No agents yet</p>
-              )}
-            </CardContent>
-          </Card>
+          <Suspense fallback={<ListCardSkeleton />}>
+            <AgentsSidebar />
+          </Suspense>
         </div>
 
-        {/* Recent sends (medium — findMany take:10) + persona sidebar */}
+        {/* Recent sends + persona/funnel sidebar */}
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 sm:gap-6">
           <Suspense
             fallback={
@@ -296,45 +357,16 @@ export default async function DashboardPage() {
               </div>
             }
           >
-            <RecentSendsSection agents={agents} />
+            <RecentSendsSection />
           </Suspense>
 
           <div className="space-y-4">
-            <FunnelStageBreakdown rows={funnelBreakdown} />
-
-            <Card>
-              <CardHeader className="flex flex-row items-center justify-between">
-                <CardTitle className="text-sm font-semibold">Persona Distribution</CardTitle>
-                <Link href="/personas">
-                  <Button variant="ghost" size="sm" className="h-7 text-xs">View all</Button>
-                </Link>
-              </CardHeader>
-              <CardContent>
-                <PersonaDistributionChart data={personaData} />
-              </CardContent>
-            </Card>
-
-            <Card>
-              <CardHeader>
-                <CardTitle className="text-sm font-semibold">Top Persona</CardTitle>
-              </CardHeader>
-              <CardContent>
-                {topPersona && topPersona._count.trackedUsers > 0 ? (
-                  <div className="rounded-lg p-2 -m-2">
-                    <p className="text-sm font-medium">{topPersona.name}</p>
-                    <p className="text-xs text-muted-foreground mt-0.5">{topPersona.label ?? topPersona.name}</p>
-                    <div className="flex items-center gap-3 mt-2">
-                      <span className="text-xs text-muted-foreground">
-                        <span className="font-semibold text-foreground">{formatNumber(topPersona._count.trackedUsers)}</span> users
-                      </span>
-                    </div>
-                  </div>
-                ) : (
-                  <p className="text-xs text-muted-foreground">No persona data yet</p>
-                )}
-              </CardContent>
-            </Card>
-
+            <Suspense fallback={<CardSkeleton />}>
+              <FunnelBreakdownSection />
+            </Suspense>
+            <Suspense fallback={<CardSkeleton />}>
+              <PersonaSidebarSection />
+            </Suspense>
             <Card>
               <CardHeader>
                 <CardTitle className="text-sm font-semibold">Quick Actions</CardTitle>
