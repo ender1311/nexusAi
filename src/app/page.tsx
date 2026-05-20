@@ -98,7 +98,7 @@ async function MetricCardsSection() {
       <MetricCard title="Tracked Users" value={formatNumber(trackedUsers)} description="synced from Hightouch" icon={Users} />
       <MetricCard title="Active Agents" value={activeAgents} description="currently running" icon={Bot} trend={0} />
       <MetricCard title="Messages Sent (24h)" value={formatNumber(sentLast24h)} description="across all channels" icon={Send} />
-      <MetricCard title="Avg Conversion Rate" value={`${avgConvRate.toFixed(2)}%`} description="across active agents" icon={TrendingUp} />
+      {avgConvRate > 0 && <MetricCard title="Avg Conversion Rate" value={`${avgConvRate.toFixed(2)}%`} description="across active agents" icon={TrendingUp} />}
       <MetricCard title="Total Sends" value={formatNumber(totalPushSends)} description="push notifications" icon={Send} />
     </>
   );
@@ -133,6 +133,9 @@ async function TimeSeriesSection() {
     const { sends, conversions } = byDate.get(key) ?? { sends: 0, conversions: 0 };
     last7Days.push({ date: key, sends, conversions, conversionRate: sends > 0 ? (conversions / sends) * 100 : 0 });
   }
+
+  const hasConversions = last7Days.some((p) => p.conversionRate > 0);
+  if (!hasConversions) return null;
 
   return (
     <Card className="lg:col-span-2">
