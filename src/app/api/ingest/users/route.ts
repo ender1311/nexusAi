@@ -105,7 +105,7 @@ function normalizeHtFlatUserRow(row: HtFlatUserRow): UserRecord {
     external_user_id: row.user_id?.trim() || undefined,
     braze_id: row.braze_user_id_latest?.trim() || undefined,
     attributes: attrs,
-    ...(row.funnel_stage ? { funnel_stage: row.funnel_stage } : {}),
+    ...(row.funnel_stage ? { funnel_stage: row.funnel_stage === "lapsed_dau" ? "lapsed_dau4" : row.funnel_stage } : {}),
   };
 }
 
@@ -626,7 +626,7 @@ export async function POST(req: NextRequest) {
       const planId = brazeAttrs.plan_day_last_plan_id ?? null;
       const planTags = planId ? (planTagMap.get(planId) ?? []) : [];
 
-      const isLapsed = user.funnel_stage === "lapsed" || user.funnel_stage === "lapsed_mau";
+      const isLapsed = user.funnel_stage === "lapsed" || user.funnel_stage === "lapsed_mau" || user.funnel_stage === "lapsed_dau" || user.funnel_stage === "lapsed_dau4";
       const personaLabel = isLapsed ? "Re-engager" : (classifyPersona(brazeAttrs, planTags) ?? "Bible-first");
       const personaId = personaByLabel.get(personaLabel) ?? null;
 

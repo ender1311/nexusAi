@@ -3,7 +3,8 @@ export type FunnelStage =
   | "dau4"         // Daily active — opens 4+ days/week
   | "wau"          // Weekly active — opens 1–3 days/week
   | "mau"          // Monthly active — opens at least once/month
-  | "lapsed_dau4"  // Previously DAU4, now inactive
+  | "lapsed_dau4"  // Lapsed DAU — canonical DB value
+  | "lapsed_dau"   // HT alias for lapsed_dau4; normalized to lapsed_dau4 on ingest
   | "lapsed_wau"   // Previously WAU, now inactive
   | "lapsed_mau";  // Previously MAU, now inactive
 
@@ -13,6 +14,7 @@ export const FUNNEL_STAGES: FunnelStage[] = [
   "wau",
   "mau",
   "lapsed_dau4",
+  "lapsed_dau",
   "lapsed_wau",
   "lapsed_mau",
 ];
@@ -23,6 +25,7 @@ export const FUNNEL_STAGE_META: Record<FunnelStage, { label: string }> = {
   wau:         { label: "WAU" },
   mau:         { label: "MAU" },
   lapsed_dau4: { label: "Lapsed DAU4" },
+  lapsed_dau:  { label: "Lapsed DAU" },
   lapsed_wau:  { label: "Lapsed WAU" },
   lapsed_mau:  { label: "Lapsed MAU" },
 };
