@@ -1,5 +1,6 @@
 "use client";
 
+import { useState } from "react";
 import dynamic from "next/dynamic";
 import Link from "next/link";
 import {
@@ -19,6 +20,10 @@ import {
   Sun,
   FileText,
   ExternalLink,
+  Calendar,
+  MessageSquare,
+  Gift,
+  Repeat2,
 } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -85,6 +90,134 @@ function StepHeader({
       <div className="pt-1 pb-8">
         <h2 className="text-xl font-semibold">{title}</h2>
         <p className="text-sm text-muted-foreground mt-0.5">{subtitle}</p>
+      </div>
+    </div>
+  );
+}
+
+// ─── Decision Dimensions data ──────────────────────────────────────────────────
+
+const DECISION_DIMENSIONS = [
+  {
+    key: "Frequency",
+    Icon: Repeat2,
+    summary: [
+      { Icon: Calendar, label: "Weekly" },
+      { Icon: Sun, label: "Mon, Wed, Fri" },
+    ],
+    paragraphs: [
+      "Frequency determines how often Nexus reaches out to a given user — and which days of the week those sends land on. Sending every day drives unsubscribes; sending too rarely lets habits decay. The right cadence sits in between, and it's different for every person.",
+      "Nexus tracks open and conversion rates across send intervals per user. If a user consistently engages on Mon, Wed, and Fri but ignores Sunday sends, the model deprioritizes Sunday over time. Weekly caps defined in the agent's scheduling rule act as a hard ceiling; within that ceiling, Nexus fills the allowed slots on whichever days historically perform best.",
+      "For this user, a 3-day weekly schedule has produced the highest sustained engagement over the past 30 days. Nexus won't deviate from it unless conversion rates drop significantly — at which point it will start testing adjacent cadences to find a new optimum.",
+    ],
+  },
+  {
+    key: "Send Time",
+    Icon: Clock,
+    summary: [
+      { Icon: Clock, label: "7:58 PM local" },
+      { Icon: Sun, label: "Peak: 7–9 PM" },
+    ],
+    paragraphs: [
+      "Send time controls when within a day the notification arrives. A message that is perfect in content but lands at 3 AM will be dismissed or generate a negative signal. Timing can account for as much variance in open rate as message copy itself.",
+      "Nexus maintains a 24-slot hourly engagement histogram per user — each slot holds the ratio of opens to sends during that hour over the user's history. The model samples from the top-performing window at decision time, biased toward consistency with the user's established pattern.",
+      "This user's histogram peaks sharply between 7 and 9 PM local time, consistent with the 'Evening Engager' persona. The 7:58 PM send time is chosen because it sits inside that window while leaving a small buffer before the quiet-hours cutoff at 9 PM. Braze delivers using in_local_time so the notification arrives at 7:58 in each user's timezone regardless of server clock.",
+    ],
+  },
+  {
+    key: "Channel",
+    Icon: Smartphone,
+    summary: [
+      { Icon: Smartphone, label: "Push (iOS)" },
+      { Icon: Zap, label: "72% affinity" },
+    ],
+    paragraphs: [
+      "Channel decides whether the message goes out as a push notification, an email, or an SMS. These aren't interchangeable — different users have wildly different response rates per channel, and flooding every channel simultaneously creates noise that degrades trust.",
+      "Nexus computes a channel affinity score from each user's historical conversion rates. Push, email, and SMS each get a score between 0 and 1. The channel with the highest score wins the send slot, unless the agent's configuration has restricted it to a specific channel.",
+      "For this user, push carries a 72% affinity score based on past open and conversion behavior — nearly four times the email score of 18%. Nexus routes exclusively to push and will continue to do so until email or SMS data provides a compelling reason to reconsider.",
+    ],
+  },
+  {
+    key: "Incentive",
+    Icon: Gift,
+    summary: [
+      { Icon: Brain, label: "Devotional" },
+      { Icon: Moon, label: "Reflective tone" },
+    ],
+    paragraphs: [
+      "Incentive captures what type of content hook motivates a user to act. Not everyone responds to the same appeal — some users are driven by streak maintenance, others by community activity, and others by quiet, personal reflection.",
+      "Nexus does not hard-code incentive types. Instead, it observes which categories of message content (progress-based, community-based, devotional, challenge-based) produce conversions for each user and weights the variant pool accordingly. Over time, variants that rely on the wrong incentive type are naturally deprioritized.",
+      "This user consistently converts on devotional prompts and reflective evening content. Progress-based messages (streak counts, plan completion percentages) have lower conversion rates for this persona, so they represent a smaller share of the sampled variant pool. Nexus leaves them in rotation — preferences can shift — but it bets on devotional content tonight.",
+    ],
+  },
+  {
+    key: "Creative",
+    Icon: MessageSquare,
+    summary: [
+      { Icon: FileText, label: "Variant B" },
+      { Icon: TrendingUp, label: "Thompson α=38 β=8" },
+    ],
+    paragraphs: [
+      "Creative is the specific copy variant that gets sent — the title, body, and call-to-action text. Even within a single incentive type, subtle differences in framing, length, and emotional register can produce meaningfully different conversion rates.",
+      "Nexus runs a continuous multi-armed bandit across all active variants for each agent. Each variant accumulates a Beta distribution (α successes, β non-conversions) that describes its estimated conversion rate. At decision time, Nexus draws one random score per variant from its distribution and sends the variant with the highest draw. Strong variants draw high scores reliably; weaker ones still get occasional sends so the model never goes blind.",
+      "Variant B — 'Your evening devotional is ready — 5 min of calm' — has accumulated a Beta(38, 8) distribution for Evening Engagers, reflecting a 38:8 success-to-miss ratio. Tonight it drew 0.83, the highest score across all variants. The model exploits this track record while the other variants remain in rotation at lower probability.",
+    ],
+  },
+];
+
+function DecisionDimensionsPanel() {
+  const [selectedIdx, setSelectedIdx] = useState(0);
+  const dim = DECISION_DIMENSIONS[selectedIdx];
+
+  return (
+    <div className="grid grid-cols-1 md:grid-cols-5 gap-6">
+      {/* Left: dimension list */}
+      <div className="md:col-span-2 flex flex-col gap-2">
+        <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground mb-1">Dimension</p>
+        {DECISION_DIMENSIONS.map((d, i) => {
+          const active = i === selectedIdx;
+          return (
+            <button
+              key={d.key}
+              onClick={() => setSelectedIdx(i)}
+              className={`flex items-center gap-2.5 px-3 py-2 rounded-full border text-sm font-medium text-left transition-colors w-fit ${
+                active
+                  ? "bg-foreground text-background border-foreground"
+                  : "border-border hover:bg-muted text-foreground"
+              }`}
+            >
+              <d.Icon className="h-3.5 w-3.5 shrink-0" />
+              {d.key}
+            </button>
+          );
+        })}
+      </div>
+
+      {/* Right: detail panel */}
+      <div className="md:col-span-3 rounded-xl border bg-muted/30 p-5 space-y-4">
+        <div className="flex items-center gap-2">
+          <dim.Icon className="h-4 w-4 text-muted-foreground" />
+          <p className="text-sm font-semibold">{dim.key}</p>
+        </div>
+
+        <div className="flex flex-col gap-2">
+          {dim.summary.map((s, i) => (
+            <div key={i} className="flex items-center gap-2 text-sm">
+              <s.Icon className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
+              <span className="font-medium">{s.label}</span>
+            </div>
+          ))}
+        </div>
+
+        <Separator />
+
+        <div className="space-y-3">
+          {dim.paragraphs.map((p, i) => (
+            <p key={i} className="text-sm text-muted-foreground leading-relaxed">
+              {p}
+            </p>
+          ))}
+        </div>
       </div>
     </div>
   );
@@ -595,6 +728,21 @@ export default function DemoPage() {
                 Exploit
               </Badge>
             </div>
+          </CardContent>
+        </Card>
+      </div>
+
+      {/* ── Decision Dimensions ─────────────────────────────────────────── */}
+      <div>
+        <div className="mb-6">
+          <h2 className="text-xl font-semibold">Decision Dimensions</h2>
+          <p className="text-sm text-muted-foreground mt-0.5">
+            Every send is a simultaneous decision across five independent dimensions — Nexus optimizes all of them at once
+          </p>
+        </div>
+        <Card>
+          <CardContent className="pt-6">
+            <DecisionDimensionsPanel />
           </CardContent>
         </Card>
       </div>
