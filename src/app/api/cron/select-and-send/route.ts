@@ -513,12 +513,11 @@ export async function POST(req: NextRequest) {
     // Evaluate agent-level scheduling checks once (not per user)
     const rule = agent.schedulingRule;
 
-    // When timezone === "user", skip server-side quiet hours check and let Braze
-    // deliver in each user's local timezone via in_local_time: true.
-    const inLocalTime = (rule?.quietHours as { timezone?: string } | null)?.timezone === "user";
-    const quietHoursConfig = !inLocalTime
-      ? (rule?.quietHours as { start?: string; end?: string; timezone?: string } | null) ?? null
-      : null;
+    // Resolve quiet hours mode (backward compat: timezone==="user" → schedule, any tz → suppress, absent → none)
+    const quietHoursRaw = rule?.quietHours as { mode?: string; start?: string; end?: string; timezone?: string; deliverAtHour?: number } | null;
+    const qhMode = quietHoursRaw?.mode ?? (quietHoursRaw?.timezone === "user" ? "schedule" : quietHoursRaw ? "suppress" : "none");
+    const quietHoursConfig = qhMode === "suppress" ? quietHoursRaw : null;
+    const scheduleDeliverHour = qhMode === "schedule" ? (quietHoursRaw?.deliverAtHour ?? 8) : null;
 
     // Pre-seed PersonaArmStats for all persona × variant combinations so
     // concurrent decideForUser calls don't race on the upsert — run in parallel.
@@ -828,14 +827,14 @@ export async function POST(req: NextRequest) {
                 : new ThompsonSampling().select(arms, recencyPenalties).variantId;
           }
 
-          // Prefer the user's last-seen hour; fall back to their historical peak engagement hour
-          // before resorting to the agent-wide fallbackSendHour (which is the same for all users).
-          const effectiveSendHour = user.preferredSendHour ?? peakActivityHour(user.hourlyStats);
-          const effectiveSendMinute = user.preferredSendHour !== null ? (user.preferredSendMinute ?? null) : null;
+          // Schedule mode: force in_local_time via Braze at the configured hour.
+          // Otherwise prefer the user's last-seen hour; fall back to their historical peak hour.
+          const effectiveSendHour = scheduleDeliverHour !== null ? null : (user.preferredSendHour ?? peakActivityHour(user.hourlyStats));
+          const effectiveSendMinute = scheduleDeliverHour !== null ? null : (user.preferredSendHour !== null ? (user.preferredSendMinute ?? null) : null);
           const { scheduledAt, inLocalTime: isFallback } = computeScheduledAt(
             effectiveSendHour,
             effectiveSendMinute,
-            agent.fallbackSendHour ?? 8,
+            scheduleDeliverHour ?? agent.fallbackSendHour ?? 8,
             now,
           );
 
@@ -1178,14 +1177,14 @@ export async function POST(req: NextRequest) {
                 : new ThompsonSampling().select(arms, windowRecencyPenalties).variantId;
           }
 
-          // Prefer the user's last-seen hour; fall back to their historical peak engagement hour
-          // before resorting to the agent-wide fallbackSendHour (which is the same for all users).
-          const effectiveSendHour = user.preferredSendHour ?? peakActivityHour(user.hourlyStats);
-          const effectiveSendMinute = user.preferredSendHour !== null ? (user.preferredSendMinute ?? null) : null;
+          // Schedule mode: force in_local_time via Braze at the configured hour.
+          // Otherwise prefer the user's last-seen hour; fall back to their historical peak hour.
+          const effectiveSendHour = scheduleDeliverHour !== null ? null : (user.preferredSendHour ?? peakActivityHour(user.hourlyStats));
+          const effectiveSendMinute = scheduleDeliverHour !== null ? null : (user.preferredSendHour !== null ? (user.preferredSendMinute ?? null) : null);
           const { scheduledAt, inLocalTime: isFallback } = computeScheduledAt(
             effectiveSendHour,
             effectiveSendMinute,
-            agent.fallbackSendHour ?? 8,
+            scheduleDeliverHour ?? agent.fallbackSendHour ?? 8,
             now,
           );
 

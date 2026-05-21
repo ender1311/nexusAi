@@ -166,8 +166,16 @@ export interface FrequencyCap {
   period: "day" | "week" | "biweek" | "month";
 }
 
+export type QuietHoursMode = "none" | "suppress" | "schedule";
+
 export interface QuietHours {
-  start: string;
-  end: string;
-  timezone: string;
+  mode: QuietHoursMode;
+  /** suppress mode: window start in HH:mm */
+  start?: string;
+  /** suppress mode: window end in HH:mm */
+  end?: string;
+  /** suppress mode: IANA tz fallback for users without a stored timezone */
+  timezone?: string;
+  /** schedule mode: 0–23 hour to deliver in each user's local timezone via Braze in_local_time */
+  deliverAtHour?: number;
 }

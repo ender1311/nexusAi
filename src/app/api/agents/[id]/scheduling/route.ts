@@ -46,13 +46,14 @@ export async function PUT(
       return NextResponse.json({ error: "Invalid frequencyCap" }, { status: 400 });
     }
 
-    if (
-      !quietHours ||
-      typeof quietHours.start !== "string" ||
-      typeof quietHours.end !== "string" ||
-      typeof quietHours.timezone !== "string"
-    ) {
-      return NextResponse.json({ error: "Invalid quietHours" }, { status: 400 });
+    if (!quietHours || !["none", "suppress", "schedule"].includes(quietHours.mode)) {
+      return NextResponse.json({ error: "quietHours.mode must be none | suppress | schedule" }, { status: 400 });
+    }
+    if (quietHours.mode === "suppress" && (typeof quietHours.start !== "string" || typeof quietHours.end !== "string" || typeof quietHours.timezone !== "string")) {
+      return NextResponse.json({ error: "quietHours suppress mode requires start, end, timezone" }, { status: 400 });
+    }
+    if (quietHours.mode === "schedule" && (typeof quietHours.deliverAtHour !== "number" || quietHours.deliverAtHour < 0 || quietHours.deliverAtHour > 23)) {
+      return NextResponse.json({ error: "quietHours schedule mode requires deliverAtHour 0–23" }, { status: 400 });
     }
 
     if (!Array.isArray(blackoutDates)) {

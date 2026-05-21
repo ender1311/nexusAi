@@ -9,7 +9,7 @@ import { Slider } from "@/components/ui/slider";
 import { Switch } from "@/components/ui/switch";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
-import { FrequencyCap, QuietHours, SchedulingRule } from "@/types/agent";
+import { FrequencyCap, QuietHours, QuietHoursMode, SchedulingRule } from "@/types/agent";
 import { Loader2, Check, X } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -20,10 +20,55 @@ const PERIOD_LABELS: Record<string, string> = {
   month: "per month",
 };
 
+const HOUR_OPTIONS = Array.from({ length: 24 }, (_, h) => {
+  const suffix = h < 12 ? "AM" : "PM";
+  const display = h === 0 ? 12 : h > 12 ? h - 12 : h;
+  return { value: h, label: `${display}:00 ${suffix}` };
+});
+
+function resolveInitialQuietHours(initial: SchedulingRule | null): QuietHours {
+  const qh = initial?.quietHours;
+  if (!qh) return { mode: "none" };
+  if (qh.mode) return qh;
+  // Backward compat: old records lack a mode field
+  const legacy = qh as { start?: string; end?: string; timezone?: string };
+  if (legacy.timezone === "user") return { mode: "schedule", deliverAtHour: 8 };
+  return {
+    mode: "suppress",
+    start: legacy.start ?? "22:00",
+    end: legacy.end ?? "08:00",
+    timezone: legacy.timezone ?? "America/New_York",
+  };
+}
+
 type Props = {
   agentId: string;
   initialRule: SchedulingRule | null;
 };
+
+type ModeOption = {
+  value: QuietHoursMode;
+  label: string;
+  description: string;
+};
+
+const MODE_OPTIONS: ModeOption[] = [
+  {
+    value: "none",
+    label: "Off",
+    description: "No quiet hours. Nexus picks the best hour per user from behavioral data; users without data fall back to Braze in-local-time delivery.",
+  },
+  {
+    value: "suppress",
+    label: "Suppress",
+    description: "Skip if in quiet window. Server-side check at send time using each user's stored timezone (Hightouch). Users in the quiet window are skipped entirely for that cron run.",
+  },
+  {
+    value: "schedule",
+    label: "Schedule",
+    description: "Deliver at a fixed local hour via Braze. All messages are queued and Braze delivers them at the chosen hour in each user's own timezone. No messages are suppressed.",
+  },
+];
 
 export function SchedulingEditor({ agentId, initialRule }: Props) {
   const router = useRouter();
@@ -32,7 +77,7 @@ export function SchedulingEditor({ agentId, initialRule }: Props) {
     initialRule?.frequencyCap ?? { maxSends: 3, period: "week" },
   );
   const [quietHours, setQuietHours] = useState<QuietHours>(
-    initialRule?.quietHours ?? { start: "22:00", end: "08:00", timezone: "America/New_York" },
+    resolveInitialQuietHours(initialRule),
   );
   const [blackoutDates, setBlackoutDates] = useState<string[]>(
     initialRule?.blackoutDates ?? [],
@@ -45,6 +90,24 @@ export function SchedulingEditor({ agentId, initialRule }: Props) {
   const [savedAt, setSavedAt] = useState<number | null>(null);
   const [saveError, setSaveError] = useState<string | null>(null);
   const savedTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  function selectMode(mode: QuietHoursMode) {
+    if (mode === "none") {
+      setQuietHours({ mode: "none" });
+    } else if (mode === "suppress") {
+      setQuietHours((q) => ({
+        mode: "suppress",
+        start: q.start ?? "22:00",
+        end: q.end ?? "08:00",
+        timezone: q.timezone ?? "America/New_York",
+      }));
+    } else {
+      setQuietHours((q) => ({
+        mode: "schedule",
+        deliverAtHour: q.deliverAtHour ?? 8,
+      }));
+    }
+  }
 
   function addBlackout() {
     if (newBlackout && !blackoutDates.includes(newBlackout)) {
@@ -130,59 +193,109 @@ export function SchedulingEditor({ agentId, initialRule }: Props) {
         </CardHeader>
         <CardContent className="space-y-3">
           <p className="text-xs text-muted-foreground">
-            {quietHours.timezone === "user"
-              ? "No messages are sent during these hours. Nexus skips the server-side check and Braze delivers in each user’s own local timezone via in-local-time."
-              : `No messages are sent during these hours. Times are checked server-side using each user’s stored timezone; users without one fall back to ${quietHours.timezone}.`}
+            Control when messages are allowed to reach users.
           </p>
-          <div className="flex flex-wrap gap-3">
-            <div className="flex-1 min-w-[7rem]">
-              <label className="text-xs text-muted-foreground block mb-1">From</label>
-              <Input
-                type="time"
-                value={quietHours.start}
-                onChange={(e) => setQuietHours((q) => ({ ...q, start: e.target.value }))}
-                className="w-full"
-              />
+
+          {/* Mode selector */}
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
+            {MODE_OPTIONS.map((opt) => {
+              const selected = quietHours.mode === opt.value;
+              return (
+                <button
+                  key={opt.value}
+                  type="button"
+                  onClick={() => selectMode(opt.value)}
+                  className={cn(
+                    "text-left rounded-lg border p-3 transition-colors",
+                    selected
+                      ? "border-primary bg-primary/5 ring-1 ring-primary"
+                      : "border-border hover:border-primary/50 hover:bg-muted/50",
+                  )}
+                >
+                  <div className="flex items-center gap-2 mb-1">
+                    <div className={cn(
+                      "h-3.5 w-3.5 rounded-full border-2 flex-shrink-0",
+                      selected ? "border-primary bg-primary" : "border-muted-foreground",
+                    )} />
+                    <span className="text-xs font-semibold">{opt.label}</span>
+                  </div>
+                  <p className="text-xs text-muted-foreground leading-snug">{opt.description}</p>
+                </button>
+              );
+            })}
+          </div>
+
+          {/* Suppress: window + fallback timezone */}
+          {quietHours.mode === "suppress" && (
+            <div className="flex flex-wrap gap-3 pt-1">
+              <div className="flex-1 min-w-[7rem]">
+                <label className="text-xs text-muted-foreground block mb-1">From</label>
+                <Input
+                  type="time"
+                  value={quietHours.start ?? "22:00"}
+                  onChange={(e) => setQuietHours((q) => ({ ...q, start: e.target.value }))}
+                  className="w-full"
+                />
+              </div>
+              <div className="flex-1 min-w-[7rem]">
+                <label className="text-xs text-muted-foreground block mb-1">To</label>
+                <Input
+                  type="time"
+                  value={quietHours.end ?? "08:00"}
+                  onChange={(e) => setQuietHours((q) => ({ ...q, end: e.target.value }))}
+                  className="w-full"
+                />
+              </div>
+              <div className="flex-1 min-w-[11rem]">
+                <label className="text-xs text-muted-foreground block mb-1">Fallback timezone</label>
+                <Select
+                  value={quietHours.timezone ?? "America/New_York"}
+                  onValueChange={(v) => v && setQuietHours((q) => ({ ...q, timezone: v }))}
+                >
+                  <SelectTrigger className="w-full">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="America/New_York">Eastern (ET)</SelectItem>
+                    <SelectItem value="America/Chicago">Central (CT)</SelectItem>
+                    <SelectItem value="America/Denver">Mountain (MT)</SelectItem>
+                    <SelectItem value="America/Los_Angeles">Pacific (PT)</SelectItem>
+                    <SelectItem value="America/Phoenix">Arizona (no DST)</SelectItem>
+                    <SelectItem value="Europe/London">London (GMT/BST)</SelectItem>
+                    <SelectItem value="Europe/Paris">Paris (CET)</SelectItem>
+                    <SelectItem value="Europe/Helsinki">Helsinki (EET)</SelectItem>
+                    <SelectItem value="Asia/Dubai">Dubai (GST)</SelectItem>
+                    <SelectItem value="Asia/Kolkata">India (IST)</SelectItem>
+                    <SelectItem value="Asia/Singapore">Singapore (SGT)</SelectItem>
+                    <SelectItem value="Asia/Tokyo">Tokyo (JST)</SelectItem>
+                    <SelectItem value="Australia/Sydney">Sydney (AEST)</SelectItem>
+                    <SelectItem value="Pacific/Auckland">Auckland (NZST)</SelectItem>
+                    <SelectItem value="UTC">UTC</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
             </div>
-            <div className="flex-1 min-w-[7rem]">
-              <label className="text-xs text-muted-foreground block mb-1">To</label>
-              <Input
-                type="time"
-                value={quietHours.end}
-                onChange={(e) => setQuietHours((q) => ({ ...q, end: e.target.value }))}
-                className="w-full"
-              />
-            </div>
-            <div className="flex-1 min-w-[11rem]">
-              <label className="text-xs text-muted-foreground block mb-1">{quietHours.timezone === "user" ? "Timezone mode" : "Fallback timezone"}</label>
+          )}
+
+          {/* Schedule: deliver-at hour */}
+          {quietHours.mode === "schedule" && (
+            <div className="pt-1 max-w-[12rem]">
+              <label className="text-xs text-muted-foreground block mb-1">Deliver at (local time)</label>
               <Select
-                value={quietHours.timezone}
-                onValueChange={(v) => v && setQuietHours((q) => ({ ...q, timezone: v }))}
+                value={String(quietHours.deliverAtHour ?? 8)}
+                onValueChange={(v) => v && setQuietHours((q) => ({ ...q, deliverAtHour: parseInt(v, 10) }))}
               >
                 <SelectTrigger className="w-full">
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="user">User&apos;s local time</SelectItem>
-                  <SelectItem value="America/New_York">Eastern (ET)</SelectItem>
-                  <SelectItem value="America/Chicago">Central (CT)</SelectItem>
-                  <SelectItem value="America/Denver">Mountain (MT)</SelectItem>
-                  <SelectItem value="America/Los_Angeles">Pacific (PT)</SelectItem>
-                  <SelectItem value="America/Phoenix">Arizona (no DST)</SelectItem>
-                  <SelectItem value="Europe/London">London (GMT/BST)</SelectItem>
-                  <SelectItem value="Europe/Paris">Paris (CET)</SelectItem>
-                  <SelectItem value="Europe/Helsinki">Helsinki (EET)</SelectItem>
-                  <SelectItem value="Asia/Dubai">Dubai (GST)</SelectItem>
-                  <SelectItem value="Asia/Kolkata">India (IST)</SelectItem>
-                  <SelectItem value="Asia/Singapore">Singapore (SGT)</SelectItem>
-                  <SelectItem value="Asia/Tokyo">Tokyo (JST)</SelectItem>
-                  <SelectItem value="Australia/Sydney">Sydney (AEST)</SelectItem>
-                  <SelectItem value="Pacific/Auckland">Auckland (NZST)</SelectItem>
-                  <SelectItem value="UTC">UTC</SelectItem>
+                  {HOUR_OPTIONS.map((h) => (
+                    <SelectItem key={h.value} value={String(h.value)}>{h.label}</SelectItem>
+                  ))}
                 </SelectContent>
               </Select>
             </div>
-          </div>
+          )}
         </CardContent>
       </Card>
 
