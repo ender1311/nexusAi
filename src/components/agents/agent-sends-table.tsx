@@ -30,7 +30,7 @@ type SendRow = {
   personaColor: string | null;
   conversionAt: string | null;
   reward: number | null;
-  decisionContext: unknown | null;
+  decisionContext: { inLocalTime?: boolean; [key: string]: unknown } | null;
   failed: boolean;
 };
 
@@ -173,12 +173,19 @@ function groupByDate(rows: SendRow[]): GroupedRows {
   return Array.from(map.entries()).map(([dateKey, { label, rows }]) => ({ dateKey, label, rows }));
 }
 
+const LOCAL_TIME_BUFFER_MS = 12 * 60 * 60 * 1000;
+
 function applyFilters(rows: SendRow[], filters: Filters, nowMs: number): SendRow[] {
   return rows.filter((r) => {
     if (filters.status === "success" && r.failed) return false;
     if (filters.status === "failed" && !r.failed) return false;
     if (filters.status === "converted" && !r.conversionAt) return false;
-    if (filters.status === "pending" && !(r.scheduledFor && r.scheduledFor > new Date(nowMs).toISOString())) return false;
+    if (filters.status === "pending") {
+      if (!r.scheduledFor) return false;
+      const scheduledMs = Date.parse(r.scheduledFor);
+      const deadline = r.decisionContext?.inLocalTime ? scheduledMs + LOCAL_TIME_BUFFER_MS : scheduledMs;
+      if (deadline <= nowMs) return false;
+    }
     if (filters.channel !== "all" && r.channel !== filters.channel) return false;
     if (filters.persona !== "all" && (r.personaName ?? "none") !== filters.persona) return false;
     return true;
@@ -498,9 +505,18 @@ export function AgentSendsTable({ agentId }: Props) {
   );
 
   const nowMs = Date.now();
-  const nowIso = new Date(nowMs).toISOString();
-  const scheduledRows = rows.filter((r) => r.scheduledFor && r.scheduledFor > nowIso);
-  const sentRows = rows.filter((r) => !r.scheduledFor || r.scheduledFor <= nowIso);
+  const scheduledRows = rows.filter((r) => {
+    if (!r.scheduledFor) return false;
+    const scheduledMs = Date.parse(r.scheduledFor);
+    const deadline = r.decisionContext?.inLocalTime ? scheduledMs + LOCAL_TIME_BUFFER_MS : scheduledMs;
+    return deadline > nowMs;
+  });
+  const sentRows = rows.filter((r) => {
+    if (!r.scheduledFor) return true;
+    const scheduledMs = Date.parse(r.scheduledFor);
+    const deadline = r.decisionContext?.inLocalTime ? scheduledMs + LOCAL_TIME_BUFFER_MS : scheduledMs;
+    return deadline <= nowMs;
+  });
 
   const filteredSentRows = useMemo(() => applyFilters(sentRows, filters, nowMs), [sentRows, filters, nowMs]);
   const groups = useMemo(
