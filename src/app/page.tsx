@@ -1,4 +1,4 @@
-export const revalidate = 900;
+export const revalidate = 60;
 export const maxDuration = 30;
 
 import { Suspense } from "react";
@@ -253,7 +253,7 @@ async function RecentSendsSection() {
   );
 }
 
-async function PersonaSidebarSection() {
+async function PersonaChartSection() {
   const personasRaw = await getCachedPersonaDistribution();
   const totalPersonaUsers = personasRaw.reduce((s, p) => s + p._count.trackedUsers, 0);
   const personaData = personasRaw
@@ -265,43 +265,47 @@ async function PersonaSidebarSection() {
       percent: totalPersonaUsers > 0 ? Math.round((p._count.trackedUsers / totalPersonaUsers) * 100) : 0,
       color: p.color,
     }));
+
+  return (
+    <Card>
+      <CardHeader className="flex flex-row items-center justify-between">
+        <CardTitle className="text-sm font-semibold">Persona Distribution</CardTitle>
+        <Link href="/personas">
+          <Button variant="ghost" size="sm" className="h-7 text-xs">View all</Button>
+        </Link>
+      </CardHeader>
+      <CardContent>
+        <PersonaDistributionChart data={personaData} />
+      </CardContent>
+    </Card>
+  );
+}
+
+async function TopPersonaSection() {
+  const personasRaw = await getCachedPersonaDistribution();
   const topPersona = personasRaw.slice().sort((a, b) => b._count.trackedUsers - a._count.trackedUsers)[0];
 
   return (
-    <>
-      <Card>
-        <CardHeader className="flex flex-row items-center justify-between">
-          <CardTitle className="text-sm font-semibold">Persona Distribution</CardTitle>
-          <Link href="/personas">
-            <Button variant="ghost" size="sm" className="h-7 text-xs">View all</Button>
-          </Link>
-        </CardHeader>
-        <CardContent>
-          <PersonaDistributionChart data={personaData} />
-        </CardContent>
-      </Card>
-
-      <Card>
-        <CardHeader>
-          <CardTitle className="text-sm font-semibold">Top Persona</CardTitle>
-        </CardHeader>
-        <CardContent>
-          {topPersona && topPersona._count.trackedUsers > 0 ? (
-            <div className="rounded-lg p-2 -m-2">
-              <p className="text-sm font-medium">{topPersona.name}</p>
-              <p className="text-xs text-muted-foreground mt-0.5">{topPersona.label ?? topPersona.name}</p>
-              <div className="flex items-center gap-3 mt-2">
-                <span className="text-xs text-muted-foreground">
-                  <span className="font-semibold text-foreground">{formatNumber(topPersona._count.trackedUsers)}</span> users
-                </span>
-              </div>
+    <Card>
+      <CardHeader>
+        <CardTitle className="text-sm font-semibold">Top Persona</CardTitle>
+      </CardHeader>
+      <CardContent>
+        {topPersona && topPersona._count.trackedUsers > 0 ? (
+          <div className="rounded-lg p-2 -m-2">
+            <p className="text-sm font-medium">{topPersona.name}</p>
+            <p className="text-xs text-muted-foreground mt-0.5">{topPersona.label ?? topPersona.name}</p>
+            <div className="flex items-center gap-3 mt-2">
+              <span className="text-xs text-muted-foreground">
+                <span className="font-semibold text-foreground">{formatNumber(topPersona._count.trackedUsers)}</span> users
+              </span>
             </div>
-          ) : (
-            <p className="text-xs text-muted-foreground">No persona data yet</p>
-          )}
-        </CardContent>
-      </Card>
-    </>
+          </div>
+        ) : (
+          <p className="text-xs text-muted-foreground">No persona data yet</p>
+        )}
+      </CardContent>
+    </Card>
   );
 }
 
@@ -368,7 +372,10 @@ export default function DashboardPage() {
               <FunnelBreakdownSection />
             </Suspense>
             <Suspense fallback={<CardSkeleton />}>
-              <PersonaSidebarSection />
+              <PersonaChartSection />
+            </Suspense>
+            <Suspense fallback={<CardSkeleton />}>
+              <TopPersonaSection />
             </Suspense>
             <Card>
               <CardHeader>
