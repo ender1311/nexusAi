@@ -31,6 +31,7 @@ export type AgentAvgAggregateOutputType = {
   fallbackSendHour: number | null
   audienceCap: number | null
   staleFunnelStageDays: number | null
+  sortOrder: number | null
 }
 
 export type AgentSumAggregateOutputType = {
@@ -38,6 +39,7 @@ export type AgentSumAggregateOutputType = {
   fallbackSendHour: number | null
   audienceCap: number | null
   staleFunnelStageDays: number | null
+  sortOrder: number | null
 }
 
 export type AgentMinAggregateOutputType = {
@@ -53,6 +55,7 @@ export type AgentMinAggregateOutputType = {
   languageFilter: string | null
   staleFunnelStageDays: number | null
   color: string | null
+  sortOrder: number | null
   createdAt: Date | null
   updatedAt: Date | null
 }
@@ -70,6 +73,7 @@ export type AgentMaxAggregateOutputType = {
   languageFilter: string | null
   staleFunnelStageDays: number | null
   color: string | null
+  sortOrder: number | null
   createdAt: Date | null
   updatedAt: Date | null
 }
@@ -88,6 +92,7 @@ export type AgentCountAggregateOutputType = {
   languageFilter: number
   staleFunnelStageDays: number
   color: number
+  sortOrder: number
   createdAt: number
   updatedAt: number
   _all: number
@@ -99,6 +104,7 @@ export type AgentAvgAggregateInputType = {
   fallbackSendHour?: true
   audienceCap?: true
   staleFunnelStageDays?: true
+  sortOrder?: true
 }
 
 export type AgentSumAggregateInputType = {
@@ -106,6 +112,7 @@ export type AgentSumAggregateInputType = {
   fallbackSendHour?: true
   audienceCap?: true
   staleFunnelStageDays?: true
+  sortOrder?: true
 }
 
 export type AgentMinAggregateInputType = {
@@ -121,6 +128,7 @@ export type AgentMinAggregateInputType = {
   languageFilter?: true
   staleFunnelStageDays?: true
   color?: true
+  sortOrder?: true
   createdAt?: true
   updatedAt?: true
 }
@@ -138,6 +146,7 @@ export type AgentMaxAggregateInputType = {
   languageFilter?: true
   staleFunnelStageDays?: true
   color?: true
+  sortOrder?: true
   createdAt?: true
   updatedAt?: true
 }
@@ -156,6 +165,7 @@ export type AgentCountAggregateInputType = {
   languageFilter?: true
   staleFunnelStageDays?: true
   color?: true
+  sortOrder?: true
   createdAt?: true
   updatedAt?: true
   _all?: true
@@ -261,6 +271,7 @@ export type AgentGroupByOutputType = {
   languageFilter: string
   staleFunnelStageDays: number | null
   color: string
+  sortOrder: number
   createdAt: Date
   updatedAt: Date
   _count: AgentCountAggregateOutputType | null
@@ -302,6 +313,7 @@ export type AgentWhereInput = {
   languageFilter?: Prisma.StringFilter<"Agent"> | string
   staleFunnelStageDays?: Prisma.IntNullableFilter<"Agent"> | number | null
   color?: Prisma.StringFilter<"Agent"> | string
+  sortOrder?: Prisma.IntFilter<"Agent"> | number
   createdAt?: Prisma.DateTimeFilter<"Agent"> | Date | string
   updatedAt?: Prisma.DateTimeFilter<"Agent"> | Date | string
   goals?: Prisma.GoalListRelationFilter
@@ -326,6 +338,7 @@ export type AgentOrderByWithRelationInput = {
   languageFilter?: Prisma.SortOrder
   staleFunnelStageDays?: Prisma.SortOrderInput | Prisma.SortOrder
   color?: Prisma.SortOrder
+  sortOrder?: Prisma.SortOrder
   createdAt?: Prisma.SortOrder
   updatedAt?: Prisma.SortOrder
   goals?: Prisma.GoalOrderByRelationAggregateInput
@@ -353,6 +366,7 @@ export type AgentWhereUniqueInput = Prisma.AtLeast<{
   languageFilter?: Prisma.StringFilter<"Agent"> | string
   staleFunnelStageDays?: Prisma.IntNullableFilter<"Agent"> | number | null
   color?: Prisma.StringFilter<"Agent"> | string
+  sortOrder?: Prisma.IntFilter<"Agent"> | number
   createdAt?: Prisma.DateTimeFilter<"Agent"> | Date | string
   updatedAt?: Prisma.DateTimeFilter<"Agent"> | Date | string
   goals?: Prisma.GoalListRelationFilter
@@ -377,6 +391,7 @@ export type AgentOrderByWithAggregationInput = {
   languageFilter?: Prisma.SortOrder
   staleFunnelStageDays?: Prisma.SortOrderInput | Prisma.SortOrder
   color?: Prisma.SortOrder
+  sortOrder?: Prisma.SortOrder
   createdAt?: Prisma.SortOrder
   updatedAt?: Prisma.SortOrder
   _count?: Prisma.AgentCountOrderByAggregateInput
@@ -403,6 +418,7 @@ export type AgentScalarWhereWithAggregatesInput = {
   languageFilter?: Prisma.StringWithAggregatesFilter<"Agent"> | string
   staleFunnelStageDays?: Prisma.IntNullableWithAggregatesFilter<"Agent"> | number | null
   color?: Prisma.StringWithAggregatesFilter<"Agent"> | string
+  sortOrder?: Prisma.IntWithAggregatesFilter<"Agent"> | number
   createdAt?: Prisma.DateTimeWithAggregatesFilter<"Agent"> | Date | string
   updatedAt?: Prisma.DateTimeWithAggregatesFilter<"Agent"> | Date | string
 }
@@ -421,6 +437,7 @@ export type AgentCreateInput = {
   languageFilter?: string
   staleFunnelStageDays?: number | null
   color?: string
+  sortOrder?: number
   createdAt?: Date | string
   updatedAt?: Date | string
   goals?: Prisma.GoalCreateNestedManyWithoutAgentInput
@@ -445,6 +462,7 @@ export type AgentUncheckedCreateInput = {
   languageFilter?: string
   staleFunnelStageDays?: number | null
   color?: string
+  sortOrder?: number
   createdAt?: Date | string
   updatedAt?: Date | string
   goals?: Prisma.GoalUncheckedCreateNestedManyWithoutAgentInput
@@ -469,6 +487,7 @@ export type AgentUpdateInput = {
   languageFilter?: Prisma.StringFieldUpdateOperationsInput | string
   staleFunnelStageDays?: Prisma.NullableIntFieldUpdateOperationsInput | number | null
   color?: Prisma.StringFieldUpdateOperationsInput | string
+  sortOrder?: Prisma.IntFieldUpdateOperationsInput | number
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   goals?: Prisma.GoalUpdateManyWithoutAgentNestedInput
@@ -493,6 +512,7 @@ export type AgentUncheckedUpdateInput = {
   languageFilter?: Prisma.StringFieldUpdateOperationsInput | string
   staleFunnelStageDays?: Prisma.NullableIntFieldUpdateOperationsInput | number | null
   color?: Prisma.StringFieldUpdateOperationsInput | string
+  sortOrder?: Prisma.IntFieldUpdateOperationsInput | number
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   goals?: Prisma.GoalUncheckedUpdateManyWithoutAgentNestedInput
@@ -517,6 +537,7 @@ export type AgentCreateManyInput = {
   languageFilter?: string
   staleFunnelStageDays?: number | null
   color?: string
+  sortOrder?: number
   createdAt?: Date | string
   updatedAt?: Date | string
 }
@@ -535,6 +556,7 @@ export type AgentUpdateManyMutationInput = {
   languageFilter?: Prisma.StringFieldUpdateOperationsInput | string
   staleFunnelStageDays?: Prisma.NullableIntFieldUpdateOperationsInput | number | null
   color?: Prisma.StringFieldUpdateOperationsInput | string
+  sortOrder?: Prisma.IntFieldUpdateOperationsInput | number
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
 }
@@ -553,6 +575,7 @@ export type AgentUncheckedUpdateManyInput = {
   languageFilter?: Prisma.StringFieldUpdateOperationsInput | string
   staleFunnelStageDays?: Prisma.NullableIntFieldUpdateOperationsInput | number | null
   color?: Prisma.StringFieldUpdateOperationsInput | string
+  sortOrder?: Prisma.IntFieldUpdateOperationsInput | number
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
 }
@@ -571,6 +594,7 @@ export type AgentCountOrderByAggregateInput = {
   languageFilter?: Prisma.SortOrder
   staleFunnelStageDays?: Prisma.SortOrder
   color?: Prisma.SortOrder
+  sortOrder?: Prisma.SortOrder
   createdAt?: Prisma.SortOrder
   updatedAt?: Prisma.SortOrder
 }
@@ -580,6 +604,7 @@ export type AgentAvgOrderByAggregateInput = {
   fallbackSendHour?: Prisma.SortOrder
   audienceCap?: Prisma.SortOrder
   staleFunnelStageDays?: Prisma.SortOrder
+  sortOrder?: Prisma.SortOrder
 }
 
 export type AgentMaxOrderByAggregateInput = {
@@ -595,6 +620,7 @@ export type AgentMaxOrderByAggregateInput = {
   languageFilter?: Prisma.SortOrder
   staleFunnelStageDays?: Prisma.SortOrder
   color?: Prisma.SortOrder
+  sortOrder?: Prisma.SortOrder
   createdAt?: Prisma.SortOrder
   updatedAt?: Prisma.SortOrder
 }
@@ -612,6 +638,7 @@ export type AgentMinOrderByAggregateInput = {
   languageFilter?: Prisma.SortOrder
   staleFunnelStageDays?: Prisma.SortOrder
   color?: Prisma.SortOrder
+  sortOrder?: Prisma.SortOrder
   createdAt?: Prisma.SortOrder
   updatedAt?: Prisma.SortOrder
 }
@@ -621,6 +648,7 @@ export type AgentSumOrderByAggregateInput = {
   fallbackSendHour?: Prisma.SortOrder
   audienceCap?: Prisma.SortOrder
   staleFunnelStageDays?: Prisma.SortOrder
+  sortOrder?: Prisma.SortOrder
 }
 
 export type AgentScalarRelationFilter = {
@@ -646,6 +674,14 @@ export type FloatFieldUpdateOperationsInput = {
 
 export type NullableIntFieldUpdateOperationsInput = {
   set?: number | null
+  increment?: number
+  decrement?: number
+  multiply?: number
+  divide?: number
+}
+
+export type IntFieldUpdateOperationsInput = {
+  set?: number
   increment?: number
   decrement?: number
   multiply?: number
@@ -754,6 +790,7 @@ export type AgentCreateWithoutGoalsInput = {
   languageFilter?: string
   staleFunnelStageDays?: number | null
   color?: string
+  sortOrder?: number
   createdAt?: Date | string
   updatedAt?: Date | string
   messages?: Prisma.MessageCreateNestedManyWithoutAgentInput
@@ -777,6 +814,7 @@ export type AgentUncheckedCreateWithoutGoalsInput = {
   languageFilter?: string
   staleFunnelStageDays?: number | null
   color?: string
+  sortOrder?: number
   createdAt?: Date | string
   updatedAt?: Date | string
   messages?: Prisma.MessageUncheckedCreateNestedManyWithoutAgentInput
@@ -816,6 +854,7 @@ export type AgentUpdateWithoutGoalsInput = {
   languageFilter?: Prisma.StringFieldUpdateOperationsInput | string
   staleFunnelStageDays?: Prisma.NullableIntFieldUpdateOperationsInput | number | null
   color?: Prisma.StringFieldUpdateOperationsInput | string
+  sortOrder?: Prisma.IntFieldUpdateOperationsInput | number
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   messages?: Prisma.MessageUpdateManyWithoutAgentNestedInput
@@ -839,6 +878,7 @@ export type AgentUncheckedUpdateWithoutGoalsInput = {
   languageFilter?: Prisma.StringFieldUpdateOperationsInput | string
   staleFunnelStageDays?: Prisma.NullableIntFieldUpdateOperationsInput | number | null
   color?: Prisma.StringFieldUpdateOperationsInput | string
+  sortOrder?: Prisma.IntFieldUpdateOperationsInput | number
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   messages?: Prisma.MessageUncheckedUpdateManyWithoutAgentNestedInput
@@ -862,6 +902,7 @@ export type AgentCreateWithoutMessagesInput = {
   languageFilter?: string
   staleFunnelStageDays?: number | null
   color?: string
+  sortOrder?: number
   createdAt?: Date | string
   updatedAt?: Date | string
   goals?: Prisma.GoalCreateNestedManyWithoutAgentInput
@@ -885,6 +926,7 @@ export type AgentUncheckedCreateWithoutMessagesInput = {
   languageFilter?: string
   staleFunnelStageDays?: number | null
   color?: string
+  sortOrder?: number
   createdAt?: Date | string
   updatedAt?: Date | string
   goals?: Prisma.GoalUncheckedCreateNestedManyWithoutAgentInput
@@ -924,6 +966,7 @@ export type AgentUpdateWithoutMessagesInput = {
   languageFilter?: Prisma.StringFieldUpdateOperationsInput | string
   staleFunnelStageDays?: Prisma.NullableIntFieldUpdateOperationsInput | number | null
   color?: Prisma.StringFieldUpdateOperationsInput | string
+  sortOrder?: Prisma.IntFieldUpdateOperationsInput | number
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   goals?: Prisma.GoalUpdateManyWithoutAgentNestedInput
@@ -947,6 +990,7 @@ export type AgentUncheckedUpdateWithoutMessagesInput = {
   languageFilter?: Prisma.StringFieldUpdateOperationsInput | string
   staleFunnelStageDays?: Prisma.NullableIntFieldUpdateOperationsInput | number | null
   color?: Prisma.StringFieldUpdateOperationsInput | string
+  sortOrder?: Prisma.IntFieldUpdateOperationsInput | number
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   goals?: Prisma.GoalUncheckedUpdateManyWithoutAgentNestedInput
@@ -970,6 +1014,7 @@ export type AgentCreateWithoutDecisionsInput = {
   languageFilter?: string
   staleFunnelStageDays?: number | null
   color?: string
+  sortOrder?: number
   createdAt?: Date | string
   updatedAt?: Date | string
   goals?: Prisma.GoalCreateNestedManyWithoutAgentInput
@@ -993,6 +1038,7 @@ export type AgentUncheckedCreateWithoutDecisionsInput = {
   languageFilter?: string
   staleFunnelStageDays?: number | null
   color?: string
+  sortOrder?: number
   createdAt?: Date | string
   updatedAt?: Date | string
   goals?: Prisma.GoalUncheckedCreateNestedManyWithoutAgentInput
@@ -1032,6 +1078,7 @@ export type AgentUpdateWithoutDecisionsInput = {
   languageFilter?: Prisma.StringFieldUpdateOperationsInput | string
   staleFunnelStageDays?: Prisma.NullableIntFieldUpdateOperationsInput | number | null
   color?: Prisma.StringFieldUpdateOperationsInput | string
+  sortOrder?: Prisma.IntFieldUpdateOperationsInput | number
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   goals?: Prisma.GoalUpdateManyWithoutAgentNestedInput
@@ -1055,6 +1102,7 @@ export type AgentUncheckedUpdateWithoutDecisionsInput = {
   languageFilter?: Prisma.StringFieldUpdateOperationsInput | string
   staleFunnelStageDays?: Prisma.NullableIntFieldUpdateOperationsInput | number | null
   color?: Prisma.StringFieldUpdateOperationsInput | string
+  sortOrder?: Prisma.IntFieldUpdateOperationsInput | number
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   goals?: Prisma.GoalUncheckedUpdateManyWithoutAgentNestedInput
@@ -1078,6 +1126,7 @@ export type AgentCreateWithoutPersonaTargetsInput = {
   languageFilter?: string
   staleFunnelStageDays?: number | null
   color?: string
+  sortOrder?: number
   createdAt?: Date | string
   updatedAt?: Date | string
   goals?: Prisma.GoalCreateNestedManyWithoutAgentInput
@@ -1101,6 +1150,7 @@ export type AgentUncheckedCreateWithoutPersonaTargetsInput = {
   languageFilter?: string
   staleFunnelStageDays?: number | null
   color?: string
+  sortOrder?: number
   createdAt?: Date | string
   updatedAt?: Date | string
   goals?: Prisma.GoalUncheckedCreateNestedManyWithoutAgentInput
@@ -1140,6 +1190,7 @@ export type AgentUpdateWithoutPersonaTargetsInput = {
   languageFilter?: Prisma.StringFieldUpdateOperationsInput | string
   staleFunnelStageDays?: Prisma.NullableIntFieldUpdateOperationsInput | number | null
   color?: Prisma.StringFieldUpdateOperationsInput | string
+  sortOrder?: Prisma.IntFieldUpdateOperationsInput | number
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   goals?: Prisma.GoalUpdateManyWithoutAgentNestedInput
@@ -1163,6 +1214,7 @@ export type AgentUncheckedUpdateWithoutPersonaTargetsInput = {
   languageFilter?: Prisma.StringFieldUpdateOperationsInput | string
   staleFunnelStageDays?: Prisma.NullableIntFieldUpdateOperationsInput | number | null
   color?: Prisma.StringFieldUpdateOperationsInput | string
+  sortOrder?: Prisma.IntFieldUpdateOperationsInput | number
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   goals?: Prisma.GoalUncheckedUpdateManyWithoutAgentNestedInput
@@ -1186,6 +1238,7 @@ export type AgentCreateWithoutSchedulingRuleInput = {
   languageFilter?: string
   staleFunnelStageDays?: number | null
   color?: string
+  sortOrder?: number
   createdAt?: Date | string
   updatedAt?: Date | string
   goals?: Prisma.GoalCreateNestedManyWithoutAgentInput
@@ -1209,6 +1262,7 @@ export type AgentUncheckedCreateWithoutSchedulingRuleInput = {
   languageFilter?: string
   staleFunnelStageDays?: number | null
   color?: string
+  sortOrder?: number
   createdAt?: Date | string
   updatedAt?: Date | string
   goals?: Prisma.GoalUncheckedCreateNestedManyWithoutAgentInput
@@ -1248,6 +1302,7 @@ export type AgentUpdateWithoutSchedulingRuleInput = {
   languageFilter?: Prisma.StringFieldUpdateOperationsInput | string
   staleFunnelStageDays?: Prisma.NullableIntFieldUpdateOperationsInput | number | null
   color?: Prisma.StringFieldUpdateOperationsInput | string
+  sortOrder?: Prisma.IntFieldUpdateOperationsInput | number
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   goals?: Prisma.GoalUpdateManyWithoutAgentNestedInput
@@ -1271,6 +1326,7 @@ export type AgentUncheckedUpdateWithoutSchedulingRuleInput = {
   languageFilter?: Prisma.StringFieldUpdateOperationsInput | string
   staleFunnelStageDays?: Prisma.NullableIntFieldUpdateOperationsInput | number | null
   color?: Prisma.StringFieldUpdateOperationsInput | string
+  sortOrder?: Prisma.IntFieldUpdateOperationsInput | number
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   goals?: Prisma.GoalUncheckedUpdateManyWithoutAgentNestedInput
@@ -1294,6 +1350,7 @@ export type AgentCreateWithoutMetricsInput = {
   languageFilter?: string
   staleFunnelStageDays?: number | null
   color?: string
+  sortOrder?: number
   createdAt?: Date | string
   updatedAt?: Date | string
   goals?: Prisma.GoalCreateNestedManyWithoutAgentInput
@@ -1317,6 +1374,7 @@ export type AgentUncheckedCreateWithoutMetricsInput = {
   languageFilter?: string
   staleFunnelStageDays?: number | null
   color?: string
+  sortOrder?: number
   createdAt?: Date | string
   updatedAt?: Date | string
   goals?: Prisma.GoalUncheckedCreateNestedManyWithoutAgentInput
@@ -1356,6 +1414,7 @@ export type AgentUpdateWithoutMetricsInput = {
   languageFilter?: Prisma.StringFieldUpdateOperationsInput | string
   staleFunnelStageDays?: Prisma.NullableIntFieldUpdateOperationsInput | number | null
   color?: Prisma.StringFieldUpdateOperationsInput | string
+  sortOrder?: Prisma.IntFieldUpdateOperationsInput | number
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   goals?: Prisma.GoalUpdateManyWithoutAgentNestedInput
@@ -1379,6 +1438,7 @@ export type AgentUncheckedUpdateWithoutMetricsInput = {
   languageFilter?: Prisma.StringFieldUpdateOperationsInput | string
   staleFunnelStageDays?: Prisma.NullableIntFieldUpdateOperationsInput | number | null
   color?: Prisma.StringFieldUpdateOperationsInput | string
+  sortOrder?: Prisma.IntFieldUpdateOperationsInput | number
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   goals?: Prisma.GoalUncheckedUpdateManyWithoutAgentNestedInput
@@ -1469,6 +1529,7 @@ export type AgentSelect<ExtArgs extends runtime.Types.Extensions.InternalArgs = 
   languageFilter?: boolean
   staleFunnelStageDays?: boolean
   color?: boolean
+  sortOrder?: boolean
   createdAt?: boolean
   updatedAt?: boolean
   goals?: boolean | Prisma.Agent$goalsArgs<ExtArgs>
@@ -1494,6 +1555,7 @@ export type AgentSelectCreateManyAndReturn<ExtArgs extends runtime.Types.Extensi
   languageFilter?: boolean
   staleFunnelStageDays?: boolean
   color?: boolean
+  sortOrder?: boolean
   createdAt?: boolean
   updatedAt?: boolean
 }, ExtArgs["result"]["agent"]>
@@ -1512,6 +1574,7 @@ export type AgentSelectUpdateManyAndReturn<ExtArgs extends runtime.Types.Extensi
   languageFilter?: boolean
   staleFunnelStageDays?: boolean
   color?: boolean
+  sortOrder?: boolean
   createdAt?: boolean
   updatedAt?: boolean
 }, ExtArgs["result"]["agent"]>
@@ -1530,11 +1593,12 @@ export type AgentSelectScalar = {
   languageFilter?: boolean
   staleFunnelStageDays?: boolean
   color?: boolean
+  sortOrder?: boolean
   createdAt?: boolean
   updatedAt?: boolean
 }
 
-export type AgentOmit<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = runtime.Types.Extensions.GetOmit<"id" | "name" | "description" | "status" | "algorithm" | "epsilon" | "funnelStage" | "targetFilter" | "fallbackSendHour" | "audienceCap" | "languageFilter" | "staleFunnelStageDays" | "color" | "createdAt" | "updatedAt", ExtArgs["result"]["agent"]>
+export type AgentOmit<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = runtime.Types.Extensions.GetOmit<"id" | "name" | "description" | "status" | "algorithm" | "epsilon" | "funnelStage" | "targetFilter" | "fallbackSendHour" | "audienceCap" | "languageFilter" | "staleFunnelStageDays" | "color" | "sortOrder" | "createdAt" | "updatedAt", ExtArgs["result"]["agent"]>
 export type AgentInclude<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
   goals?: boolean | Prisma.Agent$goalsArgs<ExtArgs>
   messages?: boolean | Prisma.Agent$messagesArgs<ExtArgs>
@@ -1571,6 +1635,7 @@ export type $AgentPayload<ExtArgs extends runtime.Types.Extensions.InternalArgs 
     languageFilter: string
     staleFunnelStageDays: number | null
     color: string
+    sortOrder: number
     createdAt: Date
     updatedAt: Date
   }, ExtArgs["result"]["agent"]>
@@ -2015,6 +2080,7 @@ export interface AgentFieldRefs {
   readonly languageFilter: Prisma.FieldRef<"Agent", 'String'>
   readonly staleFunnelStageDays: Prisma.FieldRef<"Agent", 'Int'>
   readonly color: Prisma.FieldRef<"Agent", 'String'>
+  readonly sortOrder: Prisma.FieldRef<"Agent", 'Int'>
   readonly createdAt: Prisma.FieldRef<"Agent", 'DateTime'>
   readonly updatedAt: Prisma.FieldRef<"Agent", 'DateTime'>
 }

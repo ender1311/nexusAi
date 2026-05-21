@@ -23,6 +23,7 @@ import {
 
 interface AgentCardProps {
   agent: Agent;
+  audienceCap?: number | null;
   conversionRate?: number;
   onDelete?: (id: string) => void;
 }
@@ -33,7 +34,7 @@ const algorithmLabels: Record<string, string> = {
   contextual: "Contextual Bandit",
 };
 
-export function AgentCard({ agent, conversionRate, onDelete }: AgentCardProps) {
+export function AgentCard({ agent, audienceCap, conversionRate, onDelete }: AgentCardProps) {
   const router = useRouter();
   const [showDeleteDialog, setShowDeleteDialog] = useState(false);
   const [deleting, setDeleting] = useState(false);
@@ -122,6 +123,12 @@ export function AgentCard({ agent, conversionRate, onDelete }: AgentCardProps) {
                     <p className="text-xs font-medium">{formatNumber(agent._count.decisions)}</p>
                   </div>
                 )}
+                <div className="text-right">
+                  <p className="text-xs text-muted-foreground">Cap / run</p>
+                  <p className="text-xs font-medium">
+                    {audienceCap != null ? formatNumber(audienceCap) : "—"}
+                  </p>
+                </div>
                 {conversionRate !== undefined && (
                   <div className="text-right">
                     <p className="text-xs text-muted-foreground">Conv. Rate</p>

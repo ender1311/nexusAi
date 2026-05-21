@@ -70,6 +70,8 @@ export interface Agent {
   funnelStage: FunnelStage;
   color: string;
   targetFilter?: Record<string, unknown> | null;
+  audienceCap?: number | null;
+  sortOrder?: number;
   createdAt: string;
   updatedAt: string;
   goals?: Goal[];
