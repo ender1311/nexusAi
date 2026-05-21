@@ -2,6 +2,7 @@ import { ImageResponse } from "next/og";
 
 export const size = { width: 512, height: 512 };
 export const contentType = "image/png";
+export const revalidate = false;
 
 // Bot icon paths (lucide-react "Bot"), rendered at 512×512 for all PWA icon sizes.
 // The inner white disc creates visual depth against the red gradient background.

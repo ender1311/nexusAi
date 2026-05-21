@@ -1328,14 +1328,6 @@ export async function POST(req: NextRequest) {
       }
     }
     // ── End in-window sub-pool ───────────────────────────────────────────────
-    console.log("[cron/select-and-send] agent summary", {
-      agentId:   agent.id,
-      agentName: agent.name,
-      sent:       totalSent       - metricsBefore.sent,
-      suppressed: totalSuppressed - metricsBefore.suppressed,
-      errors:     totalErrors     - metricsBefore.errors,
-      suppressBreakdown: suppress,
-    });
     agentMetrics.set(agent.id, {
       sent:       totalSent       - metricsBefore.sent,
       suppressed: totalSuppressed - metricsBefore.suppressed,

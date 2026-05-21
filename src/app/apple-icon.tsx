@@ -2,6 +2,7 @@ import { ImageResponse } from "next/og";
 
 export const size = { width: 180, height: 180 };
 export const contentType = "image/png";
+export const revalidate = false;
 
 // Same Bot icon design as icon.tsx, sized for iOS apple-touch-icon (180×180).
 // iOS clips to a squircle automatically — no border-radius needed here.
