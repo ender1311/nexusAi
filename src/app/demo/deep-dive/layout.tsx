@@ -6,7 +6,7 @@ import { ChevronLeft, BookOpen } from "lucide-react";
 
 const CHAPTERS = [
   { slug: "", label: "Overview", sub: "What this section covers" },
-  { slug: "feature-vectors", label: "1. Feature Vectors", sub: "44-dim user representation" },
+  { slug: "feature-vectors", label: "1. Feature Vectors", sub: "10-dim user representation" },
   { slug: "persona-clustering", label: "2. Persona Clustering", sub: "k-means + cosine similarity" },
   { slug: "bandit-algorithms", label: "3. Bandit Algorithms", sub: "Thompson Sampling, LinUCB, ε-greedy" },
   { slug: "reward-calculus", label: "4. Reward Calculus", sub: "Tiers, decay, attribution" },

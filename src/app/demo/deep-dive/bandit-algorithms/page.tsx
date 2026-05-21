@@ -153,7 +153,7 @@ sampleBeta(α, β):
         allowing it to personalize decisions based on user features.
       </p>
       <p>
-        Each arm <em>k</em> maintains two structures (where <em>d</em>=44, the feature dimension):
+        Each arm <em>k</em> maintains two structures (where <em>d</em>=10, the feature dimension):
       </p>
       <ul className="list-disc list-inside space-y-1 text-sm">
         <li>
@@ -188,8 +188,7 @@ sampleBeta(α, β):
         Update: Sherman-Morrison Rank-1 Inverse
       </h3>
       <p>
-        A full matrix inversion at every update step would be O(d³) — prohibitive at{" "}
-        <em>d</em>=44. The Sherman-Morrison formula updates{" "}
+        A full matrix inversion at every update step would be O(d³). The Sherman-Morrison formula updates{" "}
         <span className="font-mono">A⁻¹</span> in O(d²):
       </p>
       <pre className="text-xs bg-muted rounded-lg p-4 overflow-x-auto border my-3">
