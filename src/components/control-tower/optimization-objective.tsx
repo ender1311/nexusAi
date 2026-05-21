@@ -11,6 +11,7 @@ import {
 import { cn } from "@/lib/utils";
 import { optimizationParams, type OptimizationConfig } from "@/lib/mock/control-tower";
 import { ShieldCheck } from "lucide-react";
+import { InfoTip } from "@/components/ui/info-tip";
 
 interface OptimizationObjectiveProps {
   config: OptimizationConfig;
@@ -48,7 +49,14 @@ export function OptimizationObjective({
   return (
     <Card className={cn(disabled && "opacity-50 pointer-events-none")}>
       <CardHeader>
-        <CardTitle>Optimization Objective</CardTitle>
+        <CardTitle className="flex items-center gap-1.5">
+          Optimization Objective
+          <InfoTip title="Optimization Objective">
+            <p>The <strong>primary objective</strong> is the single metric you want to maximize (or minimize) across all active agents in this run.</p>
+            <p className="mt-1"><strong>Guardrails</strong> are secondary metrics that must stay within bounds while the primary objective is being optimized. If a configuration would push a guardrail out of range, the optimizer pulls back on it.</p>
+            <p className="mt-1">Think of it as: maximize open rate, but never let churn risk exceed 5% or revenue per user drop below $0.10.</p>
+          </InfoTip>
+        </CardTitle>
         <p className="text-xs text-muted-foreground mt-1 leading-snug">
           Pick one primary goal. Set guardrails to keep other metrics in bounds.
         </p>
@@ -86,6 +94,11 @@ export function OptimizationObjective({
             <label className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
               Guardrails
             </label>
+            <InfoTip title="Guardrails">
+              <p>Hard constraints on secondary metrics. The optimizer will accept lower primary-objective gains to keep every guardrail within its threshold.</p>
+              <p className="mt-1">For example: if <em>Churn Risk</em> has a guardrail of 5%, the optimizer will not recommend a configuration that pushes churn above 5% — even if it would significantly improve the primary metric.</p>
+              <p className="mt-1">Set guardrails conservatively when you first activate a new agent cohort and loosen them as you build confidence in the model.</p>
+            </InfoTip>
           </div>
 
           {guardrailParams.map((param) => {

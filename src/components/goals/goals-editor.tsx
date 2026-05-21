@@ -10,6 +10,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Goal, GoalTier } from "@/types/agent";
 import { cn } from "@/lib/utils";
 import { Trash2, CheckCircle2 } from "lucide-react";
+import { InfoTip } from "@/components/ui/info-tip";
 
 const GOAL_TIERS: Array<{ value: GoalTier; label: string; color: string; weight: number }> = [
   { value: "best", label: "Best", color: "bg-green-500", weight: 10 },
@@ -90,16 +91,24 @@ export function GoalsEditor({ agentId, initialGoals }: Props) {
     <>
       <Card>
         <CardHeader>
-          <CardTitle className="text-sm font-semibold">Add Conversion Goal</CardTitle>
+          <CardTitle className="text-sm font-semibold flex items-center gap-1.5">
+            Add Conversion Goal
+            <InfoTip title="Conversion Goals">
+              <p>Goals define which user events count as a success or failure for this agent. When a tracked event fires, Nexus maps it to a <strong>reward value</strong> and uses that to update each variant&apos;s arm statistics.</p>
+              <p className="mt-1">Over time, variants that produce more positive rewards receive a higher share of sends. Variants linked to negative events (unsubscribes, dismissals) are gradually deprioritized.</p>
+              <p className="mt-1">You can have multiple goals — e.g. <code>plan_started</code> (Best) and <code>push_unsubscribed</code> (Worst) — to capture the full quality signal of each send.</p>
+            </InfoTip>
+          </CardTitle>
         </CardHeader>
         <CardContent className="space-y-4">
-          <div className="flex gap-2">
+          <div className="flex gap-2 items-start">
             <Input
               placeholder="Event name (e.g. plan_started)"
               value={newGoal.eventName}
               onChange={(e) => setNewGoal((g) => ({ ...g, eventName: e.target.value }))}
               className="flex-1"
             />
+            <div className="flex items-center gap-1">
             <Select value={newGoal.tier} onValueChange={(v) => {
               const t = v as GoalTier;
               setNewGoal((g) => ({ ...g, tier: t, valueWeight: GOAL_TIERS.find((x) => x.value === t)?.weight ?? 5 }));
@@ -118,11 +127,27 @@ export function GoalsEditor({ agentId, initialGoals }: Props) {
                 ))}
               </SelectContent>
             </Select>
+            <InfoTip title="Goal Tiers">
+              <p>Tiers map your event to a reward magnitude. The bandit uses this reward to update each variant&apos;s arm statistics.</p>
+              <p className="mt-1">
+                <strong>Best</strong> (+10), <strong>Very Good</strong> (+7), <strong>Good</strong> (+5) — positive outcomes that strengthen the winning variant.<br />
+                <strong>Bad</strong> (−2), <strong>Very Bad</strong> (−5), <strong>Worst</strong> (−10) — negative outcomes (unsubscribes, dismissals) that weaken the sending variant.
+              </p>
+              <p className="mt-1">Use negative tiers for undesirable events so the bandit actively avoids variants that cause them.</p>
+            </InfoTip>
+            </div>
           </div>
 
           {/* Weight mode toggle */}
           <div>
-            <label className="text-xs font-medium text-muted-foreground">Weight Mode</label>
+            <label className="text-xs font-medium text-muted-foreground flex items-center gap-1">
+              Weight Mode
+              <InfoTip title="Weight Mode">
+                <p><strong>Fixed Value</strong> — Every occurrence of this event contributes the same reward weight (e.g. +10 for every plan start).</p>
+                <p className="mt-1"><strong>Event Property</strong> — The reward is drawn from a numeric property on the event itself (e.g. <code>order_value</code>). Ideal for revenue-weighted optimization where a $100 donation should count more than a $5 one.</p>
+                <p className="mt-1">The Weight Default is used when the property is missing or zero, so the signal is never silently lost.</p>
+              </InfoTip>
+            </label>
             <div className="flex gap-2 mt-1.5">
               {(["fixed", "property"] as const).map((mode) => (
                 <button
