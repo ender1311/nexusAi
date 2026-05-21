@@ -332,11 +332,12 @@ function ScheduledSection({ rows, expanded, onToggle, nowMs }: {
   if (rows.length === 0) return null;
   return (
     <div className="space-y-1">
-      <div className="flex items-center gap-2 mb-2">
+      <div className="flex items-center gap-2 mb-2 flex-wrap">
         <Clock className="h-3.5 w-3.5 text-amber-500" />
         <span className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">
           Scheduled — {rows.length} pending
         </span>
+        <span className="text-xs text-muted-foreground/70 italic">· times shown in each user&apos;s local time</span>
       </div>
       {rows.map((row) => {
         const isOpen = expanded.has(row.id);
@@ -387,7 +388,7 @@ function ScheduledSection({ rows, expanded, onToggle, nowMs }: {
               <div className="flex items-center gap-2 shrink-0">
                 <Badge variant="outline" className="text-xs border-amber-300 text-amber-700 dark:border-amber-700 dark:text-amber-400">
                   <Clock className="h-2.5 w-2.5 mr-1" />
-                  {row.scheduledFor ? formatScheduledDelivery(row.scheduledFor) : "—"}
+                  {row.scheduledFor ? `${formatScheduledDelivery(row.scheduledFor)} local` : "—"}
                 </Badge>
                 <Badge variant="outline" className="text-xs capitalize hidden sm:inline-flex">{row.channel}</Badge>
               </div>
