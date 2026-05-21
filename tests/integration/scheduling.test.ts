@@ -8,7 +8,7 @@ import { PUT } from "@/app/api/agents/[id]/scheduling/route";
 
 const baseRule = {
   frequencyCap: { maxSends: 3, period: "week" },
-  quietHours: { start: "22:00", end: "08:00", timezone: "America/New_York" },
+  quietHours: { mode: "suppress", start: "22:00", end: "08:00", timezone: "America/New_York" },
   blackoutDates: ["2025-12-25"],
   smartSuppress: false,
   suppressThresh: 0.5,

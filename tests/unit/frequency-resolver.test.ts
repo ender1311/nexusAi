@@ -5,7 +5,7 @@ import type { SchedulingRule, MessageVariant } from "@/types/agent";
 const agentRule: SchedulingRule = {
   id: "r1", agentId: "a1",
   frequencyCap: { maxSends: 3, period: "week" },
-  quietHours: { start: "22:00", end: "08:00", timezone: "America/New_York" },
+  quietHours: { mode: "suppress", start: "22:00", end: "08:00", timezone: "America/New_York" },
   blackoutDates: [], smartSuppress: false, suppressThresh: 0.5,
 };
 

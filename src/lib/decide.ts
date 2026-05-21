@@ -153,13 +153,15 @@ export async function decideForUser(input: DecideInput): Promise<DecideResult | 
   const now = new Date();
 
   if (rule && !skipSchedulingChecks) {
-    // 4a. Quiet hours — per user, using the user's timezone from attributes (same logic as cron route)
-    const quietHours = rule.quietHours as unknown as { start?: string; end?: string; timezone?: string };
-    if (quietHours?.start && quietHours?.end) {
-      const agentTz = quietHours.timezone ?? "UTC";
+    // 4a. Quiet hours — suppress mode only; none/schedule skip the server-side check.
+    // Backward compat: legacy records without mode default to suppress (or schedule if timezone="user").
+    const quietHoursRaw = rule.quietHours as unknown as { mode?: string; start?: string; end?: string; timezone?: string } | null;
+    const qhMode = quietHoursRaw?.mode ?? (quietHoursRaw?.timezone === "user" ? "schedule" : quietHoursRaw ? "suppress" : "none");
+    if (qhMode === "suppress" && quietHoursRaw?.start && quietHoursRaw?.end) {
+      const agentTz = quietHoursRaw.timezone ?? "UTC";
       const attrs = user.attributes as Record<string, unknown>;
       const userTz = typeof attrs?.timezone === "string" ? attrs.timezone : agentTz;
-      if (isInQuietHours(quietHours.start, quietHours.end, userTz, now)) {
+      if (isInQuietHours(quietHoursRaw.start, quietHoursRaw.end, userTz, now)) {
         return { suppressed: true, reason: "quiet_hours" };
       }
     }
