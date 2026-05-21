@@ -9,6 +9,7 @@ import { Agent, FUNNEL_STAGE_META } from "@/types/agent";
 import { AgentStatusBadge } from "./agent-status-badge";
 import { formatNumber } from "@/lib/utils";
 import { Bot, MessageSquare, Target, Trash2 } from "lucide-react";
+import { InfoTip } from "@/components/ui/info-tip";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -103,7 +104,16 @@ export function AgentCard({ agent, conversionRate, onDelete }: AgentCardProps) {
 
               <div className="flex items-center justify-between">
                 <div>
-                  <p className="text-xs text-muted-foreground">Algorithm</p>
+                  <p className="text-xs text-muted-foreground flex items-center gap-1">
+                    Algorithm
+                    <span onClick={(e) => e.stopPropagation()}>
+                      <InfoTip title="Bandit Algorithm" side="top">
+                        <p><strong>Thompson Sampling</strong> — Explores variants by sampling from learned Beta distributions. Self-balances exploration vs. exploitation. Best default choice.</p>
+                        <p className="mt-1"><strong>ε-Greedy</strong> — Exploits the current best variant most of the time, randomly tries others ε% of runs. Simple but less adaptive to drift.</p>
+                        <p className="mt-1"><strong>LinUCB (Contextual)</strong> — Uses a 10-dimensional user feature vector (engagement patterns, giving tier, recency) to find variants that work best for specific user profiles. Most powerful, needs more data to converge.</p>
+                      </InfoTip>
+                    </span>
+                  </p>
                   <p className="text-xs font-medium">{algorithmLabels[agent.algorithm]}</p>
                 </div>
                 {agent._count && (

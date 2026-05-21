@@ -5,6 +5,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Input } from "@/components/ui/input";
 import { cn } from "@/lib/utils";
 import { Loader2, Check } from "lucide-react";
+import { InfoTip } from "@/components/ui/info-tip";
 
 type Props = {
   agentId: string;
@@ -12,7 +13,6 @@ type Props = {
 };
 
 const PRESET_OPTIONS = [
-  { label: "Unlimited", value: "unlimited" },
   { label: "1 user", value: "1" },
   { label: "5 users", value: "5" },
   { label: "10 users", value: "10" },
@@ -21,13 +21,15 @@ const PRESET_OPTIONS = [
   { label: "100 users", value: "100" },
   { label: "250 users", value: "250" },
   { label: "500 users", value: "500" },
+  { label: "1,000 users", value: "1000" },
   { label: "Custom…", value: "custom" },
 ];
 
 export function AudienceCapEditor({ agentId, audienceCap }: Props) {
+  // null (legacy unlimited) defaults to 100 in UI — all new agents require a cap
   const initialPreset =
     audienceCap === null
-      ? "unlimited"
+      ? "100"
       : PRESET_OPTIONS.find((o) => o.value === String(audienceCap))
         ? String(audienceCap)
         : "custom";
@@ -68,9 +70,7 @@ export function AudienceCapEditor({ agentId, audienceCap }: Props) {
   function handlePresetChange(value: string | null) {
     if (!value) return;
     setPreset(value);
-    if (value === "unlimited") {
-      save(null);
-    } else if (value !== "custom") {
+    if (value !== "custom") {
       save(parseInt(value, 10));
     }
     // "custom" — wait for user to confirm input
@@ -87,6 +87,14 @@ export function AudienceCapEditor({ agentId, audienceCap }: Props) {
 
   return (
     <div className="space-y-3">
+      <div className="flex items-center gap-1.5 mb-1">
+        <span className="text-xs font-medium text-muted-foreground">Max users per cron run</span>
+        <InfoTip title="Audience Cap">
+          <p>Limits how many users receive a message in each cron run. The cap is applied before any message is sent, so a run with cap=100 selects at most 100 users.</p>
+          <p className="mt-1"><strong>Start small.</strong> Use 1–20 when first activating an agent to validate that sends look correct before rolling out to your full audience. Increase once confirmed.</p>
+          <p className="mt-1">Every agent must have a cap — this prevents accidental mass-sends and gives you a predictable send rate as you scale.</p>
+        </InfoTip>
+      </div>
       <div className="flex items-center gap-3">
         <Select value={preset} onValueChange={handlePresetChange}>
           <SelectTrigger className="w-40">
@@ -127,7 +135,7 @@ export function AudienceCapEditor({ agentId, audienceCap }: Props) {
       </div>
 
       <p className="text-xs text-muted-foreground">
-        Limits how many users receive a message per cron run. Use a small number (1–20) when first activating an agent to validate sends before rolling out broadly.
+        Controls the rollout size per cron run. Increase gradually as you validate send quality.
       </p>
     </div>
   );

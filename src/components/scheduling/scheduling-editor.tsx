@@ -12,6 +12,7 @@ import { Badge } from "@/components/ui/badge";
 import { FrequencyCap, QuietHours, QuietHoursMode, SchedulingRule } from "@/types/agent";
 import { Loader2, Check, X } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { InfoTip } from "@/components/ui/info-tip";
 
 const PERIOD_LABELS: Record<string, string> = {
   day: "per day",
@@ -148,7 +149,14 @@ export function SchedulingEditor({ agentId, initialRule }: Props) {
       {/* Frequency Cap */}
       <Card>
         <CardHeader>
-          <CardTitle className="text-sm font-semibold">Frequency Cap</CardTitle>
+          <CardTitle className="text-sm font-semibold flex items-center gap-1.5">
+            Frequency Cap
+            <InfoTip title="Frequency Cap">
+              <p>Limits how many messages a user can receive from this agent in a rolling time window — regardless of how many cron runs fire.</p>
+              <p className="mt-1">The window is <strong>rolling</strong>, not calendar-based. 3 per week means the user hasn&apos;t received a message in the last 7 days more than 3 times.</p>
+              <p className="mt-1">Set this conservatively. Over-messaging drives unsubscribes and negative rewards that hurt your bandit&apos;s arm statistics.</p>
+            </InfoTip>
+          </CardTitle>
         </CardHeader>
         <CardContent className="space-y-3">
           <p className="text-xs text-muted-foreground">
@@ -189,7 +197,14 @@ export function SchedulingEditor({ agentId, initialRule }: Props) {
       {/* Quiet Hours */}
       <Card>
         <CardHeader>
-          <CardTitle className="text-sm font-semibold">Quiet Hours</CardTitle>
+          <CardTitle className="text-sm font-semibold flex items-center gap-1.5">
+            Quiet Hours
+            <InfoTip title="Quiet Hours">
+              <p><strong>Off</strong> — No enforcement. Nexus picks the best behavioral hour per user; users without data use Braze&apos;s in-local-time fallback.</p>
+              <p className="mt-1"><strong>Suppress</strong> — Server-side window check at send time. If a user&apos;s local time (from Hightouch) is inside the window, they&apos;re skipped for that cron run entirely. Good when some users missing a send is acceptable.</p>
+              <p className="mt-1"><strong>Schedule</strong> — Braze queues all messages and delivers at your chosen hour in each user&apos;s own timezone via <code>in_local_time</code>. No one is suppressed — delivery is just delayed to a reasonable hour. Requires Braze to have good timezone coverage.</p>
+            </InfoTip>
+          </CardTitle>
         </CardHeader>
         <CardContent className="space-y-3">
           <p className="text-xs text-muted-foreground">
@@ -302,7 +317,13 @@ export function SchedulingEditor({ agentId, initialRule }: Props) {
       {/* Blackout Dates */}
       <Card>
         <CardHeader>
-          <CardTitle className="text-sm font-semibold">Blackout Dates</CardTitle>
+          <CardTitle className="text-sm font-semibold flex items-center gap-1.5">
+            Blackout Dates
+            <InfoTip title="Blackout Dates">
+              <p>Specific calendar dates on which <strong>no messages are sent</strong> from this agent, regardless of any other scheduling rules.</p>
+              <p className="mt-1">Use for major holidays, company-wide communication freezes, or any date where messaging would be insensitive or unwanted. Dates apply globally to all users of this agent.</p>
+            </InfoTip>
+          </CardTitle>
         </CardHeader>
         <CardContent className="space-y-3">
           <p className="text-xs text-muted-foreground">
@@ -342,7 +363,14 @@ export function SchedulingEditor({ agentId, initialRule }: Props) {
         <CardHeader>
           <div className="flex items-center justify-between">
             <div>
-              <CardTitle className="text-sm font-semibold">Low-Probability Suppression</CardTitle>
+              <CardTitle className="text-sm font-semibold flex items-center gap-1.5">
+                Low-Probability Suppression
+                <InfoTip title="Low-Probability Suppression">
+                  <p>Skips users whose historical engagement predicts a very low probability of converting. This concentrates sends on users more likely to respond, improving your overall conversion rate.</p>
+                  <p className="mt-1">The threshold is compared against the user&apos;s <strong>average reward</strong> across their last 5+ decisions with this agent. Only activates once a user has enough history.</p>
+                  <p className="mt-1">A threshold of 20% means users whose predicted conversion is below 20% are skipped for this run. They can still receive messages in future runs if their behavior changes.</p>
+                </InfoTip>
+              </CardTitle>
               <p className="text-xs text-muted-foreground mt-0.5">
                 Skip users unlikely to convert to focus sends on higher-value moments.
               </p>

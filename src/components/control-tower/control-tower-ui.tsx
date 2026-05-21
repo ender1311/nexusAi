@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import { CheckCircle2, RotateCcw, Users, Zap } from "lucide-react";
+import { InfoTip } from "@/components/ui/info-tip";
 import { FunnelStageBreakdown } from "@/components/charts/funnel-stage-breakdown";
 import { formatNumber } from "@/lib/utils";
 import { Header } from "@/components/layout/header";
@@ -272,7 +273,15 @@ export function ControlTowerUI({ agents, stats, brazeSends, funnelBreakdown }: C
           {/* Agent cards — span 2 cols */}
           <div className="lg:col-span-2">
             <div className="mb-3 flex items-center justify-between">
-              <h2 className="text-sm font-semibold">AI Agents</h2>
+              <h2 className="text-sm font-semibold flex items-center gap-1.5">
+                AI Agents
+                <InfoTip title="AI Agents">
+                  <p>Each agent targets a specific user segment (funnel stage) and autonomously learns which message variant produces the best outcomes using a bandit algorithm.</p>
+                  <p className="mt-1"><strong>Active agents</strong> run on every cron cycle — the bandit selects and sends the best variant for each eligible user, then updates its model when rewards arrive.</p>
+                  <p className="mt-1">Toggling an agent <strong>off</strong> (draft) stops all future sends immediately without losing any learning history. Turn it back on to resume from where it left off.</p>
+                  <p className="mt-1">The algorithm, goals, scheduling rules, and target personas for each agent are configured on the agent&apos;s detail page.</p>
+                </InfoTip>
+              </h2>
               <span className="text-xs text-muted-foreground font-mono">
                 {enabledCount}/{agentPool.length} active
               </span>

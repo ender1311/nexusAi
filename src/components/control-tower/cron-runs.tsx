@@ -5,6 +5,7 @@ import { Activity, CheckCircle2, XCircle, Clock } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 import { cn } from "@/lib/utils";
+import { InfoTip } from "@/components/ui/info-tip";
 
 type CronRun = {
   id: string;
@@ -35,7 +36,14 @@ export function CronRuns() {
       <div className="flex items-center gap-2">
         <Activity className="h-4 w-4 text-muted-foreground" />
         <h2 className="text-sm font-semibold">Recent Cron Runs</h2>
-        <span className="text-xs text-muted-foreground">Last 10 select-and-send executions</span>
+        <InfoTip title="How Cron Runs Work">
+          <p>The <strong>select-and-send cron</strong> fires on a fixed schedule (e.g. every 15 minutes). Each run executes a three-step pipeline:</p>
+          <p className="mt-1"><strong>1. Select</strong> — Pages through eligible users for each active agent, runs the bandit algorithm to pick the best message variant per user, and respects all scheduling rules (quiet hours, frequency cap, blackout dates).</p>
+          <p className="mt-1"><strong>2. Schedule</strong> — Determines send time per user from behavioral data (peak engagement hour) and submits sends to Braze.</p>
+          <p className="mt-1"><strong>3. Record</strong> — Writes a <code>UserDecision</code> row for each send so rewards can be attributed later.</p>
+          <p className="mt-1"><strong>Suppressed</strong> means the user was skipped — quiet hours, frequency cap hit, smart suppression, or audience cap reached.</p>
+        </InfoTip>
+        <span className="text-xs text-muted-foreground">Last 10 executions</span>
       </div>
 
       {loading ? (
