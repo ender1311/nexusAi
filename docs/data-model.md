@@ -17,6 +17,7 @@ erDiagram
         int audienceCap "max users per cron run; null = unlimited"
         string languageFilter "all | en | ISO prefix"
         int staleFunnelStageDays "null = no gate"
+        int sortOrder "drag-and-drop display order; default 0"
         datetime createdAt
         datetime updatedAt
     }

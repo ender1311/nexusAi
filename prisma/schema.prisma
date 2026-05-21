@@ -28,6 +28,7 @@ model Agent {
   // null = no staleness gate (backward compat). Lapsed agents typically use 14; others use 2.
   staleFunnelStageDays Int?
   color            String      @default("#6366f1") // hex accent color shown on agent card and avatar
+  sortOrder        Int         @default(0)         // custom drag-and-drop display order
   createdAt        DateTime    @default(now())
   updatedAt        DateTime    @updatedAt
 

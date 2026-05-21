@@ -3,7 +3,7 @@ export const maxDuration = 20;
 
 import Link from "next/link";
 import { Header } from "@/components/layout/header";
-import { AgentCard } from "@/components/agents/agent-card";
+import { AgentGrid } from "@/components/agents/agent-grid";
 import { AgentFilters } from "@/components/agents/agent-filters";
 import { Button } from "@/components/ui/button";
 import { AgentStatus, FunnelStage, FUNNEL_STAGES, Agent } from "@/types/agent";
@@ -15,30 +15,16 @@ import { LIBRARY_AGENT_NAME } from "@/lib/engine/template-sync";
 
 const PAGE_SIZE = 20;
 
-function buildPageUrl(
-  base: { search: string; status: string; stage?: FunnelStage },
-  page: number,
-): string {
-  const params = new URLSearchParams();
-  if (base.search) params.set("search", base.search);
-  if (base.status !== "all") params.set("status", base.status);
-  if (base.stage) params.set("stage", base.stage);
-  if (page > 0) params.set("page", String(page));
-  const qs = params.toString();
-  return qs ? `/agents?${qs}` : "/agents";
-}
-
 const VALID_STATUSES = new Set<AgentStatus>(["active", "paused", "draft"]);
 const VALID_STAGES = new Set<FunnelStage>(FUNNEL_STAGES);
 
 export default async function AgentsPage({
   searchParams,
 }: {
-  searchParams: Promise<{ search?: string; status?: string; stage?: string; page?: string }>;
+  searchParams: Promise<{ search?: string; status?: string; stage?: string }>;
 }) {
-  const { search = "", status = "all", stage, page } = await searchParams;
+  const { search = "", status = "all", stage } = await searchParams;
   const { isAdmin } = await getAuth();
-  const pageNum = Math.max(0, parseInt(page ?? "0", 10) || 0);
 
   const safeStatus: AgentStatus | undefined =
     status !== "all" && VALID_STATUSES.has(status as AgentStatus)
@@ -67,21 +53,17 @@ export default async function AgentsPage({
   // unstable_cache gives a server-side data cache so ISR cache misses (~every 30s)
   // read from memory instead of hitting the DB. Invalidated by revalidateTag("agents")
   // which the mutation routes already call on create/update/delete.
-  const { dbAgents, totalCount } = await unstable_cache(
+  const { dbAgents } = await unstable_cache(
     async () => {
-      const [agents, count] = await Promise.all([
-        prisma.agent.findMany({
-          where,
-          include: {
-            _count: { select: { goals: true, messages: true, decisions: true } },
-            messages: { select: { _count: { select: { variants: true } } } },
-          },
-          orderBy: { updatedAt: "desc" },
-          take: PAGE_SIZE,
-          skip: pageNum * PAGE_SIZE,
-        }),
-        prisma.agent.count({ where }),
-      ]);
+      const agents = await prisma.agent.findMany({
+        where,
+        include: {
+          _count: { select: { goals: true, messages: true, decisions: true } },
+          messages: { select: { _count: { select: { variants: true } } } },
+        },
+        orderBy: [{ sortOrder: "asc" }, { updatedAt: "desc" }],
+        take: PAGE_SIZE,
+      });
       // Pre-serialize dates — unstable_cache uses JSON.stringify internally so
       // Date objects become strings on deserialization; doing it here keeps types correct.
       return {
@@ -90,16 +72,11 @@ export default async function AgentsPage({
           createdAt: a.createdAt.toISOString(),
           updatedAt: a.updatedAt.toISOString(),
         })),
-        totalCount: count,
       };
     },
-    ["agents-list", search, safeStatus ?? "", safeStage ?? "", String(pageNum)],
+    ["agents-list", search, safeStatus ?? "", safeStage ?? ""],
     { tags: ["agents"], revalidate: 900 },
   )();
-
-  const totalPages = Math.ceil(totalCount / PAGE_SIZE);
-  const hasNext = pageNum < totalPages - 1;
-  const hasPrev = pageNum > 0;
 
   // Determine whether any filters are active (for empty-state messaging)
   const hasFilters = search !== "" || status !== "all" || stage !== undefined;
@@ -115,6 +92,8 @@ export default async function AgentsPage({
     funnelStage: a.funnelStage as FunnelStage,
     color: a.color,
     targetFilter: null,
+    audienceCap: a.audienceCap,
+    sortOrder: a.sortOrder ?? 0,
     createdAt: a.createdAt,
     updatedAt: a.updatedAt,
     _count: {
@@ -173,32 +152,7 @@ export default async function AgentsPage({
             </div>
           )
         ) : (
-          <>
-            <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
-              {agents.map((agent) => (
-                <AgentCard key={agent.id} agent={agent} />
-              ))}
-            </div>
-            {totalPages > 1 && (
-              <div className="flex items-center justify-between pt-2">
-                <span className="text-sm text-muted-foreground">
-                  {pageNum * PAGE_SIZE + 1}–{Math.min((pageNum + 1) * PAGE_SIZE, totalCount)} of {totalCount} agents
-                </span>
-                <div className="flex gap-2">
-                  {hasPrev && (
-                    <Link href={buildPageUrl({ search, status, stage: safeStage }, pageNum - 1)}>
-                      <Button variant="outline" size="sm">Previous</Button>
-                    </Link>
-                  )}
-                  {hasNext && (
-                    <Link href={buildPageUrl({ search, status, stage: safeStage }, pageNum + 1)}>
-                      <Button variant="outline" size="sm">Next</Button>
-                    </Link>
-                  )}
-                </div>
-              </div>
-            )}
-          </>
+          <AgentGrid agents={agents} />
         )}
       </div>
     </>
