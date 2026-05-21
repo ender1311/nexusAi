@@ -28,6 +28,7 @@ export const viewport: Viewport = {
 export const metadata: Metadata = {
   title: "Nexus",
   description: "YouVersion AI-powered personalized messaging decisions",
+  manifest: "/manifest.webmanifest",
   appleWebApp: {
     capable: true,
     title: "Nexus",

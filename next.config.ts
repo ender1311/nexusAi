@@ -46,6 +46,10 @@ const nextConfig: NextConfig = {
   },
   headers: async () => [
     { source: "/(.*)", headers: securityHeaders },
+    {
+      source: "/(.*)\\.mp4",
+      headers: [{ key: "Cache-Control", value: "public, max-age=31536000, immutable" }],
+    },
   ],
 };
 

@@ -2,6 +2,9 @@
   "$schema": "https://openapi.vercel.sh/vercel.json",
   "framework": "nextjs",
   "buildCommand": "bun run build",
+  "git": {
+    "deploymentEnabled": { "docs/*": false, "chore/*": false }
+  },
   "crons": [
     {
       "path": "/api/cron/select-and-send",
