@@ -10,7 +10,7 @@ export default function PersonaClusteringPage() {
 
       <p className="text-sm leading-relaxed">
         Nexus segments users into behavioral archetypes — called personas —
-        by running unsupervised clustering over the 44-dimensional feature
+        by running unsupervised clustering over the 10-dimensional feature
         vectors described in Chapter 1. Rather than training a single global
         bandit model that must serve all users with the same arm statistics,
         each persona receives its own independent set of Beta(α, β)

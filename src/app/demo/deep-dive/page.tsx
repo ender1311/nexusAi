@@ -6,7 +6,7 @@ const CHAPTERS = [
     slug: "feature-vectors",
     title: "Feature Vectors",
     description:
-      "How 44 behavioral and semantic signals are normalized into a single vector representing a user's engagement profile. Covers channel affinity, temporal histograms, and YouVersion-specific depth signals.",
+      "How 10 behavioral and semantic signals are bucketed into a compact vector representing a user's engagement profile. Covers channel affinity, temporal engagement ratios, and YouVersion-specific depth signals.",
   },
   {
     num: 2,
@@ -60,11 +60,10 @@ export default function DeepDiveOverviewPage() {
         is to maximize a scalar reward signal derived from user engagement events
         — opens, conversions, donations, and reading-plan completions — across
         push, email, and in-app message channels. Every user is represented as a
-        point in a 44-dimensional feature space encoding channel affinity,
-        hourly and day-of-week engagement histograms, overall conversion rate,
-        and YouVersion-specific depth signals (giving tier, streak depth,
-        recency, plan completions, guided prayer, guided scripture, and badge
-        count). These vectors are compressed into behavioral archetypes via
+        point in a 10-dimensional feature space encoding channel affinity,
+        temporal engagement ratios (morning, evening, weekend), overall conversion rate,
+        and YouVersion-specific depth signals (recency, giving tier, spiritual depth composite,
+        and engagement frequency). These vectors are compressed into behavioral archetypes via
         k-means++ clustering over cosine distance, producing a small set of
         personas — typically 4–9 — that each receive independent bandit models.
       </p>
