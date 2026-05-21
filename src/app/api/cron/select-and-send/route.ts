@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { revalidateTag } from "next/cache";
 import { randomUUID } from "crypto";
 import { prisma } from "@/lib/db";
+import type { Prisma } from "@/generated/prisma/client";
 import { createBrazeClient } from "@/lib/braze/client";
 import { PayloadFactory } from "@/lib/braze/payload-factory";
 import { evaluateTargetFilter, buildComputedKeys } from "@/lib/engine/target-filter";
@@ -848,7 +849,7 @@ export async function POST(req: NextRequest) {
 
         // Bulk-create all UserDecision records in one createManyAndReturn call
         if (lotteryDecisionInputs.length > 0) {
-          const decisionData2 = lotteryDecisionInputs.map(({ user, variantId, scheduledAt }) => {
+          const decisionData2 = lotteryDecisionInputs.map(({ user, variantId, scheduledAt, inLocalTime }) => {
             const pid = user.personaId as string | null;
             const arms = pid ? pageArmsByPersona.get(pid) : null;
             const variantScores: Record<string, number> = {};
@@ -865,7 +866,7 @@ export async function POST(req: NextRequest) {
               messageVariantId: variantId,
               channel:          pageVariants.find((v) => v.id === variantId)?.channel ?? "push",
               scheduledFor:     scheduledAt,
-              decisionContext:  pid ? { personaId: pid, selectedVariantId: variantId, variantScores } : undefined,
+              decisionContext:  { ...(pid ? { personaId: pid, selectedVariantId: variantId, variantScores } : {}), inLocalTime } as unknown as Prisma.InputJsonValue,
             };
           });
 
@@ -1192,7 +1193,7 @@ export async function POST(req: NextRequest) {
         }
 
         // Bulk-create all UserDecision records in one createMany call
-        const decisionData = decisionInputs.map(({ user, variantId, scheduledAt }) => {
+        const decisionData = decisionInputs.map(({ user, variantId, scheduledAt, inLocalTime }) => {
           const pid = user.personaId as string | null;
           const arms = pid ? armStatsByPersona.get(pid) : null;
           const variantScores: Record<string, number> = {};
@@ -1210,7 +1211,7 @@ export async function POST(req: NextRequest) {
             channel:          windowVariants.find((v) => v.id === variantId)?.channel ?? "push",
             sentAt:           now,
             scheduledFor:     scheduledAt,
-            decisionContext:  pid ? { personaId: pid, selectedVariantId: variantId, variantScores } : undefined,
+            decisionContext:  { ...(pid ? { personaId: pid, selectedVariantId: variantId, variantScores } : {}), inLocalTime } as unknown as Prisma.InputJsonValue,
           };
         });
 
