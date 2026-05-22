@@ -152,7 +152,7 @@ Cron path: `src/app/api/cron/select-and-send/route.ts` pre-checks quiet hours pe
 
 In Hightouch:
 1. **Model** — SQL query: `external_user_id` + behavioral attributes flat per user
-2. **Destination** — HTTP Request → `POST https://nexus.vercel.app/api/ingest/users`
+2. **Destination** — HTTP Request → `POST https://nexus.youversion.com/api/ingest/users`
 3. **Auth** — `Authorization: Bearer <HIGHTOUCH_API_KEY>`
 4. **Column mapping** — primary key → `external_user_id`; all attributes → `attributes` object
 5. **Schedule** — Hourly (or daily; persona assignment runs on next ingest cycle)

@@ -357,7 +357,7 @@ async function main() {
   console.log("   Or use: bun run scripts/activate-agent.ts");
   console.log("");
   console.log("4. Test send:");
-  console.log(`   curl -X POST https://nexus-ai-yv.vercel.app/api/cron/select-and-send \\`);
+  console.log(`   curl -X POST https://nexus.youversion.com/api/cron/select-and-send \\`);
   console.log(`     -H "Authorization: Bearer $CRON_SECRET"`);
   console.log("═══════════════════════════════════════════════════════════════");
 
