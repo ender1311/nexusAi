@@ -59,7 +59,7 @@ export default async function RootLayout({
         <ThemeProvider attribute="class" defaultTheme="system" enableSystem disableTransitionOnChange>
           {user ? (
             <DataModeProvider>
-              <div className="flex h-screen overflow-hidden bg-background">
+              <div className="flex h-full overflow-hidden bg-background">
                 <Sidebar user={sidebarUser} />
                 <main className="flex-1 overflow-y-auto pb-[calc(4rem+env(safe-area-inset-bottom))] lg:pb-0">
                   {children}
