@@ -16,6 +16,7 @@ import {
   Radar,
   Sprout,
   Workflow,
+  FlaskConical,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useState } from "react";
@@ -37,6 +38,7 @@ const navItems = [
   { href: "/control-tower", label: "Control Tower", icon: Radar },
   { href: "/demo", label: "Demo", icon: Play },
   { href: "/architecture", label: "Architecture", icon: Workflow },
+  { href: "/demo/deep-dive", label: "Advanced Docs", icon: FlaskConical },
   { href: "/about", label: "About", icon: Sprout },
   { href: "/settings", label: "Settings", icon: Settings },
 ];
