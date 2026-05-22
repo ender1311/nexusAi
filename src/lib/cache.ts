@@ -13,6 +13,7 @@
  *   "dashboard-stats" — new decisions recorded
  *   "performance"     — new decisions recorded
  */
+import { cache } from "react";
 import { unstable_cache } from "next/cache";
 import { prisma } from "@/lib/db";
 import { createBrazeClient } from "@/lib/braze/client";
@@ -65,20 +66,22 @@ export function getCachedAgentAudienceData(agentId: string, personaIds: string[]
 }
 
 /** Lightweight agent list for dashboard sidebar. Direct DB query avoids HTTP round-trip on cold start. */
-export const getCachedAgentList = unstable_cache(
-  () =>
-    prisma.agent.findMany({
-      where: { name: { not: LIBRARY_AGENT_NAME } },
-      select: {
-        id: true,
-        name: true,
-        status: true,
-        _count: { select: { decisions: true } },
-      },
-      orderBy: { updatedAt: "desc" },
-    }),
-  ["agent-list"],
-  { tags: ["agents"], revalidate: 900 }
+export const getCachedAgentList = cache(
+  unstable_cache(
+    () =>
+      prisma.agent.findMany({
+        where: { name: { not: LIBRARY_AGENT_NAME } },
+        select: {
+          id: true,
+          name: true,
+          status: true,
+          _count: { select: { decisions: true } },
+        },
+        orderBy: { updatedAt: "desc" },
+      }),
+    ["agent-list"],
+    { tags: ["agents"], revalidate: 900 }
+  )
 );
 
 /** Agent list for control tower — includes funnelStage and description (60s TTL). */
@@ -123,22 +126,42 @@ export const getCachedPersonaDistribution = unstable_cache(
 // ── Dashboard counts ──────────────────────────────────────────────────────────
 
 /** Aggregate counts shown in dashboard metric cards. */
-export const getCachedDashboardCounts = unstable_cache(
-  async () => {
-    const now = new Date();
-    const twentyFourHoursAgo = new Date(now.getTime() - 24 * 60 * 60 * 1000);
-    const [sentLast24h, totalDecisions, totalConversions, trackedUsers, totalPushSends, totalPushOpens] = await Promise.all([
-      prisma.userDecision.count({ where: { sentAt: { gte: twentyFourHoursAgo } } }),
-      prisma.userDecision.count(),
-      prisma.userDecision.count({ where: { conversionAt: { not: null } } }),
-      prisma.trackedUser.count(),
-      prisma.userDecision.count({ where: { channel: "push" } }),
-      prisma.userDecision.count({ where: { channel: "push", pushOpenAt: { not: null } } }),
-    ]);
-    return { sentLast24h, totalDecisions, totalConversions, trackedUsers, totalPushSends, totalPushOpens };
-  },
-  ["dashboard-counts"],
-  { tags: ["dashboard-stats"], revalidate: 900 }
+export const getCachedDashboardCounts = cache(
+  unstable_cache(
+    async () => {
+      const twentyFourHoursAgo = new Date(Date.now() - 24 * 60 * 60 * 1000);
+      // Single aggregated pass over UserDecision instead of 5 separate COUNT queries.
+      const [rows, trackedUsers] = await Promise.all([
+        prisma.$queryRaw<[{
+          sent_last24h: bigint;
+          total_decisions: bigint;
+          total_conversions: bigint;
+          total_push_sends: bigint;
+          total_push_opens: bigint;
+        }]>`
+          SELECT
+            COUNT(*) FILTER (WHERE "sentAt" >= ${twentyFourHoursAgo})                          AS sent_last24h,
+            COUNT(*)                                                                             AS total_decisions,
+            COUNT(*) FILTER (WHERE "conversionAt" IS NOT NULL)                                  AS total_conversions,
+            COUNT(*) FILTER (WHERE "channel" = 'push')                                          AS total_push_sends,
+            COUNT(*) FILTER (WHERE "channel" = 'push' AND "pushOpenAt" IS NOT NULL)             AS total_push_opens
+          FROM "UserDecision"
+        `,
+        prisma.trackedUser.count(),
+      ]);
+      const r = rows[0];
+      return {
+        sentLast24h:      Number(r.sent_last24h),
+        totalDecisions:   Number(r.total_decisions),
+        totalConversions: Number(r.total_conversions),
+        trackedUsers,
+        totalPushSends:   Number(r.total_push_sends),
+        totalPushOpens:   Number(r.total_push_opens),
+      };
+    },
+    ["dashboard-counts"],
+    { tags: ["dashboard-stats"], revalidate: 900 }
+  )
 );
 
 // ── Dashboard time-series and recent-sends ────────────────────────────────────
@@ -370,7 +393,7 @@ export const getCachedLiftSettings = unstable_cache(
 // ── Braze campaign stats ──────────────────────────────────────────────────────
 
 /** Braze campaign direct/total open rates, cached 15 min. Returns null when Braze is unconfigured. */
-export const getCachedBrazeStats = unstable_cache(
+export const getCachedBrazeStats = cache(unstable_cache(
   async () => {
     const campaignId = process.env.BRAZE_NEXUS_CAMPAIGN_ID;
     if (!campaignId) return null;
@@ -420,7 +443,7 @@ export const getCachedBrazeStats = unstable_cache(
   },
   ["braze-campaign-stats"],
   { tags: ["braze-stats"], revalidate: 900 }
-);
+));
 
 // ── Control Tower stats ───────────────────────────────────────────────────────
 
