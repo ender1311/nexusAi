@@ -161,6 +161,7 @@ export interface SchedulingRule {
   blackoutDates: string[];
   smartSuppress: boolean;
   suppressThresh: number;
+  prioritizeLastSeen: boolean;
 }
 
 export interface FrequencyCap {

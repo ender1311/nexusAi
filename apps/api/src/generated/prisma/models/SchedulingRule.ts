@@ -39,6 +39,7 @@ export type SchedulingRuleMinAggregateOutputType = {
   agentId: string | null
   smartSuppress: boolean | null
   suppressThresh: number | null
+  prioritizeLastSeen: boolean | null
 }
 
 export type SchedulingRuleMaxAggregateOutputType = {
@@ -46,6 +47,7 @@ export type SchedulingRuleMaxAggregateOutputType = {
   agentId: string | null
   smartSuppress: boolean | null
   suppressThresh: number | null
+  prioritizeLastSeen: boolean | null
 }
 
 export type SchedulingRuleCountAggregateOutputType = {
@@ -56,6 +58,7 @@ export type SchedulingRuleCountAggregateOutputType = {
   blackoutDates: number
   smartSuppress: number
   suppressThresh: number
+  prioritizeLastSeen: number
   _all: number
 }
 
@@ -73,6 +76,7 @@ export type SchedulingRuleMinAggregateInputType = {
   agentId?: true
   smartSuppress?: true
   suppressThresh?: true
+  prioritizeLastSeen?: true
 }
 
 export type SchedulingRuleMaxAggregateInputType = {
@@ -80,6 +84,7 @@ export type SchedulingRuleMaxAggregateInputType = {
   agentId?: true
   smartSuppress?: true
   suppressThresh?: true
+  prioritizeLastSeen?: true
 }
 
 export type SchedulingRuleCountAggregateInputType = {
@@ -90,6 +95,7 @@ export type SchedulingRuleCountAggregateInputType = {
   blackoutDates?: true
   smartSuppress?: true
   suppressThresh?: true
+  prioritizeLastSeen?: true
   _all?: true
 }
 
@@ -187,6 +193,7 @@ export type SchedulingRuleGroupByOutputType = {
   blackoutDates: runtime.JsonValue
   smartSuppress: boolean
   suppressThresh: number
+  prioritizeLastSeen: boolean
   _count: SchedulingRuleCountAggregateOutputType | null
   _avg: SchedulingRuleAvgAggregateOutputType | null
   _sum: SchedulingRuleSumAggregateOutputType | null
@@ -220,6 +227,7 @@ export type SchedulingRuleWhereInput = {
   blackoutDates?: Prisma.JsonFilter<"SchedulingRule">
   smartSuppress?: Prisma.BoolFilter<"SchedulingRule"> | boolean
   suppressThresh?: Prisma.FloatFilter<"SchedulingRule"> | number
+  prioritizeLastSeen?: Prisma.BoolFilter<"SchedulingRule"> | boolean
   agent?: Prisma.XOR<Prisma.AgentScalarRelationFilter, Prisma.AgentWhereInput>
 }
 
@@ -231,6 +239,7 @@ export type SchedulingRuleOrderByWithRelationInput = {
   blackoutDates?: Prisma.SortOrder
   smartSuppress?: Prisma.SortOrder
   suppressThresh?: Prisma.SortOrder
+  prioritizeLastSeen?: Prisma.SortOrder
   agent?: Prisma.AgentOrderByWithRelationInput
 }
 
@@ -245,6 +254,7 @@ export type SchedulingRuleWhereUniqueInput = Prisma.AtLeast<{
   blackoutDates?: Prisma.JsonFilter<"SchedulingRule">
   smartSuppress?: Prisma.BoolFilter<"SchedulingRule"> | boolean
   suppressThresh?: Prisma.FloatFilter<"SchedulingRule"> | number
+  prioritizeLastSeen?: Prisma.BoolFilter<"SchedulingRule"> | boolean
   agent?: Prisma.XOR<Prisma.AgentScalarRelationFilter, Prisma.AgentWhereInput>
 }, "id" | "agentId">
 
@@ -256,6 +266,7 @@ export type SchedulingRuleOrderByWithAggregationInput = {
   blackoutDates?: Prisma.SortOrder
   smartSuppress?: Prisma.SortOrder
   suppressThresh?: Prisma.SortOrder
+  prioritizeLastSeen?: Prisma.SortOrder
   _count?: Prisma.SchedulingRuleCountOrderByAggregateInput
   _avg?: Prisma.SchedulingRuleAvgOrderByAggregateInput
   _max?: Prisma.SchedulingRuleMaxOrderByAggregateInput
@@ -274,6 +285,7 @@ export type SchedulingRuleScalarWhereWithAggregatesInput = {
   blackoutDates?: Prisma.JsonWithAggregatesFilter<"SchedulingRule">
   smartSuppress?: Prisma.BoolWithAggregatesFilter<"SchedulingRule"> | boolean
   suppressThresh?: Prisma.FloatWithAggregatesFilter<"SchedulingRule"> | number
+  prioritizeLastSeen?: Prisma.BoolWithAggregatesFilter<"SchedulingRule"> | boolean
 }
 
 export type SchedulingRuleCreateInput = {
@@ -283,6 +295,7 @@ export type SchedulingRuleCreateInput = {
   blackoutDates?: Prisma.JsonNullValueInput | runtime.InputJsonValue
   smartSuppress?: boolean
   suppressThresh?: number
+  prioritizeLastSeen?: boolean
   agent: Prisma.AgentCreateNestedOneWithoutSchedulingRuleInput
 }
 
@@ -294,6 +307,7 @@ export type SchedulingRuleUncheckedCreateInput = {
   blackoutDates?: Prisma.JsonNullValueInput | runtime.InputJsonValue
   smartSuppress?: boolean
   suppressThresh?: number
+  prioritizeLastSeen?: boolean
 }
 
 export type SchedulingRuleUpdateInput = {
@@ -303,6 +317,7 @@ export type SchedulingRuleUpdateInput = {
   blackoutDates?: Prisma.JsonNullValueInput | runtime.InputJsonValue
   smartSuppress?: Prisma.BoolFieldUpdateOperationsInput | boolean
   suppressThresh?: Prisma.FloatFieldUpdateOperationsInput | number
+  prioritizeLastSeen?: Prisma.BoolFieldUpdateOperationsInput | boolean
   agent?: Prisma.AgentUpdateOneRequiredWithoutSchedulingRuleNestedInput
 }
 
@@ -314,6 +329,7 @@ export type SchedulingRuleUncheckedUpdateInput = {
   blackoutDates?: Prisma.JsonNullValueInput | runtime.InputJsonValue
   smartSuppress?: Prisma.BoolFieldUpdateOperationsInput | boolean
   suppressThresh?: Prisma.FloatFieldUpdateOperationsInput | number
+  prioritizeLastSeen?: Prisma.BoolFieldUpdateOperationsInput | boolean
 }
 
 export type SchedulingRuleCreateManyInput = {
@@ -324,6 +340,7 @@ export type SchedulingRuleCreateManyInput = {
   blackoutDates?: Prisma.JsonNullValueInput | runtime.InputJsonValue
   smartSuppress?: boolean
   suppressThresh?: number
+  prioritizeLastSeen?: boolean
 }
 
 export type SchedulingRuleUpdateManyMutationInput = {
@@ -333,6 +350,7 @@ export type SchedulingRuleUpdateManyMutationInput = {
   blackoutDates?: Prisma.JsonNullValueInput | runtime.InputJsonValue
   smartSuppress?: Prisma.BoolFieldUpdateOperationsInput | boolean
   suppressThresh?: Prisma.FloatFieldUpdateOperationsInput | number
+  prioritizeLastSeen?: Prisma.BoolFieldUpdateOperationsInput | boolean
 }
 
 export type SchedulingRuleUncheckedUpdateManyInput = {
@@ -343,6 +361,7 @@ export type SchedulingRuleUncheckedUpdateManyInput = {
   blackoutDates?: Prisma.JsonNullValueInput | runtime.InputJsonValue
   smartSuppress?: Prisma.BoolFieldUpdateOperationsInput | boolean
   suppressThresh?: Prisma.FloatFieldUpdateOperationsInput | number
+  prioritizeLastSeen?: Prisma.BoolFieldUpdateOperationsInput | boolean
 }
 
 export type SchedulingRuleNullableScalarRelationFilter = {
@@ -358,6 +377,7 @@ export type SchedulingRuleCountOrderByAggregateInput = {
   blackoutDates?: Prisma.SortOrder
   smartSuppress?: Prisma.SortOrder
   suppressThresh?: Prisma.SortOrder
+  prioritizeLastSeen?: Prisma.SortOrder
 }
 
 export type SchedulingRuleAvgOrderByAggregateInput = {
@@ -369,6 +389,7 @@ export type SchedulingRuleMaxOrderByAggregateInput = {
   agentId?: Prisma.SortOrder
   smartSuppress?: Prisma.SortOrder
   suppressThresh?: Prisma.SortOrder
+  prioritizeLastSeen?: Prisma.SortOrder
 }
 
 export type SchedulingRuleMinOrderByAggregateInput = {
@@ -376,6 +397,7 @@ export type SchedulingRuleMinOrderByAggregateInput = {
   agentId?: Prisma.SortOrder
   smartSuppress?: Prisma.SortOrder
   suppressThresh?: Prisma.SortOrder
+  prioritizeLastSeen?: Prisma.SortOrder
 }
 
 export type SchedulingRuleSumOrderByAggregateInput = {
@@ -421,6 +443,7 @@ export type SchedulingRuleCreateWithoutAgentInput = {
   blackoutDates?: Prisma.JsonNullValueInput | runtime.InputJsonValue
   smartSuppress?: boolean
   suppressThresh?: number
+  prioritizeLastSeen?: boolean
 }
 
 export type SchedulingRuleUncheckedCreateWithoutAgentInput = {
@@ -430,6 +453,7 @@ export type SchedulingRuleUncheckedCreateWithoutAgentInput = {
   blackoutDates?: Prisma.JsonNullValueInput | runtime.InputJsonValue
   smartSuppress?: boolean
   suppressThresh?: number
+  prioritizeLastSeen?: boolean
 }
 
 export type SchedulingRuleCreateOrConnectWithoutAgentInput = {
@@ -455,6 +479,7 @@ export type SchedulingRuleUpdateWithoutAgentInput = {
   blackoutDates?: Prisma.JsonNullValueInput | runtime.InputJsonValue
   smartSuppress?: Prisma.BoolFieldUpdateOperationsInput | boolean
   suppressThresh?: Prisma.FloatFieldUpdateOperationsInput | number
+  prioritizeLastSeen?: Prisma.BoolFieldUpdateOperationsInput | boolean
 }
 
 export type SchedulingRuleUncheckedUpdateWithoutAgentInput = {
@@ -464,6 +489,7 @@ export type SchedulingRuleUncheckedUpdateWithoutAgentInput = {
   blackoutDates?: Prisma.JsonNullValueInput | runtime.InputJsonValue
   smartSuppress?: Prisma.BoolFieldUpdateOperationsInput | boolean
   suppressThresh?: Prisma.FloatFieldUpdateOperationsInput | number
+  prioritizeLastSeen?: Prisma.BoolFieldUpdateOperationsInput | boolean
 }
 
 
@@ -476,6 +502,7 @@ export type SchedulingRuleSelect<ExtArgs extends runtime.Types.Extensions.Intern
   blackoutDates?: boolean
   smartSuppress?: boolean
   suppressThresh?: boolean
+  prioritizeLastSeen?: boolean
   agent?: boolean | Prisma.AgentDefaultArgs<ExtArgs>
 }, ExtArgs["result"]["schedulingRule"]>
 
@@ -487,6 +514,7 @@ export type SchedulingRuleSelectCreateManyAndReturn<ExtArgs extends runtime.Type
   blackoutDates?: boolean
   smartSuppress?: boolean
   suppressThresh?: boolean
+  prioritizeLastSeen?: boolean
   agent?: boolean | Prisma.AgentDefaultArgs<ExtArgs>
 }, ExtArgs["result"]["schedulingRule"]>
 
@@ -498,6 +526,7 @@ export type SchedulingRuleSelectUpdateManyAndReturn<ExtArgs extends runtime.Type
   blackoutDates?: boolean
   smartSuppress?: boolean
   suppressThresh?: boolean
+  prioritizeLastSeen?: boolean
   agent?: boolean | Prisma.AgentDefaultArgs<ExtArgs>
 }, ExtArgs["result"]["schedulingRule"]>
 
@@ -509,9 +538,10 @@ export type SchedulingRuleSelectScalar = {
   blackoutDates?: boolean
   smartSuppress?: boolean
   suppressThresh?: boolean
+  prioritizeLastSeen?: boolean
 }
 
-export type SchedulingRuleOmit<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = runtime.Types.Extensions.GetOmit<"id" | "agentId" | "frequencyCap" | "quietHours" | "blackoutDates" | "smartSuppress" | "suppressThresh", ExtArgs["result"]["schedulingRule"]>
+export type SchedulingRuleOmit<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = runtime.Types.Extensions.GetOmit<"id" | "agentId" | "frequencyCap" | "quietHours" | "blackoutDates" | "smartSuppress" | "suppressThresh" | "prioritizeLastSeen", ExtArgs["result"]["schedulingRule"]>
 export type SchedulingRuleInclude<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
   agent?: boolean | Prisma.AgentDefaultArgs<ExtArgs>
 }
@@ -535,6 +565,7 @@ export type $SchedulingRulePayload<ExtArgs extends runtime.Types.Extensions.Inte
     blackoutDates: runtime.JsonValue
     smartSuppress: boolean
     suppressThresh: number
+    prioritizeLastSeen: boolean
   }, ExtArgs["result"]["schedulingRule"]>
   composites: {}
 }
@@ -966,6 +997,7 @@ export interface SchedulingRuleFieldRefs {
   readonly blackoutDates: Prisma.FieldRef<"SchedulingRule", 'Json'>
   readonly smartSuppress: Prisma.FieldRef<"SchedulingRule", 'Boolean'>
   readonly suppressThresh: Prisma.FieldRef<"SchedulingRule", 'Float'>
+  readonly prioritizeLastSeen: Prisma.FieldRef<"SchedulingRule", 'Boolean'>
 }
     
 

@@ -35,7 +35,7 @@ export async function PUT(
   if (forbidden) return forbidden;
   try {
     const body = await req.json();
-    const { frequencyCap, quietHours, blackoutDates, smartSuppress, suppressThresh } = body;
+    const { frequencyCap, quietHours, blackoutDates, smartSuppress, suppressThresh, prioritizeLastSeen } = body;
 
     if (
       !frequencyCap ||
@@ -76,6 +76,7 @@ export async function PUT(
         blackoutDates,
         smartSuppress: smartSuppress ?? false,
         suppressThresh: suppressThresh ?? 0.5,
+        prioritizeLastSeen: prioritizeLastSeen ?? true,
       },
       update: {
         frequencyCap,
@@ -83,6 +84,7 @@ export async function PUT(
         blackoutDates,
         smartSuppress: smartSuppress ?? false,
         suppressThresh: suppressThresh ?? 0.5,
+        prioritizeLastSeen: prioritizeLastSeen ?? true,
       },
     });
 

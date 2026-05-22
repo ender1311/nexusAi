@@ -280,8 +280,9 @@ model SchedulingRule {
   frequencyCap   Json    @default("{\"maxSends\":3,\"period\":\"week\"}")
   quietHours     Json    @default("{\"start\":\"22:00\",\"end\":\"08:00\",\"timezone\":\"America/New_York\"}")
   blackoutDates  Json    @default("[]")
-  smartSuppress  Boolean @default(false)
-  suppressThresh Float   @default(0.5)
+  smartSuppress      Boolean @default(false)
+  suppressThresh     Float   @default(0.5)
+  prioritizeLastSeen Boolean @default(true)
 
   agent Agent @relation(fields: [agentId], references: [id], onDelete: Cascade)
 }
