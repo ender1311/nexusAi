@@ -36,6 +36,7 @@ const securityHeaders = [
       "frame-ancestors 'none'",
       "base-uri 'self'",
       "form-action 'self'",
+      "frame-src https://www.youtube-nocookie.com",
     ].join("; "),
   },
 ];

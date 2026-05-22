@@ -1,5 +1,12 @@
 import Link from "next/link";
 
+const VIDEOS = [
+  { id: "RscSFB7vygE", title: "Nexus Overview" },
+  { id: "XcsgPwy7eYw", title: "Braze AI: Decisioning Studio" },
+  { id: "YYF_eDQP3TU", title: "Braze AI: Campaign Intelligence" },
+  { id: "HfT0kLcpjoc", title: "Braze AI: Product Demo", start: 25 },
+];
+
 const CHAPTERS = [
   {
     num: 1,
@@ -47,7 +54,24 @@ const CHAPTERS = [
 
 export default function DeepDiveOverviewPage() {
   return (
-    <article className="prose-sm max-w-none space-y-2">
+    <>
+      <div className="space-y-4 mb-8">
+        <h2 className="text-lg font-semibold">Videos</h2>
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+          {VIDEOS.map((v) => (
+            <div key={v.id}>
+              <iframe
+                src={`https://www.youtube-nocookie.com/embed/${v.id}${v.start ? `?start=${v.start}` : ""}`}
+                className="w-full aspect-video rounded-lg border"
+                allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                allowFullScreen
+              />
+              <p className="text-xs text-muted-foreground mt-1">{v.title}</p>
+            </div>
+          ))}
+        </div>
+      </div>
+      <article className="prose-sm max-w-none space-y-2">
       <h1 className="text-2xl font-bold mb-1">Advanced Data Science</h1>
       <p className="text-muted-foreground text-sm mb-6">
         A technical deep-dive into the mathematics and algorithms that power
@@ -119,5 +143,6 @@ export default function DeepDiveOverviewPage() {
         ))}
       </div>
     </article>
+    </>
   );
 }
