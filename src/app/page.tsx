@@ -253,7 +253,7 @@ async function RecentSendsSection() {
   );
 }
 
-async function PersonaSidebarSection() {
+async function PersonaChartSection() {
   const personasRaw = await getCachedPersonaDistribution();
   const totalPersonaUsers = personasRaw.reduce((s, p) => s + p._count.trackedUsers, 0);
   const personaData = personasRaw
@@ -265,42 +265,47 @@ async function PersonaSidebarSection() {
       percent: totalPersonaUsers > 0 ? Math.round((p._count.trackedUsers / totalPersonaUsers) * 100) : 0,
       color: p.color,
     }));
+
+  return (
+    <Card>
+      <CardHeader className="flex flex-row items-center justify-between">
+        <CardTitle className="text-sm font-semibold">Persona Distribution</CardTitle>
+        <Link href="/personas">
+          <Button variant="ghost" size="sm" className="h-7 text-xs">View all</Button>
+        </Link>
+      </CardHeader>
+      <CardContent>
+        <PersonaDistributionChart data={personaData} />
+      </CardContent>
+    </Card>
+  );
+}
+
+async function TopPersonaSection() {
+  const personasRaw = await getCachedPersonaDistribution();
   const topPersona = personasRaw[0];
 
   return (
-    <>
-      <Card>
-        <CardHeader className="flex flex-row items-center justify-between">
-          <CardTitle className="text-sm font-semibold">Persona Distribution</CardTitle>
-          <Link href="/personas">
-            <Button variant="ghost" size="sm" className="h-7 text-xs">View all</Button>
-          </Link>
-        </CardHeader>
-        <CardContent>
-          <PersonaDistributionChart data={personaData} />
-        </CardContent>
-      </Card>
-      <Card>
-        <CardHeader>
-          <CardTitle className="text-sm font-semibold">Top Persona</CardTitle>
-        </CardHeader>
-        <CardContent>
-          {topPersona && topPersona._count.trackedUsers > 0 ? (
-            <div className="rounded-lg p-2 -m-2">
-              <p className="text-sm font-medium">{topPersona.name}</p>
-              <p className="text-xs text-muted-foreground mt-0.5">{topPersona.label ?? topPersona.name}</p>
-              <div className="flex items-center gap-3 mt-2">
-                <span className="text-xs text-muted-foreground">
-                  <span className="font-semibold text-foreground">{formatNumber(topPersona._count.trackedUsers)}</span> users
-                </span>
-              </div>
+    <Card>
+      <CardHeader>
+        <CardTitle className="text-sm font-semibold">Top Persona</CardTitle>
+      </CardHeader>
+      <CardContent>
+        {topPersona && topPersona._count.trackedUsers > 0 ? (
+          <div className="rounded-lg p-2 -m-2">
+            <p className="text-sm font-medium">{topPersona.name}</p>
+            <p className="text-xs text-muted-foreground mt-0.5">{topPersona.label ?? topPersona.name}</p>
+            <div className="flex items-center gap-3 mt-2">
+              <span className="text-xs text-muted-foreground">
+                <span className="font-semibold text-foreground">{formatNumber(topPersona._count.trackedUsers)}</span> users
+              </span>
             </div>
-          ) : (
-            <p className="text-xs text-muted-foreground">No persona data yet</p>
-          )}
-        </CardContent>
-      </Card>
-    </>
+          </div>
+        ) : (
+          <p className="text-xs text-muted-foreground">No persona data yet</p>
+        )}
+      </CardContent>
+    </Card>
   );
 }
 
@@ -368,7 +373,17 @@ export default function DashboardPage() {
           </Suspense>
         </div>
 
-        {/* Time series + persona/funnel/quick actions sidebar */}
+        {/* Funnel breakdown + Persona distribution side by side */}
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 sm:gap-6">
+          <Suspense fallback={<CardSkeleton />}>
+            <FunnelBreakdownSection />
+          </Suspense>
+          <Suspense fallback={<CardSkeleton />}>
+            <PersonaChartSection />
+          </Suspense>
+        </div>
+
+        {/* Time series + top persona / quick actions sidebar */}
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 sm:gap-6">
           <Suspense fallback={<CardSkeleton colSpan2 />}>
             <TimeSeriesSection />
@@ -376,10 +391,7 @@ export default function DashboardPage() {
 
           <div className="space-y-4">
             <Suspense fallback={<CardSkeleton />}>
-              <FunnelBreakdownSection />
-            </Suspense>
-            <Suspense fallback={<><CardSkeleton /><CardSkeleton /></>}>
-              <PersonaSidebarSection />
+              <TopPersonaSection />
             </Suspense>
             <Card>
               <CardHeader>
