@@ -4,7 +4,7 @@
 
 - **Type:** HTTP Request
 - **Name:** HTTP Request (slug: `http-request`)
-- **Base URL:** `https://nexus-ai-yv.vercel.app`
+- **Base URL:** `https://nexus.youversion.com`
 - **Auth:** HTTP header `Authorization: Bearer <HIGHTOUCH_API_KEY>`
 - **Token fetch:** OFF (not needed — static Bearer token)
 
