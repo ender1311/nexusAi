@@ -253,7 +253,7 @@ async function RecentSendsSection() {
   );
 }
 
-async function PersonaChartSection() {
+async function PersonaSidebarSection() {
   const personasRaw = await getCachedPersonaDistribution();
   const totalPersonaUsers = personasRaw.reduce((s, p) => s + p._count.trackedUsers, 0);
   const personaData = personasRaw
@@ -265,47 +265,42 @@ async function PersonaChartSection() {
       percent: totalPersonaUsers > 0 ? Math.round((p._count.trackedUsers / totalPersonaUsers) * 100) : 0,
       color: p.color,
     }));
+  const topPersona = personasRaw[0];
 
   return (
-    <Card>
-      <CardHeader className="flex flex-row items-center justify-between">
-        <CardTitle className="text-sm font-semibold">Persona Distribution</CardTitle>
-        <Link href="/personas">
-          <Button variant="ghost" size="sm" className="h-7 text-xs">View all</Button>
-        </Link>
-      </CardHeader>
-      <CardContent>
-        <PersonaDistributionChart data={personaData} />
-      </CardContent>
-    </Card>
-  );
-}
-
-async function TopPersonaSection() {
-  const personasRaw = await getCachedPersonaDistribution();
-  const topPersona = personasRaw.slice().sort((a, b) => b._count.trackedUsers - a._count.trackedUsers)[0];
-
-  return (
-    <Card>
-      <CardHeader>
-        <CardTitle className="text-sm font-semibold">Top Persona</CardTitle>
-      </CardHeader>
-      <CardContent>
-        {topPersona && topPersona._count.trackedUsers > 0 ? (
-          <div className="rounded-lg p-2 -m-2">
-            <p className="text-sm font-medium">{topPersona.name}</p>
-            <p className="text-xs text-muted-foreground mt-0.5">{topPersona.label ?? topPersona.name}</p>
-            <div className="flex items-center gap-3 mt-2">
-              <span className="text-xs text-muted-foreground">
-                <span className="font-semibold text-foreground">{formatNumber(topPersona._count.trackedUsers)}</span> users
-              </span>
+    <>
+      <Card>
+        <CardHeader className="flex flex-row items-center justify-between">
+          <CardTitle className="text-sm font-semibold">Persona Distribution</CardTitle>
+          <Link href="/personas">
+            <Button variant="ghost" size="sm" className="h-7 text-xs">View all</Button>
+          </Link>
+        </CardHeader>
+        <CardContent>
+          <PersonaDistributionChart data={personaData} />
+        </CardContent>
+      </Card>
+      <Card>
+        <CardHeader>
+          <CardTitle className="text-sm font-semibold">Top Persona</CardTitle>
+        </CardHeader>
+        <CardContent>
+          {topPersona && topPersona._count.trackedUsers > 0 ? (
+            <div className="rounded-lg p-2 -m-2">
+              <p className="text-sm font-medium">{topPersona.name}</p>
+              <p className="text-xs text-muted-foreground mt-0.5">{topPersona.label ?? topPersona.name}</p>
+              <div className="flex items-center gap-3 mt-2">
+                <span className="text-xs text-muted-foreground">
+                  <span className="font-semibold text-foreground">{formatNumber(topPersona._count.trackedUsers)}</span> users
+                </span>
+              </div>
             </div>
-          </div>
-        ) : (
-          <p className="text-xs text-muted-foreground">No persona data yet</p>
-        )}
-      </CardContent>
-    </Card>
+          ) : (
+            <p className="text-xs text-muted-foreground">No persona data yet</p>
+          )}
+        </CardContent>
+      </Card>
+    </>
   );
 }
 
@@ -319,6 +314,18 @@ async function FunnelBreakdownSection() {
 // ---------------------------------------------------------------------------
 
 export default function DashboardPage() {
+  // Pre-kick all fetches in parallel immediately — React.cache() deduplicates
+  // these promises so each Suspense boundary gets the already-in-flight result
+  // instead of starting a new DB round-trip when React processes the boundary.
+  void getCachedDashboardCounts();
+  void getCachedAgentList();
+  void getCachedBrazeStats();
+  void getCachedDashboardTimeSeries();
+  void getCachedRecentDecisions();
+  void getCachedAllVariantNames();
+  void getCachedPersonaDistribution();
+  void getCachedFunnelStageBreakdown();
+
   return (
     <>
       <Header title="Dashboard" description="Nexus platform overview" />
@@ -371,11 +378,8 @@ export default function DashboardPage() {
             <Suspense fallback={<CardSkeleton />}>
               <FunnelBreakdownSection />
             </Suspense>
-            <Suspense fallback={<CardSkeleton />}>
-              <PersonaChartSection />
-            </Suspense>
-            <Suspense fallback={<CardSkeleton />}>
-              <TopPersonaSection />
+            <Suspense fallback={<><CardSkeleton /><CardSkeleton /></>}>
+              <PersonaSidebarSection />
             </Suspense>
             <Card>
               <CardHeader>
