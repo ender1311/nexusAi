@@ -340,22 +340,15 @@ export default function DashboardPage() {
           </Suspense>
         </div>
 
-        {/* Time series + agents sidebar */}
+        {/* Agents + Recent Sends side by side */}
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 sm:gap-6">
-          <Suspense fallback={<CardSkeleton colSpan2 />}>
-            <TimeSeriesSection />
-          </Suspense>
           <Suspense fallback={<ListCardSkeleton />}>
             <AgentsSidebar />
           </Suspense>
-        </div>
-
-        {/* Recent sends + persona/funnel sidebar */}
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 sm:gap-6">
           <Suspense
             fallback={
               <div className="lg:col-span-2">
-                <Card className="lg:col-span-2">
+                <Card>
                   <CardHeader className="flex flex-row items-center justify-between">
                     <Skeleton className="h-4 w-28" />
                     <Skeleton className="h-7 w-16" />
@@ -372,6 +365,13 @@ export default function DashboardPage() {
             }
           >
             <RecentSendsSection />
+          </Suspense>
+        </div>
+
+        {/* Time series + persona/funnel/quick actions sidebar */}
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 sm:gap-6">
+          <Suspense fallback={<CardSkeleton colSpan2 />}>
+            <TimeSeriesSection />
           </Suspense>
 
           <div className="space-y-4">
