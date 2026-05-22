@@ -15,6 +15,7 @@ import {
   Play,
   Radar,
   Sprout,
+  Workflow,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useState } from "react";
@@ -35,6 +36,7 @@ const navItems = [
   { href: "/performance", label: "Performance", icon: BarChart3 },
   { href: "/control-tower", label: "Control Tower", icon: Radar },
   { href: "/demo", label: "Demo", icon: Play },
+  { href: "/architecture", label: "Architecture", icon: Workflow },
   { href: "/about", label: "About", icon: Sprout },
   { href: "/settings", label: "Settings", icon: Settings },
 ];
