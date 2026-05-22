@@ -12,7 +12,7 @@ import {
   ChevronRight,
   Zap,
   Users2,
-  Network,
+  Play,
   Radar,
   Sprout,
 } from "lucide-react";
@@ -34,7 +34,7 @@ const navItems = [
   { href: "/personas", label: "Personas", icon: Users2 },
   { href: "/performance", label: "Performance", icon: BarChart3 },
   { href: "/control-tower", label: "Control Tower", icon: Radar },
-  { href: "/demo", label: "Architecture", icon: Network },
+  { href: "/demo", label: "Demo", icon: Play },
   { href: "/about", label: "About", icon: Sprout },
   { href: "/settings", label: "Settings", icon: Settings },
 ];
