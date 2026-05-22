@@ -111,16 +111,18 @@ export const getCachedActivePersonas = unstable_cache(
 );
 
 /** Persona distribution with user counts for the dashboard chart. */
-export const getCachedPersonaDistribution = unstable_cache(
-  () =>
-    prisma.persona.findMany({
-      where: { isActive: true },
-      select: { name: true, label: true, color: true, _count: { select: { trackedUsers: true } } },
-      orderBy: { trackedUsers: { _count: "desc" } },
-      take: 20,
-    }),
-  ["personas-distribution"],
-  { tags: ["personas"], revalidate: 900 }
+export const getCachedPersonaDistribution = cache(
+  unstable_cache(
+    () =>
+      prisma.persona.findMany({
+        where: { isActive: true },
+        select: { name: true, label: true, color: true, _count: { select: { trackedUsers: true } } },
+        orderBy: { trackedUsers: { _count: "desc" } },
+        take: 20,
+      }),
+    ["personas-distribution"],
+    { tags: ["personas"], revalidate: 900 }
+  )
 );
 
 // ── Dashboard counts ──────────────────────────────────────────────────────────
@@ -170,7 +172,7 @@ export const getCachedDashboardCounts = cache(
  * 7-day pre-aggregated send/conversion counts for the dashboard chart.
  * DB-side GROUP BY replaces a 50k-row JS scan — counts are always exact.
  */
-export const getCachedDashboardTimeSeries = unstable_cache(
+export const getCachedDashboardTimeSeries = cache(unstable_cache(
   async () => {
     const sevenDaysAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000);
     const rows = await prisma.$queryRaw<Array<{ date: string; sends: bigint; conversions: bigint }>>`
@@ -190,33 +192,35 @@ export const getCachedDashboardTimeSeries = unstable_cache(
   },
   ["dashboard-timeseries"],
   { tags: ["dashboard-stats"], revalidate: 900 }
-);
+));
 
 /** Last 10 decisions for the dashboard recent-sends feed. */
-export const getCachedRecentDecisions = unstable_cache(
-  async () => {
-    const rows = await prisma.userDecision.findMany({
-      select: {
-        id: true,
-        userId: true,
-        channel: true,
-        sentAt: true,
-        conversionAt: true,
-        reward: true,
-        agentId: true,
-        messageVariantId: true,
-      },
-      orderBy: { sentAt: "desc" },
-      take: 10,
-    });
-    return rows.map((r) => ({
-      ...r,
-      sentAt: r.sentAt.toISOString(),
-      conversionAt: r.conversionAt?.toISOString() ?? null,
-    }));
-  },
-  ["dashboard-recent-decisions"],
-  { tags: ["dashboard-stats"], revalidate: 900 }
+export const getCachedRecentDecisions = cache(
+  unstable_cache(
+    async () => {
+      const rows = await prisma.userDecision.findMany({
+        select: {
+          id: true,
+          userId: true,
+          channel: true,
+          sentAt: true,
+          conversionAt: true,
+          reward: true,
+          agentId: true,
+          messageVariantId: true,
+        },
+        orderBy: { sentAt: "desc" },
+        take: 10,
+      });
+      return rows.map((r) => ({
+        ...r,
+        sentAt: r.sentAt.toISOString(),
+        conversionAt: r.conversionAt?.toISOString() ?? null,
+      }));
+    },
+    ["dashboard-recent-decisions"],
+    { tags: ["dashboard-stats"], revalidate: 900 }
+  )
 );
 
 // ── Performance page data ─────────────────────────────────────────────────────
@@ -286,10 +290,12 @@ export const getCachedVariantMetrics = unstable_cache(
 );
 
 /** All variant id+name pairs for display in performance tables. */
-export const getCachedAllVariantNames = unstable_cache(
-  () => prisma.messageVariant.findMany({ select: { id: true, name: true } }),
-  ["all-variant-names"],
-  { tags: ["agents"], revalidate: 900 }
+export const getCachedAllVariantNames = cache(
+  unstable_cache(
+    () => prisma.messageVariant.findMany({ select: { id: true, name: true } }),
+    ["all-variant-names"],
+    { tags: ["agents"], revalidate: 900 }
+  )
 );
 
 /**
@@ -448,17 +454,19 @@ export const getCachedBrazeStats = cache(unstable_cache(
 // ── Control Tower stats ───────────────────────────────────────────────────────
 
 /** Aggregate counts for the control tower page (60s TTL). */
-export const getCachedFunnelStageBreakdown = unstable_cache(
-  async () => {
-    const rows = await prisma.trackedUser.groupBy({
-      by: ["funnelStage"],
-      _count: { _all: true },
-      orderBy: { _count: { funnelStage: "desc" } },
-    });
-    return rows.map((r) => ({ stage: r.funnelStage ?? "unknown", count: r._count._all }));
-  },
-  ["funnel-stage-breakdown"],
-  { tags: ["dashboard-stats"], revalidate: 900 }
+export const getCachedFunnelStageBreakdown = cache(
+  unstable_cache(
+    async () => {
+      const rows = await prisma.trackedUser.groupBy({
+        by: ["funnelStage"],
+        _count: { _all: true },
+        orderBy: { _count: { funnelStage: "desc" } },
+      });
+      return rows.map((r) => ({ stage: r.funnelStage ?? "unknown", count: r._count._all }));
+    },
+    ["funnel-stage-breakdown"],
+    { tags: ["dashboard-stats"], revalidate: 900 }
+  )
 );
 
 export const getCachedControlTowerStats = unstable_cache(
