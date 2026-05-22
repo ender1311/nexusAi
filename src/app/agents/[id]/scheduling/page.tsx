@@ -31,6 +31,7 @@ export default async function SchedulingPage({ params }: { params: Promise<{ id:
         blackoutDates: agent.schedulingRule.blackoutDates as unknown as string[],
         smartSuppress: agent.schedulingRule.smartSuppress,
         suppressThresh: agent.schedulingRule.suppressThresh,
+        prioritizeLastSeen: agent.schedulingRule.prioritizeLastSeen,
       }
     : null;
 

@@ -6,7 +6,7 @@ const agentRule: SchedulingRule = {
   id: "r1", agentId: "a1",
   frequencyCap: { maxSends: 3, period: "week" },
   quietHours: { mode: "suppress", start: "22:00", end: "08:00", timezone: "America/New_York" },
-  blackoutDates: [], smartSuppress: false, suppressThresh: 0.5,
+  blackoutDates: [], smartSuppress: false, suppressThresh: 0.5, prioritizeLastSeen: true,
 };
 
 function v(overrides: Partial<MessageVariant> = {}): MessageVariant {

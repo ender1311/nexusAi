@@ -265,6 +265,9 @@ export async function POST(req: NextRequest) {
   // Fetch eligible user IDs for all agents in parallel (one query per agent),
   // and also fetch the cooldown setting for Phase 0 in the same round trip.
   const eligibleUsersByAgent = new Map<string, string[]>();
+  // preferredHourByAgent: agentId → Map<externalId, preferredSendHour | null>
+  // Used by time-bucketed audience selection when prioritizeLastSeen is on.
+  const preferredHourByAgent = new Map<string, Map<string, number | null>>();
   const [, cooldownSetting] = await Promise.all([
     Promise.all(
       agents.map(async (agent) => {
@@ -296,9 +299,13 @@ export async function POST(req: NextRequest) {
           : {};
         const rows = await prisma.trackedUser.findMany({
           where:  { personaId: { in: personaIds }, ...langFilter, ...funnelFilter },
-          select: { externalId: true },
+          select: { externalId: true, preferredSendHour: true },
         });
         eligibleUsersByAgent.set(agent.id, rows.map((r) => r.externalId));
+        preferredHourByAgent.set(
+          agent.id,
+          new Map(rows.map((r) => [r.externalId, r.preferredSendHour])),
+        );
       })
     ),
     // ─── Phase 0 setup: fetch cooldown config in parallel with lottery queries ───
@@ -472,15 +479,52 @@ export async function POST(req: NextRequest) {
     // Exclude in-window users from lottery pipeline (they're handled separately below)
     let lotteryUserIds = assignedUserIds.filter((id) => !inWindowUserIdSet.has(id));
 
-    // Apply audience cap — shuffle and truncate if set
+    // Apply audience cap — time-bucketed selection when prioritizeLastSeen is on (default),
+    // otherwise fall back to Fisher-Yates random shuffle.
     if (agent.audienceCap !== null && agent.audienceCap !== undefined) {
-      for (let i = lotteryUserIds.length - 1; i > 0; i--) {
-        const j = Math.floor(Math.random() * (i + 1));
-        [lotteryUserIds[i], lotteryUserIds[j]] = [lotteryUserIds[j], lotteryUserIds[i]];
+      const prioritizeLastSeen = agent.schedulingRule?.prioritizeLastSeen !== false;
+      if (prioritizeLastSeen) {
+        // Partition users: those whose preferred send hour is within ±1 of the current UTC
+        // hour go first (time-match), then users with no preference (fallback timing).
+        // Users whose preferred hour is far from current are deferred to their matching run.
+        const currentHour = now.getUTCHours();
+        const hourMap = preferredHourByAgent.get(agent.id) ?? new Map<string, number | null>();
+        const timeMatch: string[] = [];
+        const noPreference: string[] = [];
+        for (const uid of lotteryUserIds) {
+          const h = hourMap.get(uid);
+          if (h !== null && h !== undefined) {
+            const diff = Math.abs(h - currentHour);
+            // Wrap around midnight: hour 23 and hour 0 are adjacent
+            if (Math.min(diff, 24 - diff) <= 1) timeMatch.push(uid);
+            // else: deferred to the matching hourly run — not counted as suppressed
+          } else {
+            noPreference.push(uid);
+          }
+        }
+        // Shuffle within each partition for fairness, then concat in priority order
+        for (let i = timeMatch.length - 1; i > 0; i--) {
+          const j = Math.floor(Math.random() * (i + 1));
+          [timeMatch[i], timeMatch[j]] = [timeMatch[j], timeMatch[i]];
+        }
+        for (let i = noPreference.length - 1; i > 0; i--) {
+          const j = Math.floor(Math.random() * (i + 1));
+          [noPreference[i], noPreference[j]] = [noPreference[j], noPreference[i]];
+        }
+        const eligible = [...timeMatch, ...noPreference];
+        const preCap = eligible.length;
+        lotteryUserIds = eligible.slice(0, agent.audienceCap);
+        suppress.audienceCap = preCap - lotteryUserIds.length;
+      } else {
+        // Original behavior: Fisher-Yates random lottery across all eligible users
+        for (let i = lotteryUserIds.length - 1; i > 0; i--) {
+          const j = Math.floor(Math.random() * (i + 1));
+          [lotteryUserIds[i], lotteryUserIds[j]] = [lotteryUserIds[j], lotteryUserIds[i]];
+        }
+        const preCap = lotteryUserIds.length;
+        lotteryUserIds = lotteryUserIds.slice(0, agent.audienceCap);
+        suppress.audienceCap = preCap - lotteryUserIds.length;
       }
-      const preCap = lotteryUserIds.length;
-      lotteryUserIds = lotteryUserIds.slice(0, agent.audienceCap);
-      suppress.audienceCap = preCap - lotteryUserIds.length;
     }
 
     // Check if this agent has any in-window users to process

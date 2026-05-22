@@ -2462,7 +2462,8 @@ export const SchedulingRuleScalarFieldEnum = {
   quietHours: 'quietHours',
   blackoutDates: 'blackoutDates',
   smartSuppress: 'smartSuppress',
-  suppressThresh: 'suppressThresh'
+  suppressThresh: 'suppressThresh',
+  prioritizeLastSeen: 'prioritizeLastSeen'
 } as const
 
 export type SchedulingRuleScalarFieldEnum = (typeof SchedulingRuleScalarFieldEnum)[keyof typeof SchedulingRuleScalarFieldEnum]

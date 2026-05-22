@@ -87,6 +87,8 @@ export function SchedulingEditor({ agentId, initialRule }: Props) {
   const [smartSuppress, setSmartSuppress] = useState(initialRule?.smartSuppress ?? false);
   const [suppressThresh, setSuppressThresh] = useState(initialRule?.suppressThresh ?? 0.5);
 
+  const [prioritizeLastSeen, setPrioritizeLastSeen] = useState(initialRule?.prioritizeLastSeen ?? true);
+
   const [saving, setSaving] = useState(false);
   const [savedAt, setSavedAt] = useState<number | null>(null);
   const [saveError, setSaveError] = useState<string | null>(null);
@@ -128,7 +130,7 @@ export function SchedulingEditor({ agentId, initialRule }: Props) {
       const res = await fetch(`/api/agents/${agentId}/scheduling`, {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ frequencyCap: freqCap, quietHours, blackoutDates, smartSuppress, suppressThresh }),
+        body: JSON.stringify({ frequencyCap: freqCap, quietHours, blackoutDates, smartSuppress, suppressThresh, prioritizeLastSeen }),
       });
       if (!res.ok) {
         const body = (await res.json().catch(() => ({}))) as { error?: string };
@@ -394,6 +396,35 @@ export function SchedulingEditor({ agentId, initialRule }: Props) {
                 Users with a predicted conversion rate below {(suppressThresh * 100).toFixed(0)}% will not receive a message this run.
               </p>
             </div>
+          </CardContent>
+        )}
+      </Card>
+
+      {/* Last-Seen Timing */}
+      <Card>
+        <CardHeader>
+          <div className="flex items-center justify-between">
+            <div>
+              <CardTitle className="text-sm font-semibold flex items-center gap-1.5">
+                Last-Seen Timing
+                <InfoTip title="Last-Seen Timing">
+                  <p>When enabled, the audience cap fills with users whose last-seen activity time matches the current hour first — then falls back to users with no timing data.</p>
+                  <p className="mt-1">This distributes sends throughout the day at each user&apos;s natural engagement time rather than clustering at the fallback hour. Users without last-seen data are still included once time-matched slots are filled.</p>
+                  <p className="mt-1">When disabled, the audience cap is filled randomly (original lottery behavior) and sends fire at the fallback hour for all users.</p>
+                </InfoTip>
+              </CardTitle>
+              <p className="text-xs text-muted-foreground mt-0.5">
+                Prioritize users whose last-seen time matches the current send window.
+              </p>
+            </div>
+            <Switch checked={prioritizeLastSeen} onCheckedChange={setPrioritizeLastSeen} />
+          </div>
+        </CardHeader>
+        {prioritizeLastSeen && (
+          <CardContent>
+            <p className="text-xs text-muted-foreground bg-muted rounded-md p-2">
+              Each hourly run fills the audience cap with users last seen around that hour first. Sends spread throughout the day — the bandit learns which times drive conversions per variant.
+            </p>
           </CardContent>
         )}
       </Card>
