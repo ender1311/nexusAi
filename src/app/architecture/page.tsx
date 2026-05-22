@@ -119,6 +119,67 @@ export default function ArchitecturePage() {
           ))}
         </div>
 
+        {/* Convergence timeline */}
+        <div className="space-y-4">
+          <div>
+            <h2 className="text-sm font-semibold mb-1">How long until the bandit converges?</h2>
+            <p className="text-xs text-muted-foreground leading-relaxed max-w-2xl">
+              Convergence means the Beta distributions have narrowed enough that the best-performing
+              variant wins draws consistently — typically after ~30–50 observations per arm. Speed
+              depends on two things: how many users are in the target persona, and how often each
+              user is eligible to receive a send. Funnel stage drives eligibility frequency.
+            </p>
+          </div>
+
+          <div className="overflow-x-auto">
+            <table className="w-full text-xs border-collapse max-w-2xl">
+              <thead>
+                <tr className="border-b">
+                  <th className="text-left py-2 pr-4 font-semibold text-muted-foreground">Funnel stage</th>
+                  <th className="text-left py-2 pr-4 font-semibold text-muted-foreground">Eligibility</th>
+                  <th className="text-left py-2 pr-4 font-semibold text-muted-foreground">Sends / user / month</th>
+                  <th className="text-left py-2 font-semibold text-muted-foreground">Convergence (1 k users, 3 arms)</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y">
+                <tr>
+                  <td className="py-2 pr-4 font-medium">DAU4</td>
+                  <td className="py-2 pr-4 text-muted-foreground">Daily</td>
+                  <td className="py-2 pr-4 text-muted-foreground">~20–30</td>
+                  <td className="py-2 text-[#57a16c] font-medium">Days</td>
+                </tr>
+                <tr>
+                  <td className="py-2 pr-4 font-medium">WAU</td>
+                  <td className="py-2 pr-4 text-muted-foreground">1–3×/week</td>
+                  <td className="py-2 pr-4 text-muted-foreground">~6–12</td>
+                  <td className="py-2 text-muted-foreground font-medium">1–3 weeks</td>
+                </tr>
+                <tr>
+                  <td className="py-2 pr-4 font-medium">MAU</td>
+                  <td className="py-2 pr-4 text-muted-foreground">~1×/month</td>
+                  <td className="py-2 pr-4 text-muted-foreground">~1–2</td>
+                  <td className="py-2 text-muted-foreground font-medium">2–4 months</td>
+                </tr>
+                <tr>
+                  <td className="py-2 pr-4 font-medium">Lapsed</td>
+                  <td className="py-2 pr-4 text-muted-foreground">Rarely / re-engagement burst</td>
+                  <td className="py-2 pr-4 text-muted-foreground">&lt;1</td>
+                  <td className="py-2 text-muted-foreground font-medium">Many months</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+
+          <div className="rounded-lg border-l-4 border-l-amber-500 bg-muted/30 p-4 max-w-2xl">
+            <p className="text-xs text-muted-foreground leading-relaxed">
+              <span className="font-semibold text-foreground">Practical implication:</span> for lapsed
+              and MAU audiences, keep variant count low (2–3) to reach exploitation faster. More
+              variants dilute observations per arm and slow convergence. For DAU4 agents with large
+              audiences, you can run 4–6 arms and still converge within a sprint.
+            </p>
+          </div>
+        </div>
+
         {/* Advanced docs link */}
         <div className="pt-2 border-t">
           <Link
