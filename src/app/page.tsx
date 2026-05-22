@@ -383,43 +383,42 @@ export default function DashboardPage() {
           </Suspense>
         </div>
 
-        {/* Time series + top persona / quick actions sidebar */}
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 sm:gap-6">
-          <Suspense fallback={<CardSkeleton colSpan2 />}>
-            <TimeSeriesSection />
+        {/* Quick Actions + Top Persona side by side */}
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 sm:gap-6">
+          <Card>
+            <CardHeader>
+              <CardTitle className="text-sm font-semibold">Quick Actions</CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-2">
+              <Link href="/agents/new">
+                <Button className="w-full justify-start" variant="outline" size="sm">
+                  <Plus className="h-4 w-4 mr-2" />
+                  Create Agent
+                </Button>
+              </Link>
+              <Link href="/performance">
+                <Button className="w-full justify-start" variant="outline" size="sm">
+                  <TrendingUp className="h-4 w-4 mr-2" />
+                  View Performance
+                </Button>
+              </Link>
+              <Link href="/messages">
+                <Button className="w-full justify-start" variant="outline" size="sm">
+                  <Send className="h-4 w-4 mr-2" />
+                  Manage Messages
+                </Button>
+              </Link>
+            </CardContent>
+          </Card>
+          <Suspense fallback={<CardSkeleton />}>
+            <TopPersonaSection />
           </Suspense>
-
-          <div className="space-y-4">
-            <Suspense fallback={<CardSkeleton />}>
-              <TopPersonaSection />
-            </Suspense>
-            <Card>
-              <CardHeader>
-                <CardTitle className="text-sm font-semibold">Quick Actions</CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-2">
-                <Link href="/agents/new">
-                  <Button className="w-full justify-start" variant="outline" size="sm">
-                    <Plus className="h-4 w-4 mr-2" />
-                    Create Agent
-                  </Button>
-                </Link>
-                <Link href="/performance">
-                  <Button className="w-full justify-start" variant="outline" size="sm">
-                    <TrendingUp className="h-4 w-4 mr-2" />
-                    View Performance
-                  </Button>
-                </Link>
-                <Link href="/messages">
-                  <Button className="w-full justify-start" variant="outline" size="sm">
-                    <Send className="h-4 w-4 mr-2" />
-                    Manage Messages
-                  </Button>
-                </Link>
-              </CardContent>
-            </Card>
-          </div>
         </div>
+
+        {/* Time series — full width, only renders when conversion data exists */}
+        <Suspense fallback={null}>
+          <TimeSeriesSection />
+        </Suspense>
       </div>
     </>
   );
