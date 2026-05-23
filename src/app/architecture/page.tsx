@@ -152,7 +152,7 @@ export default function ArchitecturePage() {
                   <th className="text-left py-2 pr-4 font-semibold text-muted-foreground">Funnel stage</th>
                   <th className="text-left py-2 pr-4 font-semibold text-muted-foreground">Eligibility</th>
                   <th className="text-left py-2 pr-4 font-semibold text-muted-foreground">Sends / user / month</th>
-                  <th className="text-left py-2 font-semibold text-muted-foreground">Convergence (1 k users, 3 arms)</th>
+                  <th className="text-left py-2 font-semibold text-muted-foreground">Convergence (10 M users, 3 arms)</th>
                 </tr>
               </thead>
               <tbody className="divide-y">
@@ -160,25 +160,25 @@ export default function ArchitecturePage() {
                   <td className="py-2 pr-4 font-medium">DAU4</td>
                   <td className="py-2 pr-4 text-muted-foreground">Daily</td>
                   <td className="py-2 pr-4 text-muted-foreground">~20–30</td>
-                  <td className="py-2 text-[#57a16c] font-medium">Days</td>
+                  <td className="py-2 text-[#57a16c] font-medium">Hours to 1 day</td>
                 </tr>
                 <tr>
                   <td className="py-2 pr-4 font-medium">WAU</td>
                   <td className="py-2 pr-4 text-muted-foreground">1–3×/week</td>
                   <td className="py-2 pr-4 text-muted-foreground">~6–12</td>
-                  <td className="py-2 text-muted-foreground font-medium">1–3 weeks</td>
+                  <td className="py-2 text-muted-foreground font-medium">Days to 1 week</td>
                 </tr>
                 <tr>
                   <td className="py-2 pr-4 font-medium">MAU</td>
                   <td className="py-2 pr-4 text-muted-foreground">~1×/month</td>
                   <td className="py-2 pr-4 text-muted-foreground">~1–2</td>
-                  <td className="py-2 text-muted-foreground font-medium">2–4 months</td>
+                  <td className="py-2 text-muted-foreground font-medium">2–4 weeks</td>
                 </tr>
                 <tr>
                   <td className="py-2 pr-4 font-medium">Lapsed</td>
                   <td className="py-2 pr-4 text-muted-foreground">Rarely / re-engagement burst</td>
                   <td className="py-2 pr-4 text-muted-foreground">&lt;1</td>
-                  <td className="py-2 text-muted-foreground font-medium">Many months</td>
+                  <td className="py-2 text-muted-foreground font-medium">Weeks to months</td>
                 </tr>
               </tbody>
             </table>
@@ -186,10 +186,11 @@ export default function ArchitecturePage() {
 
           <div className="rounded-lg border-l-4 border-l-amber-500 bg-muted/30 p-4 max-w-2xl">
             <p className="text-xs text-muted-foreground leading-relaxed">
-              <span className="font-semibold text-foreground">Practical implication:</span> for lapsed
-              and MAU audiences, keep variant count low (2–3) to reach exploitation faster. More
-              variants dilute observations per arm and slow convergence. For DAU4 agents with large
-              audiences, you can run 4–6 arms and still converge within a sprint.
+              <span className="font-semibold text-foreground">Practical implication:</span> at 10 M+ users,
+              sample size per run is never the bottleneck — eligibility frequency is. DAU4 agents converge
+              within hours and can comfortably run 6–8 arms. MAU and lapsed audiences still need multiple
+              eligibility cycles (weeks to months) to accumulate the per-arm evidence Thompson Sampling
+              needs — keep variant counts low (2–3) for those stages.
             </p>
           </div>
         </div>

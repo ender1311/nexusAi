@@ -9,8 +9,11 @@ import { AgentCard } from "./agent-card";
 
 type SortMode = "custom" | "alpha" | "decisions" | "cap";
 
+type ConvergenceState = "exploring" | "learning" | "converging" | "confident";
+
 interface AgentGridProps {
   agents: Agent[];
+  convergenceStates?: Record<string, ConvergenceState>;
 }
 
 const SORT_OPTIONS: { value: SortMode; label: string }[] = [
@@ -37,7 +40,7 @@ function sortAgents(agents: Agent[], mode: SortMode): Agent[] {
   return copy;
 }
 
-export function AgentGrid({ agents: initialAgents }: AgentGridProps) {
+export function AgentGrid({ agents: initialAgents, convergenceStates }: AgentGridProps) {
   const router = useRouter();
   const [sortMode, setSortMode] = useState<SortMode>("custom");
   const [customOrder, setCustomOrder] = useState<Agent[]>(initialAgents);
@@ -146,7 +149,11 @@ export function AgentGrid({ agents: initialAgents }: AgentGridProps) {
                 <GripVertical className="h-4 w-4" />
               </div>
             )}
-            <AgentCard agent={agent} audienceCap={agent.audienceCap} />
+            <AgentCard
+              agent={agent}
+              audienceCap={agent.audienceCap}
+              convergenceState={convergenceStates?.[agent.id]}
+            />
           </div>
         ))}
       </div>

@@ -289,6 +289,102 @@ export const getCachedVariantMetrics = unstable_cache(
   { tags: ["performance"], revalidate: 900 }
 );
 
+/**
+ * Persona × variant win-rate matrix from PersonaArmStats.
+ * Returns top-10 personas × top-10 variants by total tries.
+ * Each cell: { tries, alpha } where convRate ≈ (alpha-1)/tries.
+ */
+export const getCachedPersonaVariantMatrix = unstable_cache(
+  async () => {
+    const [rows, personas, variants] = await Promise.all([
+      prisma.personaArmStats.groupBy({
+        by: ["personaId", "variantId"],
+        _sum: { tries: true, alpha: true },
+      }),
+      prisma.persona.findMany({ select: { id: true, label: true, name: true }, where: { isActive: true } }),
+      prisma.messageVariant.findMany({ select: { id: true, name: true } }),
+    ]);
+
+    // Build lookup maps
+    const personaLabel = new Map(personas.map((p) => [p.id, p.label ?? p.name]));
+    const variantName = new Map(variants.map((v) => [v.id, v.name]));
+
+    // Aggregate tries per persona and variant for top-N selection
+    const triesByPersona = new Map<string, number>();
+    const triesByVariant = new Map<string, number>();
+    for (const r of rows) {
+      const t = r._sum.tries ?? 0;
+      triesByPersona.set(r.personaId, (triesByPersona.get(r.personaId) ?? 0) + t);
+      triesByVariant.set(r.variantId, (triesByVariant.get(r.variantId) ?? 0) + t);
+    }
+
+    const topPersonaIds = [...triesByPersona.entries()]
+      .sort((a, b) => b[1] - a[1])
+      .slice(0, 8)
+      .map(([id]) => id);
+    const topVariantIds = [...triesByVariant.entries()]
+      .sort((a, b) => b[1] - a[1])
+      .slice(0, 8)
+      .map(([id]) => id);
+
+    const topPersonaSet = new Set(topPersonaIds);
+    const topVariantSet = new Set(topVariantIds);
+
+    // Build cell map: "personaId:variantId" → { tries, alpha }
+    const cells = new Map<string, { tries: number; alpha: number }>();
+    for (const r of rows) {
+      if (!topPersonaSet.has(r.personaId) || !topVariantSet.has(r.variantId)) continue;
+      const key = `${r.personaId}:${r.variantId}`;
+      cells.set(key, { tries: r._sum.tries ?? 0, alpha: r._sum.alpha ?? 1 });
+    }
+
+    return {
+      personaIds: topPersonaIds,
+      variantIds: topVariantIds,
+      personaLabels: topPersonaIds.map((id) => personaLabel.get(id) ?? id),
+      variantNames: topVariantIds.map((id) => variantName.get(id) ?? id),
+      cells: [...cells.entries()].map(([key, v]) => {
+        const [pId, vId] = key.split(":");
+        return { personaId: pId, variantId: vId, tries: v.tries, alpha: v.alpha };
+      }),
+    };
+  },
+  ["persona-variant-matrix"],
+  { tags: ["performance"], revalidate: 900 }
+);
+
+/**
+ * Per-agent convergence state derived from PersonaArmStats.
+ * Groups arm stats by (agentId, variantId), computes topShare to classify state.
+ */
+export const getCachedAgentConvergenceStates = unstable_cache(
+  async () => {
+    const stats = await prisma.personaArmStats.groupBy({
+      by: ["agentId", "variantId"],
+      _sum: { tries: true },
+    });
+    const byAgent = new Map<string, number[]>();
+    for (const row of stats) {
+      const tries = row._sum.tries ?? 0;
+      const arr = byAgent.get(row.agentId) ?? [];
+      arr.push(tries);
+      byAgent.set(row.agentId, arr);
+    }
+    const result: Record<string, "exploring" | "learning" | "converging" | "confident"> = {};
+    for (const [agentId, triesList] of byAgent) {
+      const total = triesList.reduce((s, t) => s + t, 0);
+      const topShare = total > 0 ? Math.max(...triesList) / total : 0;
+      if (total < 20 || topShare < 0.35) result[agentId] = "exploring";
+      else if (topShare < 0.5) result[agentId] = "learning";
+      else if (topShare < 0.7) result[agentId] = "converging";
+      else result[agentId] = "confident";
+    }
+    return result;
+  },
+  ["agent-convergence-states"],
+  { tags: ["performance"], revalidate: 900 }
+);
+
 /** All variant id+name pairs for display in performance tables. */
 export const getCachedAllVariantNames = cache(
   unstable_cache(
@@ -310,7 +406,7 @@ export const getCachedAllVariantNames = cache(
 export const getCachedChartDecisions = unstable_cache(
   async () => {
     const thirtyDaysAgo = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000);
-    const [byDateRows, heatmapRows, rewardRows] = await Promise.all([
+    const [byDateRows, heatmapRows, hourlyRows, rewardRows] = await Promise.all([
       // Per-day send/conversion counts (for time series)
       prisma.$queryRaw<Array<{ date: string; sends: bigint; conversions: bigint }>>`
         SELECT TO_CHAR("sentAt" AT TIME ZONE 'UTC', 'YYYY-MM-DD') AS date,
@@ -330,6 +426,16 @@ export const getCachedChartDecisions = unstable_cache(
         WHERE "sentAt" >= ${thirtyDaysAgo}
         GROUP BY 1, 2
       `,
+      // Per-hour sends + conversions for send-time intelligence chart
+      prisma.$queryRaw<Array<{ hour: bigint; sends: bigint; conversions: bigint }>>`
+        SELECT EXTRACT(HOUR FROM "sentAt")::bigint     AS hour,
+               COUNT(*)::bigint                        AS sends,
+               COUNT("conversionAt")::bigint           AS conversions
+        FROM "UserDecision"
+        WHERE "sentAt" >= ${thirtyDaysAgo}
+        GROUP BY 1
+        ORDER BY 1 ASC
+      `,
       // Per-day scored/positive counts (for lift panel sparkline)
       prisma.$queryRaw<Array<{ date: string; scored: bigint; positive: bigint }>>`
         SELECT TO_CHAR("sentAt" AT TIME ZONE 'UTC', 'YYYY-MM-DD') AS date,
@@ -346,6 +452,12 @@ export const getCachedChartDecisions = unstable_cache(
       byDate: byDateRows.map((r) => ({ date: r.date, sends: Number(r.sends), conversions: Number(r.conversions) })),
       heatmap: heatmapRows.map((r) => ({ hour: Number(r.hour), dow: Number(r.dow), count: Number(r.count) })),
       rewardByDate: rewardRows.map((r) => ({ date: r.date, scored: Number(r.scored), positive: Number(r.positive) })),
+      hourly: hourlyRows.map((r) => ({
+        hour: Number(r.hour),
+        sends: Number(r.sends),
+        conversions: Number(r.conversions),
+        convRate: Number(r.sends) > 0 ? (Number(r.conversions) / Number(r.sends)) * 100 : 0,
+      })),
     };
   },
   ["chart-decisions"],

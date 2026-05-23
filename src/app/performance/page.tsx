@@ -8,7 +8,6 @@ import { Button } from "@/components/ui/button";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Skeleton } from "@/components/ui/skeleton";
 import { MetricCard } from "@/components/charts/metric-card";
-import { VariantComparison } from "@/components/charts/variant-comparison";
 import { AgentStatusBadge } from "@/components/agents/agent-status-badge";
 import { ChartsSection } from "./charts-section";
 import { LiftPanel } from "@/components/performance/lift-panel";
@@ -19,9 +18,11 @@ import {
   getCachedLiftCounts,
   getCachedAllVariantNames,
   getCachedBrazeStats,
+  getCachedChartDecisions,
+  getCachedPersonaVariantMatrix,
 } from "@/lib/cache";
 import { baselineLiftSignificance, liftSignificance } from "@/lib/engine/lift-significance";
-import { formatNumber, formatPercent } from "@/lib/utils";
+import { cn, formatNumber, formatPercent } from "@/lib/utils";
 import type { AgentMetric, VariantMetric } from "@/types/metrics";
 import Link from "next/link";
 import { TrendingUp, TrendingDown, Minus, Send, Zap, GitCompare } from "lucide-react";
@@ -33,6 +34,7 @@ import type { AgentStatus } from "@/types/agent";
 // each other in the same render pass — only one DB round-trip per request.
 const getPerfMetrics = cache(getCachedPerformanceMetrics);
 const getVarMetrics = cache(getCachedVariantMetrics);
+const getChartDecisions = cache(getCachedChartDecisions);
 const getLiftSets = cache(getCachedLiftSettings);
 
 // Chain: liftSettings → liftCounts, memoized so every sub-component that
@@ -337,15 +339,21 @@ async function TopVariantsSection() {
     variantRewards.map((r) => [r.messageVariantId as string, r._sum.reward ?? 0]),
   );
 
-  const topVariants: VariantMetric[] = variantSends
-    .map((r) => {
-      const vid = r.messageVariantId as string;
-      const sends = r._count.id;
+  // Deduplicate sends across channels per variant, then sort by conv rate (min 10 sends)
+  const sendsByVariantId = new Map<string, number>();
+  for (const r of variantSends) {
+    const vid = r.messageVariantId as string;
+    sendsByVariantId.set(vid, (sendsByVariantId.get(vid) ?? 0) + r._count.id);
+  }
+
+  const leaderboard: VariantMetric[] = Array.from(sendsByVariantId.entries())
+    .map(([vid, sends]) => {
       const conversions = convByVariant.get(vid) ?? 0;
+      const channelRow = variantSends.find((r) => r.messageVariantId === vid);
       return {
         variantId: vid,
         variantName: variantNameById.get(vid) ?? vid,
-        channel: r.channel,
+        channel: channelRow?.channel ?? "unknown",
         sends,
         conversions,
         conversionRate: sends > 0 ? (conversions / sends) * 100 : 0,
@@ -354,16 +362,218 @@ async function TopVariantsSection() {
         reward: rewardByVariant.get(vid) ?? 0,
       };
     })
-    .sort((a, b) => b.sends - a.sends)
-    .slice(0, 10);
+    .filter((v) => v.sends >= 10)
+    .sort((a, b) => b.conversionRate - a.conversionRate)
+    .slice(0, 15);
 
   return (
     <Card>
       <CardHeader>
-        <CardTitle className="text-sm font-semibold">Top Variants (All Agents)</CardTitle>
+        <CardTitle className="text-sm font-semibold">Variant Leaderboard — by Conversion Rate (30d, min 10 sends)</CardTitle>
+      </CardHeader>
+      <CardContent className="pt-0">
+        {leaderboard.length === 0 ? (
+          <p className="text-sm text-muted-foreground text-center py-6">
+            No variants with 10+ sends in the last 30 days.
+          </p>
+        ) : (
+          <div className="overflow-x-auto">
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead className="w-8 text-center font-semibold">#</TableHead>
+                  <TableHead className="font-semibold">Variant</TableHead>
+                  <TableHead className="font-semibold hidden sm:table-cell">Channel</TableHead>
+                  <TableHead className="text-right font-semibold">Sends</TableHead>
+                  <TableHead className="text-right font-semibold">Conversions</TableHead>
+                  <TableHead className="text-right font-semibold">Conv. Rate</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {leaderboard.map((v, i) => (
+                  <TableRow key={v.variantId}>
+                    <TableCell className="text-center text-xs text-muted-foreground font-mono">
+                      {i === 0 ? "🥇" : i === 1 ? "🥈" : i === 2 ? "🥉" : `${i + 1}`}
+                    </TableCell>
+                    <TableCell className="font-medium text-sm max-w-[180px] truncate">{v.variantName}</TableCell>
+                    <TableCell className="hidden sm:table-cell">
+                      <span className="text-xs capitalize text-muted-foreground">{v.channel}</span>
+                    </TableCell>
+                    <TableCell className="text-right text-sm">{formatNumber(v.sends)}</TableCell>
+                    <TableCell className="text-right text-sm">{formatNumber(v.conversions)}</TableCell>
+                    <TableCell className="text-right">
+                      <span className="font-bold text-primary">{formatPercent(v.conversionRate)}</span>
+                    </TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          </div>
+        )}
+      </CardContent>
+    </Card>
+  );
+}
+
+const HOUR_LABELS = [
+  "12am", "1am", "2am", "3am", "4am", "5am",
+  "6am",  "7am", "8am", "9am", "10am","11am",
+  "12pm", "1pm", "2pm", "3pm", "4pm", "5pm",
+  "6pm",  "7pm", "8pm", "9pm", "10pm","11pm",
+];
+
+async function SendTimeSection() {
+  const { hourly } = await getChartDecisions();
+  if (hourly.length === 0) return null;
+
+  const maxSends = Math.max(...hourly.map((h) => h.sends), 1);
+  const maxConvRate = Math.max(...hourly.filter((h) => h.sends >= 10).map((h) => h.convRate), 0.01);
+
+  return (
+    <Card>
+      <CardHeader>
+        <CardTitle className="text-sm font-semibold">Send-Time Intelligence — Hour of Day (30d UTC)</CardTitle>
       </CardHeader>
       <CardContent>
-        <VariantComparison variants={topVariants} />
+        <div className="space-y-1">
+          {hourly.map((row) => {
+            const sendBar = (row.sends / maxSends) * 100;
+            const convBar = row.sends >= 10 ? (row.convRate / maxConvRate) * 100 : 0;
+            return (
+              <div key={row.hour} className="flex items-center gap-2 group">
+                <span className="text-xs text-muted-foreground w-10 shrink-0 text-right">
+                  {HOUR_LABELS[row.hour]}
+                </span>
+                <div className="relative flex-1 h-5 rounded overflow-hidden bg-muted/30">
+                  <div
+                    className="absolute inset-y-0 left-0 bg-primary/20 transition-all"
+                    style={{ width: `${sendBar}%` }}
+                  />
+                  {convBar > 0 && (
+                    <div
+                      className="absolute inset-y-0 left-0 bg-primary/60 transition-all"
+                      style={{ width: `${convBar}%` }}
+                      title={`Conv rate: ${row.convRate.toFixed(1)}%`}
+                    />
+                  )}
+                </div>
+                <span className="text-xs text-muted-foreground w-14 shrink-0 text-right font-mono">
+                  {formatNumber(row.sends)}
+                </span>
+                <span
+                  className={cn(
+                    "text-xs w-14 shrink-0 text-right font-mono",
+                    row.sends >= 10 ? "text-primary font-medium" : "text-muted-foreground/40",
+                  )}
+                >
+                  {row.sends >= 10 ? `${row.convRate.toFixed(1)}%` : "—"}
+                </span>
+              </div>
+            );
+          })}
+          <div className="flex items-center gap-2 mt-2 pt-2 border-t">
+            <span className="text-xs text-muted-foreground w-10 shrink-0" />
+            <div className="flex gap-3 flex-1 text-xs text-muted-foreground">
+              <span className="flex items-center gap-1">
+                <span className="h-2 w-3 rounded-sm bg-primary/20 inline-block" />
+                Sends volume
+              </span>
+              <span className="flex items-center gap-1">
+                <span className="h-2 w-3 rounded-sm bg-primary/60 inline-block" />
+                Conv. rate (relative, min 10 sends)
+              </span>
+            </div>
+            <span className="text-xs text-muted-foreground w-14 text-right">Sends</span>
+            <span className="text-xs text-muted-foreground w-14 text-right">Conv %</span>
+          </div>
+        </div>
+      </CardContent>
+    </Card>
+  );
+}
+
+async function PersonaMatrixSection() {
+  const { personaIds, variantIds, personaLabels, variantNames, cells } =
+    await getCachedPersonaVariantMatrix();
+
+  if (personaIds.length === 0 || variantIds.length === 0) return null;
+
+  const cellMap = new Map(
+    cells.map((c) => [`${c.personaId}:${c.variantId}`, c]),
+  );
+
+  // Find global max convRate for relative shading
+  let maxConvRate = 0.01;
+  for (const c of cells) {
+    const rate = c.tries > 1 ? Math.max(0, (c.alpha - 1) / c.tries) : 0;
+    if (rate > maxConvRate) maxConvRate = rate;
+  }
+
+  return (
+    <Card>
+      <CardHeader>
+        <CardTitle className="text-sm font-semibold">Persona × Variant — Win Rates</CardTitle>
+      </CardHeader>
+      <CardContent className="pt-0">
+        <div className="overflow-x-auto">
+          <table className="w-full text-xs border-collapse">
+            <thead>
+              <tr>
+                <th className="text-left py-1.5 pr-3 font-medium text-muted-foreground min-w-[90px]">Persona</th>
+                {variantNames.map((name, i) => (
+                  <th
+                    key={variantIds[i]}
+                    className="py-1.5 px-1 font-medium text-muted-foreground text-center max-w-[80px] min-w-[60px]"
+                  >
+                    <span className="block truncate" title={name}>{name}</span>
+                  </th>
+                ))}
+              </tr>
+            </thead>
+            <tbody>
+              {personaIds.map((pId, pi) => (
+                <tr key={pId} className="border-t border-border/40">
+                  <td className="py-1.5 pr-3 font-medium truncate max-w-[90px]" title={personaLabels[pi]}>
+                    {personaLabels[pi]}
+                  </td>
+                  {variantIds.map((vId) => {
+                    const cell = cellMap.get(`${pId}:${vId}`);
+                    if (!cell || cell.tries < 2) {
+                      return (
+                        <td key={vId} className="py-1.5 px-1 text-center text-muted-foreground/30">
+                          —
+                        </td>
+                      );
+                    }
+                    const convRate = Math.max(0, (cell.alpha - 1) / cell.tries);
+                    const intensity = convRate / maxConvRate;
+                    const pct = (convRate * 100).toFixed(1);
+                    return (
+                      <td
+                        key={vId}
+                        className="py-1.5 px-1 text-center"
+                        title={`${pct}% conv rate (${cell.tries} tries)`}
+                      >
+                        <span
+                          className="inline-block rounded px-1.5 py-0.5 font-mono font-medium"
+                          style={{
+                            backgroundColor: `rgba(99,102,241,${Math.min(0.08 + intensity * 0.55, 0.65)})`,
+                            color: intensity > 0.6 ? "rgb(67,56,202)" : undefined,
+                          }}
+                        >
+                          {pct}%
+                        </span>
+                      </td>
+                    );
+                  })}
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+        <p className="text-xs text-muted-foreground mt-3">
+          Conv rate per persona–variant pair from arm learning data. Darker = higher rate. Min 2 tries shown.
+        </p>
       </CardContent>
     </Card>
   );
@@ -380,6 +590,8 @@ export default function PerformancePage() {
   void getCachedBrazeStats();
   void getCachedAllVariantNames();
   void getLiftCounts();
+  void getChartDecisions();
+  void getCachedPersonaVariantMatrix();
 
   return (
     <>
@@ -418,6 +630,14 @@ export default function PerformancePage() {
 
         <Suspense fallback={<VariantSkeleton />}>
           <TopVariantsSection />
+        </Suspense>
+
+        <Suspense fallback={<TableSkeleton />}>
+          <SendTimeSection />
+        </Suspense>
+
+        <Suspense fallback={<TableSkeleton />}>
+          <PersonaMatrixSection />
         </Suspense>
       </div>
     </>

@@ -7,7 +7,7 @@ import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Agent, FUNNEL_STAGE_META } from "@/types/agent";
 import { AgentStatusBadge } from "./agent-status-badge";
-import { formatNumber } from "@/lib/utils";
+import { cn, formatNumber } from "@/lib/utils";
 import { Bot, MessageSquare, Target, Trash2 } from "lucide-react";
 import { InfoTip } from "@/components/ui/info-tip";
 import {
@@ -21,10 +21,20 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 
+type ConvergenceState = "exploring" | "learning" | "converging" | "confident";
+
+const CONVERGENCE_CONFIG: Record<ConvergenceState, { label: string; dotClass: string; textClass: string }> = {
+  exploring:  { label: "Exploring",  dotClass: "bg-blue-500",   textClass: "text-blue-600 dark:text-blue-400" },
+  learning:   { label: "Learning",   dotClass: "bg-amber-500",  textClass: "text-amber-600 dark:text-amber-400" },
+  converging: { label: "Converging", dotClass: "bg-green-500",  textClass: "text-green-600 dark:text-green-400" },
+  confident:  { label: "Confident",  dotClass: "bg-emerald-600",textClass: "text-emerald-700 dark:text-emerald-400" },
+};
+
 interface AgentCardProps {
   agent: Agent;
   audienceCap?: number | null;
   conversionRate?: number;
+  convergenceState?: ConvergenceState;
   onDelete?: (id: string) => void;
 }
 
@@ -34,7 +44,7 @@ const algorithmLabels: Record<string, string> = {
   contextual: "Contextual Bandit",
 };
 
-export function AgentCard({ agent, audienceCap, conversionRate, onDelete }: AgentCardProps) {
+export function AgentCard({ agent, audienceCap, conversionRate, convergenceState, onDelete }: AgentCardProps) {
   const router = useRouter();
   const [showDeleteDialog, setShowDeleteDialog] = useState(false);
   const [deleting, setDeleting] = useState(false);
@@ -75,7 +85,16 @@ export function AgentCard({ agent, audienceCap, conversionRate, onDelete }: Agen
                     </Badge>
                   </div>
                 </div>
-                <div className="flex items-center gap-1 shrink-0">
+                <div className="flex items-center gap-1 shrink-0 flex-wrap justify-end">
+                  {convergenceState && (() => {
+                    const cfg = CONVERGENCE_CONFIG[convergenceState];
+                    return (
+                      <span className={cn("flex items-center gap-1 text-xs font-medium", cfg.textClass)}>
+                        <span className={cn("h-1.5 w-1.5 rounded-full inline-block", cfg.dotClass)} />
+                        {cfg.label}
+                      </span>
+                    );
+                  })()}
                   <AgentStatusBadge status={agent.status} />
                   <button
                     className="h-6 w-6 flex items-center justify-center rounded-md text-muted-foreground/40 hover:text-destructive hover:bg-destructive/10 transition-colors"
