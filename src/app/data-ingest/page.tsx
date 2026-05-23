@@ -7,6 +7,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { createHightouchClient } from "@/lib/hightouch/client";
+import type { HightouchSync } from "@/lib/hightouch/types";
 import { HealthBanner } from "@/components/data-ingest/health-banner";
 import { SyncsTable } from "@/components/data-ingest/syncs-table";
 import { ModelsTable } from "@/components/data-ingest/models-table";
@@ -18,9 +19,16 @@ import { PayloadReference } from "@/components/data-ingest/payload-reference";
 // React.cache() wrappers — dedup calls across Suspense boundaries
 // ---------------------------------------------------------------------------
 
-const getCachedSyncs = cache(() =>
-  createHightouchClient()?.listSyncs().catch(() => []) ?? Promise.resolve([]),
-);
+const getCachedSyncs = cache(async (): Promise<{ syncs: HightouchSync[]; error?: string }> => {
+  const client = createHightouchClient();
+  if (!client) return { syncs: [] };
+  try {
+    const syncs = await client.listSyncs();
+    return { syncs };
+  } catch (err) {
+    return { syncs: [], error: err instanceof Error ? err.message : String(err) };
+  }
+});
 
 const getCachedModels = cache(() =>
   createHightouchClient()?.listModels().catch(() => []) ?? Promise.resolve([]),
@@ -85,13 +93,19 @@ function CardTableSkeleton() {
 // ---------------------------------------------------------------------------
 
 async function HealthBannerSection() {
-  const syncs = await getCachedSyncs();
+  const { syncs } = await getCachedSyncs();
   return <HealthBanner syncs={syncs} />;
 }
 
 async function SyncsSection() {
-  const syncs = await getCachedSyncs();
-  return <SyncsTable syncs={syncs} />;
+  const { syncs, error } = await getCachedSyncs();
+  return (
+    <SyncsTable
+      syncs={syncs}
+      hasApiKey={!!process.env.HIGHTOUCH_API_KEY}
+      apiError={error}
+    />
+  );
 }
 
 async function ModelsSection() {
@@ -127,13 +141,15 @@ export default function DataIngestPage() {
         </Suspense>
 
         <Tabs defaultValue="syncs">
-          <TabsList>
-            <TabsTrigger value="syncs">Syncs</TabsTrigger>
-            <TabsTrigger value="models">Models</TabsTrigger>
-            <TabsTrigger value="sources">Sources &amp; Destinations</TabsTrigger>
-            <TabsTrigger value="push">Push Events</TabsTrigger>
-            <TabsTrigger value="reference">Reference</TabsTrigger>
-          </TabsList>
+          <div className="overflow-x-auto -mx-4 px-4 sm:mx-0 sm:px-0">
+            <TabsList className="w-max">
+              <TabsTrigger value="syncs">Syncs</TabsTrigger>
+              <TabsTrigger value="models">Models</TabsTrigger>
+              <TabsTrigger value="sources">Sources &amp; Destinations</TabsTrigger>
+              <TabsTrigger value="push">Push Events</TabsTrigger>
+              <TabsTrigger value="reference">Reference</TabsTrigger>
+            </TabsList>
+          </div>
 
           <TabsContent value="syncs" className="mt-4">
             <Suspense fallback={<TableSkeleton />}>

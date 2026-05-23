@@ -36,13 +36,49 @@ function formatSchedule(schedule: HightouchSync["schedule"]): string {
   return schedule.type ? schedule.type.charAt(0).toUpperCase() + schedule.type.slice(1) : "Manual";
 }
 
-type SyncRowProps = {
+type SyncItemProps = {
   sync: HightouchSync;
 };
 
-function SyncRow({ sync }: SyncRowProps) {
+function SyncCard({ sync }: SyncItemProps) {
   const [drawerOpen, setDrawerOpen] = useState(false);
+  return (
+    <>
+      <div className="flex items-start gap-3 px-3 py-3 hover:bg-muted/30 transition-colors">
+        <div className="min-w-0 flex-1 space-y-1.5">
+          <div className="flex items-center gap-2 flex-wrap">
+            <Badge
+              variant="outline"
+              className={cn("text-xs capitalize shrink-0", statusClasses(sync.status))}
+            >
+              {sync.status}
+            </Badge>
+            <button
+              type="button"
+              className="text-xs font-medium hover:underline text-left"
+              onClick={() => setDrawerOpen(true)}
+            >
+              {sync.name}
+            </button>
+          </div>
+          <p className="text-xs text-muted-foreground">
+            {formatRelativeTime(sync.lastRunAt)} · {formatSchedule(sync.schedule)}
+          </p>
+        </div>
+        <TriggerSyncButton syncId={sync.id} syncName={sync.name} />
+      </div>
+      <SyncRunsDrawer
+        syncId={sync.id}
+        syncName={sync.name}
+        open={drawerOpen}
+        onOpenChange={setDrawerOpen}
+      />
+    </>
+  );
+}
 
+function SyncTableRow({ sync }: SyncItemProps) {
+  const [drawerOpen, setDrawerOpen] = useState(false);
   return (
     <>
       <tr className="border-t hover:bg-muted/30 transition-colors">
@@ -88,23 +124,42 @@ function SyncRow({ sync }: SyncRowProps) {
 
 type SyncsTableProps = {
   syncs: HightouchSync[];
+  hasApiKey: boolean;
+  apiError?: string;
 };
 
-export function SyncsTable({ syncs }: SyncsTableProps) {
+export function SyncsTable({ syncs, hasApiKey, apiError }: SyncsTableProps) {
   if (syncs.length === 0) {
     return (
       <div className="text-center py-10 text-sm text-muted-foreground space-y-1">
         <p>No syncs found.</p>
-        <p className="text-xs">
-          Set <code className="font-mono">HIGHTOUCH_API_KEY</code> to load syncs from Hightouch.
-        </p>
+        {!hasApiKey ? (
+          <p className="text-xs">
+            Set <code className="font-mono">HIGHTOUCH_API_KEY</code> to load syncs from Hightouch.
+          </p>
+        ) : apiError ? (
+          <p className="text-xs text-destructive">
+            API error: {apiError}
+          </p>
+        ) : (
+          <p className="text-xs">
+            API key is set but no syncs were returned. Check that your Hightouch workspace has syncs configured.
+          </p>
+        )}
       </div>
     );
   }
 
   return (
     <div className="rounded-lg border overflow-hidden">
-      <table className="w-full text-xs">
+      {/* Mobile: card list */}
+      <div className="sm:hidden divide-y">
+        {syncs.map((sync) => (
+          <SyncCard key={sync.id} sync={sync} />
+        ))}
+      </div>
+      {/* Desktop: table */}
+      <table className="hidden sm:table w-full text-xs">
         <thead className="bg-muted/50">
           <tr>
             <th className="text-left font-medium px-3 py-2">Status</th>
@@ -117,7 +172,7 @@ export function SyncsTable({ syncs }: SyncsTableProps) {
         </thead>
         <tbody>
           {syncs.map((sync) => (
-            <SyncRow key={sync.id} sync={sync} />
+            <SyncTableRow key={sync.id} sync={sync} />
           ))}
         </tbody>
       </table>
