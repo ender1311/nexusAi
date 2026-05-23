@@ -1,11 +1,18 @@
-import { describe, it, expect, beforeEach, afterEach } from "bun:test";
+import { describe, it, expect, beforeEach, afterEach, mock } from "bun:test";
 import { NextRequest } from "next/server";
-import { GET as getSyncs } from "@/app/api/hightouch/syncs/route";
-import { GET as getSyncRuns } from "@/app/api/hightouch/syncs/[id]/runs/route";
-import { POST as triggerSync } from "@/app/api/hightouch/syncs/[id]/trigger/route";
-import { GET as getModels } from "@/app/api/hightouch/models/route";
-import { GET as getSources } from "@/app/api/hightouch/sources/route";
-import { GET as getDestinations } from "@/app/api/hightouch/destinations/route";
+
+// Mock WorkOS before importing any routes that call requireAdmin()
+mock.module("@workos-inc/authkit-nextjs", () => ({
+  withAuth: () => Promise.resolve({ user: null, roles: [], sessionId: null, accessToken: null }),
+  signOut: async () => {},
+}));
+
+const { GET: getSyncs } = await import("@/app/api/hightouch/syncs/route");
+const { GET: getSyncRuns } = await import("@/app/api/hightouch/syncs/[id]/runs/route");
+const { POST: triggerSync } = await import("@/app/api/hightouch/syncs/[id]/trigger/route");
+const { GET: getModels } = await import("@/app/api/hightouch/models/route");
+const { GET: getSources } = await import("@/app/api/hightouch/sources/route");
+const { GET: getDestinations } = await import("@/app/api/hightouch/destinations/route");
 import { buildRequest } from "../helpers/request";
 
 beforeEach(() => {
