@@ -24,7 +24,6 @@ export default async function AgentsPage({
   searchParams: Promise<{ search?: string; status?: string; stage?: string }>;
 }) {
   const { search = "", status = "all", stage } = await searchParams;
-  const { isAdmin } = await getAuth();
 
   const safeStatus: AgentStatus | undefined =
     status !== "all" && VALID_STATUSES.has(status as AgentStatus)
@@ -50,10 +49,13 @@ export default async function AgentsPage({
     ...(safeStage ? { funnelStage: safeStage } : {}),
   };
 
+  // Parallelize WorkOS auth check with DB query — both are independent.
   // unstable_cache gives a server-side data cache so ISR cache misses (~every 30s)
   // read from memory instead of hitting the DB. Invalidated by revalidateTag("agents")
   // which the mutation routes already call on create/update/delete.
-  const { dbAgents } = await unstable_cache(
+  const [{ isAdmin }, { dbAgents }] = await Promise.all([
+    getAuth(),
+    unstable_cache(
     async () => {
       const agents = await prisma.agent.findMany({
         where,
@@ -76,7 +78,8 @@ export default async function AgentsPage({
     },
     ["agents-list", search, safeStatus ?? "", safeStage ?? ""],
     { tags: ["agents"], revalidate: 900 },
-  )();
+  )(),
+  ]);
 
   // Determine whether any filters are active (for empty-state messaging)
   const hasFilters = search !== "" || status !== "all" || stage !== undefined;
