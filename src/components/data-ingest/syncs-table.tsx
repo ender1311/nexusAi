@@ -88,16 +88,28 @@ function SyncRow({ sync }: SyncRowProps) {
 
 type SyncsTableProps = {
   syncs: HightouchSync[];
+  hasApiKey: boolean;
+  apiError?: string;
 };
 
-export function SyncsTable({ syncs }: SyncsTableProps) {
+export function SyncsTable({ syncs, hasApiKey, apiError }: SyncsTableProps) {
   if (syncs.length === 0) {
     return (
       <div className="text-center py-10 text-sm text-muted-foreground space-y-1">
         <p>No syncs found.</p>
-        <p className="text-xs">
-          Set <code className="font-mono">HIGHTOUCH_API_KEY</code> to load syncs from Hightouch.
-        </p>
+        {!hasApiKey ? (
+          <p className="text-xs">
+            Set <code className="font-mono">HIGHTOUCH_API_KEY</code> to load syncs from Hightouch.
+          </p>
+        ) : apiError ? (
+          <p className="text-xs text-destructive">
+            API error: {apiError}
+          </p>
+        ) : (
+          <p className="text-xs">
+            API key is set but no syncs were returned. Check that your Hightouch workspace has syncs configured.
+          </p>
+        )}
       </div>
     );
   }
