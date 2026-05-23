@@ -62,6 +62,133 @@ function personaDot(color: string | null): string {
   return PERSONA_COLOR_CLASSES[color ?? ""] ?? "bg-muted-foreground/40";
 }
 
+function buildVariantNameMap(rows: SendRow[]): Map<string, string> {
+  const map = new Map<string, string>();
+  for (const row of rows) {
+    if (row.variantId && row.variantName) map.set(row.variantId, row.variantName);
+  }
+  return map;
+}
+
+const CONVERGENCE_CONFIG = {
+  exploring: {
+    label: "Exploring",
+    desc: "Testing all messages equally — no pattern yet",
+    dotClass: "bg-blue-400",
+    textClass: "text-blue-600 dark:text-blue-400",
+  },
+  learning: {
+    label: "Learning",
+    desc: "A favorite is starting to emerge",
+    dotClass: "bg-amber-400",
+    textClass: "text-amber-600 dark:text-amber-500",
+  },
+  converging: {
+    label: "Converging",
+    desc: "One message is clearly pulling ahead",
+    dotClass: "bg-emerald-500",
+    textClass: "text-emerald-600 dark:text-emerald-400",
+  },
+  confident: {
+    label: "Confident",
+    desc: "The system has found what works for this audience",
+    dotClass: "bg-emerald-600",
+    textClass: "text-emerald-700 dark:text-emerald-400",
+  },
+} as const;
+
+function ConvergencePanel({ rows }: { rows: SendRow[] }) {
+  const { entries, total, state } = useMemo(() => {
+    const map = new Map<string, { name: string; count: number; conversions: number }>();
+    for (const row of rows) {
+      if (!row.variantId && !row.variantName) continue;
+      const key = row.variantId ?? row.variantName!;
+      const name = row.variantName ?? key.slice(-6);
+      const entry = map.get(key) ?? { name, count: 0, conversions: 0 };
+      entry.count++;
+      if (row.reward != null && row.reward > 0) entry.conversions++;
+      map.set(key, entry);
+    }
+    const entries = [...map.values()].sort((a, b) => b.count - a.count);
+    const total = entries.reduce((s, e) => s + e.count, 0);
+    const topShare = total > 0 && entries.length > 0 ? entries[0].count / total : 0;
+    let state: keyof typeof CONVERGENCE_CONFIG;
+    if (total < 20 || topShare < 0.35) state = "exploring";
+    else if (topShare < 0.50) state = "learning";
+    else if (topShare < 0.70) state = "converging";
+    else state = "confident";
+    return { entries, total, state };
+  }, [rows]);
+
+  if (entries.length < 2 || total < 5) return null;
+
+  const cfg = CONVERGENCE_CONFIG[state];
+  const maxCount = entries[0]?.count ?? 1;
+  const top5 = entries.slice(0, 5);
+  const hasConversions = entries.some((e) => e.conversions > 0);
+
+  return (
+    <div className="rounded-lg border bg-muted/20 px-3 py-3 space-y-2.5">
+      <div className="flex items-start justify-between gap-4">
+        <div>
+          <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wide mb-1">
+            Learning status
+          </p>
+          <div className="flex items-center gap-1.5">
+            <span className={cn("h-2 w-2 rounded-full shrink-0", cfg.dotClass)} />
+            <span className={cn("text-sm font-semibold", cfg.textClass)}>{cfg.label}</span>
+          </div>
+          <p className="text-xs text-muted-foreground mt-0.5">{cfg.desc}</p>
+        </div>
+        <span className="text-xs text-muted-foreground shrink-0 tabular-nums">{total} sends</span>
+      </div>
+      <div className="space-y-1.5">
+        {top5.map((e, i) => {
+          const sendPct = Math.round((e.count / total) * 100);
+          const convPct = e.count > 0 ? Math.round((e.conversions / e.count) * 100) : 0;
+          const isLeader = i === 0;
+          return (
+            <div key={e.name} className="flex items-center gap-2">
+              <span
+                className={cn(
+                  "text-xs w-28 shrink-0 truncate",
+                  isLeader ? "font-semibold text-foreground" : "text-muted-foreground",
+                )}
+              >
+                {isLeader ? "★ " : "  "}{e.name}
+              </span>
+              <div className="flex-1 h-1.5 rounded-full bg-muted overflow-hidden">
+                <div
+                  className={cn("h-full rounded-full", isLeader ? "bg-primary" : "bg-muted-foreground/30")}
+                  style={{ width: `${(e.count / maxCount) * 100}%` }}
+                />
+              </div>
+              <span className="text-[10px] font-mono text-muted-foreground w-7 text-right shrink-0">
+                {sendPct}%
+              </span>
+              {hasConversions && (
+                <span
+                  className={cn(
+                    "text-[10px] w-12 text-right shrink-0",
+                    convPct > 0 ? "text-emerald-600 dark:text-emerald-400 font-medium" : "text-transparent",
+                  )}
+                >
+                  {convPct > 0 ? `${convPct}% ✓` : "—"}
+                </span>
+              )}
+            </div>
+          );
+        })}
+        {entries.length > 5 && (
+          <p className="text-[10px] text-muted-foreground pl-[calc(112px+8px)]">
+            +{entries.length - 5} more
+          </p>
+        )}
+      </div>
+    </div>
+  );
+}
+
 function SendsStatusLegend() {
   const items: { status: AgentSendDeliveryStatus; label: string; detail: string }[] = [
     {
@@ -223,7 +350,7 @@ function deliveryStatusLabel(status: AgentSendDeliveryStatus): string {
   return "Delivered (Braze OK)";
 }
 
-function ExpandedContent({ row, nowMs }: { row: SendRow; nowMs: number }) {
+function ExpandedContent({ row, nowMs, variantNameMap }: { row: SendRow; nowMs: number; variantNameMap?: Map<string, string> }) {
   const status = getAgentSendDeliveryStatus(row, nowMs);
   return (
     <div className="px-4 py-3 bg-muted/30 border-t space-y-2.5">
@@ -263,28 +390,58 @@ function ExpandedContent({ row, nowMs }: { row: SendRow; nowMs: number }) {
         const scores = ctx?.variantScores;
         if (!scores || Object.keys(scores).length === 0) return null;
         const sorted = Object.entries(scores).sort(([, a], [, b]) => b - a);
+        const totalScore = sorted.reduce((s, [, v]) => s + v, 0);
+        const winnerScore = sorted[0]?.[1] ?? 0;
+        const winnerSharePct = totalScore > 0 ? Math.round((winnerScore / totalScore) * 100) : 0;
         const maxScore = sorted[0]?.[1] ?? 1;
+        const top3 = sorted.slice(0, 3);
+        const restCount = sorted.length - top3.length;
+
+        let confidenceLabel: string;
+        let confidenceColor: string;
+        let confidenceDetail: string;
+        if (winnerSharePct >= 70) {
+          confidenceLabel = "High confidence pick";
+          confidenceColor = "text-emerald-700 dark:text-emerald-400";
+          confidenceDetail = "This message has been working well for similar users";
+        } else if (winnerSharePct >= 40) {
+          confidenceLabel = "Moderate confidence";
+          confidenceColor = "text-amber-700 dark:text-amber-500";
+          confidenceDetail = "This message looks promising — still learning";
+        } else {
+          confidenceLabel = "Exploratory pick";
+          confidenceColor = "text-muted-foreground";
+          confidenceDetail = "Gathering data — all options look similar right now";
+        }
+
         return (
           <div>
-            <p className="text-[10px] font-medium text-muted-foreground uppercase tracking-wide mb-2">
-              Arm probabilities at decide-time
+            <p className="text-[10px] font-medium text-muted-foreground uppercase tracking-wide mb-1">
+              Why this message?
             </p>
+            <p className={cn("text-xs font-medium", confidenceColor)}>{confidenceLabel}</p>
+            <p className="text-[11px] text-muted-foreground mb-2">{confidenceDetail}</p>
             <div className="space-y-1">
-              {sorted.map(([vid, score]) => {
+              {top3.map(([vid, score]) => {
                 const isSelected = vid === ctx?.selectedVariantId;
                 const pct = maxScore > 0 ? (score / maxScore) * 100 : 0;
+                const resolvedName = variantNameMap?.get(vid) ?? vid.slice(-6);
                 return (
                   <div key={vid} className="flex items-center gap-2">
-                    <span className={cn("text-[10px] font-mono w-16 shrink-0", isSelected && "text-primary font-semibold")}>
-                      {isSelected ? "★ " : "  "}{vid.slice(-6)}
+                    <span className={cn("text-[10px] w-32 shrink-0 truncate", isSelected ? "font-semibold text-primary" : "font-mono text-muted-foreground")}>
+                      {isSelected ? "★ " : "  "}{resolvedName}
                     </span>
                     <div className="flex-1 h-1.5 rounded-full bg-muted overflow-hidden">
                       <div className={cn("h-full rounded-full", isSelected ? "bg-primary" : "bg-muted-foreground/30")} style={{ width: `${pct}%` }} />
                     </div>
-                    <span className="text-[10px] font-mono text-muted-foreground w-8 text-right">{(score * 100).toFixed(0)}%</span>
                   </div>
                 );
               })}
+              {restCount > 0 && (
+                <p className="text-[10px] text-muted-foreground pl-[calc(128px+8px)]">
+                  +{restCount} other{restCount > 1 ? "s" : ""} with lower draws
+                </p>
+              )}
             </div>
           </div>
         );
@@ -330,11 +487,12 @@ function ExpandedContent({ row, nowMs }: { row: SendRow; nowMs: number }) {
 }
 
 /** Scheduled (future) sends — compact card list above the main sent table */
-function ScheduledSection({ rows, expanded, onToggle, nowMs }: {
+function ScheduledSection({ rows, expanded, onToggle, nowMs, variantNameMap }: {
   rows: SendRow[];
   expanded: Set<string>;
   onToggle: (id: string) => void;
   nowMs: number;
+  variantNameMap: Map<string, string>;
 }) {
   if (rows.length === 0) return null;
   return (
@@ -400,7 +558,7 @@ function ScheduledSection({ rows, expanded, onToggle, nowMs }: {
                 <Badge variant="outline" className="text-xs capitalize hidden sm:inline-flex">{row.channel}</Badge>
               </div>
             </button>
-            {isOpen && <ExpandedContent row={row} nowMs={nowMs} />}
+            {isOpen && <ExpandedContent row={row} nowMs={nowMs} variantNameMap={variantNameMap} />}
           </div>
         );
       })}
@@ -503,6 +661,7 @@ export function AgentSendsTable({ agentId }: Props) {
     () => [...new Set(rows.map((r) => r.personaName ?? "none"))].filter((p) => p !== "none").sort(),
     [rows],
   );
+  const variantNameMap = useMemo(() => buildVariantNameMap(rows), [rows]);
 
   const nowMs = Date.now();
   const scheduledRows = rows.filter((r) => {
@@ -699,10 +858,12 @@ export function AgentSendsTable({ agentId }: Props) {
         </div>
       )}
 
+      <ConvergencePanel rows={sentRows} />
+
       <SendsStatusLegend />
 
       {/* Scheduled (future) sends */}
-      <ScheduledSection rows={scheduledRows} expanded={expanded} onToggle={toggleExpanded} nowMs={nowMs} />
+      <ScheduledSection rows={scheduledRows} expanded={expanded} onToggle={toggleExpanded} nowMs={nowMs} variantNameMap={variantNameMap} />
 
       {/* Sent history */}
       {filteredSentRows.length === 0 ? (
@@ -854,7 +1015,7 @@ export function AgentSendsTable({ agentId }: Props) {
                           {isOpen && (
                             <TableRow className="hover:bg-transparent">
                               <TableCell colSpan={7} className="p-0">
-                                <ExpandedContent row={row} nowMs={nowMs} />
+                                <ExpandedContent row={row} nowMs={nowMs} variantNameMap={variantNameMap} />
                               </TableCell>
                             </TableRow>
                           )}
