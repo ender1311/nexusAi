@@ -127,12 +127,14 @@ export const getCachedPersonaDistribution = cache(
 
 // ── Dashboard counts ──────────────────────────────────────────────────────────
 
-/** Aggregate counts shown in dashboard metric cards. */
+/** Aggregate counts shown in dashboard metric cards. Scoped to last 30 days to use the sentAt index. */
 export const getCachedDashboardCounts = cache(
   unstable_cache(
     async () => {
       const twentyFourHoursAgo = new Date(Date.now() - 24 * 60 * 60 * 1000);
-      // Single aggregated pass over UserDecision instead of 5 separate COUNT queries.
+      const thirtyDaysAgo = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000);
+      // Single aggregated pass with a WHERE on sentAt so Postgres uses @@index([sentAt])
+      // instead of a full table scan. "total_decisions" etc. are now 30-day figures.
       const [rows, trackedUsers] = await Promise.all([
         prisma.$queryRaw<[{
           sent_last24h: bigint;
@@ -148,6 +150,7 @@ export const getCachedDashboardCounts = cache(
             COUNT(*) FILTER (WHERE "channel" = 'push')                                          AS total_push_sends,
             COUNT(*) FILTER (WHERE "channel" = 'push' AND "pushOpenAt" IS NOT NULL)             AS total_push_opens
           FROM "UserDecision"
+          WHERE "sentAt" >= ${thirtyDaysAgo}
         `,
         prisma.trackedUser.count(),
       ]);
@@ -229,33 +232,37 @@ export const getCachedRecentDecisions = cache(
 export const getCachedPerformanceMetrics = unstable_cache(
   async () => {
     const thirtyDaysAgo = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000);
-    const [agents, sendsByAgent, conversionsByAgent, pushSendsByAgent, pushOpensByAgent] = await Promise.all([
+    // One $queryRaw replaces 4 parallel groupBy queries — single DB round-trip,
+    // single index scan on @@index([sentAt]), same returned shape for consumers.
+    const [agents, rows] = await Promise.all([
       prisma.agent.findMany({
         where: { name: { not: LIBRARY_AGENT_NAME } },
         select: { id: true, name: true, status: true },
         orderBy: { updatedAt: "desc" },
       }),
-      prisma.userDecision.groupBy({
-        by: ["agentId"],
-        where: { sentAt: { gte: thirtyDaysAgo } },
-        _count: { id: true },
-      }),
-      prisma.userDecision.groupBy({
-        by: ["agentId"],
-        where: { sentAt: { gte: thirtyDaysAgo }, conversionAt: { not: null } },
-        _count: { id: true },
-      }),
-      prisma.userDecision.groupBy({
-        by: ["agentId"],
-        where: { sentAt: { gte: thirtyDaysAgo }, channel: "push" },
-        _count: { id: true },
-      }),
-      prisma.userDecision.groupBy({
-        by: ["agentId"],
-        where: { sentAt: { gte: thirtyDaysAgo }, channel: "push", pushOpenAt: { not: null } },
-        _count: { id: true },
-      }),
+      prisma.$queryRaw<Array<{
+        agent_id: string;
+        sends: bigint;
+        conversions: bigint;
+        push_sends: bigint;
+        push_opens: bigint;
+      }>>`
+        SELECT
+          "agentId"                                                                          AS agent_id,
+          COUNT(*)::bigint                                                                   AS sends,
+          COUNT("conversionAt")::bigint                                                     AS conversions,
+          COUNT(*) FILTER (WHERE "channel" = 'push')::bigint                               AS push_sends,
+          COUNT(*) FILTER (WHERE "channel" = 'push' AND "pushOpenAt" IS NOT NULL)::bigint  AS push_opens
+        FROM "UserDecision"
+        WHERE "sentAt" >= ${thirtyDaysAgo}
+        GROUP BY "agentId"
+      `,
     ]);
+    // Reconstruct the same array shapes consumers expect
+    const sendsByAgent        = rows.map((r) => ({ agentId: r.agent_id, _count: { id: Number(r.sends) } }));
+    const conversionsByAgent  = rows.map((r) => ({ agentId: r.agent_id, _count: { id: Number(r.conversions) } }));
+    const pushSendsByAgent    = rows.map((r) => ({ agentId: r.agent_id, _count: { id: Number(r.push_sends) } }));
+    const pushOpensByAgent    = rows.map((r) => ({ agentId: r.agent_id, _count: { id: Number(r.push_opens) } }));
     return { agents, sendsByAgent, conversionsByAgent, pushSendsByAgent, pushOpensByAgent };
   },
   ["performance-metrics"],
@@ -266,23 +273,47 @@ export const getCachedPerformanceMetrics = unstable_cache(
 export const getCachedVariantMetrics = unstable_cache(
   async () => {
     const thirtyDaysAgo = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000);
-    const [variantSends, variantConversions, variantRewards] = await Promise.all([
-      prisma.userDecision.groupBy({
-        by: ["messageVariantId", "channel"],
-        where: { sentAt: { gte: thirtyDaysAgo }, messageVariantId: { not: null } },
-        _count: { id: true },
-      }),
-      prisma.userDecision.groupBy({
-        by: ["messageVariantId"],
-        where: { sentAt: { gte: thirtyDaysAgo }, messageVariantId: { not: null }, conversionAt: { not: null } },
-        _count: { id: true },
-      }),
-      prisma.userDecision.groupBy({
-        by: ["messageVariantId"],
-        where: { sentAt: { gte: thirtyDaysAgo }, messageVariantId: { not: null } },
-        _sum: { reward: true },
-      }),
-    ]);
+    // Single scan grouped by (variantId, channel) — conversions and rewards
+    // are aggregated per channel row then reconstructed into the original shapes.
+    const rows = await prisma.$queryRaw<Array<{
+      variant_id: string;
+      channel: string;
+      sends: bigint;
+      conversions: bigint;
+      total_reward: number | null;
+    }>>`
+      SELECT
+        "messageVariantId"              AS variant_id,
+        "channel",
+        COUNT(*)::bigint                AS sends,
+        COUNT("conversionAt")::bigint   AS conversions,
+        SUM(reward)::float              AS total_reward
+      FROM "UserDecision"
+      WHERE "sentAt" >= ${thirtyDaysAgo}
+        AND "messageVariantId" IS NOT NULL
+      GROUP BY "messageVariantId", "channel"
+    `;
+    // Reconstruct original shapes expected by consumers
+    const variantSends = rows.map((r) => ({
+      messageVariantId: r.variant_id,
+      channel: r.channel,
+      _count: { id: Number(r.sends) },
+    }));
+    // Aggregate conversions across channels per variant
+    const convMap = new Map<string, number>();
+    const rewardMap = new Map<string, number>();
+    for (const r of rows) {
+      convMap.set(r.variant_id, (convMap.get(r.variant_id) ?? 0) + Number(r.conversions));
+      rewardMap.set(r.variant_id, (rewardMap.get(r.variant_id) ?? 0) + (r.total_reward ?? 0));
+    }
+    const variantConversions = [...convMap.entries()].map(([id, count]) => ({
+      messageVariantId: id,
+      _count: { id: count },
+    }));
+    const variantRewards = [...rewardMap.entries()].map(([id, sum]) => ({
+      messageVariantId: id,
+      _sum: { reward: sum },
+    }));
     return { variantSends, variantConversions, variantRewards };
   },
   ["performance-variants"],
@@ -518,7 +549,7 @@ export const getCachedBrazeStats = cache(unstable_cache(
     const brazeClient = createBrazeClient();
     if (!brazeClient) return null;
     try {
-      const daysSince = Math.ceil((Date.now() - new Date("2026-05-16").getTime()) / (86400 * 1000)) + 2;
+      const daysSince = 60;
       const controller = new AbortController();
       const timeoutId = setTimeout(() => controller.abort(), 3000);
       let res: Response;

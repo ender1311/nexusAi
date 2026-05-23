@@ -98,8 +98,8 @@ async function MetricCardsSection() {
       <MetricCard title="Tracked Users" value={formatNumber(trackedUsers)} description="synced from Hightouch" icon={Users} />
       <MetricCard title="Active Agents" value={activeAgents} description="currently running" icon={Bot} trend={0} />
       <MetricCard title="Messages Sent (24h)" value={formatNumber(sentLast24h)} description="across all channels" icon={Send} />
-      {avgConvRate > 0 && <MetricCard title="Avg Conversion Rate" value={`${avgConvRate.toFixed(2)}%`} description="across active agents" icon={TrendingUp} />}
-      <MetricCard title="Total Sends" value={formatNumber(totalPushSends)} description="push notifications" icon={Send} />
+      {avgConvRate > 0 && <MetricCard title="Avg Conversion Rate" value={`${avgConvRate.toFixed(2)}%`} description="last 30 days" icon={TrendingUp} />}
+      <MetricCard title="Total Sends" value={formatNumber(totalPushSends)} description="push, last 30 days" icon={Send} />
     </>
   );
 }
