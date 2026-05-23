@@ -1,5 +1,6 @@
 export const revalidate = 900;
 
+import { Suspense } from "react";
 import { Header } from "@/components/layout/header";
 import { MetricCard } from "@/components/charts/metric-card";
 import { PersonaCard } from "@/components/personas/persona-card";
@@ -40,13 +41,12 @@ const getPersonas = unstable_cache(
   { tags: ["personas"], revalidate: 900 }
 );
 
-export default async function PersonasPage() {
+async function PersonasContent() {
   const personas = await getPersonas().catch(() => [] as Persona[]);
 
   const manualPersonas = personas.filter((p) => p.source === "manual");
   const discoveredPersonas = personas.filter((p) => p.source === "discovered");
 
-  // Real assigned users (from DB _count), not mock metrics
   const assignedUsers = personas.reduce((s, p) => s + (p._count?.trackedUsers ?? 0), 0);
   const totalUsers = personas.reduce((s, p) => s + (p.metrics?.userCount ?? p._count?.trackedUsers ?? 0), 0);
   const avgConvRate =
@@ -59,90 +59,111 @@ export default async function PersonasPage() {
     null
   );
 
-  const description =
-    personas.length === 0
-      ? "No personas yet — seed the database to get started"
-      : `${personas.length} user segment${personas.length !== 1 ? "s" : ""} — ${manualPersonas.length} manual, ${discoveredPersonas.length} discovered`;
+  return (
+    <div className="p-4 sm:p-6 space-y-4 sm:space-y-6">
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
+        <MetricCard
+          title="Total Personas"
+          value={personas.length}
+          description="behavioral segments"
+          icon={Users2}
+        />
+        <MetricCard
+          title="Total Users"
+          value={formatNumber(totalUsers)}
+          description="across all segments"
+          icon={Users2}
+          trend={4.2}
+        />
+        <MetricCard
+          title="Avg Conv. Rate"
+          value={`${avgConvRate.toFixed(1)}%`}
+          description="across all personas"
+          icon={TrendingUp}
+        />
+        <MetricCard
+          title="Highest LTV"
+          value={highestLtvPersona ? `${highestLtvPersona.metrics?.ltv ?? "—"}/10` : "—"}
+          description={highestLtvPersona?.name ?? ""}
+          icon={Star}
+        />
+      </div>
 
+      {assignedUsers > 0 && (
+        <AudienceDistribution personas={personas} totalUsers={assignedUsers} />
+      )}
+
+      {manualPersonas.length > 0 && (
+        <section>
+          <h2 className="text-sm font-semibold text-muted-foreground mb-3 flex items-center gap-1.5">
+            <Users2 className="h-4 w-4" />
+            Manual Personas ({manualPersonas.length})
+          </h2>
+          <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4">
+            {manualPersonas.map((persona) => (
+              <PersonaCard key={persona.id} persona={persona} totalUsers={assignedUsers} />
+            ))}
+          </div>
+        </section>
+      )}
+
+      {discoveredPersonas.length > 0 && (
+        <section>
+          <h2 className="text-sm font-semibold text-muted-foreground mb-3 flex items-center gap-1.5">
+            <Sparkles className="h-4 w-4" />
+            Discovered Personas ({discoveredPersonas.length})
+          </h2>
+          <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4">
+            {discoveredPersonas.map((persona) => (
+              <PersonaCard key={persona.id} persona={persona} totalUsers={assignedUsers} />
+            ))}
+          </div>
+        </section>
+      )}
+
+      {personas.length === 0 && (
+        <div className="flex flex-col items-center justify-center py-16 text-center border-2 border-dashed rounded-xl text-muted-foreground">
+          <Users2 className="h-10 w-10 mx-auto mb-3 opacity-40" />
+          <p className="font-medium">No personas configured</p>
+          <p className="text-sm mt-1">
+            Personas define your user behavioral segments. Use the Settings page to run persona discovery once users have accumulated engagement data.
+          </p>
+          <Link href="/settings" className="mt-4">
+            <Button size="sm" variant="outline">
+              Go to Settings
+            </Button>
+          </Link>
+        </div>
+      )}
+    </div>
+  );
+}
+
+function PersonasLoadingSkeleton() {
+  return (
+    <div className="p-4 sm:p-6 space-y-4 sm:space-y-6">
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
+        {[1, 2, 3, 4].map((i) => (
+          <div key={i} className="h-24 rounded-xl border bg-muted animate-pulse" />
+        ))}
+      </div>
+      <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4">
+        {[1, 2, 3, 4].map((i) => (
+          <div key={i} className="h-40 rounded-xl border bg-muted animate-pulse" />
+        ))}
+      </div>
+    </div>
+  );
+}
+
+export default function PersonasPage() {
+  void getPersonas();
   return (
     <>
-      <Header title="Personas" description={description} />
-      <div className="p-4 sm:p-6 space-y-4 sm:space-y-6">
-        <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
-          <MetricCard
-            title="Total Personas"
-            value={personas.length}
-            description="behavioral segments"
-            icon={Users2}
-          />
-          <MetricCard
-            title="Total Users"
-            value={formatNumber(totalUsers)}
-            description="across all segments"
-            icon={Users2}
-            trend={4.2}
-          />
-          <MetricCard
-            title="Avg Conv. Rate"
-            value={`${avgConvRate.toFixed(1)}%`}
-            description="across all personas"
-            icon={TrendingUp}
-          />
-          <MetricCard
-            title="Highest LTV"
-            value={highestLtvPersona ? `${highestLtvPersona.metrics?.ltv ?? "—"}/10` : "—"}
-            description={highestLtvPersona?.name ?? ""}
-            icon={Star}
-          />
-        </div>
-
-        {assignedUsers > 0 && (
-          <AudienceDistribution personas={personas} totalUsers={assignedUsers} />
-        )}
-
-        {manualPersonas.length > 0 && (
-          <section>
-            <h2 className="text-sm font-semibold text-muted-foreground mb-3 flex items-center gap-1.5">
-              <Users2 className="h-4 w-4" />
-              Manual Personas ({manualPersonas.length})
-            </h2>
-            <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4">
-              {manualPersonas.map((persona) => (
-                <PersonaCard key={persona.id} persona={persona} totalUsers={assignedUsers} />
-              ))}
-            </div>
-          </section>
-        )}
-
-        {discoveredPersonas.length > 0 && (
-          <section>
-            <h2 className="text-sm font-semibold text-muted-foreground mb-3 flex items-center gap-1.5">
-              <Sparkles className="h-4 w-4" />
-              Discovered Personas ({discoveredPersonas.length})
-            </h2>
-            <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4">
-              {discoveredPersonas.map((persona) => (
-                <PersonaCard key={persona.id} persona={persona} totalUsers={assignedUsers} />
-              ))}
-            </div>
-          </section>
-        )}
-
-        {personas.length === 0 && (
-          <div className="flex flex-col items-center justify-center py-16 text-center border-2 border-dashed rounded-xl text-muted-foreground">
-            <Users2 className="h-10 w-10 mx-auto mb-3 opacity-40" />
-            <p className="font-medium">No personas configured</p>
-            <p className="text-sm mt-1">
-              Personas define your user behavioral segments. Use the Settings page to run persona discovery once users have accumulated engagement data.
-            </p>
-            <Link href="/settings" className="mt-4">
-              <Button size="sm" variant="outline">
-                Go to Settings
-              </Button>
-            </Link>
-          </div>
-        )}
-      </div>
+      <Header title="Personas" description="User behavioral segments" />
+      <Suspense fallback={<PersonasLoadingSkeleton />}>
+        <PersonasContent />
+      </Suspense>
     </>
   );
 }
