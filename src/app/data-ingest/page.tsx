@@ -12,6 +12,7 @@ import { SyncsTable } from "@/components/data-ingest/syncs-table";
 import { ModelsTable } from "@/components/data-ingest/models-table";
 import { SourcesDestinations } from "@/components/data-ingest/sources-destinations";
 import { EventPushForm } from "@/components/data-ingest/event-push-form";
+import { PayloadReference } from "@/components/data-ingest/payload-reference";
 
 // ---------------------------------------------------------------------------
 // React.cache() wrappers — dedup calls across Suspense boundaries
@@ -131,6 +132,7 @@ export default function DataIngestPage() {
             <TabsTrigger value="models">Models</TabsTrigger>
             <TabsTrigger value="sources">Sources &amp; Destinations</TabsTrigger>
             <TabsTrigger value="push">Push Events</TabsTrigger>
+            <TabsTrigger value="reference">Reference</TabsTrigger>
           </TabsList>
 
           <TabsContent value="syncs" className="mt-4">
@@ -153,6 +155,10 @@ export default function DataIngestPage() {
 
           <TabsContent value="push" className="mt-4">
             <EventPushForm />
+          </TabsContent>
+
+          <TabsContent value="reference" className="mt-4">
+            <PayloadReference />
           </TabsContent>
         </Tabs>
       </div>
