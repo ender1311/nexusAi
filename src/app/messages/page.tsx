@@ -56,9 +56,8 @@ const getGroups = unstable_cache(
 );
 
 export default async function MessagesPage() {
-  const { user } = await getAuth();
+  const [{ user }, groups] = await Promise.all([getAuth(), getGroups()]);
   const isAdmin = !!user; // all authenticated users can manage the push library
-  const groups = await getGroups();
 
   const totalVariants = groups.reduce((s, g) => s + g.variants.length, 0);
   const description = `${totalVariants} push${totalVariants !== 1 ? "es" : ""} across ${groups.length} group${groups.length !== 1 ? "s" : ""}`;
