@@ -61,11 +61,6 @@ export default async function AgentDetailPage({ params }: { params: Promise<{ id
 
   if (!agent) notFound();
 
-  // Count users per target persona for the Audience tab
-  const targetPersonaIds = agent.personaTargets.map((pt) => pt.personaId);
-  const { userCountRows, previewUsers } = await getCachedAgentAudienceData(id, targetPersonaIds);
-  const userCountByPersona = new Map(userCountRows.map((r) => [r.personaId, r._count.personaId]));
-
   const freqCap = agent.schedulingRule?.frequencyCap as FrequencyCap | null;
   const quietHours = agent.schedulingRule?.quietHours as QuietHours | null;
   const blackoutDates = (agent.schedulingRule?.blackoutDates ?? []) as string[];
@@ -410,90 +405,27 @@ export default async function AgentDetailPage({ params }: { params: Promise<{ id
             </Suspense>
           </TabsContent>
 
-          <TabsContent value="audience" className="mt-4 space-y-4">
-            <Card>
-              <CardHeader>
-                <div className="flex items-center justify-between">
-                  <CardTitle className="text-sm font-semibold">Target Personas</CardTitle>
-                  {targetPersonaIds.length > 0 && (
-                    <span className="text-sm text-muted-foreground">
-                      {[...userCountByPersona.values()].reduce((s, n) => s + n, 0).toLocaleString()} eligible users
-                    </span>
-                  )}
-                </div>
-              </CardHeader>
-              <CardContent>
-                <PersonaTargetManager
-                  agentId={agent.id}
-                  initialTargets={agent.personaTargets.map((pt) => ({
-                    id: pt.id,
-                    userCount: userCountByPersona.get(pt.personaId) ?? 0,
-                    persona: {
-                      id: pt.persona.id,
-                      name: pt.persona.name,
-                      label: pt.persona.label,
-                      icon: pt.persona.icon,
-                      color: pt.persona.color,
-                    },
-                  }))}
-                  allPersonas={allPersonas}
-                />
-              </CardContent>
-            </Card>
-            <Card>
-              <CardHeader>
-                <CardTitle className="text-sm font-semibold">Funnel Stage &amp; Targeting</CardTitle>
-              </CardHeader>
-              <CardContent>
-                <AgentFunnelConfig
-                  agentId={agent.id}
-                  funnelStage={agent.funnelStage as FunnelStage}
-                  targetFilter={
-                    agent.targetFilter !== null &&
-                    typeof agent.targetFilter === "object" &&
-                    !Array.isArray(agent.targetFilter)
-                      ? (agent.targetFilter as Record<string, unknown>)
-                      : null
-                  }
-                />
-              </CardContent>
-            </Card>
-            {previewUsers.length > 0 && (
-              <Card>
-                <CardHeader>
-                  <div className="flex items-center justify-between">
-                    <CardTitle className="text-sm font-semibold">Next Send Preview</CardTitle>
-                    <span className="text-xs text-muted-foreground">First {previewUsers.length} eligible users</span>
-                  </div>
-                </CardHeader>
-                <CardContent className="p-0">
-                  <table className="w-full text-sm">
-                    <thead>
-                      <tr className="border-b text-xs text-muted-foreground">
-                        <th className="px-4 py-2 text-left font-medium">External ID</th>
-                        <th className="px-4 py-2 text-left font-medium">Name</th>
-                        <th className="hidden sm:table-cell px-4 py-2 text-left font-medium">Email</th>
-                        <th className="px-4 py-2 text-left font-medium">Persona</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {previewUsers.map((u) => {
-                        const attrs = (u.attributes ?? {}) as Record<string, unknown>;
-                        const personaName = agent.personaTargets.find((pt) => pt.personaId === u.personaId)?.persona.name ?? "—";
-                        return (
-                          <tr key={u.externalId} className="border-b last:border-0 hover:bg-muted/40">
-                            <td className="px-4 py-2 font-mono text-xs max-w-[100px] truncate">{u.externalId}</td>
-                            <td className="px-4 py-2 max-w-[80px] truncate">{String(attrs.first_name ?? "—")}</td>
-                            <td className="hidden sm:table-cell px-4 py-2 text-muted-foreground max-w-[160px] truncate">{String(attrs.email ?? "—")}</td>
-                            <td className="px-4 py-2 max-w-[90px] truncate">{personaName}</td>
-                          </tr>
-                        );
-                      })}
-                    </tbody>
-                  </table>
-                </CardContent>
-              </Card>
-            )}
+          <TabsContent value="audience" className="mt-4">
+            <Suspense fallback={
+              <div className="space-y-4">
+                <Skeleton className="h-40 rounded-xl" />
+                <Skeleton className="h-32 rounded-xl" />
+              </div>
+            }>
+              <AudienceTabContent
+                agentId={id}
+                personaTargets={agent.personaTargets}
+                funnelStage={agent.funnelStage as FunnelStage}
+                targetFilter={
+                  agent.targetFilter !== null &&
+                  typeof agent.targetFilter === "object" &&
+                  !Array.isArray(agent.targetFilter)
+                    ? (agent.targetFilter as Record<string, unknown>)
+                    : null
+                }
+                allPersonas={allPersonas}
+              />
+            </Suspense>
           </TabsContent>
 
           <TabsContent value="sends" className="mt-4">
@@ -502,5 +434,117 @@ export default async function AgentDetailPage({ params }: { params: Promise<{ id
         </Tabs>
       </div>
     </>
+  );
+}
+
+type AudiencePersonaTarget = {
+  id: string;
+  personaId: string;
+  persona: { id: string; name: string; label: string | null; icon: string | null; color: string | null };
+};
+
+async function AudienceTabContent({
+  agentId,
+  personaTargets,
+  funnelStage,
+  targetFilter,
+  allPersonas,
+}: {
+  agentId: string;
+  personaTargets: AudiencePersonaTarget[];
+  funnelStage: FunnelStage;
+  targetFilter: Record<string, unknown> | null;
+  allPersonas: Awaited<ReturnType<typeof getCachedActivePersonas>>;
+}) {
+  const targetPersonaIds = personaTargets.map((pt) => pt.personaId);
+  const { userCountRows, previewUsers } = await getCachedAgentAudienceData(agentId, targetPersonaIds);
+  const userCountByPersona = new Map(userCountRows.map((r) => [r.personaId, r._count.personaId]));
+
+  return (
+    <div className="space-y-4">
+      <Card>
+        <CardHeader>
+          <div className="flex items-center justify-between">
+            <CardTitle className="text-sm font-semibold">Target Personas</CardTitle>
+            {targetPersonaIds.length > 0 && (
+              <span className="text-sm text-muted-foreground">
+                {[...userCountByPersona.values()].reduce((s, n) => s + n, 0).toLocaleString()} eligible users
+              </span>
+            )}
+          </div>
+        </CardHeader>
+        <CardContent>
+          <PersonaTargetManager
+            agentId={agentId}
+            initialTargets={personaTargets.map((pt) => ({
+              id: pt.id,
+              userCount: userCountByPersona.get(pt.personaId) ?? 0,
+              persona: {
+                id: pt.persona.id,
+                name: pt.persona.name,
+                label: pt.persona.label,
+                icon: pt.persona.icon ?? "",
+                color: pt.persona.color ?? "",
+              },
+            }))}
+            allPersonas={allPersonas.map((p) => ({
+              id: p.id,
+              name: p.name,
+              label: p.label,
+              icon: p.icon ?? "",
+              color: p.color ?? "",
+            }))}
+          />
+        </CardContent>
+      </Card>
+      <Card>
+        <CardHeader>
+          <CardTitle className="text-sm font-semibold">Funnel Stage &amp; Targeting</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <AgentFunnelConfig
+            agentId={agentId}
+            funnelStage={funnelStage}
+            targetFilter={targetFilter}
+          />
+        </CardContent>
+      </Card>
+      {previewUsers.length > 0 && (
+        <Card>
+          <CardHeader>
+            <div className="flex items-center justify-between">
+              <CardTitle className="text-sm font-semibold">Next Send Preview</CardTitle>
+              <span className="text-xs text-muted-foreground">First {previewUsers.length} eligible users</span>
+            </div>
+          </CardHeader>
+          <CardContent className="p-0">
+            <table className="w-full text-sm">
+              <thead>
+                <tr className="border-b text-xs text-muted-foreground">
+                  <th className="px-4 py-2 text-left font-medium">External ID</th>
+                  <th className="px-4 py-2 text-left font-medium">Name</th>
+                  <th className="hidden sm:table-cell px-4 py-2 text-left font-medium">Email</th>
+                  <th className="px-4 py-2 text-left font-medium">Persona</th>
+                </tr>
+              </thead>
+              <tbody>
+                {previewUsers.map((u) => {
+                  const attrs = (u.attributes ?? {}) as Record<string, unknown>;
+                  const personaName = personaTargets.find((pt) => pt.personaId === u.personaId)?.persona.name ?? "—";
+                  return (
+                    <tr key={u.externalId} className="border-b last:border-0 hover:bg-muted/40">
+                      <td className="px-4 py-2 font-mono text-xs max-w-[100px] truncate">{u.externalId}</td>
+                      <td className="px-4 py-2 max-w-[80px] truncate">{String(attrs.first_name ?? "—")}</td>
+                      <td className="hidden sm:table-cell px-4 py-2 text-muted-foreground max-w-[160px] truncate">{String(attrs.email ?? "—")}</td>
+                      <td className="px-4 py-2 max-w-[90px] truncate">{personaName}</td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </CardContent>
+        </Card>
+      )}
+    </div>
   );
 }
