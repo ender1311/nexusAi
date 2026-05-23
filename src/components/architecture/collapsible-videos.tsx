@@ -7,14 +7,17 @@ import { Button } from "@/components/ui/button";
 type VideoItem = {
   id: string;
   title: string;
+  start?: number;
 };
 
 export function CollapsibleVideos({
   heading,
   videos,
+  cols = 3,
 }: {
   heading: string;
   videos: VideoItem[];
+  cols?: 2 | 3;
 }) {
   const [open, setOpen] = useState(true);
 
@@ -46,12 +49,17 @@ export function CollapsibleVideos({
       </div>
 
       {open && (
-        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+        <div
+          className={`grid grid-cols-1 gap-4 ${
+            cols === 2 ? "sm:grid-cols-2" : "sm:grid-cols-3"
+          }`}
+        >
           {videos.map((v) => (
             <div key={v.id} className="space-y-1.5">
               <iframe
-                src={`https://www.youtube-nocookie.com/embed/${v.id}`}
+                src={`https://www.youtube-nocookie.com/embed/${v.id}${v.start ? `?start=${v.start}` : ""}`}
                 className="w-full aspect-video rounded-lg border"
+                allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
                 allowFullScreen
                 title={v.title}
               />
