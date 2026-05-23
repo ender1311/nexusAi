@@ -11,6 +11,8 @@ import { HealthBanner } from "@/components/data-ingest/health-banner";
 import { SyncsTable } from "@/components/data-ingest/syncs-table";
 import { ModelsTable } from "@/components/data-ingest/models-table";
 import { SourcesDestinations } from "@/components/data-ingest/sources-destinations";
+import { EventPushForm } from "@/components/data-ingest/event-push-form";
+import { PayloadReference } from "@/components/data-ingest/payload-reference";
 
 // ---------------------------------------------------------------------------
 // React.cache() wrappers — dedup calls across Suspense boundaries
@@ -129,6 +131,8 @@ export default function DataIngestPage() {
             <TabsTrigger value="syncs">Syncs</TabsTrigger>
             <TabsTrigger value="models">Models</TabsTrigger>
             <TabsTrigger value="sources">Sources &amp; Destinations</TabsTrigger>
+            <TabsTrigger value="push">Push Events</TabsTrigger>
+            <TabsTrigger value="reference">Reference</TabsTrigger>
           </TabsList>
 
           <TabsContent value="syncs" className="mt-4">
@@ -147,6 +151,14 @@ export default function DataIngestPage() {
             <Suspense fallback={<div className="grid grid-cols-1 sm:grid-cols-2 gap-4"><CardTableSkeleton /><CardTableSkeleton /></div>}>
               <SourcesDestinationsSection />
             </Suspense>
+          </TabsContent>
+
+          <TabsContent value="push" className="mt-4">
+            <EventPushForm />
+          </TabsContent>
+
+          <TabsContent value="reference" className="mt-4">
+            <PayloadReference />
           </TabsContent>
         </Tabs>
       </div>
