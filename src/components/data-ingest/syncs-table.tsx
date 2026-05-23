@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { Badge } from "@/components/ui/badge";
-import { cn } from "@/lib/utils";
+import { cn, formatRelativeTime } from "@/lib/utils";
 import { TriggerSyncButton } from "./trigger-sync-button";
 import { SyncRunsDrawer } from "./sync-runs-drawer";
 import type { HightouchSync } from "@/lib/hightouch/types";
@@ -23,17 +23,6 @@ function statusClasses(status: HightouchSync["status"]): string {
     default:
       return "bg-muted text-muted-foreground border-transparent";
   }
-}
-
-function formatRelativeTime(dateStr: string): string {
-  const diff = Date.now() - new Date(dateStr).getTime();
-  const minutes = Math.floor(diff / 60_000);
-  if (minutes < 1) return "just now";
-  if (minutes < 60) return `${minutes}m ago`;
-  const hours = Math.floor(minutes / 60);
-  if (hours < 24) return `${hours}h ago`;
-  const days = Math.floor(hours / 24);
-  return `${days}d ago`;
 }
 
 function formatSchedule(schedule: HightouchSync["schedule"]): string {
@@ -78,7 +67,7 @@ function SyncRow({ sync }: SyncRowProps) {
           {sync.destinationId.slice(0, 8)}…
         </td>
         <td className="px-3 py-2 text-xs text-muted-foreground">
-          {sync.lastRunAt ? formatRelativeTime(sync.lastRunAt) : "Never"}
+          {formatRelativeTime(sync.lastRunAt)}
         </td>
         <td className="px-3 py-2 text-xs text-muted-foreground">
           {formatSchedule(sync.schedule)}

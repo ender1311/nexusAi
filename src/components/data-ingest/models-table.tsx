@@ -62,7 +62,7 @@ export function ModelsTable({ models }: ModelsTableProps) {
                         variant="outline"
                         className={cn("text-xs", queryTypeClasses(model.queryType))}
                       >
-                        {model.queryType.replace("_", " ")}
+                        {model.queryType.replaceAll("_", " ")}
                       </Badge>
                     </td>
                     <td className="px-4 py-2 font-mono text-muted-foreground">

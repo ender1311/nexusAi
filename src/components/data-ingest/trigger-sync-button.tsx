@@ -84,7 +84,7 @@ export function TriggerSyncButton({ syncId, syncName }: TriggerSyncButtonProps) 
           <AlertDialogFooter>
             <AlertDialogCancel>Cancel</AlertDialogCancel>
             <AlertDialogAction
-              onClick={handleTrigger}
+              onClick={(e) => { e.preventDefault(); void handleTrigger(); }}
               disabled={loading}
             >
               {loading ? (

@@ -1,20 +1,11 @@
 import { Activity, CheckCircle2, AlertCircle, Clock } from "lucide-react";
+import type { LucideIcon } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
 import type { HightouchSync } from "@/lib/hightouch/types";
-
-function formatRelativeTime(dateStr: string): string {
-  const diff = Date.now() - new Date(dateStr).getTime();
-  const minutes = Math.floor(diff / 60_000);
-  if (minutes < 1) return "just now";
-  if (minutes < 60) return `${minutes}m ago`;
-  const hours = Math.floor(minutes / 60);
-  if (hours < 24) return `${hours}h ago`;
-  const days = Math.floor(hours / 24);
-  return `${days}d ago`;
-}
+import { formatRelativeTime } from "@/lib/utils";
 
 type HealthChipProps = {
-  icon: React.FC<{ className?: string }>;
+  icon: LucideIcon;
   value: string | number;
   label: string;
   colorClass?: string;
@@ -78,7 +69,7 @@ export function HealthBanner({ syncs }: HealthBannerProps) {
       />
       <HealthChip
         icon={Clock}
-        value={lastRunAt ? formatRelativeTime(lastRunAt) : "Never"}
+        value={formatRelativeTime(lastRunAt ?? null)}
         label="Last synced"
       />
     </div>

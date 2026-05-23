@@ -63,8 +63,9 @@ function RunsContent({ syncId }: { syncId: string }) {
 
   useEffect(() => {
     let active = true;
+    const controller = new AbortController();
 
-    fetch(`/api/hightouch/syncs/${syncId}/runs`)
+    fetch(`/api/hightouch/syncs/${syncId}/runs`, { signal: controller.signal })
       .then((res) => res.json())
       .then((json: { data?: HightouchSyncRun[]; error?: string }) => {
         if (!active) return;
@@ -80,6 +81,7 @@ function RunsContent({ syncId }: { syncId: string }) {
 
     return () => {
       active = false;
+      controller.abort();
     };
   }, [syncId]);
 
