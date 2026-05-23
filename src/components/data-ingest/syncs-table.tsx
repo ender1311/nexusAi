@@ -1,0 +1,137 @@
+"use client";
+
+import { useState } from "react";
+import { Badge } from "@/components/ui/badge";
+import { cn } from "@/lib/utils";
+import { TriggerSyncButton } from "./trigger-sync-button";
+import { SyncRunsDrawer } from "./sync-runs-drawer";
+import type { HightouchSync } from "@/lib/hightouch/types";
+
+function statusClasses(status: HightouchSync["status"]): string {
+  switch (status) {
+    case "success":
+      return "bg-green-500/15 text-green-700 border-transparent";
+    case "running":
+      return "bg-blue-500/15 text-blue-700 border-transparent";
+    case "warning":
+      return "bg-yellow-500/15 text-yellow-800 border-transparent";
+    case "failed":
+      return "bg-red-500/15 text-red-700 border-transparent";
+    case "interrupted":
+    case "cancelled":
+      return "bg-orange-500/15 text-orange-700 border-transparent";
+    default:
+      return "bg-muted text-muted-foreground border-transparent";
+  }
+}
+
+function formatRelativeTime(dateStr: string): string {
+  const diff = Date.now() - new Date(dateStr).getTime();
+  const minutes = Math.floor(diff / 60_000);
+  if (minutes < 1) return "just now";
+  if (minutes < 60) return `${minutes}m ago`;
+  const hours = Math.floor(minutes / 60);
+  if (hours < 24) return `${hours}h ago`;
+  const days = Math.floor(hours / 24);
+  return `${days}d ago`;
+}
+
+function formatSchedule(schedule: HightouchSync["schedule"]): string {
+  if (!schedule) return "Manual";
+  if (schedule.type === "interval" && schedule.expression) {
+    return `Every ${schedule.expression}`;
+  }
+  if (schedule.type === "cron" && schedule.expression) {
+    return `Cron: ${schedule.expression}`;
+  }
+  return schedule.type ? schedule.type.charAt(0).toUpperCase() + schedule.type.slice(1) : "Manual";
+}
+
+type SyncRowProps = {
+  sync: HightouchSync;
+};
+
+function SyncRow({ sync }: SyncRowProps) {
+  const [drawerOpen, setDrawerOpen] = useState(false);
+
+  return (
+    <>
+      <tr className="border-t hover:bg-muted/30 transition-colors">
+        <td className="px-3 py-2">
+          <Badge
+            variant="outline"
+            className={cn("text-xs capitalize", statusClasses(sync.status))}
+          >
+            {sync.status}
+          </Badge>
+        </td>
+        <td className="px-3 py-2">
+          <button
+            type="button"
+            className="text-xs font-medium hover:underline text-left"
+            onClick={() => setDrawerOpen(true)}
+          >
+            {sync.name}
+          </button>
+        </td>
+        <td className="px-3 py-2 text-xs text-muted-foreground font-mono">
+          {sync.destinationId.slice(0, 8)}…
+        </td>
+        <td className="px-3 py-2 text-xs text-muted-foreground">
+          {sync.lastRunAt ? formatRelativeTime(sync.lastRunAt) : "Never"}
+        </td>
+        <td className="px-3 py-2 text-xs text-muted-foreground">
+          {formatSchedule(sync.schedule)}
+        </td>
+        <td className="px-3 py-2 text-right">
+          <TriggerSyncButton syncId={sync.id} syncName={sync.name} />
+        </td>
+      </tr>
+      <SyncRunsDrawer
+        syncId={sync.id}
+        syncName={sync.name}
+        open={drawerOpen}
+        onOpenChange={setDrawerOpen}
+      />
+    </>
+  );
+}
+
+type SyncsTableProps = {
+  syncs: HightouchSync[];
+};
+
+export function SyncsTable({ syncs }: SyncsTableProps) {
+  if (syncs.length === 0) {
+    return (
+      <div className="text-center py-10 text-sm text-muted-foreground space-y-1">
+        <p>No syncs found.</p>
+        <p className="text-xs">
+          Set <code className="font-mono">HIGHTOUCH_API_KEY</code> to load syncs from Hightouch.
+        </p>
+      </div>
+    );
+  }
+
+  return (
+    <div className="rounded-lg border overflow-hidden">
+      <table className="w-full text-xs">
+        <thead className="bg-muted/50">
+          <tr>
+            <th className="text-left font-medium px-3 py-2">Status</th>
+            <th className="text-left font-medium px-3 py-2">Name</th>
+            <th className="text-left font-medium px-3 py-2">Destination</th>
+            <th className="text-left font-medium px-3 py-2">Last Run</th>
+            <th className="text-left font-medium px-3 py-2">Schedule</th>
+            <th className="text-right font-medium px-3 py-2">Actions</th>
+          </tr>
+        </thead>
+        <tbody>
+          {syncs.map((sync) => (
+            <SyncRow key={sync.id} sync={sync} />
+          ))}
+        </tbody>
+      </table>
+    </div>
+  );
+}
