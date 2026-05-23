@@ -1,7 +1,13 @@
+"use client";
+
+import { useState } from "react";
+import { Code } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import type { HightouchModel } from "@/lib/hightouch/types";
+import { ModelSqlViewer } from "./model-sql-viewer";
 
 function queryTypeClasses(queryType: HightouchModel["queryType"]): string {
   switch (queryType) {
@@ -31,6 +37,8 @@ type ModelsTableProps = {
 };
 
 export function ModelsTable({ models }: ModelsTableProps) {
+  const [selected, setSelected] = useState<HightouchModel | null>(null);
+
   return (
     <Card>
       <CardHeader>
@@ -51,6 +59,7 @@ export function ModelsTable({ models }: ModelsTableProps) {
                   <th className="text-left font-medium px-4 py-2">Source</th>
                   <th className="text-left font-medium px-4 py-2">Primary Key</th>
                   <th className="text-left font-medium px-4 py-2">Updated</th>
+                  <th className="px-4 py-2" />
                 </tr>
               </thead>
               <tbody>
@@ -74,6 +83,19 @@ export function ModelsTable({ models }: ModelsTableProps) {
                     <td className="px-4 py-2 text-muted-foreground">
                       {formatUpdatedAt(model.updatedAt)}
                     </td>
+                    <td className="px-4 py-2">
+                      {model.sql !== null && (
+                        <Button
+                          size="sm"
+                          variant="ghost"
+                          className="h-6 w-6 p-0"
+                          onClick={() => setSelected(model)}
+                          title="View SQL"
+                        >
+                          <Code className="h-3 w-3" />
+                        </Button>
+                      )}
+                    </td>
                   </tr>
                 ))}
               </tbody>
@@ -81,6 +103,14 @@ export function ModelsTable({ models }: ModelsTableProps) {
           </div>
         )}
       </CardContent>
+      {selected?.sql && (
+        <ModelSqlViewer
+          modelName={selected.name}
+          sql={selected.sql}
+          open={!!selected}
+          onOpenChange={(open) => { if (!open) setSelected(null); }}
+        />
+      )}
     </Card>
   );
 }
