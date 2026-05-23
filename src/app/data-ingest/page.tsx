@@ -141,13 +141,15 @@ export default function DataIngestPage() {
         </Suspense>
 
         <Tabs defaultValue="syncs">
-          <TabsList>
-            <TabsTrigger value="syncs">Syncs</TabsTrigger>
-            <TabsTrigger value="models">Models</TabsTrigger>
-            <TabsTrigger value="sources">Sources &amp; Destinations</TabsTrigger>
-            <TabsTrigger value="push">Push Events</TabsTrigger>
-            <TabsTrigger value="reference">Reference</TabsTrigger>
-          </TabsList>
+          <div className="overflow-x-auto -mx-4 px-4 sm:mx-0 sm:px-0">
+            <TabsList className="w-max">
+              <TabsTrigger value="syncs">Syncs</TabsTrigger>
+              <TabsTrigger value="models">Models</TabsTrigger>
+              <TabsTrigger value="sources">Sources &amp; Destinations</TabsTrigger>
+              <TabsTrigger value="push">Push Events</TabsTrigger>
+              <TabsTrigger value="reference">Reference</TabsTrigger>
+            </TabsList>
+          </div>
 
           <TabsContent value="syncs" className="mt-4">
             <Suspense fallback={<TableSkeleton />}>

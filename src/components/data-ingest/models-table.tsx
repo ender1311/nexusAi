@@ -51,7 +51,40 @@ export function ModelsTable({ models }: ModelsTableProps) {
           </p>
         ) : (
           <div className="rounded-b-lg overflow-hidden">
-            <table className="w-full text-xs">
+            {/* Mobile: card list */}
+            <ul className="sm:hidden divide-y">
+              {models.map((model) => (
+                <li key={model.id} className="flex items-center justify-between gap-3 px-4 py-3">
+                  <div className="min-w-0 flex-1 space-y-1">
+                    <p className="text-xs font-medium truncate">{model.name}</p>
+                    <div className="flex items-center gap-2">
+                      <Badge
+                        variant="outline"
+                        className={cn("text-xs shrink-0", queryTypeClasses(model.queryType))}
+                      >
+                        {model.queryType.replaceAll("_", " ")}
+                      </Badge>
+                      <span className="text-xs text-muted-foreground">
+                        {formatUpdatedAt(model.updatedAt)}
+                      </span>
+                    </div>
+                  </div>
+                  {model.sql !== null && (
+                    <Button
+                      size="sm"
+                      variant="ghost"
+                      className="h-7 w-7 p-0 shrink-0"
+                      onClick={() => setSelected(model)}
+                      title="View SQL"
+                    >
+                      <Code className="h-3.5 w-3.5" />
+                    </Button>
+                  )}
+                </li>
+              ))}
+            </ul>
+            {/* Desktop: table */}
+            <table className="hidden sm:table w-full text-xs">
               <thead className="bg-muted/50">
                 <tr>
                   <th className="text-left font-medium px-4 py-2">Name</th>
