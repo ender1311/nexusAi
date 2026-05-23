@@ -1,7 +1,14 @@
 import { Header } from "@/components/layout/header";
 import { Card, CardContent } from "@/components/ui/card";
+import { CollapsibleVideos } from "@/components/architecture/collapsible-videos";
 import Link from "next/link";
 import { BookOpen, ExternalLink } from "lucide-react";
+
+const THOMPSON_VIDEOS = [
+  { id: "vz3D36VXefI", title: "Thompson Sampling Explained" },
+  { id: "nkyDGGQ5h60", title: "Multi-Armed Bandit Intuition" },
+  { id: "Zgwfw3bzSmQ", title: "Beta Distribution & Exploration" },
+];
 
 const STEPS = [
   {
@@ -178,6 +185,14 @@ export default function ArchitecturePage() {
               audiences, you can run 4–6 arms and still converge within a sprint.
             </p>
           </div>
+        </div>
+
+        {/* Thompson Sampling videos */}
+        <div className="pt-2 border-t">
+          <CollapsibleVideos
+            heading="Thompson Sampling — further reading"
+            videos={THOMPSON_VIDEOS}
+          />
         </div>
 
         {/* Advanced docs link */}
