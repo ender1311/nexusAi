@@ -1,0 +1,155 @@
+export const revalidate = 60;
+export const maxDuration = 30;
+
+import { Suspense, cache } from "react";
+import { Header } from "@/components/layout/header";
+import { Skeleton } from "@/components/ui/skeleton";
+import { Card, CardContent, CardHeader } from "@/components/ui/card";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { createHightouchClient } from "@/lib/hightouch/client";
+import { HealthBanner } from "@/components/data-ingest/health-banner";
+import { SyncsTable } from "@/components/data-ingest/syncs-table";
+import { ModelsTable } from "@/components/data-ingest/models-table";
+import { SourcesDestinations } from "@/components/data-ingest/sources-destinations";
+
+// ---------------------------------------------------------------------------
+// React.cache() wrappers — dedup calls across Suspense boundaries
+// ---------------------------------------------------------------------------
+
+const getCachedSyncs = cache(() =>
+  createHightouchClient()?.listSyncs().catch(() => []) ?? Promise.resolve([]),
+);
+
+const getCachedModels = cache(() =>
+  createHightouchClient()?.listModels().catch(() => []) ?? Promise.resolve([]),
+);
+
+const getCachedSources = cache(() =>
+  createHightouchClient()?.listSources().catch(() => []) ?? Promise.resolve([]),
+);
+
+const getCachedDestinations = cache(() =>
+  createHightouchClient()?.listDestinations().catch(() => []) ?? Promise.resolve([]),
+);
+
+// ---------------------------------------------------------------------------
+// Skeletons
+// ---------------------------------------------------------------------------
+
+function HealthBannerSkeleton() {
+  return (
+    <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+      {[1, 2, 3, 4].map((i) => (
+        <Card key={i}>
+          <CardContent className="flex items-center gap-2 p-3">
+            <Skeleton className="h-4 w-4 rounded" />
+            <div className="space-y-1">
+              <Skeleton className="h-4 w-12" />
+              <Skeleton className="h-3 w-16" />
+            </div>
+          </CardContent>
+        </Card>
+      ))}
+    </div>
+  );
+}
+
+function TableSkeleton() {
+  return (
+    <div className="space-y-2">
+      <Skeleton className="h-8 w-full" />
+      {[1, 2, 3, 4, 5].map((i) => (
+        <Skeleton key={i} className="h-10 w-full" />
+      ))}
+    </div>
+  );
+}
+
+function CardTableSkeleton() {
+  return (
+    <Card>
+      <CardHeader>
+        <Skeleton className="h-4 w-24" />
+      </CardHeader>
+      <CardContent>
+        <TableSkeleton />
+      </CardContent>
+    </Card>
+  );
+}
+
+// ---------------------------------------------------------------------------
+// Async sub-components
+// ---------------------------------------------------------------------------
+
+async function HealthBannerSection() {
+  const syncs = await getCachedSyncs();
+  return <HealthBanner syncs={syncs} />;
+}
+
+async function SyncsSection() {
+  const syncs = await getCachedSyncs();
+  return <SyncsTable syncs={syncs} />;
+}
+
+async function ModelsSection() {
+  const models = await getCachedModels();
+  return <ModelsTable models={models} />;
+}
+
+async function SourcesDestinationsSection() {
+  const [sources, destinations] = await Promise.all([
+    getCachedSources(),
+    getCachedDestinations(),
+  ]);
+  return <SourcesDestinations sources={sources} destinations={destinations} />;
+}
+
+// ---------------------------------------------------------------------------
+// Main page — synchronous shell, data streams via Suspense
+// ---------------------------------------------------------------------------
+
+export default function DataIngestPage() {
+  // Pre-kick all fetches for React.cache() deduplication
+  void getCachedSyncs();
+  void getCachedModels();
+  void getCachedSources();
+  void getCachedDestinations();
+
+  return (
+    <>
+      <Header title="Data Ingest" description="Hightouch sync management" />
+      <div className="p-4 sm:p-6 space-y-4 sm:space-y-6">
+        <Suspense fallback={<HealthBannerSkeleton />}>
+          <HealthBannerSection />
+        </Suspense>
+
+        <Tabs defaultValue="syncs">
+          <TabsList>
+            <TabsTrigger value="syncs">Syncs</TabsTrigger>
+            <TabsTrigger value="models">Models</TabsTrigger>
+            <TabsTrigger value="sources">Sources &amp; Destinations</TabsTrigger>
+          </TabsList>
+
+          <TabsContent value="syncs" className="mt-4">
+            <Suspense fallback={<TableSkeleton />}>
+              <SyncsSection />
+            </Suspense>
+          </TabsContent>
+
+          <TabsContent value="models" className="mt-4">
+            <Suspense fallback={<CardTableSkeleton />}>
+              <ModelsSection />
+            </Suspense>
+          </TabsContent>
+
+          <TabsContent value="sources" className="mt-4">
+            <Suspense fallback={<div className="grid grid-cols-1 sm:grid-cols-2 gap-4"><CardTableSkeleton /><CardTableSkeleton /></div>}>
+              <SourcesDestinationsSection />
+            </Suspense>
+          </TabsContent>
+        </Tabs>
+      </div>
+    </>
+  );
+}
