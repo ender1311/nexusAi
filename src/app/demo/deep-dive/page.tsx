@@ -1,7 +1,7 @@
 import Link from "next/link";
 
 const VIDEOS = [
-  { id: "RscSFB7vygE", title: "Nexus Overview" },
+  { id: "nFXn2vf27gs", title: "Braze AI: Haley Ruff" },
   { id: "XcsgPwy7eYw", title: "Braze AI: Decisioning Studio" },
   { id: "YYF_eDQP3TU", title: "Braze AI: Campaign Intelligence" },
   { id: "HfT0kLcpjoc", title: "Braze AI: Product Demo", start: 25 },
