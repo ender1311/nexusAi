@@ -61,6 +61,7 @@ export function CollapsibleVideos({
                 className="w-full aspect-video rounded-lg border"
                 allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
                 allowFullScreen
+                loading="lazy"
                 title={v.title}
               />
               <p className="text-xs text-muted-foreground text-center">{v.title}</p>
