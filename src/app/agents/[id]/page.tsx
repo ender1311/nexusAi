@@ -22,6 +22,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { AgentFunnelConfig } from "@/components/agents/agent-funnel-config";
 import { PersonaTargetManager } from "@/components/agents/persona-target-manager";
 import { ArmHealthSection } from "./arm-health-section";
+import { CurrentWinnerCard } from "./current-winner-card";
 import { FallbackSendTimeEditor } from "@/components/agents/fallback-send-time-editor";
 import { AudienceCapEditor } from "@/components/agents/audience-cap-editor";
 import { AgentSendsTable } from "@/components/agents/agent-sends-table";
@@ -186,6 +187,9 @@ export default async function AgentDetailPage({ params }: { params: Promise<{ id
                 </div>
               );
             })()}
+            <Suspense fallback={null}>
+              <CurrentWinnerCard agentId={agent.id} activeVariants={activeVariants} />
+            </Suspense>
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
               <Card>
                 <CardContent className="p-4">

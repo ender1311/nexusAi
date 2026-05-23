@@ -2,11 +2,21 @@ import { ImageResponse } from "next/og";
 
 export const size = { width: 180, height: 180 };
 export const contentType = "image/png";
-export const revalidate = false;
+export const revalidate = 3600;
 
-// Same Bot icon design as icon.tsx, sized for iOS apple-touch-icon (180×180).
-// iOS clips to a squircle automatically — no border-radius needed here.
+// Same day-of-week palette as icon.tsx, sized for iOS apple-touch-icon (180×180).
+const DAY_GRADIENTS = [
+  { from: "#f87171", mid: "#e85d75", to: "#c0314e" }, // Sun — rose
+  { from: "#60a5fa", mid: "#4f8ef7", to: "#1d4ed8" }, // Mon — blue
+  { from: "#6fcf8d", mid: "#57a16c", to: "#3a7a50" }, // Tue — green (primary)
+  { from: "#a78bfa", mid: "#8b5cf6", to: "#6d28d9" }, // Wed — purple
+  { from: "#fbbf24", mid: "#f59e0b", to: "#b45309" }, // Thu — amber
+  { from: "#2dd4bf", mid: "#14b8a6", to: "#0f766e" }, // Fri — teal
+  { from: "#818cf8", mid: "#6366f1", to: "#4338ca" }, // Sat — indigo
+];
+
 export default function AppleIcon() {
+  const { from, mid, to } = DAY_GRADIENTS[new Date().getDay()];
   return new ImageResponse(
     (
       <div
@@ -16,10 +26,9 @@ export default function AppleIcon() {
           display: "flex",
           alignItems: "center",
           justifyContent: "center",
-          background: "linear-gradient(145deg, #ff5a67 0%, #e8192c 55%, #c0121f 100%)",
+          background: `linear-gradient(145deg, ${from} 0%, ${mid} 55%, ${to} 100%)`,
         }}
       >
-        {/* Subtle inner glow disc */}
         <div
           style={{
             position: "absolute",
@@ -30,7 +39,6 @@ export default function AppleIcon() {
             display: "flex",
           }}
         />
-        {/* Bot icon */}
         <svg
           width="102"
           height="102"

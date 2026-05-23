@@ -12,6 +12,7 @@ import { unstable_cache } from "next/cache";
 import { prisma } from "@/lib/db";
 import { getAuth } from "@/lib/auth";
 import { LIBRARY_AGENT_NAME } from "@/lib/engine/template-sync";
+import { getCachedAgentConvergenceStates } from "@/lib/cache";
 
 const PAGE_SIZE = 20;
 
@@ -49,11 +50,8 @@ export default async function AgentsPage({
     ...(safeStage ? { funnelStage: safeStage } : {}),
   };
 
-  // Parallelize WorkOS auth check with DB query — both are independent.
-  // unstable_cache gives a server-side data cache so ISR cache misses (~every 30s)
-  // read from memory instead of hitting the DB. Invalidated by revalidateTag("agents")
-  // which the mutation routes already call on create/update/delete.
-  const [{ isAdmin }, { dbAgents }] = await Promise.all([
+  // Parallelize WorkOS auth check, agent list, and convergence states — all independent.
+  const [{ isAdmin }, { dbAgents }, convergenceStates] = await Promise.all([
     getAuth(),
     unstable_cache(
     async () => {
@@ -79,6 +77,7 @@ export default async function AgentsPage({
     ["agents-list", search, safeStatus ?? "", safeStage ?? ""],
     { tags: ["agents"], revalidate: 900 },
   )(),
+    getCachedAgentConvergenceStates(),
   ]);
 
   // Determine whether any filters are active (for empty-state messaging)
@@ -155,7 +154,7 @@ export default async function AgentsPage({
             </div>
           )
         ) : (
-          <AgentGrid agents={agents} />
+          <AgentGrid agents={agents} convergenceStates={convergenceStates} />
         )}
       </div>
     </>
