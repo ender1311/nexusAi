@@ -108,7 +108,7 @@ export function ModelsTable({ models }: ModelsTableProps) {
                       </Badge>
                     </td>
                     <td className="px-4 py-2 font-mono text-muted-foreground">
-                      {model.sourceId.slice(0, 8)}…
+                      {String(model.sourceId).slice(0, 8)}…
                     </td>
                     <td className="px-4 py-2 font-mono text-muted-foreground">
                       {model.primaryKey}
