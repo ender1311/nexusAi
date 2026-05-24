@@ -5,10 +5,9 @@ import { prisma } from "@/lib/db";
 const PRODUCTION_ENDPOINT_IDS = ["ep-old-surf-a4p5os6s"];
 
 /**
- * Wipe all test data in a single atomic TRUNCATE.
+ * Wipe all test data in FK-safe order using deleteMany().
  * Call in beforeEach (and optionally afterEach) for integration test files.
- * Using TRUNCATE CASCADE is faster and more reliable than chained deleteMany()
- * calls across the Neon HTTP adapter.
+ * Children are deleted before parents so FK constraints are never violated.
  *
  * SAFETY: throws immediately if DATABASE_URL points to a known production endpoint
  * or if the TEST_DB guard flag is absent. Run tests via `bun test` (which loads
@@ -34,39 +33,33 @@ export async function truncateAll(): Promise<void> {
     );
   }
 
-  // Delete in FK-safe order. deleteMany() is a no-op when the table is empty,
-  // and skips tables that don't yet exist (pending migrations) silently via try/catch.
-  const steps: (() => Promise<unknown>)[] = [
-    () => prisma.processedEventId.deleteMany(),
-    () => prisma.ingestSyncLog.deleteMany(),
-    () => prisma.userAgentAssignment.deleteMany(),
-    () => prisma.userArmStats.deleteMany(),
-    () => prisma.personaArmStats.deleteMany(),
-    () => prisma.linUCBArm.deleteMany(),
-    () => prisma.userDecision.deleteMany(),
-    () => prisma.modelMetric.deleteMany(),
-    () => prisma.trackedUser.deleteMany(),
-    () => prisma.agentPersonaTarget.deleteMany(),
-    () => prisma.schedulingRule.deleteMany(),
-    () => prisma.messageVariant.deleteMany(),
-    () => prisma.message.deleteMany(),
-    () => prisma.goal.deleteMany(),
-    () => prisma.agent.deleteMany(),
-    () => prisma.persona.deleteMany(),
-    () => prisma.planSetMember.deleteMany(),
-    () => prisma.planSet.deleteMany(),
-    () => prisma.appSetting.deleteMany(),
-    () => prisma.campaignContent.deleteMany(),
-    () => prisma.demoUserGroup.deleteMany(),
-  ];
-  for (const step of steps) {
-    await step().catch((err: Error) => {
-      // Only skip "table does not exist" errors — anything else is worth knowing about
-      if (!err.message.includes("does not exist")) {
-        console.warn("[truncateAll] unexpected error:", err.message);
-      }
-    });
-  }
+  // Delete in FK-safe order (children before parents).
+  // Tables with no @relation FK constraints can go in any position.
+  // .catch(() => {}) on optional tables that may not exist in the test DB schema.
+  await prisma.planSetMember.deleteMany().catch(() => {});
+  await prisma.failedBrazeSend.deleteMany().catch(() => {});
+  await prisma.cronRun.deleteMany().catch(() => {});
+  await prisma.processedEventId.deleteMany();
+  await prisma.ingestSyncLog.deleteMany();
+  await prisma.userDecision.deleteMany();
+  await prisma.userAgentAssignment.deleteMany();
+  await prisma.userArmStats.deleteMany();
+  await prisma.personaArmStats.deleteMany();
+  await prisma.linUCBArm.deleteMany();
+  await prisma.modelMetric.deleteMany();
+  await prisma.agentPersonaTarget.deleteMany();
+  await prisma.schedulingRule.deleteMany();
+  await prisma.messageVariant.deleteMany();
+  await prisma.message.deleteMany();
+  await prisma.goal.deleteMany();
+  await prisma.agent.deleteMany();
+  await prisma.trackedUser.deleteMany();
+  await prisma.persona.deleteMany();
+  await prisma.planSet.deleteMany().catch(() => {});
+  await prisma.appSetting.deleteMany();
+  await prisma.campaignContent.deleteMany();
+  await prisma.deeplink.deleteMany();
+  await prisma.demoUserGroup.deleteMany().catch(() => {});
 }
 
 export { prisma };
