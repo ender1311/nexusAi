@@ -34,9 +34,11 @@ export async function truncateAll(): Promise<void> {
     );
   }
 
-  // Truncate only tables that actually exist (schema may differ between envs).
+  // Truncate each table individually — avoids array-parameter serialisation quirks
+  // with the Neon HTTP adapter and gracefully skips tables not yet in this env's schema.
+  // TRUNCATE … CASCADE is atomic and FK-safe per table.
   // TrackedUser is stored as "User" (@@map in schema).
-  const candidates = [
+  const tables = [
     "ProcessedEventId", "IngestSyncLog", "UserAgentAssignment",
     "UserArmStats", "PersonaArmStats", "LinUCBArm",
     "UserDecision", "ModelMetric", "User",
@@ -46,15 +48,12 @@ export async function truncateAll(): Promise<void> {
     "CampaignContent", "DemoUserGroup",
     "Deeplink", "CronRun", "FailedBrazeSend",
   ];
-  // Cast to text — the Neon HTTP adapter can't deserialize pg_catalog 'name' type directly.
-  const rows = await prisma.$queryRawUnsafe<{ t: string }[]>(
-    `SELECT tablename::text AS t FROM pg_tables WHERE schemaname = 'public' AND tablename = ANY($1::text[])`,
-    candidates,
-  );
-  const existing = rows.map((r) => r.t);
-  if (existing.length > 0) {
-    const list = existing.map((t) => `"${t}"`).join(", ");
-    await prisma.$executeRawUnsafe(`TRUNCATE TABLE ${list} CASCADE`);
+  for (const table of tables) {
+    await prisma.$executeRawUnsafe(`TRUNCATE TABLE "${table}" CASCADE`).catch((e: Error) => {
+      if (!e.message?.includes("does not exist") && !e.message?.includes("42P01")) {
+        console.warn(`[truncateAll] ${table}:`, e.message);
+      }
+    });
   }
 }
 
