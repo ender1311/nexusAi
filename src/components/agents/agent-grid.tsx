@@ -1,7 +1,23 @@
 "use client";
 
-import { useState, useRef } from "react";
+import { useState } from "react";
 import { useRouter } from "next/navigation";
+import {
+  DndContext,
+  closestCenter,
+  PointerSensor,
+  TouchSensor,
+  useSensor,
+  useSensors,
+  DragEndEvent,
+} from "@dnd-kit/core";
+import {
+  SortableContext,
+  useSortable,
+  verticalListSortingStrategy,
+  arrayMove,
+} from "@dnd-kit/sortable";
+import { CSS } from "@dnd-kit/utilities";
 import { GripVertical } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Agent } from "@/types/agent";
@@ -40,53 +56,78 @@ function sortAgents(agents: Agent[], mode: SortMode): Agent[] {
   return copy;
 }
 
+function SortableAgent({
+  agent,
+  convergenceState,
+  isCustom,
+}: {
+  agent: Agent;
+  convergenceState?: ConvergenceState;
+  isCustom: boolean;
+}) {
+  const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({
+    id: agent.id,
+    disabled: !isCustom,
+  });
+
+  const style = {
+    transform: CSS.Transform.toString(transform),
+    transition,
+  };
+
+  return (
+    <div
+      ref={setNodeRef}
+      style={style}
+      className={cn("relative group", isDragging && "opacity-50 z-50")}
+    >
+      {isCustom && (
+        <div
+          {...attributes}
+          {...listeners}
+          className={cn(
+            "absolute left-1 top-1/2 -translate-y-1/2 z-10 p-1 rounded",
+            "text-muted-foreground/30 group-hover:text-muted-foreground/60 transition-colors",
+            "opacity-0 group-hover:opacity-100",
+            "cursor-grab active:cursor-grabbing touch-none",
+          )}
+        >
+          <GripVertical className="h-4 w-4" />
+        </div>
+      )}
+      <AgentCard
+        agent={agent}
+        audienceCap={agent.audienceCap}
+        convergenceState={convergenceState}
+      />
+    </div>
+  );
+}
+
 export function AgentGrid({ agents: initialAgents, convergenceStates }: AgentGridProps) {
   const router = useRouter();
   const [sortMode, setSortMode] = useState<SortMode>("custom");
   const [customOrder, setCustomOrder] = useState<Agent[]>(initialAgents);
-  const [dragId, setDragId] = useState<string | null>(null);
-  const [dragOverId, setDragOverId] = useState<string | null>(null);
-  const dragIdRef = useRef<string | null>(null);
+
+  // Activate with 8px movement to avoid accidental drags on tap; touch requires 250ms press.
+  const sensors = useSensors(
+    useSensor(PointerSensor, { activationConstraint: { distance: 8 } }),
+    useSensor(TouchSensor, { activationConstraint: { delay: 250, tolerance: 5 } }),
+  );
 
   const displayed = sortMode === "custom" ? customOrder : sortAgents(initialAgents, sortMode);
 
-  function handleDragStart(id: string) {
-    setDragId(id);
-    dragIdRef.current = id;
-  }
+  function handleDragEnd(event: DragEndEvent) {
+    const { active, over } = event;
+    if (!over || active.id === over.id) return;
 
-  function handleDragOver(e: React.DragEvent, id: string) {
-    e.preventDefault();
-    if (dragIdRef.current !== id) {
-      setDragOverId(id);
-    }
-  }
+    const oldIndex = customOrder.findIndex((a) => a.id === active.id);
+    const newIndex = customOrder.findIndex((a) => a.id === over.id);
+    if (oldIndex === -1 || newIndex === -1) return;
 
-  function handleDragLeave() {
-    setDragOverId(null);
-  }
-
-  function handleDrop(targetId: string) {
-    const sourceId = dragIdRef.current;
-    if (!sourceId || sourceId === targetId) {
-      setDragId(null);
-      setDragOverId(null);
-      dragIdRef.current = null;
-      return;
-    }
-
-    const next = [...customOrder];
-    const fromIdx = next.findIndex((a) => a.id === sourceId);
-    const toIdx = next.findIndex((a) => a.id === targetId);
-    if (fromIdx === -1 || toIdx === -1) return;
-
-    const [moved] = next.splice(fromIdx, 1);
-    next.splice(toIdx, 0, moved);
-
+    const prev = customOrder;
+    const next = arrayMove(customOrder, oldIndex, newIndex);
     setCustomOrder(next);
-    setDragId(null);
-    setDragOverId(null);
-    dragIdRef.current = null;
 
     fetch("/api/agents/reorder", {
       method: "POST",
@@ -95,14 +136,12 @@ export function AgentGrid({ agents: initialAgents, convergenceStates }: AgentGri
     }).then((res) => {
       if (res.ok) {
         router.refresh();
+      } else {
+        setCustomOrder(prev);
       }
+    }).catch(() => {
+      setCustomOrder(prev);
     });
-  }
-
-  function handleDragEnd() {
-    setDragId(null);
-    setDragOverId(null);
-    dragIdRef.current = null;
   }
 
   return (
@@ -124,39 +163,23 @@ export function AgentGrid({ agents: initialAgents, convergenceStates }: AgentGri
         ))}
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
-        {displayed.map((agent) => (
-          <div
-            key={agent.id}
-            className={cn("relative group", dragId === agent.id && "opacity-50")}
-            draggable={sortMode === "custom"}
-            onDragStart={() => handleDragStart(agent.id)}
-            onDragOver={(e) => handleDragOver(e, agent.id)}
-            onDragLeave={handleDragLeave}
-            onDrop={() => handleDrop(agent.id)}
-            onDragEnd={handleDragEnd}
-          >
-            {dragOverId === agent.id && dragId !== agent.id && (
-              <div className="absolute top-0 left-0 right-0 h-0.5 bg-amber-400 rounded-full z-10 -translate-y-1" />
-            )}
-            {sortMode === "custom" && (
-              <div
-                className={cn(
-                  "absolute left-1 top-1/2 -translate-y-1/2 z-10 p-1 rounded text-muted-foreground/30 group-hover:text-muted-foreground/60 transition-colors opacity-0 group-hover:opacity-100",
-                  "cursor-grab active:cursor-grabbing",
-                )}
-              >
-                <GripVertical className="h-4 w-4" />
-              </div>
-            )}
-            <AgentCard
-              agent={agent}
-              audienceCap={agent.audienceCap}
-              convergenceState={convergenceStates?.[agent.id]}
-            />
+      <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
+        <SortableContext
+          items={displayed.map((a) => a.id)}
+          strategy={verticalListSortingStrategy}
+        >
+          <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
+            {displayed.map((agent) => (
+              <SortableAgent
+                key={agent.id}
+                agent={agent}
+                convergenceState={convergenceStates?.[agent.id]}
+                isCustom={sortMode === "custom"}
+              />
+            ))}
           </div>
-        ))}
-      </div>
+        </SortableContext>
+      </DndContext>
     </div>
   );
 }
