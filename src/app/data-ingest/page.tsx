@@ -98,10 +98,16 @@ async function HealthBannerSection() {
 }
 
 async function SyncsSection() {
-  const { syncs, error } = await getCachedSyncs();
+  const [{ syncs, error }, models, destinations] = await Promise.all([
+    getCachedSyncs(),
+    getCachedModels(),
+    getCachedDestinations(),
+  ]);
   return (
     <SyncsTable
       syncs={syncs}
+      models={models}
+      destinations={destinations}
       hasApiKey={!!process.env.HIGHTOUCH_API_KEY}
       apiError={error}
     />
