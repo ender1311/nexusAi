@@ -34,39 +34,20 @@ export async function truncateAll(): Promise<void> {
     );
   }
 
-  // Delete in FK-safe order. deleteMany() is a no-op when the table is empty,
-  // and skips tables that don't yet exist (pending migrations) silently via try/catch.
-  const steps: (() => Promise<unknown>)[] = [
-    () => prisma.processedEventId.deleteMany(),
-    () => prisma.ingestSyncLog.deleteMany(),
-    () => prisma.userAgentAssignment.deleteMany(),
-    () => prisma.userArmStats.deleteMany(),
-    () => prisma.personaArmStats.deleteMany(),
-    () => prisma.linUCBArm.deleteMany(),
-    () => prisma.userDecision.deleteMany(),
-    () => prisma.modelMetric.deleteMany(),
-    () => prisma.trackedUser.deleteMany(),
-    () => prisma.agentPersonaTarget.deleteMany(),
-    () => prisma.schedulingRule.deleteMany(),
-    () => prisma.messageVariant.deleteMany(),
-    () => prisma.message.deleteMany(),
-    () => prisma.goal.deleteMany(),
-    () => prisma.agent.deleteMany(),
-    () => prisma.persona.deleteMany(),
-    () => prisma.planSetMember.deleteMany(),
-    () => prisma.planSet.deleteMany(),
-    () => prisma.appSetting.deleteMany(),
-    () => prisma.campaignContent.deleteMany(),
-    () => prisma.demoUserGroup.deleteMany(),
-  ];
-  for (const step of steps) {
-    await step().catch((err: Error) => {
-      // Only skip "table does not exist" errors — anything else is worth knowing about
-      if (!err.message.includes("does not exist")) {
-        console.warn("[truncateAll] unexpected error:", err.message);
-      }
-    });
-  }
+  // TRUNCATE CASCADE in one shot — atomic and FK-safe regardless of order.
+  // TrackedUser is stored as "User" (@@map in schema).
+  await prisma.$executeRawUnsafe(`
+    TRUNCATE TABLE
+      "ProcessedEventId", "IngestSyncLog", "UserAgentAssignment",
+      "UserArmStats", "PersonaArmStats", "LinUCBArm",
+      "UserDecision", "ModelMetric", "User",
+      "AgentPersonaTarget", "SchedulingRule",
+      "MessageVariant", "Message", "Goal", "Agent", "Persona",
+      "PlanSetMember", "PlanSet", "AppSetting",
+      "CampaignContent", "DemoUserGroup",
+      "Deeplink", "CronRun", "FailedBrazeSend"
+    CASCADE
+  `);
 }
 
 export { prisma };
