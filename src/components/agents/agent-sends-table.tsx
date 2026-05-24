@@ -518,25 +518,24 @@ function ScheduledSection({ rows, expanded, onToggle, nowMs, variantNameMap }: {
             )}
           >
             <button
-              className="w-full flex items-center gap-3 px-3 py-2.5 text-left hover:bg-black/5"
+              className="w-full flex items-center gap-2 px-3 py-3 text-left hover:bg-black/5"
               onClick={() => onToggle(row.id)}
             >
-              <span className="shrink-0 w-3.5 flex justify-center">
-                {st === "failed" ? (
-                  <XCircle className="h-3.5 w-3.5 text-red-500" />
-                ) : st === "pending" ? (
-                  <Clock className="h-3.5 w-3.5 text-amber-600" />
-                ) : (
-                  <CheckCircle2 className="h-3.5 w-3.5 text-emerald-600" />
-                )}
-              </span>
               {isOpen
                 ? <ChevronDown className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
                 : <ChevronRight className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
               }
               <div className="flex-1 min-w-0">
-                <div className="flex items-center gap-2 flex-wrap">
-                  <span className="text-sm font-medium">{row.variantName ?? "—"}</span>
+                <div className="flex items-start justify-between gap-2">
+                  <p className="text-sm font-medium truncate leading-snug">{row.variantName ?? "—"}</p>
+                  <Badge variant="outline" className="text-xs capitalize shrink-0 self-center hidden sm:inline-flex">{row.channel}</Badge>
+                </div>
+                <div className="flex items-center gap-2 mt-0.5 flex-wrap">
+                  <CopyableId
+                    id={row.userId}
+                    display={row.userId.length > 14 ? `${row.userId.slice(0, 14)}…` : row.userId}
+                    className="text-xs text-muted-foreground"
+                  />
                   {row.personaName && (
                     <span className="flex items-center gap-1 text-xs text-muted-foreground">
                       <span className={cn("h-1.5 w-1.5 rounded-full shrink-0", personaDot(row.personaColor))} />
@@ -544,18 +543,15 @@ function ScheduledSection({ rows, expanded, onToggle, nowMs, variantNameMap }: {
                     </span>
                   )}
                 </div>
-                <CopyableId
-                  id={row.userId}
-                  display={row.userId.length > 14 ? `${row.userId.slice(0, 14)}…` : row.userId}
-                  className="text-xs text-muted-foreground mt-0.5"
-                />
-              </div>
-              <div className="flex items-center gap-2 shrink-0">
-                <Badge variant="outline" className="text-xs border-amber-300 text-amber-700 dark:border-amber-700 dark:text-amber-400">
-                  <Clock className="h-2.5 w-2.5 mr-1" />
-                  {row.scheduledFor ? `${formatScheduledDelivery(row.scheduledFor)} recipient's local` : "—"}
-                </Badge>
-                <Badge variant="outline" className="text-xs capitalize hidden sm:inline-flex">{row.channel}</Badge>
+                {row.scheduledFor && (
+                  <div className="flex items-center gap-1 mt-1.5">
+                    <Clock className="h-3 w-3 text-amber-500 shrink-0" />
+                    <span className="text-xs text-amber-700 dark:text-amber-400">
+                      {formatScheduledDelivery(row.scheduledFor)}
+                      <span className="text-muted-foreground"> · recipient&apos;s local</span>
+                    </span>
+                  </div>
+                )}
               </div>
             </button>
             {isOpen && <ExpandedContent row={row} nowMs={nowMs} variantNameMap={variantNameMap} />}
@@ -787,10 +783,15 @@ export function AgentSendsTable({ agentId }: Props) {
           </button>
         )}
 
-        <span className="ml-auto text-xs text-muted-foreground">
-          {filteredSentRows.length !== sentRows.length
-            ? `${filteredSentRows.length} of ${sentRows.length} sends`
-            : `${sentRows.length} sends`}
+        <span className="ml-auto text-xs text-muted-foreground tabular-nums">
+          {(() => {
+            const showPending = filters.status === "all" || filters.status === "pending";
+            const visibleCount = filteredSentRows.length + (showPending ? scheduledRows.length : 0);
+            const totalCount = sentRows.length + scheduledRows.length;
+            return visibleCount !== totalCount
+              ? `${visibleCount} of ${totalCount} sends`
+              : `${totalCount} sends`;
+          })()}
         </span>
       </div>
 
@@ -862,8 +863,10 @@ export function AgentSendsTable({ agentId }: Props) {
 
       <SendsStatusLegend />
 
-      {/* Scheduled (future) sends */}
-      <ScheduledSection rows={scheduledRows} expanded={expanded} onToggle={toggleExpanded} nowMs={nowMs} variantNameMap={variantNameMap} />
+      {/* Scheduled (future) sends — hidden when filter explicitly excludes pending */}
+      {(filters.status === "all" || filters.status === "pending") && (
+        <ScheduledSection rows={scheduledRows} expanded={expanded} onToggle={toggleExpanded} nowMs={nowMs} variantNameMap={variantNameMap} />
+      )}
 
       {/* Sent history */}
       {filteredSentRows.length === 0 ? (
