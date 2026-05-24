@@ -146,9 +146,12 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
       );
       const testedVariables = detectTestedVariables(refreshedVariants);
 
-      const updatedMessage = await prisma.message.update({
+      await prisma.message.update({
         where: { id: messageId },
         data: { testedVariables },
+      });
+      const updatedMessage = await prisma.message.findUnique({
+        where: { id: messageId },
         include: { variants: { orderBy: { createdAt: "asc" } } },
       });
 
