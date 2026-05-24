@@ -150,10 +150,13 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
         where: { id: messageId },
         data: { testedVariables },
       });
-      const updatedMessage = await prisma.message.findUnique({
-        where: { id: messageId },
-        include: { variants: { orderBy: { createdAt: "asc" } } },
-      });
+
+      // Build response from in-memory data to avoid Neon read-after-write latency
+      // (a follow-up findUnique can return stale results before the write propagates).
+      const allVariants = [...existingMessage.variants, created].sort(
+        (a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime(),
+      );
+      const updatedMessage = { ...existingMessage, testedVariables, variants: allVariants };
 
       return NextResponse.json(updatedMessage, { status: 201 });
     }
