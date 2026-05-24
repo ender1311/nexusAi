@@ -1,23 +1,31 @@
 import type { FunnelStage } from "@/types/agent";
 
-// Base convergence hours for 3 arms — midpoints of ranges shown in the Architecture table.
-// These represent "minimum eligibility cycles × cycle duration", anchored to real send frequencies.
-const BASE_HOURS_3_ARMS: Partial<Record<FunnelStage, number>> = {
-  dau4:        12,    // "Hours to 1 day"  (0.5 day midpoint)
-  wau:         84,    // "Days to 1 week"  (3.5 days midpoint)
-  mau:         504,   // "2–4 weeks"       (21 days midpoint)
-  lapsed_dau4: 1008,  // "Weeks to months" (6 weeks midpoint)
-  lapsed_dau:  1008,
-  lapsed_wau:  1008,
-  lapsed_mau:  1008,
-  new:         12,
+// Actual sends per user per month by funnel stage (matches cron targeting logic).
+// Convergence time per arm = 30 / sendsPerMonth days = one eligibility cycle.
+// For a large enough audience the bandit needs ~1 cycle to reach 40 obs/arm.
+export const SENDS_PER_MONTH: Partial<Record<FunnelStage, number>> = {
+  dau4:        25,   // ~20–30 sends/month (daily eligible)
+  wau:          9,   // ~6–12 sends/month  (1–3×/week)
+  mau:          4,   // 4 sends/month      (real send cadence)
+  lapsed_dau4:  2,   // 2 sends/month      (real send cadence)
+  lapsed_dau:   2,
+  lapsed_wau:   2,
+  lapsed_mau:   2,
+  new:         25,
 };
+
+// Base convergence for 3 arms = one eligibility cycle = (30 / sendsPerMonth) × 24 hours.
+function baseHours3Arms(stage: FunnelStage): number | undefined {
+  const spm = SENDS_PER_MONTH[stage];
+  if (spm === undefined) return undefined;
+  return (30 / spm) * 24;
+}
 
 // Convergence scales linearly with arm count: each additional arm needs ~40 observations,
 // and arms share the available audience equally per send cycle.
 export function convergenceHours(funnelStage: FunnelStage | "", arms: number): number | null {
   if (!funnelStage || arms < 1) return null;
-  const base = BASE_HOURS_3_ARMS[funnelStage as FunnelStage];
+  const base = baseHours3Arms(funnelStage as FunnelStage);
   if (base === undefined) return null;
   return base * (arms / 3);
 }

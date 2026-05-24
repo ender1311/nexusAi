@@ -86,20 +86,25 @@ export function Sidebar({ user }: { user: SidebarUser | null }) {
       </div>
 
       <nav className="flex-1 p-2 space-y-1">
-        {navItems.map((item) => {
-          const active =
-            item.href === "/"
-              ? pathname === "/"
-              : pathname.startsWith(item.href);
-          return (
+        {(() => {
+          // Pick the single most-specific matching nav item so that /demo/deep-dive
+          // doesn't also highlight /demo.
+          const activeHref = navItems
+            .filter((item) =>
+              item.href === "/"
+                ? pathname === "/"
+                : pathname === item.href || pathname.startsWith(item.href + "/"),
+            )
+            .sort((a, b) => b.href.length - a.href.length)[0]?.href;
+          return navItems.map((item) => (
             <Link
               key={item.href}
               href={item.href}
               title={collapsed ? item.label : undefined}
-              aria-current={active ? "page" : undefined}
+              aria-current={item.href === activeHref ? "page" : undefined}
               className={cn(
                 "flex items-center gap-3 px-3 py-2 rounded-lg text-sm font-medium transition-colors",
-                active
+                item.href === activeHref
                   ? "bg-primary text-primary-foreground"
                   : "text-muted-foreground hover:bg-muted hover:text-foreground"
               )}
@@ -107,8 +112,8 @@ export function Sidebar({ user }: { user: SidebarUser | null }) {
               <item.icon className="h-4 w-4 shrink-0" />
               {!collapsed && <span>{item.label}</span>}
             </Link>
-          );
-        })}
+          ));
+        })()}
       </nav>
 
 <div className="border-t px-3 py-2.5">
