@@ -100,7 +100,7 @@ function SyncTableRow({ sync }: SyncItemProps) {
           </button>
         </td>
         <td className="px-3 py-2 text-xs text-muted-foreground font-mono">
-          {sync.destinationId.slice(0, 8)}…
+          {String(sync.destinationId).slice(0, 8)}…
         </td>
         <td className="px-3 py-2 text-xs text-muted-foreground">
           {formatRelativeTime(sync.lastRunAt)}
