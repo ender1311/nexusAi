@@ -23,10 +23,9 @@ const ROWS: {
 
 function convergenceColor(hours: number): string {
   const days = hours / 24;
-  if (days < 2) return "text-[#57a16c] font-medium";
-  if (days < 14) return "text-foreground font-medium";
-  if (days < 90) return "text-amber-600 dark:text-amber-400 font-medium";
-  return "text-red-500 dark:text-red-400 font-medium";
+  if (days < 90) return "text-[#57a16c] font-medium";       // < 3 months: green
+  if (days < 180) return "text-amber-500 dark:text-amber-400 font-medium"; // 3–6 months: yellow
+  return "text-red-500 dark:text-red-400 font-medium";       // > 6 months: red
 }
 
 export function ConvergenceSection() {
