@@ -56,7 +56,7 @@ export type HightouchSyncRun = {
 };
 
 export type HightouchModel = {
-  id: string;
+  id: string | number;
   name: string;
   slug: string;
   sourceId: string | number;
@@ -68,7 +68,7 @@ export type HightouchModel = {
 };
 
 export type HightouchSource = {
-  id: string;
+  id: string | number;
   name: string;
   slug: string;
   type: string;
@@ -77,7 +77,7 @@ export type HightouchSource = {
 };
 
 export type HightouchDestination = {
-  id: string;
+  id: string | number;
   name: string;
   slug: string;
   type: string;
