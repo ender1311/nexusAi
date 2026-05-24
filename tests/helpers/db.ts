@@ -5,10 +5,9 @@ import { prisma } from "@/lib/db";
 const PRODUCTION_ENDPOINT_IDS = ["ep-old-surf-a4p5os6s"];
 
 /**
- * Wipe all test data in a single atomic TRUNCATE.
+ * Wipe all test data in FK-safe order using deleteMany().
  * Call in beforeEach (and optionally afterEach) for integration test files.
- * Using TRUNCATE CASCADE is faster and more reliable than chained deleteMany()
- * calls across the Neon HTTP adapter.
+ * Children are deleted before parents so FK constraints are never violated.
  *
  * SAFETY: throws immediately if DATABASE_URL points to a known production endpoint
  * or if the TEST_DB guard flag is absent. Run tests via `bun test` (which loads
@@ -34,27 +33,33 @@ export async function truncateAll(): Promise<void> {
     );
   }
 
-  // Truncate each table individually — avoids array-parameter serialisation quirks
-  // with the Neon HTTP adapter and gracefully skips tables not yet in this env's schema.
-  // TRUNCATE … CASCADE is atomic and FK-safe per table.
-  // TrackedUser is stored as "User" (@@map in schema).
-  const tables = [
-    "ProcessedEventId", "IngestSyncLog", "UserAgentAssignment",
-    "UserArmStats", "PersonaArmStats", "LinUCBArm",
-    "UserDecision", "ModelMetric", "User",
-    "AgentPersonaTarget", "SchedulingRule",
-    "MessageVariant", "Message", "Goal", "Agent", "Persona",
-    "PlanSetMember", "PlanSet", "AppSetting",
-    "CampaignContent", "DemoUserGroup",
-    "Deeplink", "CronRun", "FailedBrazeSend",
-  ];
-  for (const table of tables) {
-    await prisma.$executeRawUnsafe(`TRUNCATE TABLE "${table}" CASCADE`).catch((e: Error) => {
-      if (!e.message?.includes("does not exist") && !e.message?.includes("42P01")) {
-        console.warn(`[truncateAll] ${table}:`, e.message);
-      }
-    });
-  }
+  // Delete in FK-safe order (children before parents).
+  // Tables with no @relation FK constraints can go in any position.
+  // .catch(() => {}) on optional tables that may not exist in the test DB schema.
+  await prisma.planSetMember.deleteMany().catch(() => {});
+  await prisma.failedBrazeSend.deleteMany().catch(() => {});
+  await prisma.cronRun.deleteMany().catch(() => {});
+  await prisma.processedEventId.deleteMany();
+  await prisma.ingestSyncLog.deleteMany();
+  await prisma.userDecision.deleteMany();
+  await prisma.userAgentAssignment.deleteMany();
+  await prisma.userArmStats.deleteMany();
+  await prisma.personaArmStats.deleteMany();
+  await prisma.linUCBArm.deleteMany();
+  await prisma.modelMetric.deleteMany();
+  await prisma.agentPersonaTarget.deleteMany();
+  await prisma.schedulingRule.deleteMany();
+  await prisma.messageVariant.deleteMany();
+  await prisma.message.deleteMany();
+  await prisma.goal.deleteMany();
+  await prisma.agent.deleteMany();
+  await prisma.trackedUser.deleteMany();
+  await prisma.persona.deleteMany();
+  await prisma.planSet.deleteMany().catch(() => {});
+  await prisma.appSetting.deleteMany();
+  await prisma.campaignContent.deleteMany();
+  await prisma.deeplink.deleteMany();
+  await prisma.demoUserGroup.deleteMany().catch(() => {});
 }
 
 export { prisma };
