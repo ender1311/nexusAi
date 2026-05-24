@@ -4,6 +4,7 @@ import { classifyPersona, BrazeAttributes } from "@/lib/engine/plan-persona-clas
 import { calculateReward } from "@/lib/engine/reward-calculator";
 import { accumulateUserStats } from "@/lib/engine/user-stats";
 import { upsertArmStats, upsertUserArmStats } from "@/lib/arm-stats";
+import { verifyIngestAuth } from "@/lib/ingest-auth";
 
 /**
  * POST /api/ingest/users
@@ -27,10 +28,7 @@ import { upsertArmStats, upsertUserArmStats } from "@/lib/arm-stats";
  */
 
 function verifyAuth(req: NextRequest): boolean {
-  const expected = process.env.HIGHTOUCH_API_KEY ?? process.env.INGEST_API_KEY;
-  if (!expected) return false;
-  const token = req.headers.get("authorization")?.replace("Bearer ", "");
-  return token === expected;
+  return verifyIngestAuth(req.headers);
 }
 
 // ── Types ─────────────────────────────────────────────────────────────────

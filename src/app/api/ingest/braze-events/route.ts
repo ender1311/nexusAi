@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
 import { upsertArmStats, upsertUserArmStats } from "@/lib/arm-stats";
+import { verifyIngestAuth } from "@/lib/ingest-auth";
 
 /**
  * POST /api/ingest/braze-events
@@ -49,10 +50,7 @@ const CLICK_EVENTS = new Set([
 const CLICK_REWARD = 0.8;
 
 function verifyAuth(req: NextRequest): boolean {
-  const expected = process.env.HIGHTOUCH_API_KEY ?? process.env.INGEST_API_KEY;
-  if (!expected) return false;
-  const token = req.headers.get("authorization")?.replace("Bearer ", "");
-  return token === expected;
+  return verifyIngestAuth(req.headers);
 }
 
 type BrazeEvent = {

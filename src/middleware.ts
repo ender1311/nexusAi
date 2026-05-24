@@ -11,14 +11,29 @@ const PUBLIC_PREFIXES = [
   "/api/admin/",
 ];
 
+const SERVICE_PREFIXES = [
+  "/api/ingest/",
+  "/api/decide",
+  "/api/cron/",
+  "/api/admin/",
+];
+
 function isPublic(pathname: string): boolean {
   return PUBLIC_PREFIXES.some((p) => pathname.startsWith(p));
+}
+
+function isServiceRoute(pathname: string): boolean {
+  return SERVICE_PREFIXES.some((p) => pathname.startsWith(p));
 }
 
 const authProxy = authkitProxy();
 
 export async function middleware(request: NextRequest, event: NextFetchEvent) {
   const { pathname } = request.nextUrl;
+
+  if (isServiceRoute(pathname)) {
+    return NextResponse.next();
+  }
 
   // Redirect unauthenticated users away from protected routes before handing off
   // to WorkOS proxy. Public routes still go through authProxy so withAuth() works
