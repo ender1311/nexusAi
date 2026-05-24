@@ -12,6 +12,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { cn } from "@/lib/utils";
 import { Check, ChevronRight, Bot, Target, MessageSquare, Calendar, Rocket, Pencil } from "lucide-react";
 import { GoalTier, Channel, FrequencyCap, FunnelStage, FUNNEL_STAGES, FUNNEL_STAGE_META } from "@/types/agent";
+import { estimateConvergence } from "@/lib/convergence";
 import type { VariantWithMessage } from "@/types/agent";
 import type { Persona } from "@/types/persona";
 import { PersonaSelector } from "@/components/personas/persona-selector";
@@ -709,6 +710,26 @@ export function AgentWizard({ personas }: { personas: Persona[] }) {
               <Button variant="ghost" size="sm" onClick={() => removeMessage(i)} className="h-7 text-xs text-destructive">Remove</Button>
             </div>
           ))}
+
+          {/* Convergence estimate — shown once at least one message with variants is added */}
+          {(() => {
+            const totalArms = form.messages.reduce((sum, m) => sum + m.variants.length, 0);
+            if (totalArms === 0) return null;
+            const estimate = estimateConvergence(form.funnelStage, totalArms);
+            const stageLabel = form.funnelStage ? (FUNNEL_STAGE_META[form.funnelStage]?.label ?? form.funnelStage) : null;
+            return (
+              <div className="rounded-lg border bg-muted/30 p-3 space-y-0.5">
+                <div className="flex items-center justify-between">
+                  <span className="text-xs font-medium">Estimated time to convergence</span>
+                  <span className="text-xs font-semibold tabular-nums">{estimate}</span>
+                </div>
+                <p className="text-xs text-muted-foreground">
+                  {totalArms} arm{totalArms !== 1 ? "s" : ""}{stageLabel ? ` · ${stageLabel} eligibility` : ""}
+                  {" · ~30–50 observations per arm needed"}
+                </p>
+              </div>
+            );
+          })()}
         </div>
       )}
 
