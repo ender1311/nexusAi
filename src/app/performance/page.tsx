@@ -432,7 +432,7 @@ async function SendTimeSection() {
   return (
     <Card>
       <CardHeader>
-        <CardTitle className="text-sm font-semibold">Send-Time Intelligence — Hour of Day (30d UTC)</CardTitle>
+        <CardTitle className="text-sm font-semibold">Send-Time Intelligence — Hour of Day (30d local)</CardTitle>
       </CardHeader>
       <CardContent>
         <div className="space-y-1">
