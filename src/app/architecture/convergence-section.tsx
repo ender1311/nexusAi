@@ -2,9 +2,12 @@
 
 import { useState } from "react";
 import { Slider } from "@/components/ui/slider";
+import { Input } from "@/components/ui/input";
 import { cn } from "@/lib/utils";
-import { convergenceHours, formatConvergenceTime, sliderPosToArms } from "@/lib/convergence";
+import { convergenceHours, formatConvergenceTime, sliderPosToArms, armsToSliderPos } from "@/lib/convergence";
 import type { FunnelStage } from "@/types/agent";
+
+const DEFAULT_ARMS = 100;
 
 const ROWS: {
   stage: string;
@@ -27,8 +30,15 @@ function convergenceColor(hours: number): string {
 }
 
 export function ConvergenceSection() {
-  const [sliderPos, setSliderPos] = useState(0); // 0 = 3 arms
+  const [sliderPos, setSliderPos] = useState(armsToSliderPos(DEFAULT_ARMS));
+  const [inputVal, setInputVal] = useState(String(DEFAULT_ARMS));
   const arms = sliderPosToArms(sliderPos);
+
+  const applyArms = (raw: number) => {
+    const clamped = Math.max(3, Math.min(10_000, Math.round(raw)));
+    setSliderPos(armsToSliderPos(clamped));
+    setInputVal(String(clamped));
+  };
 
   return (
     <div className="space-y-4">
@@ -42,20 +52,39 @@ export function ConvergenceSection() {
         </p>
       </div>
 
-      {/* Arms slider */}
-      <div className="flex items-center gap-3 max-w-xs">
+      {/* Arms slider + custom input */}
+      <div className="flex items-center gap-3 max-w-sm">
         <span className="text-xs text-muted-foreground shrink-0">Arms / variants:</span>
         <Slider
           min={0}
           max={100}
           step={1}
           value={[sliderPos]}
-          onValueChange={(v) => setSliderPos(Array.isArray(v) ? v[0] : v)}
+          onValueChange={(v) => {
+            const pos = Array.isArray(v) ? v[0] : v;
+            setSliderPos(pos);
+            setInputVal(String(sliderPosToArms(pos)));
+          }}
           className="flex-1"
         />
-        <span className="text-xs font-mono font-semibold w-14 text-right tabular-nums">
-          {arms.toLocaleString()}
-        </span>
+        <Input
+          type="number"
+          min={3}
+          max={10000}
+          value={inputVal}
+          onChange={(e) => setInputVal(e.target.value)}
+          onBlur={() => {
+            const n = parseInt(inputVal, 10);
+            applyArms(isNaN(n) ? DEFAULT_ARMS : n);
+          }}
+          onKeyDown={(e) => {
+            if (e.key === "Enter") {
+              const n = parseInt(inputVal, 10);
+              applyArms(isNaN(n) ? DEFAULT_ARMS : n);
+            }
+          }}
+          className="w-20 h-7 text-xs font-mono text-right px-2"
+        />
       </div>
 
       {/* Convergence table */}
