@@ -478,7 +478,7 @@ function ExpandedContent({ row, nowMs, variantNameMap }: { row: SendRow; nowMs: 
         {row.scheduledFor && (
           <div>
             <p className="text-[10px] font-medium text-muted-foreground uppercase tracking-wide mb-0.5">Scheduled for</p>
-            <p className="text-xs font-mono">{formatScheduledDelivery(row.scheduledFor)} local</p>
+            <p className="text-xs font-mono">{formatScheduledDelivery(row.scheduledFor)} recipient's local</p>
           </div>
         )}
       </div>
@@ -502,7 +502,7 @@ function ScheduledSection({ rows, expanded, onToggle, nowMs, variantNameMap }: {
         <span className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">
           Scheduled — {rows.length} pending
         </span>
-        <span className="text-xs text-muted-foreground/70 italic">· times shown in each user&apos;s local time</span>
+        <span className="text-xs text-muted-foreground/70 italic">· times are each recipient&apos;s local delivery time</span>
       </div>
       {rows.map((row) => {
         const isOpen = expanded.has(row.id);
@@ -553,7 +553,7 @@ function ScheduledSection({ rows, expanded, onToggle, nowMs, variantNameMap }: {
               <div className="flex items-center gap-2 shrink-0">
                 <Badge variant="outline" className="text-xs border-amber-300 text-amber-700 dark:border-amber-700 dark:text-amber-400">
                   <Clock className="h-2.5 w-2.5 mr-1" />
-                  {row.scheduledFor ? `${formatScheduledDelivery(row.scheduledFor)} local` : "—"}
+                  {row.scheduledFor ? `${formatScheduledDelivery(row.scheduledFor)} recipient's local` : "—"}
                 </Badge>
                 <Badge variant="outline" className="text-xs capitalize hidden sm:inline-flex">{row.channel}</Badge>
               </div>
