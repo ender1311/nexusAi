@@ -46,11 +46,12 @@ export async function truncateAll(): Promise<void> {
     "CampaignContent", "DemoUserGroup",
     "Deeplink", "CronRun", "FailedBrazeSend",
   ];
-  const rows = await prisma.$queryRawUnsafe<{ tablename: string }[]>(
-    `SELECT tablename FROM pg_tables WHERE schemaname = 'public' AND tablename = ANY($1)`,
+  // Cast to text — the Neon HTTP adapter can't deserialize pg_catalog 'name' type directly.
+  const rows = await prisma.$queryRawUnsafe<{ t: string }[]>(
+    `SELECT tablename::text AS t FROM pg_tables WHERE schemaname = 'public' AND tablename = ANY($1::text[])`,
     candidates,
   );
-  const existing = rows.map((r) => r.tablename);
+  const existing = rows.map((r) => r.t);
   if (existing.length > 0) {
     const list = existing.map((t) => `"${t}"`).join(", ");
     await prisma.$executeRawUnsafe(`TRUNCATE TABLE ${list} CASCADE`);
