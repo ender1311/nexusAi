@@ -27,10 +27,7 @@ export async function PATCH(
     return NextResponse.json({ error: "Invalid JSON" }, { status: 400 });
   }
 
-  const variant = await prisma.messageVariant.findUnique({
-    where: { id },
-    include: { message: { include: { agent: { select: { name: true } } } } },
-  });
+  const variant = await prisma.messageVariant.findUnique({ where: { id } });
   if (!variant) {
     return NextResponse.json({ error: "Variant not found" }, { status: 404 });
   }
@@ -55,9 +52,14 @@ export async function PATCH(
     return NextResponse.json({ error: "Update failed" }, { status: 500 });
   }
 
-  // If this is a template variant, sync copy fields to all clones
+  // If this is a template variant, sync copy fields to all clones.
+  // Fetch agent name separately to avoid Neon adapter nested-include issues.
   let clonesUpdated = 0;
-  if (variant.message.agent.name === LIBRARY_AGENT_NAME) {
+  const message = await prisma.message.findUnique({
+    where: { id: variant.messageId },
+    include: { agent: { select: { name: true } } },
+  });
+  if (message?.agent?.name === LIBRARY_AGENT_NAME) {
     const copyData = Object.fromEntries(
       TEMPLATE_COPY_FIELDS.map((f) => [f, (updated as Record<string, unknown>)[f]])
     );
