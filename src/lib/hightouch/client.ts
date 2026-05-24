@@ -74,14 +74,14 @@ export class HightouchClient {
     return json.data;
   }
 
-  async triggerSync(id: string, fullResync = false): Promise<{ id: string }> {
-    const res = await this.post(`/syncs/${id}/trigger`, { full_resync: fullResync });
+  async triggerSync(id: string): Promise<{ id: string }> {
+    const res = await this.post(`/syncs/${id}/trigger`, {});
     if (!res.ok) throw new Error(`Hightouch triggerSync failed: ${res.status}`);
     return (await res.json()) as { id: string };
   }
 
   async getSyncRuns(id: string, limit = 20): Promise<HightouchSyncRun[]> {
-    const res = await this.get(`/syncs/${id}/sync-runs`, { limit });
+    const res = await this.get(`/syncs/${id}/runs`, { limit });
     if (!res.ok) throw new Error(`Hightouch getSyncRuns failed: ${res.status}`);
     const json = (await res.json()) as { data: HightouchSyncRun[] };
     return json.data;

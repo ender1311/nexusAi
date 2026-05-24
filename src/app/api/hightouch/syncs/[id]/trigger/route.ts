@@ -16,16 +16,8 @@ export async function POST(
 
   const { id } = await params;
 
-  let fullResync = false;
   try {
-    const body = await request.json();
-    fullResync = body.full_resync === true;
-  } catch {
-    // body is optional
-  }
-
-  try {
-    const result = await client.triggerSync(id, fullResync);
+    const result = await client.triggerSync(id);
     return NextResponse.json({ data: result });
   } catch (error) {
     console.error(`POST /api/hightouch/syncs/${id}/trigger error:`, error);
