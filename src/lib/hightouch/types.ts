@@ -31,7 +31,7 @@ export type HightouchSync = {
   status: HightouchSyncStatus;
   primaryKey: string;
   modelId: string;
-  destinationId: string;
+  destinationId: string | number;
   schedule: {
     type: string;
     expression?: string;
