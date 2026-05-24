@@ -5,8 +5,9 @@
 - **Type:** HTTP Request
 - **Name:** HTTP Request (slug: `http-request`)
 - **Base URL:** `https://nexus.youversion.com`
-- **Auth:** HTTP header `Authorization: Bearer <HIGHTOUCH_API_KEY>`
+- **Auth:** HTTP header `X-Hightouch-Token: <INGEST_API_KEY>`
 - **Token fetch:** OFF (not needed — static Bearer token)
+- **Hightouch auth method:** Basic Auth is okay if Hightouch requires a choice; Nexus ignores it and reads `X-Hightouch-Token`.
 
 ## Sync A: User Profiles
 

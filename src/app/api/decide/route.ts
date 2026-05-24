@@ -1,11 +1,9 @@
 import { NextRequest, NextResponse } from "next/server";
 import { decideForUser, type DecideContext } from "@/lib/decide";
+import { verifyIngestAuth } from "@/lib/ingest-auth";
 
 function verifyAuth(req: NextRequest): boolean {
-  const expected = process.env.HIGHTOUCH_API_KEY ?? process.env.INGEST_API_KEY;
-  if (!expected) return false; // Require key to be configured — never open to all
-  const token = req.headers.get("authorization")?.replace("Bearer ", "");
-  return token === expected;
+  return verifyIngestAuth(req.headers);
 }
 
 export async function POST(req: NextRequest) {
