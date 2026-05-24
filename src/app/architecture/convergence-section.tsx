@@ -15,10 +15,10 @@ const ROWS: {
   eligibility: string;
   sendsPerMonth: string;
 }[] = [
-  { stage: "DAU4",   funnelKey: "dau4",        eligibility: "Daily",                     sendsPerMonth: "~20–30" },
-  { stage: "WAU",    funnelKey: "wau",          eligibility: "1–3×/week",                 sendsPerMonth: "~6–12"  },
-  { stage: "MAU",    funnelKey: "mau",          eligibility: "~1×/month",                 sendsPerMonth: "~1–2"   },
-  { stage: "Lapsed", funnelKey: "lapsed_dau4",  eligibility: "Rarely / re-engagement burst", sendsPerMonth: "<1"  },
+  { stage: "DAU4",   funnelKey: "dau4",        eligibility: "Daily",                        sendsPerMonth: "~20–30" },
+  { stage: "WAU",    funnelKey: "wau",          eligibility: "1–3×/week",                    sendsPerMonth: "~6–12"  },
+  { stage: "MAU",    funnelKey: "mau",          eligibility: "~1×/month",                    sendsPerMonth: "~4"     },
+  { stage: "Lapsed", funnelKey: "lapsed_dau4",  eligibility: "Rarely / re-engagement burst", sendsPerMonth: "~2"     },
 ];
 
 function convergenceColor(hours: number): string {
