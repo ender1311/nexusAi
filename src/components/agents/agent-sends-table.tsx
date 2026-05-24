@@ -478,7 +478,7 @@ function ExpandedContent({ row, nowMs, variantNameMap }: { row: SendRow; nowMs: 
         {row.scheduledFor && (
           <div>
             <p className="text-[10px] font-medium text-muted-foreground uppercase tracking-wide mb-0.5">Scheduled for</p>
-            <p className="text-xs font-mono">{formatScheduledDelivery(row.scheduledFor)} recipient's local</p>
+            <p className="text-xs font-mono">{formatScheduledDelivery(row.scheduledFor)} recipient&apos;s local</p>
           </div>
         )}
       </div>
