@@ -8,6 +8,7 @@ import { cn, formatRelativeTime } from "@/lib/utils";
 import { TriggerSyncButton } from "./trigger-sync-button";
 import { SyncRunsDrawer } from "./sync-runs-drawer";
 import type { HightouchSync, HightouchModel, HightouchDestination } from "@/lib/hightouch/types";
+import SYNC_NAME_OVERRIDES from "@/lib/hightouch/sync-name-overrides.json";
 
 // ---------------------------------------------------------------------------
 // Utilities
@@ -23,6 +24,8 @@ function humanizeSlug(slug: string): string {
 }
 
 function syncDisplayName(sync: HightouchSync): string {
+  const override = (SYNC_NAME_OVERRIDES as Record<string, string>)[String(sync.id)];
+  if (override) return override;
   return sync.name?.trim() || humanizeSlug(sync.slug);
 }
 
