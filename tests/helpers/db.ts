@@ -34,20 +34,27 @@ export async function truncateAll(): Promise<void> {
     );
   }
 
-  // TRUNCATE CASCADE in one shot — atomic and FK-safe regardless of order.
+  // Truncate only tables that actually exist (schema may differ between envs).
   // TrackedUser is stored as "User" (@@map in schema).
-  await prisma.$executeRawUnsafe(`
-    TRUNCATE TABLE
-      "ProcessedEventId", "IngestSyncLog", "UserAgentAssignment",
-      "UserArmStats", "PersonaArmStats", "LinUCBArm",
-      "UserDecision", "ModelMetric", "User",
-      "AgentPersonaTarget", "SchedulingRule",
-      "MessageVariant", "Message", "Goal", "Agent", "Persona",
-      "PlanSetMember", "PlanSet", "AppSetting",
-      "CampaignContent", "DemoUserGroup",
-      "Deeplink", "CronRun", "FailedBrazeSend"
-    CASCADE
-  `);
+  const candidates = [
+    "ProcessedEventId", "IngestSyncLog", "UserAgentAssignment",
+    "UserArmStats", "PersonaArmStats", "LinUCBArm",
+    "UserDecision", "ModelMetric", "User",
+    "AgentPersonaTarget", "SchedulingRule",
+    "MessageVariant", "Message", "Goal", "Agent", "Persona",
+    "PlanSetMember", "PlanSet", "AppSetting",
+    "CampaignContent", "DemoUserGroup",
+    "Deeplink", "CronRun", "FailedBrazeSend",
+  ];
+  const rows = await prisma.$queryRawUnsafe<{ tablename: string }[]>(
+    `SELECT tablename FROM pg_tables WHERE schemaname = 'public' AND tablename = ANY($1)`,
+    candidates,
+  );
+  const existing = rows.map((r) => r.tablename);
+  if (existing.length > 0) {
+    const list = existing.map((t) => `"${t}"`).join(", ");
+    await prisma.$executeRawUnsafe(`TRUNCATE TABLE ${list} CASCADE`);
+  }
 }
 
 export { prisma };
