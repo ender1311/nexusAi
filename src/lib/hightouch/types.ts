@@ -6,7 +6,8 @@ export type HightouchSyncStatus =
   | "queued"
   | "running"
   | "interrupted"
-  | "cancelled";
+  | "cancelled"
+  | "disabled";
 
 export type HightouchModelQueryType =
   | "table"
@@ -26,9 +27,10 @@ export type HightouchSyncRunRows = {
 
 export type HightouchSync = {
   id: string;
-  name: string;
+  name: string | null;
   slug: string;
   status: HightouchSyncStatus;
+  disabled?: boolean;
   primaryKey: string;
   modelId: string | number;
   destinationId: string | number;
