@@ -266,7 +266,20 @@ export function SyncsTable({ syncs, models, destinations, hasApiKey, apiError }:
 
   const filtered = useMemo(() => {
     let list = syncs;
-    if (nexusOnly) list = list.filter((s) => s.slug.toLowerCase().includes("nexus"));
+    if (nexusOnly) {
+      list = list.filter((s) => {
+        const dest = destMap.get(String(s.destinationId));
+        const destNexus =
+          (dest?.name ?? "").toLowerCase().includes("nexus") ||
+          (dest?.slug ?? "").toLowerCase().includes("nexus");
+        const model = modelMap.get(String(s.modelId));
+        const modelNexus =
+          (model?.name ?? "").toLowerCase().includes("nexus") ||
+          (model?.slug ?? "").toLowerCase().includes("nexus");
+        const slugNexus = s.slug.toLowerCase().includes("nexus");
+        return destNexus || modelNexus || slugNexus;
+      });
+    }
     if (search.trim()) {
       const q = search.trim().toLowerCase();
       list = list.filter((s) =>
