@@ -30,7 +30,7 @@ export type HightouchSync = {
   slug: string;
   status: HightouchSyncStatus;
   primaryKey: string;
-  modelId: string;
+  modelId: string | number;
   destinationId: string | number;
   schedule: {
     type: string;
@@ -57,7 +57,7 @@ export type HightouchModel = {
   id: string;
   name: string;
   slug: string;
-  sourceId: string;
+  sourceId: string | number;
   primaryKey: string;
   queryType: HightouchModelQueryType;
   sql: string | null;
