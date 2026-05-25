@@ -301,11 +301,16 @@ export async function discoverPersonas(config: DiscoveryConfig = {}): Promise<{
   // Get existing discovered personas to update vs create
   const existingDiscovered = await prisma.persona.findMany({
     where: { source: "discovered", isActive: true },
+    orderBy: { id: "asc" },
   });
 
   // Guard against noise assignments (-1) from HDBSCAN corrupting cluster size counts
   const clusterSizes = new Array(bestResult.k).fill(0);
   bestResult.assignments.forEach((a) => { if (a >= 0) clusterSizes[a]++; });
+
+  // Rescale cluster sizes from sample counts to population counts when sampling was applied
+  const scaleFactor = vectors.length > maxSampleSize ? eligibleUsers.length / sampleVectors.length : 1;
+  const scaledClusterSizes = clusterSizes.map((c) => Math.round(c * scaleFactor));
 
   let personasCreated = 0;
   let personasUpdated = 0;
@@ -335,7 +340,7 @@ export async function discoverPersonas(config: DiscoveryConfig = {}): Promise<{
         where: { id: existing.id },
         data: {
           centroid,
-          clusterSize,
+          clusterSize: scaledClusterSizes[j],
           silhouetteScore: bestResult.silhouetteScore,
           traits: traitsObj,
           color,
@@ -353,7 +358,7 @@ export async function discoverPersonas(config: DiscoveryConfig = {}): Promise<{
           icon: "Users2",
           color,
           centroid,
-          clusterSize,
+          clusterSize: scaledClusterSizes[j],
           silhouetteScore: bestResult.silhouetteScore,
           traits: traitsObj,
           discoveredAt: new Date(),
