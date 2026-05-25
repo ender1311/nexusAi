@@ -614,7 +614,12 @@ export const getCachedBrazeStats = cache(unstable_cache(
 
 // ── Control Tower stats ───────────────────────────────────────────────────────
 
-/** Aggregate counts for the control tower page (60s TTL). */
+/**
+ * Funnel stage breakdown for dashboard + control tower.
+ * Tagged "funnel-breakdown" (NOT "dashboard-stats") so the hourly cron
+ * revalidateTag("dashboard-stats") does not bust this GROUP BY query on 19M+ rows.
+ * 4-hour TTL — funnel distribution changes slowly.
+ */
 export const getCachedFunnelStageBreakdown = cache(
   unstable_cache(
     async () => {
@@ -626,7 +631,7 @@ export const getCachedFunnelStageBreakdown = cache(
       return rows.map((r) => ({ stage: r.funnelStage ?? "unknown", count: r._count._all }));
     },
     ["funnel-stage-breakdown"],
-    { tags: ["dashboard-stats"], revalidate: 900 }
+    { tags: ["funnel-breakdown"], revalidate: 14400 }
   )
 );
 
