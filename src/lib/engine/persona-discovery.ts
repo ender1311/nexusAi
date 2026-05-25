@@ -319,8 +319,6 @@ export async function discoverPersonas(config: DiscoveryConfig = {}): Promise<{
   for (let j = 0; j < bestResult.k; j++) {
     const centroid = bestResult.centroids[j];
     const traits = deriveTrait(centroid);
-    const clusterSize = clusterSizes[j];
-
     const traitsObj = {
       dominantChannel: traits.dominantChannel,
       peakHour: traits.peakHour,
