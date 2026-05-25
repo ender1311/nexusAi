@@ -71,6 +71,8 @@ export interface Agent {
   color: string;
   targetFilter?: Record<string, unknown> | null;
   audienceCap?: number | null;
+  uniqueUsersCap?: number | null;
+  uniqueUsers?: number;
   sortOrder?: number;
   createdAt: string;
   updatedAt: string;

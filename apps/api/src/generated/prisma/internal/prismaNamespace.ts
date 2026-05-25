@@ -2253,6 +2253,7 @@ export const AgentScalarFieldEnum = {
   targetFilter: 'targetFilter',
   fallbackSendHour: 'fallbackSendHour',
   audienceCap: 'audienceCap',
+  uniqueUsersCap: 'uniqueUsersCap',
   languageFilter: 'languageFilter',
   staleFunnelStageDays: 'staleFunnelStageDays',
   color: 'color',
