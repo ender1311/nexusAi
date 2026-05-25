@@ -1,4 +1,4 @@
-export const revalidate = 60;
+export const revalidate = 14400;
 export const maxDuration = 30;
 
 import { Suspense } from "react";
@@ -15,6 +15,7 @@ import {
   getCachedAgentList,
   getCachedPersonaDistribution,
   getCachedDashboardCounts,
+  getCachedTrackedUserCount,
   getCachedDashboardTimeSeries,
   getCachedRecentDecisions,
   getCachedBrazeStats,
@@ -88,8 +89,8 @@ function ListCardSkeleton() {
 // ---------------------------------------------------------------------------
 
 async function MetricCardsSection() {
-  const [{ sentLast24h, totalConversions, totalDecisions, trackedUsers, totalPushSends }, agents] =
-    await Promise.all([getCachedDashboardCounts(), getCachedAgentList()]);
+  const [{ sentLast24h, totalConversions, totalDecisions, totalPushSends }, agents, trackedUsers] =
+    await Promise.all([getCachedDashboardCounts(), getCachedAgentList(), getCachedTrackedUserCount()]);
   const avgConvRate = totalDecisions > 0 ? (totalConversions / totalDecisions) * 100 : 0;
   const activeAgents = agents.filter((a) => a.status === "active").length;
 
@@ -323,6 +324,7 @@ export default function DashboardPage() {
   // these promises so each Suspense boundary gets the already-in-flight result
   // instead of starting a new DB round-trip when React processes the boundary.
   void getCachedDashboardCounts();
+  void getCachedTrackedUserCount();
   void getCachedAgentList();
   void getCachedBrazeStats();
   void getCachedDashboardTimeSeries();
