@@ -43,10 +43,12 @@ export class LinUCB {
   ): { variantId: string } {
     if (arms.length === 0) throw new Error("LinUCB: no arms to select from");
 
+    // First pass: score all arms once and cache results
+    const scores = new Map<string, number>();
     let bestScore = -Infinity;
     for (const arm of arms) {
       const s = this.score(arm.aInv, arm.b, context);
-      if (!isFinite(s)) continue;
+      scores.set(arm.id, s);
       if (s > bestScore) {
         bestScore = s;
       }
@@ -55,11 +57,15 @@ export class LinUCB {
     // Collect all arms tied at bestScore (within epsilon tolerance)
     const tied: Array<{ id: string; aInv: number[]; b: number[] }> = [];
     for (const arm of arms) {
-      const s = this.score(arm.aInv, arm.b, context);
-      if (!isFinite(s)) continue;
-      if (Math.abs(s - bestScore) < 1e-10) {
+      const s = scores.get(arm.id);
+      if (s !== undefined && Math.abs(s - bestScore) < 1e-10) {
         tied.push(arm);
       }
+    }
+
+    // Guard: if all arms produced non-finite scores, fall back to first arm
+    if (tied.length === 0) {
+      return { variantId: arms[0]!.id };
     }
 
     // Return one arm chosen uniformly at random from tied arms
