@@ -1,4 +1,4 @@
-export const revalidate = 60;
+export const dynamic = "force-dynamic";
 export const maxDuration = 30;
 
 import { Suspense, cache } from "react";
@@ -13,7 +13,6 @@ import { SyncsTable } from "@/components/data-ingest/syncs-table";
 import { ModelsTable } from "@/components/data-ingest/models-table";
 import { SourcesDestinations } from "@/components/data-ingest/sources-destinations";
 import { EventPushForm } from "@/components/data-ingest/event-push-form";
-import { PayloadReference } from "@/components/data-ingest/payload-reference";
 
 // ---------------------------------------------------------------------------
 // React.cache() wrappers — dedup calls across Suspense boundaries
@@ -93,8 +92,25 @@ function CardTableSkeleton() {
 // ---------------------------------------------------------------------------
 
 async function HealthBannerSection() {
-  const { syncs } = await getCachedSyncs();
-  return <HealthBanner syncs={syncs} />;
+  const [{ syncs }, destinations, models] = await Promise.all([
+    getCachedSyncs(),
+    getCachedDestinations(),
+    getCachedModels(),
+  ]);
+  const destMap = new Map(destinations.map((d) => [String(d.id), d]));
+  const modelMap = new Map(models.map((m) => [String(m.id), m]));
+  const nexusSyncs = syncs.filter((s) => {
+    const dest = destMap.get(String(s.destinationId));
+    const destNexus =
+      (dest?.name ?? "").toLowerCase().includes("nexus") ||
+      (dest?.slug ?? "").toLowerCase().includes("nexus");
+    const model = modelMap.get(String(s.modelId));
+    const modelNexus =
+      (model?.name ?? "").toLowerCase().includes("nexus") ||
+      (model?.slug ?? "").toLowerCase().includes("nexus");
+    return destNexus || modelNexus || s.slug.toLowerCase().includes("nexus");
+  });
+  return <HealthBanner syncs={nexusSyncs} />;
 }
 
 async function SyncsSection() {
@@ -147,13 +163,12 @@ export default function DataIngestPage() {
         </Suspense>
 
         <Tabs defaultValue="syncs">
-          <div className="overflow-x-auto -mx-4 px-4 sm:mx-0 sm:px-0">
+          <div className="overflow-x-auto overflow-y-hidden overscroll-x-contain -mx-4 px-4 sm:mx-0 sm:px-0 [touch-action:pan-x]">
             <TabsList className="w-max">
               <TabsTrigger value="syncs">Syncs</TabsTrigger>
               <TabsTrigger value="models">Models</TabsTrigger>
               <TabsTrigger value="sources">Sources &amp; Destinations</TabsTrigger>
               <TabsTrigger value="push">Push Events</TabsTrigger>
-              <TabsTrigger value="reference">Reference</TabsTrigger>
             </TabsList>
           </div>
 
@@ -177,10 +192,6 @@ export default function DataIngestPage() {
 
           <TabsContent value="push" className="mt-4">
             <EventPushForm />
-          </TabsContent>
-
-          <TabsContent value="reference" className="mt-4">
-            <PayloadReference />
           </TabsContent>
         </Tabs>
       </div>

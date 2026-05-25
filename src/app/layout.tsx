@@ -3,6 +3,7 @@ import { Inter, Geist_Mono } from "next/font/google";
 import "./globals.css";
 import { Sidebar, MobileNav } from "@/components/layout/sidebar";
 import { DataModeProvider } from "@/components/layout/data-mode-provider";
+import { RoutePreloader } from "@/components/layout/route-preloader";
 import { ThemeProvider } from "next-themes";
 import { withAuth } from "@workos-inc/authkit-nextjs";
 import NextTopLoader from "nextjs-toploader";
@@ -59,6 +60,7 @@ export default async function RootLayout({
         <ThemeProvider attribute="class" defaultTheme="system" enableSystem disableTransitionOnChange>
           {user ? (
             <DataModeProvider>
+              <RoutePreloader />
               <div className="flex h-full overflow-hidden bg-background">
                 <Sidebar user={sidebarUser} />
                 <main className="flex-1 overflow-y-auto pb-[calc(4rem+env(safe-area-inset-bottom))] lg:pb-0">
