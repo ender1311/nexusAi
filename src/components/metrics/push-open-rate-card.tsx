@@ -12,11 +12,27 @@ import {
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
 import { formatNumber } from "@/lib/utils";
+import {
+  LineChart,
+  Line,
+  XAxis,
+  YAxis,
+  CartesianGrid,
+  Tooltip,
+  Legend,
+  ResponsiveContainer,
+} from "recharts";
 
 type BrazeStats = {
   sends: number;
   directOpens: number;
   totalOpens: number;
+  directOpenRate: number;
+  totalOpenRate: number;
+};
+
+type OpenRatePoint = {
+  date: string;
   directOpenRate: number;
   totalOpenRate: number;
 };
@@ -36,6 +52,7 @@ type PushSummaryData = {
     firstPushAt: string;
   }>;
   brazeStats?: BrazeStats;
+  series?: OpenRatePoint[];
 };
 
 interface PushOpenRateCardProps {
@@ -123,6 +140,67 @@ export function PushOpenRateCard({
 
           {data && !loading && (
             <div className="space-y-5">
+              {/* 28-day open rate trend chart */}
+              {data.series && data.series.length > 1 && (
+                <div className="space-y-2">
+                  <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Open Rate — Last 28 Days</p>
+                  <div className="rounded-lg border p-3 bg-muted/20">
+                    <ResponsiveContainer width="100%" height={200}>
+                      <LineChart data={data.series} margin={{ top: 4, right: 8, left: 0, bottom: 0 }}>
+                        <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
+                        <XAxis
+                          dataKey="date"
+                          tickFormatter={(v: string) => {
+                            const d = new Date(v + "T00:00:00");
+                            return d.toLocaleDateString("en-US", { month: "short", day: "numeric" });
+                          }}
+                          tick={{ fontSize: 11 }}
+                          interval="preserveStartEnd"
+                          tickLine={false}
+                        />
+                        <YAxis
+                          domain={[0, 10]}
+                          tickFormatter={(v: number) => `${v}%`}
+                          tick={{ fontSize: 11 }}
+                          tickLine={false}
+                          axisLine={false}
+                          width={38}
+                        />
+                        <Tooltip
+                          formatter={(value) => [`${typeof value === "number" ? value.toFixed(2) : value}%`]}
+                          labelFormatter={(label) => {
+                            if (typeof label !== "string") return String(label);
+                            const d = new Date(label + "T00:00:00");
+                            return d.toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" });
+                          }}
+                          contentStyle={{ fontSize: 12 }}
+                        />
+                        <Legend wrapperStyle={{ fontSize: 12, paddingTop: 8 }} />
+                        <Line
+                          type="monotone"
+                          dataKey="totalOpenRate"
+                          name="Total Open Rate"
+                          stroke="#57a16c"
+                          strokeWidth={2}
+                          dot={false}
+                          activeDot={{ r: 4 }}
+                        />
+                        <Line
+                          type="monotone"
+                          dataKey="directOpenRate"
+                          name="Direct Open Rate"
+                          stroke="#6366f1"
+                          strokeWidth={2}
+                          dot={false}
+                          activeDot={{ r: 4 }}
+                          strokeDasharray="4 2"
+                        />
+                      </LineChart>
+                    </ResponsiveContainer>
+                  </div>
+                </div>
+              )}
+
               {/* Braze Campaign Analytics — authoritative source */}
               {data.brazeStats && (
                 <div className="space-y-2">

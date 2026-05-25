@@ -10,6 +10,12 @@ type BrazeStats = {
   totalOpenRate: number;
 };
 
+type OpenRatePoint = {
+  date: string;
+  directOpenRate: number;
+  totalOpenRate: number;
+};
+
 type PushSummaryData = {
   totalPushSends: number;
   totalPushOpens: number;
@@ -25,6 +31,7 @@ type PushSummaryData = {
     firstPushAt: string;
   }>;
   brazeStats?: BrazeStats;
+  series?: OpenRatePoint[];
 };
 
 export async function GET(): Promise<
@@ -33,38 +40,56 @@ export async function GET(): Promise<
   try {
     const campaignId = process.env.BRAZE_NEXUS_CAMPAIGN_ID;
 
-    async function fetchBrazeStats(): Promise<BrazeStats | null> {
+    type BrazeResult = { stats: BrazeStats; series: OpenRatePoint[] } | null;
+
+    async function fetchBrazeStats(): Promise<BrazeResult> {
       if (!campaignId) return null;
       const brazeClient = createBrazeClient();
       if (!brazeClient) return null;
       try {
-        const daysSince = Math.ceil((Date.now() - new Date("2026-05-16").getTime()) / (86400 * 1000)) + 2;
         const res = await brazeClient.get("/campaigns/data_series", {
           campaign_id: campaignId,
-          length: Math.max(daysSince, 3),
+          length: 28,
         });
         if (!res.ok) return null;
-        const data = await res.json() as { data?: Array<{ messages?: Record<string, unknown[]> }> };
+        const json = await res.json() as { data?: Array<{ time?: string; messages?: Record<string, unknown[]> }> };
         let sends = 0, directOpens = 0, totalOpens = 0;
-        for (const point of (data.data ?? [])) {
+        const series: OpenRatePoint[] = [];
+        for (const point of (json.data ?? [])) {
           if (!point.messages) continue;
+          let daySends = 0, dayDirect = 0, dayTotal = 0;
           for (const variations of Object.values(point.messages)) {
             if (!Array.isArray(variations)) continue;
             for (const v of variations) {
               const s = v as Record<string, unknown>;
-              if (typeof s.sent === "number") sends += s.sent;
-              else if (typeof s.sends === "number") sends += s.sends;
-              if (typeof s.direct_opens === "number") directOpens += s.direct_opens;
-              if (typeof s.total_opens === "number") totalOpens += s.total_opens;
+              if (typeof s.sent === "number") daySends += s.sent;
+              else if (typeof s.sends === "number") daySends += s.sends;
+              if (typeof s.direct_opens === "number") dayDirect += s.direct_opens;
+              if (typeof s.total_opens === "number") dayTotal += s.total_opens;
             }
           }
+          sends += daySends;
+          directOpens += dayDirect;
+          totalOpens += dayTotal;
+          if (point.time && daySends > 0) {
+            series.push({
+              date: point.time.slice(0, 10),
+              directOpenRate: parseFloat(((dayDirect / daySends) * 100).toFixed(2)),
+              totalOpenRate: parseFloat(((dayTotal / daySends) * 100).toFixed(2)),
+            });
+          }
         }
+        // series comes back newest-first from Braze; reverse to chronological
+        series.reverse();
         return {
-          sends,
-          directOpens,
-          totalOpens,
-          directOpenRate: sends > 0 ? parseFloat(((directOpens / sends) * 100).toFixed(2)) : 0,
-          totalOpenRate: sends > 0 ? parseFloat(((totalOpens / sends) * 100).toFixed(2)) : 0,
+          stats: {
+            sends,
+            directOpens,
+            totalOpens,
+            directOpenRate: sends > 0 ? parseFloat(((directOpens / sends) * 100).toFixed(2)) : 0,
+            totalOpenRate: sends > 0 ? parseFloat(((totalOpens / sends) * 100).toFixed(2)) : 0,
+          },
+          series,
         };
       } catch {
         return null;
@@ -97,7 +122,8 @@ export async function GET(): Promise<
           firstPushAt: null,
           agentCount: 0,
           byAgent: [],
-          brazeStats: brazeStats ?? undefined,
+          brazeStats: brazeStats?.stats ?? undefined,
+          series: brazeStats?.series ?? undefined,
         },
       });
     }
@@ -149,7 +175,8 @@ export async function GET(): Promise<
         firstPushAt,
         agentCount: byAgent.length,
         byAgent,
-        brazeStats: brazeStats ?? undefined,
+        brazeStats: brazeStats?.stats ?? undefined,
+        series: brazeStats?.series ?? undefined,
       },
     });
   } catch (error) {
