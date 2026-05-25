@@ -1,5 +1,8 @@
 import { prisma } from "@/lib/db";
 import { randomUUID } from "crypto";
+import { LinUCB } from "@/lib/engine/linucb";
+import { FEATURE_DIM } from "@/lib/engine/feature-vector";
+import type { Prisma } from "@/generated/prisma/client";
 
 /**
  * Atomically apply temporal decay and a reward increment to a PersonaArmStats row.
@@ -100,4 +103,69 @@ export async function batchUpsertUserArmStats(
 ): Promise<void> {
   if (rows.length === 0) return;
   await Promise.all(rows.map((r) => upsertUserArmStats({ ...r, ...delta })));
+}
+
+/**
+ * Apply a LinUCB Sherman-Morrison update to a LinUCBArm.
+ * Loads the arm (creating with identity prior if missing), applies LinUCB.update(),
+ * and persists the new aInv and b to the database.
+ *
+ * This closes the learning loop for the LinUCB algorithm:
+ * without this call, theta = A^{-1}b = I*0 = 0 always.
+ */
+export async function updateLinUCBArm(params: {
+  agentId: string;
+  variantId: string;
+  /** The feature context vector used at decision time (must be FEATURE_DIM length) */
+  contextVec: number[];
+  reward: number;
+}): Promise<void> {
+  const { agentId, variantId, contextVec, reward } = params;
+
+  if (contextVec.length !== FEATURE_DIM) return;
+
+  const linUCB = new LinUCB();
+
+  let aInv: number[];
+  let b: number[];
+
+  const row = await prisma.linUCBArm.findUnique({
+    where: { agentId_variantId: { agentId, variantId } },
+  });
+
+  if (!row || !Array.isArray(row.aInv) || (row.aInv as number[]).length !== FEATURE_DIM * FEATURE_DIM) {
+    // No arm or stale dimension — initialize with identity prior and persist
+    const initial = linUCB.initialArm(FEATURE_DIM);
+    aInv = initial.aInv;
+    b = initial.b;
+    await prisma.linUCBArm.upsert({
+      where: { agentId_variantId: { agentId, variantId } },
+      create: {
+        agentId,
+        variantId,
+        aInv: aInv as unknown as Prisma.InputJsonValue,
+        b: b as unknown as Prisma.InputJsonValue,
+        tries: 0,
+      },
+      update: {
+        aInv: aInv as unknown as Prisma.InputJsonValue,
+        b: b as unknown as Prisma.InputJsonValue,
+        tries: 0,
+      },
+    });
+  } else {
+    aInv = row.aInv as number[];
+    b = row.b as number[];
+  }
+
+  const { aInv: newAInv, b: newB } = linUCB.update(aInv, b, contextVec, reward);
+
+  await prisma.linUCBArm.update({
+    where: { agentId_variantId: { agentId, variantId } },
+    data: {
+      aInv: newAInv as unknown as Prisma.InputJsonValue,
+      b: newB as unknown as Prisma.InputJsonValue,
+      tries: { increment: 1 },
+    },
+  });
 }

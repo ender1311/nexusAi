@@ -810,7 +810,7 @@ export async function POST(req: NextRequest) {
           m.variants.map((v) => ({ ...v, channel: m.channel }))
         );
 
-        const lotteryDecisionInputs: Array<{ user: typeof quietFiltered[number]; variantId: string; scheduledAt: Date; inLocalTime: boolean }> = [];
+        const lotteryDecisionInputs: Array<{ user: typeof quietFiltered[number]; variantId: string; scheduledAt: Date; inLocalTime: boolean; contextVector?: number[] }> = [];
         for (const user of quietFiltered) {
           const pid = user.personaId as string | null;
           if (!pid) continue;
@@ -826,6 +826,8 @@ export async function POST(req: NextRequest) {
           }
 
           let selectedVariantId: string;
+          // Hoisted so decisionContext can include it for LinUCB reward path
+          let lotteryContextVector: number[] | undefined;
 
           if (agent.algorithm === "linucb") {
             // LinUCB: select variant from the user's feature context
@@ -849,6 +851,7 @@ export async function POST(req: NextRequest) {
                     dailyStats:       user.dailyStats,
                     attributes:       (user.attributes as Record<string, unknown>) ?? {},
                   });
+            lotteryContextVector = context;
             selectedVariantId = new LinUCB().select(linucbArms, context).variantId;
           } else {
             // Thompson / EpsilonGreedy: blend persona prior with user-specific posterior
@@ -888,12 +891,18 @@ export async function POST(req: NextRequest) {
           // always eligible — Braze handles per-user timing via in_local_time scheduling.
           if (!isFallback && scheduledAt.getTime() - now.getTime() > 2 * 60 * 60 * 1000) continue;
 
-          lotteryDecisionInputs.push({ user, variantId: selectedVariantId, scheduledAt, inLocalTime: isFallback });
+          lotteryDecisionInputs.push({
+            user,
+            variantId: selectedVariantId,
+            scheduledAt,
+            inLocalTime: isFallback,
+            ...(agent.algorithm === "linucb" && lotteryContextVector ? { contextVector: lotteryContextVector } : {}),
+          });
         }
 
         // Bulk-create all UserDecision records in one createManyAndReturn call
         if (lotteryDecisionInputs.length > 0) {
-          const decisionData2 = lotteryDecisionInputs.map(({ user, variantId, scheduledAt, inLocalTime }) => {
+          const decisionData2 = lotteryDecisionInputs.map(({ user, variantId, scheduledAt, inLocalTime, contextVector }) => {
             const pid = user.personaId as string | null;
             const arms = pid ? pageArmsByPersona.get(pid) : null;
             const variantScores: Record<string, number> = {};
@@ -910,7 +919,11 @@ export async function POST(req: NextRequest) {
               messageVariantId: variantId,
               channel:          pageVariants.find((v) => v.id === variantId)?.channel ?? "push",
               scheduledFor:     scheduledAt,
-              decisionContext:  { ...(pid ? { personaId: pid, selectedVariantId: variantId, variantScores } : {}), inLocalTime } as unknown as Prisma.InputJsonValue,
+              decisionContext:  {
+                ...(pid ? { personaId: pid, selectedVariantId: variantId, variantScores } : {}),
+                inLocalTime,
+                ...(agent.algorithm === "linucb" && contextVector ? { contextVector } : {}),
+              } as unknown as Prisma.InputJsonValue,
             };
           });
 
@@ -1165,7 +1178,7 @@ export async function POST(req: NextRequest) {
           m.variants.map((v) => ({ ...v, channel: m.channel }))
         );
 
-        const decisionInputs: Array<{ user: typeof quietWindowUsers[number]; variantId: string; scheduledAt: Date; inLocalTime: boolean }> = [];
+        const decisionInputs: Array<{ user: typeof quietWindowUsers[number]; variantId: string; scheduledAt: Date; inLocalTime: boolean; contextVector?: number[] }> = [];
 
         for (const user of quietWindowUsers) {
           const pid = user.personaId as string | null;
@@ -1182,6 +1195,8 @@ export async function POST(req: NextRequest) {
           }
 
           let selectedVariantId: string;
+          // Hoisted so decisionContext can include it for LinUCB reward path
+          let windowContextVector: number[] | undefined;
 
           if (agent.algorithm === "linucb") {
             const linucbArms = windowVariants
@@ -1201,6 +1216,7 @@ export async function POST(req: NextRequest) {
                     dailyStats:       user.dailyStats,
                     attributes:       (user.attributes as Record<string, unknown>) ?? {},
                   });
+            windowContextVector = context;
             selectedVariantId = new LinUCB().select(linucbArms, context).variantId;
           } else {
             const personaArms = armStatsByPersona.get(pid) ?? new Map(
@@ -1233,11 +1249,17 @@ export async function POST(req: NextRequest) {
             now,
           );
 
-          decisionInputs.push({ user, variantId: selectedVariantId, scheduledAt, inLocalTime: isFallback });
+          decisionInputs.push({
+            user,
+            variantId: selectedVariantId,
+            scheduledAt,
+            inLocalTime: isFallback,
+            ...(agent.algorithm === "linucb" && windowContextVector ? { contextVector: windowContextVector } : {}),
+          });
         }
 
         // Bulk-create all UserDecision records in one createMany call
-        const decisionData = decisionInputs.map(({ user, variantId, scheduledAt, inLocalTime }) => {
+        const decisionData = decisionInputs.map(({ user, variantId, scheduledAt, inLocalTime, contextVector }) => {
           const pid = user.personaId as string | null;
           const arms = pid ? armStatsByPersona.get(pid) : null;
           const variantScores: Record<string, number> = {};
@@ -1255,7 +1277,11 @@ export async function POST(req: NextRequest) {
             channel:          windowVariants.find((v) => v.id === variantId)?.channel ?? "push",
             sentAt:           now,
             scheduledFor:     scheduledAt,
-            decisionContext:  { ...(pid ? { personaId: pid, selectedVariantId: variantId, variantScores } : {}), inLocalTime } as unknown as Prisma.InputJsonValue,
+            decisionContext:  {
+              ...(pid ? { personaId: pid, selectedVariantId: variantId, variantScores } : {}),
+              inLocalTime,
+              ...(agent.algorithm === "linucb" && contextVector ? { contextVector } : {}),
+            } as unknown as Prisma.InputJsonValue,
           };
         });
 

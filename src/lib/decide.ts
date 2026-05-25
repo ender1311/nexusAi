@@ -196,6 +196,8 @@ export async function decideForUser(input: DecideInput): Promise<DecideResult | 
   // 5. Load/seed arm stats for every active variant.
   const isLinUCB = agent.algorithm === "linucb";
   let selectedVariantId: string;
+  // Hoisted so decisionContext can include it for LinUCB reward path
+  let featureVec: number[] | null = null;
 
   if (isLinUCB) {
     // LinUCB: load/seed LinUCBArm rows (keyed by agentId+variantId, no persona segmentation).
@@ -222,7 +224,7 @@ export async function decideForUser(input: DecideInput): Promise<DecideResult | 
     );
 
     // Build user feature vector (behavioral + semantic) for context
-    const featureVec = computeFeatureVector({
+    featureVec = computeFeatureVector({
       totalDecisions: user.totalDecisions,
       totalConversions: user.totalConversions,
       totalReward: user.totalReward,
@@ -275,13 +277,21 @@ export async function decideForUser(input: DecideInput): Promise<DecideResult | 
   const recommendedSendHour = computeOptimalSendHour(user.hourlyStats);
 
   // 7. Record the decision (include context snapshot for analysis and oracle training)
+  // For LinUCB agents, also persist the feature vector so the reward path can apply
+  // the Sherman-Morrison update with the same context used at selection time.
+  const decisionContextData: Record<string, unknown> = context ? { ...context } : {};
+  if (isLinUCB && featureVec !== null) {
+    decisionContextData.contextVector = featureVec;
+  }
   const decision = await prisma.userDecision.create({
     data: {
       agentId,
       userId: externalUserId,   // stores externalId (existing convention in this codebase)
       messageVariantId: selected.id,
       channel: selected.channel,
-      decisionContext: context ?? undefined,
+      decisionContext: Object.keys(decisionContextData).length > 0
+        ? (decisionContextData as unknown as Prisma.InputJsonValue)
+        : undefined,
     },
   });
 
