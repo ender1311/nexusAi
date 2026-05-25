@@ -122,7 +122,10 @@ export async function updateLinUCBArm(params: {
 }): Promise<void> {
   const { agentId, variantId, contextVec, reward } = params;
 
-  if (contextVec.length !== FEATURE_DIM) return;
+  if (contextVec.length !== FEATURE_DIM) {
+    console.warn(`[updateLinUCBArm] skipping — contextVec length ${contextVec.length} !== FEATURE_DIM ${FEATURE_DIM}`);
+    return;
+  }
 
   const linUCB = new LinUCB();
 
@@ -133,7 +136,7 @@ export async function updateLinUCBArm(params: {
     where: { agentId_variantId: { agentId, variantId } },
   });
 
-  if (!row || !Array.isArray(row.aInv) || (row.aInv as number[]).length !== FEATURE_DIM * FEATURE_DIM) {
+  if (!row || !Array.isArray(row.aInv) || (row.aInv as number[]).length !== FEATURE_DIM * FEATURE_DIM || !Array.isArray(row.b) || (row.b as number[]).length !== FEATURE_DIM) {
     // No arm or stale dimension — initialize with identity prior and persist
     const initial = linUCB.initialArm(FEATURE_DIM);
     aInv = initial.aInv;

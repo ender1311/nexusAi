@@ -9,6 +9,7 @@ import { truncateAll, prisma } from "../helpers/db";
 import { createAgent, createMessage, createVariant } from "../helpers/builders";
 import { updateLinUCBArm } from "@/lib/arm-stats";
 import { FEATURE_DIM } from "@/lib/engine/feature-vector";
+import type { Prisma } from "@/generated/prisma/client";
 
 beforeEach(async () => {
   await truncateAll();
@@ -30,8 +31,8 @@ describe("updateLinUCBArm (regression — LinUCB arms must learn from rewards)",
       data: {
         agentId:  agent.id,
         variantId: variant.id,
-        aInv:     initial.aInv as unknown as object,
-        b:        initial.b as unknown as object,
+        aInv:     initial.aInv as unknown as Prisma.InputJsonValue,
+        b:        initial.b as unknown as Prisma.InputJsonValue,
         tries:    0,
       },
     });
@@ -95,8 +96,8 @@ describe("updateLinUCBArm (regression — LinUCB arms must learn from rewards)",
       data: {
         agentId:  agent.id,
         variantId: variant.id,
-        aInv:     initial.aInv as unknown as object,
-        b:        initial.b as unknown as object,
+        aInv:     initial.aInv as unknown as Prisma.InputJsonValue,
+        b:        initial.b as unknown as Prisma.InputJsonValue,
         tries:    0,
       },
     });
