@@ -51,6 +51,31 @@ describe("LinUCB.select", () => {
     }
     expect(exploit.select([armA, armB], ctx).variantId).toBe("A");
   });
+
+  it("distributes uniformly among tied arms at cold start (no bias toward first arm)", () => {
+    const arms = [
+      initialArm("A"),
+      initialArm("B"),
+      initialArm("C"),
+      initialArm("D"),
+      initialArm("E"),
+    ];
+    const ctx = [1, 0, 0];
+    const counts: Record<string, number> = { A: 0, B: 0, C: 0, D: 0, E: 0 };
+    const trials = 1000;
+
+    for (let i = 0; i < trials; i++) {
+      const result = linucb.select(arms, ctx);
+      counts[result.variantId]++;
+    }
+
+    // Each arm should win roughly 200 times (1000/5); assert at least 100 to allow noise
+    expect(counts["A"]).toBeGreaterThanOrEqual(100);
+    expect(counts["B"]).toBeGreaterThanOrEqual(100);
+    expect(counts["C"]).toBeGreaterThanOrEqual(100);
+    expect(counts["D"]).toBeGreaterThanOrEqual(100);
+    expect(counts["E"]).toBeGreaterThanOrEqual(100);
+  });
 });
 
 describe("LinUCB.update", () => {

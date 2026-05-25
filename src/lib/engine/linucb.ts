@@ -35,7 +35,7 @@ export class LinUCB {
 
   /**
    * Select the best arm given the user's context vector.
-   * Falls back to the first arm if all scores are identical (e.g. cold start with identity A^{-1}).
+   * Ties (within epsilon 1e-10) are broken uniformly at random for exploration.
    */
   select(
     arms: Array<{ id: string; aInv: number[]; b: number[] }>,
@@ -43,17 +43,28 @@ export class LinUCB {
   ): { variantId: string } {
     if (arms.length === 0) throw new Error("LinUCB: no arms to select from");
 
-    let bestId = arms[0]!.id;
     let bestScore = -Infinity;
     for (const arm of arms) {
       const s = this.score(arm.aInv, arm.b, context);
       if (!isFinite(s)) continue;
       if (s > bestScore) {
         bestScore = s;
-        bestId = arm.id;
       }
     }
-    return { variantId: bestId };
+
+    // Collect all arms tied at bestScore (within epsilon tolerance)
+    const tied: Array<{ id: string; aInv: number[]; b: number[] }> = [];
+    for (const arm of arms) {
+      const s = this.score(arm.aInv, arm.b, context);
+      if (!isFinite(s)) continue;
+      if (Math.abs(s - bestScore) < 1e-10) {
+        tied.push(arm);
+      }
+    }
+
+    // Return one arm chosen uniformly at random from tied arms
+    const selected = tied[Math.floor(Math.random() * tied.length)]!;
+    return { variantId: selected.id };
   }
 
   /**
