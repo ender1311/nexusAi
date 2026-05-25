@@ -44,6 +44,7 @@ const algorithmLabels: Record<string, string> = {
   thompson: "Thompson Sampling",
   epsilon_greedy: "ε-Greedy",
   contextual: "Contextual Bandit",
+  linucb: "LinUCB",
 };
 
 type FrequencyCap = { maxSends: number; period: string };

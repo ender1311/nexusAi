@@ -73,11 +73,11 @@ const ALGORITHM_OPTIONS = [
       "Sends the current best-performing variant most of the time, and randomly tries other variants a small percentage of the time (controlled by epsilon). Simpler than Thompson Sampling but less adaptive — you control how much exploration happens.",
   },
   {
-    value: "contextual",
-    label: "Contextual Bandit",
-    badge: "Coming soon",
+    value: "linucb",
+    label: "LinUCB",
+    badge: null,
     description:
-      "Uses real-time user context (time of day, device, recent activity) to pick the optimal variant for each individual send — not just their persona segment. More powerful but requires richer feature data.",
+      "Contextual bandit that learns a linear reward model per variant using the user's 10-dimensional behavioral feature vector. Adapts to individual user context rather than persona-level priors — best when your user population has meaningful behavioral diversity. Requires more observations to converge than Thompson Sampling.",
   },
 ];
 
