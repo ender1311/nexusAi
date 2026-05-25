@@ -3,7 +3,7 @@ import { prisma } from "@/lib/db";
 import { classifyPersona, BrazeAttributes } from "@/lib/engine/plan-persona-classifier";
 import { calculateReward } from "@/lib/engine/reward-calculator";
 import { accumulateUserStats } from "@/lib/engine/user-stats";
-import { upsertArmStats, upsertUserArmStats } from "@/lib/arm-stats";
+import { upsertArmStats, upsertUserArmStats, updateLinUCBArm } from "@/lib/arm-stats";
 import { verifyIngestAuth } from "@/lib/ingest-auth";
 
 /**
@@ -380,6 +380,24 @@ async function attributeEvents(
             console.error("[ingest/users] Failed to update UserArmStats:", err);
           }),
         ]);
+
+        // LinUCB reward update: if the agent uses linucb, update the arm matrices
+        if (decision.agent.algorithm === "linucb" && decision.messageVariantId) {
+          const ctx = decision.decisionContext as Record<string, unknown> | null;
+          const contextVec = Array.isArray(ctx?.contextVector)
+            ? (ctx.contextVector as number[])
+            : null;
+          if (contextVec) {
+            await updateLinUCBArm({
+              agentId: decision.agentId,
+              variantId: decision.messageVariantId,
+              contextVec,
+              reward,
+            }).catch((err) => {
+              console.error("[ingest/users] Failed to update LinUCBArm:", err);
+            });
+          }
+        }
       }
     }
 

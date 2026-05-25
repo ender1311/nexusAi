@@ -1,13 +1,18 @@
 import { computeFeatureVector, cosineSimilarity, FEATURE_DIM } from "./feature-vector";
+import { hdbscan } from "./hdbscan";
 import { prisma } from "@/lib/db";
 
 export interface DiscoveryConfig {
-  minInteractions?: number;   // default 20
-  minK?: number;              // default 3
-  maxK?: number;              // default 15
-  stabilityRuns?: number;     // default 5
-  stabilityThreshold?: number; // default 0.85
-  minSilhouetteScore?: number; // default 0.25
+  minInteractions?: number;    // default 20
+  minK?: number;               // default 3 (k-means only)
+  maxK?: number;               // default 15 (k-means only)
+  stabilityRuns?: number;      // default 5 (k-means only)
+  stabilityThreshold?: number; // default 0.85 (k-means only)
+  minSilhouetteScore?: number; // default 0.25 (both)
+  algorithm?: "kmeans" | "hdbscan"; // default "hdbscan"
+  minPts?: number;             // HDBSCAN: core distance neighborhood size (default 5)
+  minClusterSize?: number;     // HDBSCAN: minimum cluster size (default 30)
+  maxSampleSize?: number;      // max users to use for clustering (default 3000); random sample when exceeded
 }
 
 interface ClusterResult {
@@ -193,6 +198,8 @@ export async function discoverPersonas(config: DiscoveryConfig = {}): Promise<{
   const minK = config.minK ?? 3;
   const maxK = config.maxK ?? 15;
   const stabilityRuns = config.stabilityRuns ?? 5;
+  const algorithm = config.algorithm ?? "hdbscan";
+  const maxSampleSize = config.maxSampleSize ?? 3000;
 
   // Fetch users with enough data
   const eligibleUsers = await prisma.trackedUser.findMany({
@@ -216,27 +223,76 @@ export async function discoverPersonas(config: DiscoveryConfig = {}): Promise<{
     })
   );
 
-  // Find optimal k using silhouette score
-  const effectiveMaxK = Math.min(maxK, Math.floor(vectors.length / 2));
-  let bestResult: ClusterResult | null = null;
-
-  for (let k = minK; k <= effectiveMaxK; k++) {
-    const result = runKMeans(vectors, k, stabilityRuns);
-    if (!bestResult || result.silhouetteScore > bestResult.silhouetteScore) {
-      bestResult = result;
+  // Sample down to maxSampleSize using Fisher-Yates when the corpus is large
+  let sampleVectors = vectors;
+  if (vectors.length > maxSampleSize) {
+    const indices = Array.from({ length: vectors.length }, (_, i) => i);
+    for (let i = indices.length - 1; i > 0; i--) {
+      const j = Math.floor(Math.random() * (i + 1));
+      [indices[i], indices[j]] = [indices[j]!, indices[i]!];
     }
-  }
-
-  if (!bestResult) {
-    return { personasCreated: 0, personasUpdated: 0, usersAssigned: 0, silhouetteScore: 0, k: 0 };
+    const sample = indices.slice(0, maxSampleSize);
+    sampleVectors = sample.map((i) => vectors[i]!);
   }
 
   const minSilhouetteScore = config.minSilhouetteScore ?? 0.25;
-  if (bestResult.silhouetteScore < minSilhouetteScore) {
-    console.warn(
-      `[persona-discovery] best silhouette score ${bestResult.silhouetteScore.toFixed(4)} is below threshold ${minSilhouetteScore}; skipping persona creation`
-    );
-    return { personasCreated: 0, personasUpdated: 0, usersAssigned: 0, silhouetteScore: bestResult.silhouetteScore, k: 0 };
+  let bestResult: ClusterResult | null = null;
+
+  if (algorithm === "hdbscan") {
+    const minPts = config.minPts ?? 5;
+    const minClusterSize = config.minClusterSize ?? 30;
+
+    const result = hdbscan(sampleVectors, { minPts, minClusterSize });
+
+    if (result.k === 0) {
+      console.warn("[persona-discovery] HDBSCAN found no clusters; returning empty");
+      return { personasCreated: 0, personasUpdated: 0, usersAssigned: 0, silhouetteScore: 0, k: 0 };
+    }
+
+    // Compute centroids for each cluster, skipping noise points (label === -1)
+    const clusterVectors: number[][][] = Array.from({ length: result.k }, () => []);
+    for (let i = 0; i < result.labels.length; i++) {
+      const label = result.labels[i]!;
+      if (label >= 0) clusterVectors[label]!.push(sampleVectors[i]!);
+    }
+    const centroids = clusterVectors.map(centroidOf);
+
+    // Compute silhouette only on non-noise points to avoid -1 "cluster" distortion
+    const nonNoiseIndices = result.labels.map((l, i) => (l >= 0 ? i : -1)).filter((v) => v >= 0);
+    const nonNoiseVectors = nonNoiseIndices.map((i) => sampleVectors[i]!);
+    const nonNoiseLabels = nonNoiseIndices.map((i) => result.labels[i]!);
+    const silhouetteScore =
+      nonNoiseVectors.length >= 2 ? computeSilhouette(nonNoiseVectors, nonNoiseLabels, result.k) : 0;
+
+    if (silhouetteScore < minSilhouetteScore) {
+      console.warn(
+        `[persona-discovery] HDBSCAN silhouette ${silhouetteScore.toFixed(4)} below threshold ${minSilhouetteScore}`
+      );
+      return { personasCreated: 0, personasUpdated: 0, usersAssigned: 0, silhouetteScore, k: 0 };
+    }
+
+    bestResult = { k: result.k, centroids, assignments: result.labels, silhouetteScore };
+  } else {
+    // k-means path: find optimal k using silhouette score
+    const effectiveMaxK = Math.min(maxK, Math.floor(sampleVectors.length / 2));
+
+    for (let k = minK; k <= effectiveMaxK; k++) {
+      const result = runKMeans(sampleVectors, k, stabilityRuns);
+      if (!bestResult || result.silhouetteScore > bestResult.silhouetteScore) {
+        bestResult = result;
+      }
+    }
+
+    if (!bestResult) {
+      return { personasCreated: 0, personasUpdated: 0, usersAssigned: 0, silhouetteScore: 0, k: 0 };
+    }
+
+    if (bestResult.silhouetteScore < minSilhouetteScore) {
+      console.warn(
+        `[persona-discovery] best silhouette score ${bestResult.silhouetteScore.toFixed(4)} is below threshold ${minSilhouetteScore}; skipping persona creation`
+      );
+      return { personasCreated: 0, personasUpdated: 0, usersAssigned: 0, silhouetteScore: bestResult.silhouetteScore, k: 0 };
+    }
   }
 
   // Get existing discovered personas to update vs create
@@ -244,8 +300,9 @@ export async function discoverPersonas(config: DiscoveryConfig = {}): Promise<{
     where: { source: "discovered", isActive: true },
   });
 
+  // Guard against noise assignments (-1) from HDBSCAN corrupting cluster size counts
   const clusterSizes = new Array(bestResult.k).fill(0);
-  bestResult.assignments.forEach((a) => clusterSizes[a]++);
+  bestResult.assignments.forEach((a) => { if (a >= 0) clusterSizes[a]++; });
 
   let personasCreated = 0;
   let personasUpdated = 0;
