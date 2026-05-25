@@ -119,4 +119,42 @@ describe("updateLinUCBArm (regression — LinUCB arms must learn from rewards)",
     expect(b.every((v) => v === 0)).toBe(true);
     expect(arm.tries).toBe(0);
   });
+
+  it("silently skips when contextVec contains NaN", async () => {
+    const agent = await createAgent({ algorithm: "linucb" });
+    const msg = await createMessage(agent.id);
+    const variant = await createVariant(msg.id);
+
+    const { LinUCB } = await import("@/lib/engine/linucb");
+    const initial = new LinUCB().initialArm(FEATURE_DIM);
+    await prisma.linUCBArm.create({
+      data: {
+        agentId:  agent.id,
+        variantId: variant.id,
+        aInv:     initial.aInv as unknown as Prisma.InputJsonValue,
+        b:        initial.b as unknown as Prisma.InputJsonValue,
+        tries:    0,
+      },
+    });
+
+    // NaN in first element — should be a no-op
+    const contextVec = new Array<number>(FEATURE_DIM).fill(0);
+    contextVec[0] = NaN;
+
+    await updateLinUCBArm({
+      agentId:    agent.id,
+      variantId:  variant.id,
+      contextVec,
+      reward:     1.0,
+    });
+
+    const arm = await prisma.linUCBArm.findUniqueOrThrow({
+      where: { agentId_variantId: { agentId: agent.id, variantId: variant.id } },
+    });
+
+    // b should remain all zeros, tries unchanged
+    const b = arm.b as number[];
+    expect(b.every((v) => v === 0)).toBe(true);
+    expect(arm.tries).toBe(0);
+  });
 });

@@ -99,6 +99,17 @@ describe("computeSilhouette", () => {
 
     expect(goodScore).toBeGreaterThan(badScore);
   });
+
+  describe("computeSilhouette — k=1 behavior", () => {
+    it("returns a negative value for k=1 (no other cluster to compare against)", () => {
+      // This demonstrates WHY the k=1 silhouette gate must be bypassed in discoverPersonas
+      const vecs = Array.from({ length: 10 }, () => vec({ 0: 0.9 }));
+      const assignments = new Array<number>(10).fill(0);
+      const score = computeSilhouette(vecs, assignments, 1);
+      // With k=1, minOtherAvg = Infinity → b=0, silhouette = (0-a)/a = -1 (or 0 for identical vectors)
+      expect(score).toBeLessThanOrEqual(0);
+    });
+  });
 });
 
 describe("runKMeans", () => {

@@ -581,6 +581,60 @@ export async function POST(req: NextRequest) {
       )
     );
 
+    // Seed LinUCBArm identity rows for each variant so cold-start LinUCB agents can select.
+    if (agent.algorithm === "linucb") {
+      const fresh = new LinUCB().initialArm(FEATURE_DIM);
+      await Promise.all(
+        allVariantIds.map((variantId) =>
+          prisma.linUCBArm.upsert({
+            where: { agentId_variantId: { agentId: agent.id, variantId } },
+            create: {
+              agentId: agent.id,
+              variantId,
+              aInv: fresh.aInv as unknown as Prisma.InputJsonValue,
+              b: fresh.b as unknown as Prisma.InputJsonValue,
+              tries: 0,
+            },
+            update: {}, // never overwrite existing learned state
+          })
+        )
+      );
+    }
+
+    // For LinUCB: load per-agent LinUCB arms once before the page loop (arms are keyed by agentId,
+    // constant for the whole run, and stale-reset has already fired). Re-loading every page is wasteful.
+    const linucbArmsByVariant: Map<string, { id: string; aInv: number[]; b: number[] }> = new Map();
+    if (agent.algorithm === "linucb" && lotteryUserIds.length > 0) {
+      const freshArm = new LinUCB().initialArm(FEATURE_DIM);
+      const allArms = await prisma.linUCBArm.findMany({ where: { agentId: agent.id, variantId: { in: allVariantIds } } });
+      const staleArms = allArms.filter(
+        (r) =>
+          !(Array.isArray(r.aInv) && (r.aInv as number[]).length === FEATURE_DIM * FEATURE_DIM) ||
+          !(Array.isArray(r.b) && (r.b as number[]).length === FEATURE_DIM)
+      );
+      if (staleArms.length > 0) {
+        await Promise.all(
+          staleArms.map((r) =>
+            prisma.linUCBArm.update({
+              where: { agentId_variantId: { agentId: r.agentId, variantId: r.variantId } },
+              data: {
+                aInv: freshArm.aInv as unknown as Prisma.InputJsonValue,
+                b: freshArm.b as unknown as Prisma.InputJsonValue,
+                tries: 0,
+              },
+            })
+          )
+        );
+      }
+      const staleIds = new Set(staleArms.map((s) => s.variantId));
+      for (const r of allArms) {
+        const isStale = staleIds.has(r.variantId);
+        const aInv = isStale ? freshArm.aInv : (r.aInv as number[]);
+        const b = isStale ? freshArm.b : (r.b as number[]);
+        linucbArmsByVariant.set(r.variantId, { id: r.variantId, aInv, b });
+      }
+    }
+
     // Page through users in this agent's target personas (500 at a time).
     // Skip the loop entirely when there are no lottery users to avoid a wasted DB round trip.
     let cursor: string | undefined;
@@ -794,16 +848,6 @@ export async function POST(req: NextRequest) {
           if (!userArmsByUser.has(row.userId)) userArmsByUser.set(row.userId, new Map());
           userArmsByUser.get(row.userId)!.set(row.variantId, row);
         }
-
-        // For LinUCB: load per-agent LinUCB arms once (keyed by variantId).
-        // Discard any arm whose aInv has wrong dimension (stale from old feature space).
-        const linucbArmsByVariant = agent.algorithm === "linucb"
-          ? new Map(
-              (await prisma.linUCBArm.findMany({ where: { agentId: agent.id, variantId: { in: allVariantIds } } }))
-                .filter((r) => (r.aInv as number[]).length === FEATURE_DIM * FEATURE_DIM)
-                .map((r) => [r.variantId, { id: r.variantId, aInv: r.aInv as number[], b: r.b as number[] }])
-            )
-          : new Map<string, { id: string; aInv: number[]; b: number[] }>();
 
         // Variants with channel for in-memory selection
         const pageVariants = agent.messages.flatMap((m) =>
@@ -1164,14 +1208,38 @@ export async function POST(req: NextRequest) {
           windowUserArmsByUser.get(row.userId)!.set(row.variantId, row);
         }
 
-        // For LinUCB: load per-agent LinUCB arms once. Discard stale-dimension arms.
-        const windowLinucbArmsByVariant = agent.algorithm === "linucb"
-          ? new Map(
-              (await prisma.linUCBArm.findMany({ where: { agentId: agent.id, variantId: { in: allVariantIds } } }))
-                .filter((r) => (r.aInv as number[]).length === FEATURE_DIM * FEATURE_DIM)
-                .map((r) => [r.variantId, { id: r.variantId, aInv: r.aInv as number[], b: r.b as number[] }])
-            )
-          : new Map<string, { id: string; aInv: number[]; b: number[] }>();
+        // For LinUCB: load per-agent LinUCB arms once. Reset stale-dimension arms to identity in DB and in-memory.
+        const windowLinucbArmsByVariant: Map<string, { id: string; aInv: number[]; b: number[] }> = new Map();
+        if (agent.algorithm === "linucb") {
+          const freshArm = new LinUCB().initialArm(FEATURE_DIM);
+          const allArms = await prisma.linUCBArm.findMany({ where: { agentId: agent.id, variantId: { in: allVariantIds } } });
+          const staleArms = allArms.filter(
+            (r) =>
+              !(Array.isArray(r.aInv) && (r.aInv as number[]).length === FEATURE_DIM * FEATURE_DIM) ||
+              !(Array.isArray(r.b) && (r.b as number[]).length === FEATURE_DIM)
+          );
+          if (staleArms.length > 0) {
+            await Promise.all(
+              staleArms.map((r) =>
+                prisma.linUCBArm.update({
+                  where: { agentId_variantId: { agentId: r.agentId, variantId: r.variantId } },
+                  data: {
+                    aInv: freshArm.aInv as unknown as Prisma.InputJsonValue,
+                    b: freshArm.b as unknown as Prisma.InputJsonValue,
+                    tries: 0,
+                  },
+                })
+              )
+            );
+          }
+          const staleIds = new Set(staleArms.map((s) => s.variantId));
+          for (const r of allArms) {
+            const isStale = staleIds.has(r.variantId);
+            const aInv = isStale ? freshArm.aInv : (r.aInv as number[]);
+            const b = isStale ? freshArm.b : (r.b as number[]);
+            windowLinucbArmsByVariant.set(r.variantId, { id: r.variantId, aInv, b });
+          }
+        }
 
         // Select variant for each eligible window user (pure in-memory computation)
         const windowVariants = agent.messages.flatMap((m) =>
