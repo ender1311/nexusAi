@@ -5,6 +5,7 @@ import { calculateReward } from "@/lib/engine/reward-calculator";
 import { accumulateUserStats } from "@/lib/engine/user-stats";
 import { upsertArmStats, upsertUserArmStats, updateLinUCBArm } from "@/lib/arm-stats";
 import { verifyIngestAuth } from "@/lib/ingest-auth";
+import { FEATURE_DIM } from "@/lib/engine/feature-vector";
 
 /**
  * POST /api/ingest/users
@@ -384,9 +385,13 @@ async function attributeEvents(
         // LinUCB reward update: if the agent uses linucb, update the arm matrices
         if (decision.agent.algorithm === "linucb" && decision.messageVariantId) {
           const ctx = decision.decisionContext as Record<string, unknown> | null;
-          const contextVec = Array.isArray(ctx?.contextVector)
-            ? (ctx.contextVector as number[])
-            : null;
+          const rawVec = ctx?.contextVector;
+          const contextVec =
+            Array.isArray(rawVec) &&
+            rawVec.length === FEATURE_DIM &&
+            (rawVec as number[]).every(Number.isFinite)
+              ? (rawVec as number[])
+              : null;
           if (contextVec) {
             await updateLinUCBArm({
               agentId: decision.agentId,

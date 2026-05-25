@@ -127,6 +127,11 @@ export async function updateLinUCBArm(params: {
     return;
   }
 
+  if (!contextVec.every(Number.isFinite)) {
+    console.warn("[updateLinUCBArm] skipping — contextVec contains non-finite values");
+    return;
+  }
+
   const linUCB = new LinUCB();
 
   let aInv: number[];
