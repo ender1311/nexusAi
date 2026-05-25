@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { Play, Loader2 } from "lucide-react";
+import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import {
   AlertDialog,
@@ -23,6 +24,7 @@ type TriggerSyncButtonProps = {
 };
 
 export function TriggerSyncButton({ syncId, syncName }: TriggerSyncButtonProps) {
+  const router = useRouter();
   const [open, setOpen] = useState(false);
   const [fullResync, setFullResync] = useState(false);
   const [loading, setLoading] = useState(false);
@@ -38,8 +40,9 @@ export function TriggerSyncButton({ syncId, syncName }: TriggerSyncButtonProps) 
         body: JSON.stringify({ full_resync: fullResync }),
       });
       if (res.ok) {
-        setMessage("Sync triggered successfully");
+        setMessage("Sync triggered");
         setOpen(false);
+        setTimeout(() => router.refresh(), 5000);
       } else {
         setMessage("Failed to trigger sync");
       }
