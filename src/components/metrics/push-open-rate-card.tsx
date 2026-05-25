@@ -159,7 +159,7 @@ export function PushOpenRateCard({
                           tickLine={false}
                         />
                         <YAxis
-                          domain={[0, 10]}
+                          domain={[0, 30]}
                           tickFormatter={(v: number) => `${v}%`}
                           tick={{ fontSize: 11 }}
                           tickLine={false}
@@ -167,7 +167,7 @@ export function PushOpenRateCard({
                           width={38}
                         />
                         <Tooltip
-                          formatter={(value) => [`${typeof value === "number" ? value.toFixed(2) : value}%`]}
+                          formatter={(value) => [`${typeof value === "number" ? Math.round(value) : value}%`]}
                           labelFormatter={(label) => {
                             if (typeof label !== "string") return String(label);
                             const d = new Date(label + "T00:00:00");
