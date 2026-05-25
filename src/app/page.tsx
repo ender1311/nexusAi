@@ -1,4 +1,4 @@
-export const revalidate = 60;
+export const revalidate = 14400;
 export const maxDuration = 30;
 
 import { Suspense } from "react";
@@ -6,7 +6,6 @@ import { Header } from "@/components/layout/header";
 import { MetricCard } from "@/components/charts/metric-card";
 import { TimeSeriesChart } from "@/components/charts/time-series-chart";
 import { PersonaDistributionChart } from "@/components/charts/persona-distribution";
-import { FunnelStageBreakdown } from "@/components/charts/funnel-stage-breakdown";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -15,11 +14,11 @@ import {
   getCachedAgentList,
   getCachedPersonaDistribution,
   getCachedDashboardCounts,
+  getCachedTrackedUserCount,
   getCachedDashboardTimeSeries,
   getCachedRecentDecisions,
   getCachedBrazeStats,
   getCachedAllVariantNames,
-  getCachedFunnelStageBreakdown,
 } from "@/lib/cache";
 import { formatNumber, formatDate } from "@/lib/utils";
 import { TimeSeriesPoint, DecisionLog } from "@/types/metrics";
@@ -88,8 +87,8 @@ function ListCardSkeleton() {
 // ---------------------------------------------------------------------------
 
 async function MetricCardsSection() {
-  const [{ sentLast24h, totalConversions, totalDecisions, trackedUsers, totalPushSends }, agents] =
-    await Promise.all([getCachedDashboardCounts(), getCachedAgentList()]);
+  const [{ sentLast24h, totalConversions, totalDecisions, totalPushSends }, agents, trackedUsers] =
+    await Promise.all([getCachedDashboardCounts(), getCachedAgentList(), getCachedTrackedUserCount()]);
   const avgConvRate = totalDecisions > 0 ? (totalConversions / totalDecisions) * 100 : 0;
   const activeAgents = agents.filter((a) => a.status === "active").length;
 
@@ -309,11 +308,6 @@ async function TopPersonaSection() {
   );
 }
 
-async function FunnelBreakdownSection() {
-  const rows = await getCachedFunnelStageBreakdown().catch(() => []);
-  return <FunnelStageBreakdown rows={rows} />;
-}
-
 // ---------------------------------------------------------------------------
 // Main page — synchronous shell, all data streams via Suspense
 // ---------------------------------------------------------------------------
@@ -323,13 +317,13 @@ export default function DashboardPage() {
   // these promises so each Suspense boundary gets the already-in-flight result
   // instead of starting a new DB round-trip when React processes the boundary.
   void getCachedDashboardCounts();
+  void getCachedTrackedUserCount();
   void getCachedAgentList();
   void getCachedBrazeStats();
   void getCachedDashboardTimeSeries();
   void getCachedRecentDecisions();
   void getCachedAllVariantNames();
   void getCachedPersonaDistribution();
-  void getCachedFunnelStageBreakdown();
 
   return (
     <>
@@ -373,15 +367,10 @@ export default function DashboardPage() {
           </Suspense>
         </div>
 
-        {/* Funnel breakdown + Persona distribution side by side */}
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 sm:gap-6">
-          <Suspense fallback={<CardSkeleton />}>
-            <FunnelBreakdownSection />
-          </Suspense>
-          <Suspense fallback={<CardSkeleton />}>
-            <PersonaChartSection />
-          </Suspense>
-        </div>
+        {/* Persona distribution */}
+        <Suspense fallback={<CardSkeleton />}>
+          <PersonaChartSection />
+        </Suspense>
 
         {/* Quick Actions + Top Persona side by side */}
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 sm:gap-6">

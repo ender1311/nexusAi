@@ -10,7 +10,8 @@
  *   "agents"          — any agent mutation (create/update/delete)
  *   "agent-${id}"     — specific agent mutation
  *   "personas"        — persona changes
- *   "dashboard-stats" — new decisions recorded
+ *   "dashboard-stats" — new decisions recorded (busted hourly by cron)
+ *   "user-count"      — total tracked-user count (long TTL; cron never busts it)
  *   "performance"     — new decisions recorded
  */
 import { cache } from "react";
@@ -65,6 +66,23 @@ export function getCachedAgentAudienceData(agentId: string, personaIds: string[]
   )();
 }
 
+// ── Slow-moving counts ───────────────────────────────────────────────────────
+
+/**
+ * Total TrackedUser row count. Tagged "user-count" (not "dashboard-stats") so
+ * the hourly cron revalidateTag("dashboard-stats") does NOT bust this.
+ * COUNT(*) on 19M+ rows is a full table scan — we only want it to run once/day.
+ */
+export const getCachedTrackedUserCount = cache(
+  unstable_cache(
+    () => prisma.trackedUser.count(),
+    ["tracked-user-count"],
+    { tags: ["user-count"], revalidate: 86400 }
+  )
+);
+
+// ── Agent data ────────────────────────────────────────────────────────────────
+
 /** Lightweight agent list for dashboard sidebar. Direct DB query avoids HTTP round-trip on cold start. */
 export const getCachedAgentList = cache(
   unstable_cache(
@@ -80,11 +98,11 @@ export const getCachedAgentList = cache(
         orderBy: { updatedAt: "desc" },
       }),
     ["agent-list"],
-    { tags: ["agents"], revalidate: 900 }
+    { tags: ["agents"], revalidate: 14400 }
   )
 );
 
-/** Agent list for control tower — includes funnelStage and description (60s TTL). */
+/** Agent list for control tower — includes funnelStage and description. */
 export const getCachedControlTowerAgents = unstable_cache(
   () =>
     prisma.agent.findMany({
@@ -93,7 +111,7 @@ export const getCachedControlTowerAgents = unstable_cache(
       orderBy: { updatedAt: "desc" },
     }),
   ["control-tower-agents"],
-  { tags: ["agents"], revalidate: 900 }
+  { tags: ["agents"], revalidate: 14400 }
 );
 
 // ── Persona data ─────────────────────────────────────────────────────────────
@@ -107,7 +125,7 @@ export const getCachedActivePersonas = unstable_cache(
       orderBy: { name: "asc" },
     }),
   ["personas-active"],
-  { tags: ["personas"], revalidate: 900 }
+  { tags: ["personas"], revalidate: 14400 }
 );
 
 /** Persona distribution with user counts for the dashboard chart. */
@@ -121,7 +139,7 @@ export const getCachedPersonaDistribution = cache(
         take: 20,
       }),
     ["personas-distribution"],
-    { tags: ["personas"], revalidate: 900 }
+    { tags: ["personas"], revalidate: 14400 }
   )
 );
 
@@ -135,31 +153,29 @@ export const getCachedDashboardCounts = cache(
       const thirtyDaysAgo = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000);
       // Single aggregated pass with a WHERE on sentAt so Postgres uses @@index([sentAt])
       // instead of a full table scan. "total_decisions" etc. are now 30-day figures.
-      const [rows, trackedUsers] = await Promise.all([
-        prisma.$queryRaw<[{
-          sent_last24h: bigint;
-          total_decisions: bigint;
-          total_conversions: bigint;
-          total_push_sends: bigint;
-          total_push_opens: bigint;
-        }]>`
-          SELECT
-            COUNT(*) FILTER (WHERE "sentAt" >= ${twentyFourHoursAgo})                          AS sent_last24h,
-            COUNT(*)                                                                             AS total_decisions,
-            COUNT(*) FILTER (WHERE "conversionAt" IS NOT NULL)                                  AS total_conversions,
-            COUNT(*) FILTER (WHERE "channel" = 'push')                                          AS total_push_sends,
-            COUNT(*) FILTER (WHERE "channel" = 'push' AND "pushOpenAt" IS NOT NULL)             AS total_push_opens
-          FROM "UserDecision"
-          WHERE "sentAt" >= ${thirtyDaysAgo}
-        `,
-        prisma.trackedUser.count(),
-      ]);
+      // trackedUser.count() is intentionally excluded — it's a full-table scan on 19M+ rows.
+      // Use getCachedTrackedUserCount() separately (24h TTL, not busted by hourly cron).
+      const rows = await prisma.$queryRaw<[{
+        sent_last24h: bigint;
+        total_decisions: bigint;
+        total_conversions: bigint;
+        total_push_sends: bigint;
+        total_push_opens: bigint;
+      }]>`
+        SELECT
+          COUNT(*) FILTER (WHERE "sentAt" >= ${twentyFourHoursAgo})                          AS sent_last24h,
+          COUNT(*)                                                                             AS total_decisions,
+          COUNT(*) FILTER (WHERE "conversionAt" IS NOT NULL)                                  AS total_conversions,
+          COUNT(*) FILTER (WHERE "channel" = 'push')                                          AS total_push_sends,
+          COUNT(*) FILTER (WHERE "channel" = 'push' AND "pushOpenAt" IS NOT NULL)             AS total_push_opens
+        FROM "UserDecision"
+        WHERE "sentAt" >= ${thirtyDaysAgo}
+      `;
       const r = rows[0];
       return {
         sentLast24h:      Number(r.sent_last24h),
         totalDecisions:   Number(r.total_decisions),
         totalConversions: Number(r.total_conversions),
-        trackedUsers,
         totalPushSends:   Number(r.total_push_sends),
         totalPushOpens:   Number(r.total_push_opens),
       };
@@ -421,7 +437,7 @@ export const getCachedAllVariantNames = cache(
   unstable_cache(
     () => prisma.messageVariant.findMany({ select: { id: true, name: true } }),
     ["all-variant-names"],
-    { tags: ["agents"], revalidate: 900 }
+    { tags: ["agents"], revalidate: 14400 }
   )
 );
 
@@ -593,7 +609,7 @@ export const getCachedBrazeStats = cache(unstable_cache(
     }
   },
   ["braze-campaign-stats"],
-  { tags: ["braze-stats"], revalidate: 900 }
+  { tags: ["braze-stats"], revalidate: 14400 }
 ));
 
 // ── Control Tower stats ───────────────────────────────────────────────────────
