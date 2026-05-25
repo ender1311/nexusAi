@@ -264,7 +264,10 @@ export async function discoverPersonas(config: DiscoveryConfig = {}): Promise<{
     const silhouetteScore =
       nonNoiseVectors.length >= 2 ? computeSilhouette(nonNoiseVectors, nonNoiseLabels, result.k) : 0;
 
-    if (silhouetteScore < minSilhouetteScore) {
+    // k=1 is valid: computeSilhouette always returns -1 with no other cluster to compare.
+    // Accept it without a silhouette gate; the cluster size guard in HDBSCAN already
+    // ensures minimum density (minClusterSize).
+    if (result.k > 1 && silhouetteScore < minSilhouetteScore) {
       console.warn(
         `[persona-discovery] HDBSCAN silhouette ${silhouetteScore.toFixed(4)} below threshold ${minSilhouetteScore}`
       );
