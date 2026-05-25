@@ -601,6 +601,40 @@ export async function POST(req: NextRequest) {
       );
     }
 
+    // For LinUCB: load per-agent LinUCB arms once before the page loop (arms are keyed by agentId,
+    // constant for the whole run, and stale-reset has already fired). Re-loading every page is wasteful.
+    const linucbArmsByVariant: Map<string, { id: string; aInv: number[]; b: number[] }> = new Map();
+    if (agent.algorithm === "linucb" && lotteryUserIds.length > 0) {
+      const freshArm = new LinUCB().initialArm(FEATURE_DIM);
+      const allArms = await prisma.linUCBArm.findMany({ where: { agentId: agent.id, variantId: { in: allVariantIds } } });
+      const staleArms = allArms.filter(
+        (r) =>
+          !(Array.isArray(r.aInv) && (r.aInv as number[]).length === FEATURE_DIM * FEATURE_DIM) ||
+          !(Array.isArray(r.b) && (r.b as number[]).length === FEATURE_DIM)
+      );
+      if (staleArms.length > 0) {
+        await Promise.all(
+          staleArms.map((r) =>
+            prisma.linUCBArm.update({
+              where: { agentId_variantId: { agentId: r.agentId, variantId: r.variantId } },
+              data: {
+                aInv: freshArm.aInv as unknown as Prisma.InputJsonValue,
+                b: freshArm.b as unknown as Prisma.InputJsonValue,
+                tries: 0,
+              },
+            })
+          )
+        );
+      }
+      const staleIds = new Set(staleArms.map((s) => s.variantId));
+      for (const r of allArms) {
+        const isStale = staleIds.has(r.variantId);
+        const aInv = isStale ? freshArm.aInv : (r.aInv as number[]);
+        const b = isStale ? freshArm.b : (r.b as number[]);
+        linucbArmsByVariant.set(r.variantId, { id: r.variantId, aInv, b });
+      }
+    }
+
     // Page through users in this agent's target personas (500 at a time).
     // Skip the loop entirely when there are no lottery users to avoid a wasted DB round trip.
     let cursor: string | undefined;
@@ -813,39 +847,6 @@ export async function POST(req: NextRequest) {
         for (const row of pageUserArmRows) {
           if (!userArmsByUser.has(row.userId)) userArmsByUser.set(row.userId, new Map());
           userArmsByUser.get(row.userId)!.set(row.variantId, row);
-        }
-
-        // For LinUCB: load per-agent LinUCB arms once (keyed by variantId).
-        // Reset any arm whose aInv/b has wrong dimension (stale from old feature space) to identity in DB and in-memory.
-        const linucbArmsByVariant: Map<string, { id: string; aInv: number[]; b: number[] }> = new Map();
-        if (agent.algorithm === "linucb") {
-          const freshArm = new LinUCB().initialArm(FEATURE_DIM);
-          const allArms = await prisma.linUCBArm.findMany({ where: { agentId: agent.id, variantId: { in: allVariantIds } } });
-          const staleArms = allArms.filter(
-            (r) =>
-              !(Array.isArray(r.aInv) && (r.aInv as number[]).length === FEATURE_DIM * FEATURE_DIM) ||
-              !(Array.isArray(r.b) && (r.b as number[]).length === FEATURE_DIM)
-          );
-          if (staleArms.length > 0) {
-            await Promise.all(
-              staleArms.map((r) =>
-                prisma.linUCBArm.update({
-                  where: { agentId_variantId: { agentId: r.agentId, variantId: r.variantId } },
-                  data: {
-                    aInv: freshArm.aInv as unknown as Prisma.InputJsonValue,
-                    b: freshArm.b as unknown as Prisma.InputJsonValue,
-                    tries: 0,
-                  },
-                })
-              )
-            );
-          }
-          for (const r of allArms) {
-            const isStale = staleArms.some((s) => s.variantId === r.variantId);
-            const aInv = isStale ? freshArm.aInv : (r.aInv as number[]);
-            const b = isStale ? freshArm.b : (r.b as number[]);
-            linucbArmsByVariant.set(r.variantId, { id: r.variantId, aInv, b });
-          }
         }
 
         // Variants with channel for in-memory selection
@@ -1231,8 +1232,9 @@ export async function POST(req: NextRequest) {
               )
             );
           }
+          const staleIds = new Set(staleArms.map((s) => s.variantId));
           for (const r of allArms) {
-            const isStale = staleArms.some((s) => s.variantId === r.variantId);
+            const isStale = staleIds.has(r.variantId);
             const aInv = isStale ? freshArm.aInv : (r.aInv as number[]);
             const b = isStale ? freshArm.b : (r.b as number[]);
             windowLinucbArmsByVariant.set(r.variantId, { id: r.variantId, aInv, b });
