@@ -7,7 +7,9 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Separator } from "@/components/ui/separator";
+import { Skeleton } from "@/components/ui/skeleton";
 import { Send, CheckCircle2, XCircle, Loader2, Users, Trash2, Download } from "lucide-react";
+import type { DemoPreviewResponse, DemoAssignment } from "@/app/api/demo/preview/route";
 
 // Inline checkbox — shadcn Checkbox not installed in this project
 function Checkbox({ checked, onCheckedChange }: { checked: boolean; onCheckedChange: () => void }) {
@@ -25,6 +27,7 @@ const DEFAULT_TEST_USERS = [
   { id: "183037114", label: "Dan Luk (E2E)" },
 ];
 
+const USER_LABEL_MAP = new Map(DEFAULT_TEST_USERS.map((u) => [u.id, u.label]));
 const GROUPS_KEY = "nexus-demo-groups";
 
 type Group = { id: string; name: string; userIds: string[] };
@@ -40,22 +43,65 @@ function loadGroups(): Group[] {
   }
 }
 
+// ── Push notification preview card ──────────────────────────────────────────
+
+function PushPreviewCard({ assignment }: { assignment: DemoAssignment }) {
+  const label = USER_LABEL_MAP.get(assignment.userId);
+  return (
+    <div className="rounded-lg border p-3 space-y-2.5 bg-card">
+      <div className="flex items-start justify-between gap-2">
+        <div className="min-w-0">
+          {label && <p className="text-xs font-medium truncate">{label}</p>}
+          <p className="text-[10px] text-muted-foreground font-mono">{assignment.userId}</p>
+        </div>
+        <span
+          className="shrink-0 rounded-full px-2 py-0.5 text-[10px] font-medium border"
+          style={{ color: assignment.persona.color, borderColor: assignment.persona.color + "40", backgroundColor: assignment.persona.color + "15" }}
+        >
+          {assignment.persona.icon} {assignment.persona.name}
+        </span>
+      </div>
+
+      {/* Push notification mockup */}
+      <div className="rounded-xl bg-muted/50 border px-3 pt-2 pb-3 space-y-1">
+        <div className="flex items-center gap-1.5">
+          <div className="h-3.5 w-3.5 rounded-[3px] bg-primary shrink-0" />
+          <span className="text-[10px] font-semibold text-muted-foreground">YouVersion Bible</span>
+          <span className="text-[10px] text-muted-foreground ml-auto">now</span>
+        </div>
+        {assignment.variant.title && (
+          <p className="text-xs font-semibold leading-snug">{assignment.variant.title}</p>
+        )}
+        <p className="text-xs text-muted-foreground leading-snug line-clamp-3">{assignment.variant.body}</p>
+      </div>
+
+      <p className="text-[10px] text-muted-foreground">
+        Variant: <span className="font-medium text-foreground">{assignment.variant.name}</span>
+      </p>
+    </div>
+  );
+}
+
+// ── Main page ────────────────────────────────────────────────────────────────
+
 export default function DemoPage() {
   const [agents, setAgents] = useState<Agent[]>([]);
   const [selectedAgentId, setSelectedAgentId] = useState<string>("");
-  const [userIds, setUserIds] = useState<string[]>(DEFAULT_TEST_USERS.map(u => u.id));
+  const [userIds, setUserIds] = useState<string[]>(DEFAULT_TEST_USERS.map((u) => u.id));
   const [customInput, setCustomInput] = useState("");
   const [sending, setSending] = useState(false);
   const [results, setResults] = useState<SendResult[]>([]);
   const [groups, setGroups] = useState<Group[]>([]);
   const [groupNameInput, setGroupNameInput] = useState("");
+  const [preview, setPreview] = useState<DemoPreviewResponse | null>(null);
+  const [previewLoading, setPreviewLoading] = useState(false);
 
   useEffect(() => {
     fetch("/api/agents")
-      .then(r => r.json())
+      .then((r) => r.json())
       .then((d: Agent[] | { data: Agent[] }) => {
         const list: Agent[] = Array.isArray(d) ? d : (d as { data: Agent[] }).data ?? [];
-        const active = list.filter(a => a.status === "active");
+        const active = list.filter((a) => a.status === "active");
         setAgents(active);
         if (active.length > 0) setSelectedAgentId(active[0].id);
       })
@@ -63,13 +109,39 @@ export default function DemoPage() {
     setGroups(loadGroups());
   }, []);
 
+  // Auto-fetch preview whenever agent or users change
+  useEffect(() => {
+    if (!selectedAgentId || userIds.length === 0) {
+      setPreview(null);
+      return;
+    }
+    const controller = new AbortController();
+    const t = setTimeout(() => {
+      setPreviewLoading(true);
+      fetch("/api/demo/preview", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ agentId: selectedAgentId, userIds }),
+        signal: controller.signal,
+      })
+        .then((r) => r.json())
+        .then((d: DemoPreviewResponse) => setPreview(d))
+        .catch(() => {})
+        .finally(() => setPreviewLoading(false));
+    }, 300);
+    return () => {
+      clearTimeout(t);
+      controller.abort();
+    };
+  }, [selectedAgentId, userIds]);
+
   function toggleUser(id: string) {
-    setUserIds(prev => prev.includes(id) ? prev.filter(x => x !== id) : [...prev, id]);
+    setUserIds((prev) => (prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]));
   }
 
   function addCustom() {
     const id = customInput.trim();
-    if (id && !userIds.includes(id)) setUserIds(prev => [...prev, id]);
+    if (id && !userIds.includes(id)) setUserIds((prev) => [...prev, id]);
     setCustomInput("");
   }
 
@@ -88,7 +160,7 @@ export default function DemoPage() {
   }
 
   function deleteGroup(id: string) {
-    const updated = groups.filter(g => g.id !== id);
+    const updated = groups.filter((g) => g.id !== id);
     setGroups(updated);
     localStorage.setItem(GROUPS_KEY, JSON.stringify(updated));
   }
@@ -110,9 +182,9 @@ export default function DemoPage() {
     }
   }
 
-  const customUserIds = userIds.filter(id => !DEFAULT_TEST_USERS.map(u => u.id).includes(id));
-  const sentCount = results.filter(r => r.status === "sent").length;
-  const failedCount = results.filter(r => r.status !== "sent").length;
+  const customUserIds = userIds.filter((id) => !DEFAULT_TEST_USERS.map((u) => u.id).includes(id));
+  const sentCount = results.filter((r) => r.status === "sent").length;
+  const failedCount = results.filter((r) => r.status !== "sent").length;
 
   return (
     <>
@@ -129,7 +201,7 @@ export default function DemoPage() {
               {agents.length === 0 ? (
                 <p className="text-xs text-muted-foreground py-2">No active agents found.</p>
               ) : (
-                agents.map(agent => (
+                agents.map((agent) => (
                   <button
                     key={agent.id}
                     onClick={() => setSelectedAgentId(agent.id)}
@@ -154,7 +226,7 @@ export default function DemoPage() {
             </CardHeader>
             <CardContent className="space-y-3">
               <div className="space-y-1">
-                {DEFAULT_TEST_USERS.map(user => (
+                {DEFAULT_TEST_USERS.map((user) => (
                   <label key={user.id} className="flex items-center gap-3 p-2 rounded-lg hover:bg-muted/50 cursor-pointer">
                     <Checkbox checked={userIds.includes(user.id)} onCheckedChange={() => toggleUser(user.id)} />
                     <div className="flex-1 min-w-0">
@@ -169,7 +241,7 @@ export default function DemoPage() {
                 <>
                   <Separator />
                   <div className="space-y-1">
-                    {customUserIds.map(id => (
+                    {customUserIds.map((id) => (
                       <div key={id} className="flex items-center justify-between px-2 py-1.5 rounded border text-xs font-mono">
                         <span className="text-muted-foreground">{id}</span>
                         <button onClick={() => toggleUser(id)} className="text-muted-foreground hover:text-destructive ml-2">✕</button>
@@ -183,8 +255,8 @@ export default function DemoPage() {
                 <Input
                   placeholder="Add user ID…"
                   value={customInput}
-                  onChange={e => setCustomInput(e.target.value)}
-                  onKeyDown={e => e.key === "Enter" && addCustom()}
+                  onChange={(e) => setCustomInput(e.target.value)}
+                  onKeyDown={(e) => e.key === "Enter" && addCustom()}
                   className="text-xs h-8"
                 />
                 <Button size="sm" variant="outline" onClick={addCustom} className="h-8 text-xs shrink-0">Add</Button>
@@ -203,25 +275,17 @@ export default function DemoPage() {
                   <p className="text-xs text-muted-foreground pl-5">No groups yet</p>
                 ) : (
                   <div className="space-y-1">
-                    {groups.map(group => (
+                    {groups.map((group) => (
                       <div key={group.id} className="flex items-center justify-between px-2 py-1.5 rounded-lg border hover:bg-muted/30 transition-colors">
                         <div className="flex items-center gap-2 min-w-0">
                           <span className="text-xs font-medium truncate">{group.name}</span>
                           <Badge variant="outline" className="text-xs shrink-0">{group.userIds.length}</Badge>
                         </div>
                         <div className="flex items-center gap-1 ml-2 shrink-0">
-                          <button
-                            onClick={() => loadGroup(group)}
-                            title="Load group"
-                            className="p-1 rounded hover:bg-primary/10 text-muted-foreground hover:text-primary transition-colors"
-                          >
+                          <button onClick={() => loadGroup(group)} title="Load group" className="p-1 rounded hover:bg-primary/10 text-muted-foreground hover:text-primary transition-colors">
                             <Download className="h-3 w-3" />
                           </button>
-                          <button
-                            onClick={() => deleteGroup(group.id)}
-                            title="Delete group"
-                            className="p-1 rounded hover:bg-destructive/10 text-muted-foreground hover:text-destructive transition-colors"
-                          >
+                          <button onClick={() => deleteGroup(group.id)} title="Delete group" className="p-1 rounded hover:bg-destructive/10 text-muted-foreground hover:text-destructive transition-colors">
                             <Trash2 className="h-3 w-3" />
                           </button>
                         </div>
@@ -234,8 +298,8 @@ export default function DemoPage() {
                   <Input
                     placeholder="Group name…"
                     value={groupNameInput}
-                    onChange={e => setGroupNameInput(e.target.value)}
-                    onKeyDown={e => e.key === "Enter" && saveGroup()}
+                    onChange={(e) => setGroupNameInput(e.target.value)}
+                    onKeyDown={(e) => e.key === "Enter" && saveGroup()}
                     className="text-xs h-8"
                   />
                   <Button
@@ -252,6 +316,21 @@ export default function DemoPage() {
             </CardContent>
           </Card>
         </div>
+
+        {/* Preview */}
+        {(previewLoading || (preview && preview.assignments.length > 0)) && (
+          <div className="space-y-3">
+            <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">
+              Preview — {preview ? preview.agentName : "…"}
+            </p>
+            <div className={`grid gap-3 ${userIds.length === 1 ? "grid-cols-1 max-w-sm" : "grid-cols-1 sm:grid-cols-2 xl:grid-cols-3"}`}>
+              {previewLoading
+                ? userIds.map((id) => <Skeleton key={id} className="h-36 w-full rounded-lg" />)
+                : preview?.assignments.map((a) => <PushPreviewCard key={a.userId} assignment={a} />)
+              }
+            </div>
+          </div>
+        )}
 
         {/* Send bar */}
         <div className="flex items-center gap-4 flex-wrap">
@@ -289,10 +368,7 @@ export default function DemoPage() {
                     </div>
                     <div className="flex items-center gap-2">
                       {r.variantName && <Badge variant="outline" className="text-xs">{r.variantName}</Badge>}
-                      <Badge
-                        variant={r.status === "sent" ? "default" : "secondary"}
-                        className="text-xs capitalize"
-                      >
+                      <Badge variant={r.status === "sent" ? "default" : "secondary"} className="text-xs capitalize">
                         {r.reason ?? r.status}
                       </Badge>
                     </div>
