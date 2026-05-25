@@ -55,6 +55,7 @@ export async function GET(): Promise<
         const json = await res.json() as { data?: Array<{ time?: string; messages?: Record<string, unknown[]> }> };
         let sends = 0, directOpens = 0, totalOpens = 0;
         const series: OpenRatePoint[] = [];
+        const today = new Date().toISOString().slice(0, 10);
         for (const point of (json.data ?? [])) {
           if (!point.messages) continue;
           let daySends = 0, dayDirect = 0, dayTotal = 0;
@@ -71,7 +72,7 @@ export async function GET(): Promise<
           sends += daySends;
           directOpens += dayDirect;
           totalOpens += dayTotal;
-          if (point.time && daySends > 0) {
+          if (point.time && daySends > 0 && point.time.slice(0, 10) < today) {
             series.push({
               date: point.time.slice(0, 10),
               directOpenRate: parseFloat(((dayDirect / daySends) * 100).toFixed(2)),
@@ -79,8 +80,8 @@ export async function GET(): Promise<
             });
           }
         }
-        // series comes back newest-first from Braze; reverse to chronological
-        series.reverse();
+        // sort ascending (oldest first) so the chart renders left=oldest, right=newest
+        series.sort((a, b) => a.date.localeCompare(b.date));
         return {
           stats: {
             sends,
