@@ -23,6 +23,7 @@ model Agent {
   targetFilter     Json?
   fallbackSendHour Int?        // 0-23 UTC-naive hour; Braze delivers at this hour in user's local timezone via in_local_time
   audienceCap      Int?        // max users reached per cron run; null = unlimited
+  uniqueUsersCap   Int?        // max lifetime unique users this agent will ever target; null = unlimited
   languageFilter   String      @default("all") // "all" | "en" | ISO language prefix; filters by User.attributes.language_tag
   // How many days after a user falls out of the Hightouch audience we keep targeting them.
   // null = no staleness gate (backward compat). Lapsed agents typically use 14; others use 2.

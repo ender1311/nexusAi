@@ -50,8 +50,8 @@ export default async function AgentsPage({
     ...(safeStage ? { funnelStage: safeStage } : {}),
   };
 
-  // Parallelize WorkOS auth check, agent list, and convergence states — all independent.
-  const [{ isAdmin }, { dbAgents }, convergenceStates] = await Promise.all([
+  // Parallelize WorkOS auth check, agent list, convergence states, and unique user counts.
+  const [{ isAdmin }, { dbAgents }, convergenceStates, uniqueUserRows] = await Promise.all([
     getAuth(),
     unstable_cache(
     async () => {
@@ -78,7 +78,14 @@ export default async function AgentsPage({
     { tags: ["agents"], revalidate: 900 },
   )(),
     getCachedAgentConvergenceStates(),
+    prisma.$queryRaw<Array<{ agentId: string; cnt: bigint }>>`
+      SELECT "agentId", COUNT(DISTINCT "externalUserId") AS cnt
+      FROM "UserDecision"
+      GROUP BY "agentId"
+    `,
   ]);
+
+  const uniqueUsersMap = new Map(uniqueUserRows.map((r) => [r.agentId, Number(r.cnt)]));
 
   // Determine whether any filters are active (for empty-state messaging)
   const hasFilters = search !== "" || status !== "all" || stage !== undefined;
@@ -95,6 +102,8 @@ export default async function AgentsPage({
     color: a.color,
     targetFilter: null,
     audienceCap: a.audienceCap,
+    uniqueUsersCap: a.uniqueUsersCap,
+    uniqueUsers: uniqueUsersMap.get(a.id) ?? 0,
     sortOrder: a.sortOrder ?? 0,
     createdAt: a.createdAt,
     updatedAt: a.updatedAt,
