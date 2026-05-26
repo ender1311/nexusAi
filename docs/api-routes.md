@@ -8,7 +8,7 @@ graph LR
         A1["GET /api/agents<br/>List all with goals, messages,<br/>scheduling, decision counts"]
         A2["POST /api/agents<br/>Create agent + goals + messages"]
         A3["GET /api/agents/:id<br/>Single agent detail"]
-        A4["PATCH /api/agents/:id<br/>Update name/desc/status/algorithm/epsilon"]
+        A4["PATCH /api/agents/:id<br/>Update name/desc/status/algorithm/epsilon/<br/>audienceCap/uniqueUsersCap/funnelStage/etc"]
         A5["DELETE /api/agents/:id<br/>Cascade delete goals/messages/decisions"]
     end
 
@@ -86,6 +86,28 @@ graph LR
 // Response: Agent object with nested goals, messages, schedulingRule
 ```
 
+### PATCH /api/agents/:id
+```typescript
+// All fields optional — send only what changes
+{
+  name?: string
+  description?: string
+  status?: "draft" | "active" | "paused"
+  algorithm?: "thompson" | "epsilon_greedy" | "contextual"
+  epsilon?: number
+  funnelStage?: string
+  audienceCap?: number | null       // max users per cron run; null = unlimited
+  uniqueUsersCap?: number | null    // lifetime distinct users cap; null = unlimited
+  languageFilter?: string
+  staleFunnelStageDays?: number | null
+  color?: string
+  sortOrder?: number
+  fallbackSendHour?: number | null
+}
+
+// Response: updated Agent object
+```
+
 ### POST /api/ingest/events
 ```typescript
 // Headers: Authorization: Bearer <HIGHTOUCH_API_KEY>
@@ -154,4 +176,5 @@ graph LR
 | Route group | Auth method |
 |-------------|-------------|
 | `/api/ingest/*` | `Authorization: Bearer <HIGHTOUCH_API_KEY>` env var |
-| All others | None (internal / assumed network-secured) |
+| `/api/cron/*` | `Authorization: Bearer <CRON_SECRET>` env var |
+| All UI-facing routes | WorkOS AuthKit (SSO session); `getAuth()` returns `{ isAdmin }` — admins can mutate, others are read-only |

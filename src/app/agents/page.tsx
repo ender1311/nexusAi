@@ -79,7 +79,7 @@ export default async function AgentsPage({
   )(),
     getCachedAgentConvergenceStates(),
     prisma.$queryRaw<Array<{ agentId: string; cnt: bigint }>>`
-      SELECT "agentId", COUNT(DISTINCT "externalUserId") AS cnt
+      SELECT "agentId", COUNT(DISTINCT "userId") AS cnt
       FROM "UserDecision"
       GROUP BY "agentId"
     `,

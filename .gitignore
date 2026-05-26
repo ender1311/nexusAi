@@ -52,6 +52,7 @@ next-env.d.ts
 .claude/*
 !.claude/settings.json
 !.claude/arch-doc-check.sh
+!.claude/test-coverage-check.sh
 
 # Playwright MCP artifacts
 .playwright-mcp/

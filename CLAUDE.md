@@ -188,10 +188,13 @@ See `.env.example` at the repo root for the canonical reference with inline comm
 - Every new API endpoint → integration test in `tests/integration/`
 - Every new engine function → unit test in `tests/unit/`
 - Every bug fix → regression test in `tests/regression/` with a comment linking to the bug
+- Every new `$queryRaw` / `prisma.$queryRawUnsafe` in a page component → regression test in `tests/regression/` verifying the exact SQL column names
+- Every new page component using DB data → at minimum an integration test verifying the underlying API returns correct shape
 - Run `bun run test:quick` during development (unit + contract, no DB)
 - Run `bun run check` before opening an MR (typecheck + lint + full test suite)
 - CI enforces all checks — MRs with failing pipelines are not merged
 - `tests/helpers/builders.ts` contains DB factory functions; use them instead of raw `prisma.create` calls in tests
+- **Automatic coverage enforcement**: A PostToolUse hook (`.claude/test-coverage-check.sh`) reminds you to write tests immediately when you create or modify API routes or page components with raw SQL. Do not dismiss this reminder.
 
 ## Self-learning setup
 

@@ -248,3 +248,69 @@ describe("POST /api/agents — sourceTemplateId", () => {
     expect(variant!.deeplink).toBe("youversion://bible");
   });
 });
+
+describe("PATCH /api/agents/[id] — uniqueUsersCap", () => {
+  it("sets uniqueUsersCap to a positive integer and persists it", async () => {
+    const agent = await prisma.agent.create({ data: { name: "Cap Agent", algorithm: "thompson", epsilon: 0.1 } });
+    const req = buildRequest("PATCH", { uniqueUsersCap: 500 });
+    const res = await patchAgent(req as NextRequest, { params: Promise.resolve({ id: agent.id }) });
+    const body = await res.json();
+    expect(res.status).toBe(200);
+    expect(body.uniqueUsersCap).toBe(500);
+
+    const persisted = await prisma.agent.findUnique({ where: { id: agent.id } });
+    expect(persisted!.uniqueUsersCap).toBe(500);
+  });
+
+  it("clears uniqueUsersCap to null", async () => {
+    const agent = await prisma.agent.create({
+      data: { name: "Cap Agent", algorithm: "thompson", epsilon: 0.1, uniqueUsersCap: 200 },
+    });
+    const req = buildRequest("PATCH", { uniqueUsersCap: null });
+    const res = await patchAgent(req as NextRequest, { params: Promise.resolve({ id: agent.id }) });
+    const body = await res.json();
+    expect(res.status).toBe(200);
+    expect(body.uniqueUsersCap).toBeNull();
+
+    const persisted = await prisma.agent.findUnique({ where: { id: agent.id } });
+    expect(persisted!.uniqueUsersCap).toBeNull();
+  });
+
+  it("returns 400 when uniqueUsersCap is 0", async () => {
+    const agent = await prisma.agent.create({ data: { name: "Cap Agent", algorithm: "thompson", epsilon: 0.1 } });
+    const req = buildRequest("PATCH", { uniqueUsersCap: 0 });
+    const res = await patchAgent(req as NextRequest, { params: Promise.resolve({ id: agent.id }) });
+    const body = await res.json();
+    expect(res.status).toBe(400);
+    expect(body.error).toBe("uniqueUsersCap must be null or a positive integer");
+  });
+
+  it("returns 400 when uniqueUsersCap is -1", async () => {
+    const agent = await prisma.agent.create({ data: { name: "Cap Agent", algorithm: "thompson", epsilon: 0.1 } });
+    const req = buildRequest("PATCH", { uniqueUsersCap: -1 });
+    const res = await patchAgent(req as NextRequest, { params: Promise.resolve({ id: agent.id }) });
+    const body = await res.json();
+    expect(res.status).toBe(400);
+    expect(body.error).toBe("uniqueUsersCap must be null or a positive integer");
+  });
+
+  it("returns 400 when uniqueUsersCap is a float (1.5)", async () => {
+    const agent = await prisma.agent.create({ data: { name: "Cap Agent", algorithm: "thompson", epsilon: 0.1 } });
+    const req = buildRequest("PATCH", { uniqueUsersCap: 1.5 });
+    const res = await patchAgent(req as NextRequest, { params: Promise.resolve({ id: agent.id }) });
+    const body = await res.json();
+    expect(res.status).toBe(400);
+    expect(body.error).toBe("uniqueUsersCap must be null or a positive integer");
+  });
+
+  it("GET response includes uniqueUsersCap field", async () => {
+    const agent = await prisma.agent.create({
+      data: { name: "Cap Agent", algorithm: "thompson", epsilon: 0.1, uniqueUsersCap: 1000 },
+    });
+    const req = buildRequest("GET");
+    const res = await getAgent(req as NextRequest, { params: Promise.resolve({ id: agent.id }) });
+    const body = await res.json();
+    expect(res.status).toBe(200);
+    expect(body.uniqueUsersCap).toBe(1000);
+  });
+});

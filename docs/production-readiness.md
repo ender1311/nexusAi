@@ -2,7 +2,7 @@
 
 This document describes every step required to move Nexus from its current state (mock/static UI data) to a fully operational bandit optimization system running on real users with Hightouch feeding signals in and out.
 
-**Last updated:** 2026-04-27
+**Last updated:** 2026-05-25
 
 **Variable template:** see [`.env.example`](../.env.example) for local and Vercel naming.
 
@@ -16,7 +16,7 @@ Work through in order before turning on Hightouch sync and the send cron against
 |---|------|-------|--------|
 | 1 | Neon production branch created; `DATABASE_URL` set in Vercel (Preview/Production as needed) | Ops | ⏳ |
 | 2 | `npx prisma migrate deploy` run against that database (CI does this for `TEST_DATABASE_URL`; prod is manual or release job) | Ops / Eng | ⏳ |
-| 3 | `HIGHTOUCH_API_KEY`, `CRON_SECRET`, `BRAZE_*` set in Vercel; keys rotated if pre-shared | Ops | ⏳ |
+| 3 | `HIGHTOUCH_API_KEY`, `CRON_SECRET`, `BRAZE_*`, `WORKOS_API_KEY`, `WORKOS_CLIENT_ID`, `WORKOS_REDIRECT_URI`, `WORKOS_COOKIE_PASSWORD` set in Vercel; keys rotated if pre-shared | Ops | ⏳ |
 | 4 | GitLab: `TEST_DATABASE_URL` + green pipeline on `main` | Eng | ⏳ |
 | 5 | Production deploy succeeds (`bun run build`); smoke: `GET /api/agents` (dashboard) | Eng | ⏳ |
 | 6 | Hightouch → `POST /api/ingest/users` (hourly/daily) with Bearer `HIGHTOUCH_API_KEY` | Ops | ⏳ |
@@ -70,7 +70,7 @@ Hightouch (data warehouse)
 | Hightouch event streaming | ❌ Ops task — not configured |
 | Re-engagement campaign content | ❌ See below — pending |
 | Braze firing | ⏳ **Code path exists** (cron) — needs prod `BRAZE_*`, `CRON_SECRET`, deployed app |
-| UI wired to real data | ❌ Mock everywhere except `/personas` — post-launch |
+| UI wired to real data | ⏳ Mock everywhere except `/personas` and `/agents` (unique-user counts + cap editor) — remainder post-launch |
 
 ---
 
