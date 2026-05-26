@@ -60,6 +60,7 @@ agents.post("/", async (c) => {
       suppressThresh?: number;
       funnelStage?: string;
       targetFilter?: unknown;
+      uniqueUsersCap?: number | null;
     }>();
 
     const {
@@ -77,6 +78,7 @@ agents.post("/", async (c) => {
       suppressThresh,
       funnelStage,
       targetFilter,
+      uniqueUsersCap,
     } = body;
 
     if (typeof name !== "string" || name.trim().length === 0) {
@@ -91,6 +93,12 @@ agents.post("/", async (c) => {
       return c.json({ error: "targetFilter must be a plain object" }, 400);
     }
 
+    if (uniqueUsersCap !== undefined && uniqueUsersCap !== null) {
+      if (!Number.isInteger(uniqueUsersCap) || uniqueUsersCap < 1) {
+        return c.json({ error: "uniqueUsersCap must be null or a positive integer" }, 400);
+      }
+    }
+
     const agent = await prisma.agent.create({
       data: {
         name,
@@ -99,6 +107,7 @@ agents.post("/", async (c) => {
         epsilon: epsilon ?? 0.1,
         status: "draft",
         funnelStage: funnelStage as string,
+        ...(uniqueUsersCap !== undefined ? { uniqueUsersCap } : {}),
         ...(targetFilter !== undefined
           ? { targetFilter: targetFilter as Prisma.InputJsonValue }
           : {}),
