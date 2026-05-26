@@ -387,4 +387,33 @@ describe("PATCH /api/agents/[id] — uniqueUsersCap", () => {
     expect(res.status).toBe(200);
     expect(body.uniqueUsersCap).toBe(1000);
   });
+
+  it("clears targetFilter when set to null", async () => {
+    const agent = await prisma.agent.create({
+      data: { name: "Filter Agent", algorithm: "thompson", epsilon: 0.1, targetFilter: { attribute: "country", op: "eq", value: "US" } },
+    });
+    const req = buildRequest("PATCH", { targetFilter: null });
+    const res = await patchAgent(req as NextRequest, { params: Promise.resolve({ id: agent.id }) });
+    const body = await res.json();
+    expect(res.status).toBe(200);
+    expect(body.targetFilter).toBeNull();
+  });
+
+  it("returns 400 for invalid status value", async () => {
+    const agent = await prisma.agent.create({ data: { name: "Agent", algorithm: "thompson", epsilon: 0.1 } });
+    const req = buildRequest("PATCH", { status: "published" });
+    const res = await patchAgent(req as NextRequest, { params: Promise.resolve({ id: agent.id }) });
+    const body = await res.json();
+    expect(res.status).toBe(400);
+    expect(body.error).toBe("Invalid status");
+  });
+
+  it("accepts valid status values: active, paused, draft", async () => {
+    const agent = await prisma.agent.create({ data: { name: "Agent", algorithm: "thompson", epsilon: 0.1 } });
+    for (const status of ["active", "paused", "draft"] as const) {
+      const req = buildRequest("PATCH", { status });
+      const res = await patchAgent(req as NextRequest, { params: Promise.resolve({ id: agent.id }) });
+      expect(res.status).toBe(200);
+    }
+  });
 });
