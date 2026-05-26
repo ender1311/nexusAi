@@ -88,7 +88,7 @@ graph TB
 
 | Concept | Description |
 |---------|-------------|
-| **Agent** | An optimization campaign. Has goals, messages, a bandit algorithm, and target personas |
+| **Agent** | An optimization campaign. Has goals, messages, a bandit algorithm, target personas, an optional `audienceCap` (max users per cron run), and an optional `uniqueUsersCap` (lifetime distinct-user ceiling enforced at cron time) |
 | **Message / Variant** | A message (channel + name) with A/B variants the bandit chooses between |
 | **Goal** | A conversion event (e.g. `plan_started`) mapped to a reward tier |
 | **Persona** | A user segment discovered by k-means clustering on 10-dim feature vectors |
@@ -96,3 +96,7 @@ graph TB
 | **UserDecision** | A record of each message send + optional conversion link |
 | **Feature Vector** | 10-float representation of a user: channel/timing ratios, conversion rate, recency, giving tier, spiritual depth, engagement freq |
 | **LinUCBArm** | Per-arm A⁻¹ matrix + b vector for contextual bandit; keyed by (agentId, variantId) |
+
+## Agents Page (`/agents`)
+
+Lists all agents with live stats. The page runs a `SELECT "agentId", COUNT(DISTINCT "userId") FROM "UserDecision" GROUP BY "agentId"` query to show how many distinct users each agent has ever targeted. Each agent row includes an inline cap editor for `uniqueUsersCap` (PATCH `/api/agents/[id]`). Authentication via WorkOS — admins can edit caps, read-only users see the counts but cannot mutate.

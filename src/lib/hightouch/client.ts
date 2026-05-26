@@ -61,10 +61,19 @@ export class HightouchClient {
   }
 
   async listSyncs(): Promise<HightouchSync[]> {
-    const res = await this.get("/syncs");
-    if (!res.ok) throw new Error(`Hightouch listSyncs failed: ${res.status}`);
-    const json = (await res.json()) as { data: HightouchSync[] };
-    return json.data;
+    const PAGE = 100;
+    const all: HightouchSync[] = [];
+    let offset = 0;
+    for (;;) {
+      const res = await this.get("/syncs", { limit: PAGE, offset });
+      if (!res.ok) throw new Error(`Hightouch listSyncs failed: ${res.status}`);
+      const json = (await res.json()) as { data: HightouchSync[]; pagination?: { total: number } };
+      all.push(...json.data);
+      const total = json.pagination?.total ?? json.data.length;
+      if (all.length >= total || json.data.length < PAGE) break;
+      offset += PAGE;
+    }
+    return all;
   }
 
   async getSync(id: string): Promise<HightouchSync> {

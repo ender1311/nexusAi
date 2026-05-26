@@ -15,6 +15,7 @@ erDiagram
         json targetFilter "optional audience filter"
         int fallbackSendHour "0-23 UTC-naive; null = not set"
         int audienceCap "max users per cron run; null = unlimited"
+        int uniqueUsersCap "lifetime distinct users cap; null = unlimited"
         string languageFilter "all | en | ISO prefix"
         int staleFunnelStageDays "null = no gate"
         int sortOrder "drag-and-drop display order; default 0"
