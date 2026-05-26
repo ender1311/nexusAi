@@ -204,6 +204,80 @@ describe("POST /api/agents — funnelStage + targetFilter", () => {
   });
 });
 
+describe("POST /api/agents — uniqueUsersCap", () => {
+  it("creates agent with uniqueUsersCap and persists it", async () => {
+    const res = await apiPost("/agents", {
+      name: "Capped Agent",
+      algorithm: "thompson",
+      funnelStage: "wau",
+      uniqueUsersCap: 10000,
+      goals: [],
+      messages: [],
+    });
+    const body = await res.json();
+    expect(res.status).toBe(201);
+    expect(body.uniqueUsersCap).toBe(10000);
+
+    const persisted = await prisma.agent.findUnique({ where: { id: body.id } });
+    expect(persisted!.uniqueUsersCap).toBe(10000);
+  });
+
+  it("creates agent with null uniqueUsersCap (unlimited)", async () => {
+    const res = await apiPost("/agents", {
+      name: "Unlimited Agent",
+      algorithm: "thompson",
+      funnelStage: "wau",
+      uniqueUsersCap: null,
+      goals: [],
+      messages: [],
+    });
+    const body = await res.json();
+    expect(res.status).toBe(201);
+    expect(body.uniqueUsersCap).toBeNull();
+  });
+
+  it("creates agent without uniqueUsersCap field (defaults to null)", async () => {
+    const res = await apiPost("/agents", {
+      name: "No Cap Agent",
+      algorithm: "thompson",
+      funnelStage: "wau",
+      goals: [],
+      messages: [],
+    });
+    const body = await res.json();
+    expect(res.status).toBe(201);
+    expect(body.uniqueUsersCap).toBeNull();
+  });
+
+  it("returns 400 when uniqueUsersCap is 0", async () => {
+    const res = await apiPost("/agents", {
+      name: "Bad Cap Agent",
+      algorithm: "thompson",
+      funnelStage: "wau",
+      uniqueUsersCap: 0,
+      goals: [],
+      messages: [],
+    });
+    const body = await res.json();
+    expect(res.status).toBe(400);
+    expect(body.error).toBe("uniqueUsersCap must be null or a positive integer");
+  });
+
+  it("returns 400 when uniqueUsersCap is negative", async () => {
+    const res = await apiPost("/agents", {
+      name: "Bad Cap Agent",
+      algorithm: "thompson",
+      funnelStage: "wau",
+      uniqueUsersCap: -500,
+      goals: [],
+      messages: [],
+    });
+    const body = await res.json();
+    expect(res.status).toBe(400);
+    expect(body.error).toBe("uniqueUsersCap must be null or a positive integer");
+  });
+});
+
 describe("POST /api/agents — sourceTemplateId", () => {
   it("stores sourceTemplateId on variant when provided", async () => {
     // Create template data directly via Prisma for a real FK-valid ID

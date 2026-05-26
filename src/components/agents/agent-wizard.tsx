@@ -124,6 +124,7 @@ interface FormData {
   timezone: string;
   smartSuppress: boolean;
   suppressThresh: number;
+  uniqueUsersCap: number | null;
 }
 
 const defaultForm: FormData = {
@@ -141,7 +142,19 @@ const defaultForm: FormData = {
   timezone: "America/New_York",
   smartSuppress: false,
   suppressThresh: 0.5,
+  uniqueUsersCap: null,
 };
+
+const UNIQUE_USERS_PRESETS = [
+  { label: "1K",   value: "1000" },
+  { label: "5K",   value: "5000" },
+  { label: "10K",  value: "10000" },
+  { label: "50K",  value: "50000" },
+  { label: "100K", value: "100000" },
+  { label: "500K", value: "500000" },
+  { label: "Custom…", value: "custom" },
+  { label: "Unlimited", value: "unlimited" },
+];
 
 export function AgentWizard({ personas }: { personas: Persona[] }) {
   const router = useRouter();
@@ -170,6 +183,8 @@ export function AgentWizard({ personas }: { personas: Persona[] }) {
   const [selectedPushVariants, setSelectedPushVariants] = useState<VariantWithMessage[]>([]);
   const [selectedDestKey, setSelectedDestKey] = useState<string>("");
   const [saving, setSaving] = useState(false);
+  const [uniqueUsersPreset, setUniqueUsersPreset] = useState<string>("unlimited");
+  const [uniqueUsersCustom, setUniqueUsersCustom] = useState<string>("");
 
   const update = (key: keyof FormData, value: unknown) => setForm((f) => ({ ...f, [key]: value }));
 
@@ -833,6 +848,58 @@ export function AgentWizard({ personas }: { personas: Persona[] }) {
                 </div>
               )}
             </div>
+
+            <div className="border rounded-lg p-4 space-y-3">
+              <div>
+                <h3 className="text-sm font-semibold">Max Unique Users</h3>
+                <p className="text-xs text-muted-foreground mt-0.5">
+                  Lifetime ceiling on distinct users this agent will ever target. The agent stops sending once the cap is reached. Leave unlimited for ongoing campaigns.
+                </p>
+              </div>
+              <div className="flex items-center gap-3">
+                <Select
+                  value={uniqueUsersPreset}
+                  onValueChange={(v) => {
+                    if (!v) return;
+                    setUniqueUsersPreset(v);
+                    if (v === "unlimited") {
+                      setUniqueUsersCustom("");
+                      update("uniqueUsersCap", null);
+                    } else if (v !== "custom") {
+                      update("uniqueUsersCap", parseInt(v, 10));
+                    }
+                  }}
+                >
+                  <SelectTrigger className="w-36">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {UNIQUE_USERS_PRESETS.map((opt) => (
+                      <SelectItem key={opt.value} value={opt.value}>{opt.label}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                {uniqueUsersPreset === "custom" && (
+                  <Input
+                    type="number"
+                    min={1}
+                    className="w-28"
+                    placeholder="e.g. 25000"
+                    value={uniqueUsersCustom}
+                    onChange={(e) => {
+                      setUniqueUsersCustom(e.target.value);
+                      const n = parseInt(e.target.value, 10);
+                      update("uniqueUsersCap", !isNaN(n) && n >= 1 ? n : null);
+                    }}
+                  />
+                )}
+                {form.uniqueUsersCap !== null && (
+                  <span className="text-xs text-muted-foreground tabular-nums">
+                    = {form.uniqueUsersCap.toLocaleString()} users
+                  </span>
+                )}
+              </div>
+            </div>
           </div>
         </div>
       )}
@@ -880,6 +947,10 @@ export function AgentWizard({ personas }: { personas: Persona[] }) {
               <h3 className="text-sm font-semibold">Scheduling</h3>
               <p className="text-sm">Max {form.frequencyCap.maxSends} sends per {form.frequencyCap.period}</p>
               <p className="text-sm">Quiet: {form.quietStart}–{form.quietEnd} {form.timezone}</p>
+              <p className="text-sm">
+                <span className="text-muted-foreground">Max unique users: </span>
+                {form.uniqueUsersCap !== null ? form.uniqueUsersCap.toLocaleString() : "Unlimited"}
+              </p>
             </div>
           </div>
         </div>
