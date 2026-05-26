@@ -4,18 +4,16 @@ import { truncateAll, prisma } from "../helpers/db";
 import { buildRequest } from "../helpers/request";
 import { app } from "../../apps/api/src/app";
 
-// Route handlers for [id] routes — still use Prisma directly
+// POST /api/agents now uses Prisma directly (no Fly.io proxy)
+import { POST as createAgent } from "@/app/api/agents/route";
+// Route handlers for [id] routes — Prisma directly
 import { GET as getAgent, PATCH as patchAgent, DELETE as deleteAgent } from "@/app/api/agents/[id]/route";
 
 const AUTH = { "Authorization": "Bearer test-secret" };
-const ADMIN = { ...AUTH, "X-User-Role": "admin", "Content-Type": "application/json" };
 
-async function apiPost(path: string, body: unknown) {
-  return app.request(path, {
-    method: "POST",
-    headers: ADMIN,
-    body: JSON.stringify(body),
-  });
+async function apiPost(_path: string, body: unknown) {
+  const req = buildRequest("POST", body);
+  return createAgent(req as NextRequest);
 }
 
 async function apiGet(path: string) {
