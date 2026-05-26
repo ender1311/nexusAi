@@ -2,6 +2,8 @@ import { NextRequest, NextResponse } from "next/server";
 import { apiFetch, ApiError } from "@/lib/api-client";
 import { requireAdmin } from "@/lib/auth";
 
+export const maxDuration = 15;
+
 export async function GET() {
   try {
     const agents = await apiFetch<unknown[]>("/agents");
