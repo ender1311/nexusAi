@@ -12,9 +12,6 @@ export default function Loading() {
         {/* Persona Discovery card */}
         <Skeleton className="h-52 rounded-xl" />
 
-        {/* Test Users card */}
-        <Skeleton className="h-44 rounded-xl" />
-
         {/* Save button row */}
         <Skeleton className="h-9 w-32" />
       </div>
