@@ -666,7 +666,7 @@ export async function POST(req: NextRequest) {
         : {};
 
       const funnelStageData = user.funnel_stage
-        ? { funnelStage: user.funnel_stage, funnelStageUpdatedAt: new Date() }
+        ? { funnelStage: user.funnel_stage === "lapsed_dau" ? "lapsed_dau4" : user.funnel_stage, funnelStageUpdatedAt: new Date() }
         : {};
 
       await prisma.trackedUser.upsert({

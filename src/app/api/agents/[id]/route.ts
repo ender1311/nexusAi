@@ -6,6 +6,7 @@ import { isPlainObject } from "@/lib/utils";
 import { requireAdmin } from "@/lib/auth";
 
 const VALID_STAGES = new Set(FUNNEL_STAGES);
+const VALID_STATUSES = new Set(["draft", "active", "paused"]);
 
 export async function GET(_req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
@@ -40,7 +41,11 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
       return NextResponse.json({ error: "Invalid funnelStage" }, { status: 400 });
     }
 
-    if (body.targetFilter !== undefined && !isPlainObject(body.targetFilter)) {
+    if (body.status !== undefined && !VALID_STATUSES.has(body.status)) {
+      return NextResponse.json({ error: "Invalid status" }, { status: 400 });
+    }
+
+    if (body.targetFilter !== undefined && body.targetFilter !== null && !isPlainObject(body.targetFilter)) {
       return NextResponse.json({ error: "targetFilter must be a plain object" }, { status: 400 });
     }
 
@@ -70,9 +75,9 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
       }
     }
 
-    if (body.languageFilter !== undefined) {
+    if (body.languageFilter !== undefined && body.languageFilter !== null) {
       if (typeof body.languageFilter !== "string" || body.languageFilter.trim() === "") {
-        return NextResponse.json({ error: "languageFilter must be a non-empty string" }, { status: 400 });
+        return NextResponse.json({ error: "languageFilter must be a non-empty string or null" }, { status: 400 });
       }
     }
 

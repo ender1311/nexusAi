@@ -316,6 +316,21 @@ describe("funnel_stage + persona assignment", () => {
     expect(user!.funnelStageUpdatedAt).toBeNull();
   });
 
+  it("normalizes lapsed_dau to lapsed_dau4 (Liquid template path)", async () => {
+    // Bug: funnelStageData normalization only ran for flat rows — Liquid template
+    // rows bypassed it and could store "lapsed_dau" directly in the DB.
+    const req = buildRequest("POST", {
+      external_user_id: "usr_lapsed_dau_norm",
+      funnel_stage: "lapsed_dau",
+      attributes: {},
+    }, AUTH);
+    const res = await POST(req as NextRequest);
+    expect(res.status).toBe(200);
+
+    const user = await prisma.trackedUser.findUnique({ where: { externalId: "usr_lapsed_dau_norm" } });
+    expect(user!.funnelStage).toBe("lapsed_dau4");
+  });
+
   it("updates funnel_stage on re-sync", async () => {
     await prisma.trackedUser.create({
       data: { externalId: "usr_funnel_upd", funnelStage: "lapsed" },
