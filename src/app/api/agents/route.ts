@@ -23,6 +23,7 @@ export async function POST(req: NextRequest) {
       method: "POST",
       body: JSON.stringify(body),
       isAdmin: true,
+      timeout: 15000,
     });
     return NextResponse.json(agent, { status: 201 });
   } catch (err) {
