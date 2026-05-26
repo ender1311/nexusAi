@@ -1,12 +1,4 @@
 import Link from "next/link";
-import { CollapsibleVideos } from "@/components/architecture/collapsible-videos";
-
-const VIDEOS = [
-  { id: "nFXn2vf27gs", title: "Braze AI: Haley Ruff" },
-  { id: "XcsgPwy7eYw", title: "Braze AI: Decisioning Studio" },
-  { id: "YYF_eDQP3TU", title: "Braze AI: Campaign Intelligence" },
-  { id: "HfT0kLcpjoc", title: "Braze AI: Product Demo", start: 25 },
-];
 
 const CHAPTERS = [
   {
@@ -56,9 +48,6 @@ const CHAPTERS = [
 export default function DeepDiveOverviewPage() {
   return (
     <>
-      <div className="mb-8">
-        <CollapsibleVideos heading="Braze AI — reference videos" videos={VIDEOS} cols={2} />
-      </div>
       <article className="prose-sm max-w-none space-y-2">
       <h1 className="text-2xl font-bold mb-1">Advanced Data Science</h1>
       <p className="text-muted-foreground text-sm mb-6">

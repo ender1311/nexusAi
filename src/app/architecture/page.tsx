@@ -11,12 +11,6 @@ const THOMPSON_VIDEOS = [
   { id: "Zgwfw3bzSmQ", title: "Beta Distribution & Exploration" },
 ];
 
-const BRAZE_AI_VIDEOS = [
-  { id: "nFXn2vf27gs", title: "Braze AI: Haley Ruff" },
-  { id: "XcsgPwy7eYw", title: "Braze AI: Decisioning Studio" },
-  { id: "YYF_eDQP3TU", title: "Braze AI: Campaign Intelligence" },
-  { id: "HfT0kLcpjoc", title: "Braze AI: Product Demo", start: 25 },
-];
 
 const STEPS = [
   {
@@ -142,15 +136,6 @@ export default function ArchitecturePage() {
           <CollapsibleVideos
             heading="Thompson Sampling — further reading"
             videos={THOMPSON_VIDEOS}
-          />
-        </div>
-
-        {/* Braze AI reference videos */}
-        <div className="pt-2 border-t">
-          <CollapsibleVideos
-            heading="Braze AI — reference videos"
-            videos={BRAZE_AI_VIDEOS}
-            cols={2}
           />
         </div>
 
