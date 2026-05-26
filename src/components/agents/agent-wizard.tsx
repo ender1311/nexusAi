@@ -125,6 +125,7 @@ interface FormData {
   smartSuppress: boolean;
   suppressThresh: number;
   uniqueUsersCap: number | null;
+  dailySendCap: number | null;
 }
 
 const defaultForm: FormData = {
@@ -143,7 +144,19 @@ const defaultForm: FormData = {
   smartSuppress: false,
   suppressThresh: 0.5,
   uniqueUsersCap: null,
+  dailySendCap: null,
 };
+
+const DAILY_SEND_CAP_PRESETS = [
+  { label: "100",   value: "100" },
+  { label: "500",   value: "500" },
+  { label: "1K",    value: "1000" },
+  { label: "5K",    value: "5000" },
+  { label: "10K",   value: "10000" },
+  { label: "50K",   value: "50000" },
+  { label: "Custom…", value: "custom" },
+  { label: "Unlimited", value: "unlimited" },
+];
 
 const UNIQUE_USERS_PRESETS = [
   { label: "1K",   value: "1000" },
@@ -186,6 +199,8 @@ export function AgentWizard({ personas }: { personas: Persona[] }) {
   const [submitError, setSubmitError] = useState<string | null>(null);
   const [uniqueUsersPreset, setUniqueUsersPreset] = useState<string>("unlimited");
   const [uniqueUsersCustom, setUniqueUsersCustom] = useState<string>("");
+  const [dailySendCapPreset, setDailySendCapPreset] = useState<string>("unlimited");
+  const [dailySendCapCustom, setDailySendCapCustom] = useState<string>("");
 
   const update = (key: keyof FormData, value: unknown) => setForm((f) => ({ ...f, [key]: value }));
 
@@ -914,6 +929,58 @@ export function AgentWizard({ personas }: { personas: Persona[] }) {
                 )}
               </div>
             </div>
+
+            <div className="border rounded-lg p-4 space-y-3">
+              <div>
+                <h3 className="text-sm font-semibold">Max Sends Per Day</h3>
+                <p className="text-xs text-muted-foreground mt-0.5">
+                  Total sends this agent can make per calendar day (UTC). Caps the daily send volume across all users. Leave unlimited for no daily ceiling.
+                </p>
+              </div>
+              <div className="flex items-center gap-3">
+                <Select
+                  value={dailySendCapPreset}
+                  onValueChange={(v) => {
+                    if (!v) return;
+                    setDailySendCapPreset(v);
+                    if (v === "unlimited") {
+                      setDailySendCapCustom("");
+                      update("dailySendCap", null);
+                    } else if (v !== "custom") {
+                      update("dailySendCap", parseInt(v, 10));
+                    }
+                  }}
+                >
+                  <SelectTrigger className="w-36">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {DAILY_SEND_CAP_PRESETS.map((opt) => (
+                      <SelectItem key={opt.value} value={opt.value}>{opt.label}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                {dailySendCapPreset === "custom" && (
+                  <Input
+                    type="number"
+                    min={1}
+                    className="w-28"
+                    placeholder="e.g. 2500"
+                    value={dailySendCapCustom}
+                    onChange={(e) => {
+                      setDailySendCapCustom(e.target.value);
+                      const n = parseInt(e.target.value, 10);
+                      update("dailySendCap", !isNaN(n) && n >= 1 ? n : null);
+                    }}
+                  />
+                )}
+                {form.dailySendCap !== null && (
+                  <span className="text-xs text-muted-foreground tabular-nums">
+                    = {form.dailySendCap.toLocaleString()} sends/day
+                  </span>
+                )}
+              </div>
+            </div>
           </div>
         </div>
       )}
@@ -964,6 +1031,10 @@ export function AgentWizard({ personas }: { personas: Persona[] }) {
               <p className="text-sm">
                 <span className="text-muted-foreground">Max unique users: </span>
                 {form.uniqueUsersCap !== null ? form.uniqueUsersCap.toLocaleString() : "Unlimited"}
+              </p>
+              <p className="text-sm">
+                <span className="text-muted-foreground">Max sends per day: </span>
+                {form.dailySendCap !== null ? form.dailySendCap.toLocaleString() : "Unlimited"}
               </p>
             </div>
           </div>

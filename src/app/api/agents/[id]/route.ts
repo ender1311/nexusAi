@@ -75,6 +75,12 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
       }
     }
 
+    if (body.dailySendCap !== undefined) {
+      if (body.dailySendCap !== null && (!Number.isInteger(body.dailySendCap) || body.dailySendCap < 1)) {
+        return NextResponse.json({ error: "dailySendCap must be null or a positive integer" }, { status: 400 });
+      }
+    }
+
     if (body.languageFilter !== undefined && body.languageFilter !== null) {
       if (typeof body.languageFilter !== "string" || body.languageFilter.trim() === "") {
         return NextResponse.json({ error: "languageFilter must be a non-empty string or null" }, { status: 400 });
@@ -100,6 +106,7 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
         ...(body.fallbackSendHour !== undefined ? { fallbackSendHour: body.fallbackSendHour } : {}),
         ...(body.audienceCap !== undefined ? { audienceCap: body.audienceCap } : {}),
         ...(body.uniqueUsersCap !== undefined ? { uniqueUsersCap: body.uniqueUsersCap } : {}),
+        ...(body.dailySendCap !== undefined ? { dailySendCap: body.dailySendCap } : {}),
         ...(body.languageFilter !== undefined ? { languageFilter: body.languageFilter } : {}),
         ...(body.color !== undefined ? { color: body.color } : {}),
       },

@@ -64,6 +64,7 @@ agents.post("/", async (c) => {
       funnelStage?: string;
       targetFilter?: unknown;
       uniqueUsersCap?: number | null;
+      dailySendCap?: number | null;
       targetPersonaIds?: string[];
     }>();
 
@@ -83,6 +84,7 @@ agents.post("/", async (c) => {
       funnelStage,
       targetFilter,
       uniqueUsersCap,
+      dailySendCap,
       targetPersonaIds = [],
     } = body;
 
@@ -104,6 +106,12 @@ agents.post("/", async (c) => {
       }
     }
 
+    if (dailySendCap !== undefined && dailySendCap !== null) {
+      if (!Number.isInteger(dailySendCap) || dailySendCap < 1) {
+        return c.json({ error: "dailySendCap must be null or a positive integer" }, 400);
+      }
+    }
+
     const agent = await prisma.agent.create({
       data: {
         name,
@@ -113,6 +121,7 @@ agents.post("/", async (c) => {
         status: "draft",
         funnelStage: funnelStage as string,
         ...(uniqueUsersCap !== undefined ? { uniqueUsersCap } : {}),
+        ...(dailySendCap !== undefined ? { dailySendCap } : {}),
         ...(targetFilter !== undefined
           ? { targetFilter: targetFilter as Prisma.InputJsonValue }
           : {}),

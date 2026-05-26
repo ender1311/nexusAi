@@ -278,6 +278,39 @@ describe("POST /api/agents — uniqueUsersCap", () => {
   });
 });
 
+describe("POST /api/agents — dailySendCap", () => {
+  it("stores dailySendCap when provided", async () => {
+    const res = await apiPost("/agents", {
+      name: "Capped Agent",
+      funnelStage: "wau",
+      dailySendCap: 500,
+    });
+    expect(res.status).toBe(201);
+    const body = await res.json();
+    expect(body.dailySendCap).toBe(500);
+  });
+
+  it("dailySendCap null means unlimited", async () => {
+    const res = await apiPost("/agents", {
+      name: "Unlimited Agent",
+      funnelStage: "wau",
+      dailySendCap: null,
+    });
+    expect(res.status).toBe(201);
+    const body = await res.json();
+    expect(body.dailySendCap).toBeNull();
+  });
+
+  it("rejects non-positive dailySendCap", async () => {
+    const res = await apiPost("/agents", {
+      name: "Bad Agent",
+      funnelStage: "wau",
+      dailySendCap: -1,
+    });
+    expect(res.status).toBe(400);
+  });
+});
+
 describe("POST /api/agents — sourceTemplateId", () => {
   it("stores sourceTemplateId on variant when provided", async () => {
     // Create template data directly via Prisma for a real FK-valid ID
