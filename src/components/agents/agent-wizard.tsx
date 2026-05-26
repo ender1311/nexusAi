@@ -57,6 +57,16 @@ const FREQ_PERIODS = [
   { value: "month", label: "Month" },
 ];
 
+const DAYS_OF_WEEK = [
+  { value: 0, label: "Sun" },
+  { value: 1, label: "Mon" },
+  { value: 2, label: "Tue" },
+  { value: 3, label: "Wed" },
+  { value: 4, label: "Thu" },
+  { value: 5, label: "Fri" },
+  { value: 6, label: "Sat" },
+];
+
 const ALGORITHM_OPTIONS = [
   {
     value: "thompson",
@@ -122,6 +132,7 @@ interface FormData {
   quietStart: string;
   quietEnd: string;
   timezone: string;
+  quietDays: number[];   // 0=Sunday, 6=Saturday; days to suppress sends
   smartSuppress: boolean;
   suppressThresh: number;
   uniqueUsersCap: number | null;
@@ -141,6 +152,7 @@ const defaultForm: FormData = {
   quietStart: "22:00",
   quietEnd: "08:00",
   timezone: "America/New_York",
+  quietDays: [],
   smartSuppress: false,
   suppressThresh: 0.5,
   uniqueUsersCap: null,
@@ -851,6 +863,51 @@ export function AgentWizard({ personas }: { personas: Persona[] }) {
             </div>
 
             <div className="border rounded-lg p-4 space-y-3">
+              <div>
+                <h3 className="text-sm font-semibold">Quiet Days</h3>
+                <p className="text-xs text-muted-foreground mt-0.5">
+                  No sends will be made on the selected days. Applies on top of quiet hours.
+                </p>
+              </div>
+              <div className="flex gap-2 flex-wrap">
+                {DAYS_OF_WEEK.map((d) => {
+                  const suppressed = form.quietDays.includes(d.value);
+                  return (
+                    <button
+                      key={d.value}
+                      type="button"
+                      onClick={() => {
+                        update(
+                          "quietDays",
+                          suppressed
+                            ? form.quietDays.filter((x) => x !== d.value)
+                            : [...form.quietDays, d.value],
+                        );
+                      }}
+                      className={cn(
+                        "px-3 py-1.5 text-xs rounded-md border font-medium transition-colors",
+                        suppressed
+                          ? "bg-destructive/10 border-destructive/40 text-destructive"
+                          : "bg-background border-input text-muted-foreground hover:border-primary/50 hover:text-foreground",
+                      )}
+                    >
+                      {d.label}
+                    </button>
+                  );
+                })}
+              </div>
+              {form.quietDays.length > 0 && (
+                <p className="text-xs text-muted-foreground">
+                  Suppressed:{" "}
+                  {form.quietDays
+                    .sort((a, b) => a - b)
+                    .map((d) => DAYS_OF_WEEK.find((x) => x.value === d)?.label)
+                    .join(", ")}
+                </p>
+              )}
+            </div>
+
+            <div className="border rounded-lg p-4 space-y-3">
               <div className="flex items-center justify-between">
                 <div>
                   <h3 className="text-sm font-semibold">Smart Suppression</h3>
@@ -1028,6 +1085,15 @@ export function AgentWizard({ personas }: { personas: Persona[] }) {
               <h3 className="text-sm font-semibold">Scheduling</h3>
               <p className="text-sm">Max {form.frequencyCap.maxSends} sends per {form.frequencyCap.period}</p>
               <p className="text-sm">Quiet: {form.quietStart}–{form.quietEnd} {form.timezone}</p>
+              {form.quietDays.length > 0 && (
+                <p className="text-sm">
+                  <span className="text-muted-foreground">Quiet days: </span>
+                  {form.quietDays
+                    .sort((a, b) => a - b)
+                    .map((d) => DAYS_OF_WEEK.find((x) => x.value === d)?.label)
+                    .join(", ")}
+                </p>
+              )}
               <p className="text-sm">
                 <span className="text-muted-foreground">Max unique users: </span>
                 {form.uniqueUsersCap !== null ? form.uniqueUsersCap.toLocaleString() : "Unlimited"}

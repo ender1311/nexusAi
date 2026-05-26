@@ -59,6 +59,7 @@ agents.post("/", async (c) => {
       quietStart?: string;
       quietEnd?: string;
       timezone?: string;
+      quietDays?: number[];
       smartSuppress?: boolean;
       suppressThresh?: number;
       funnelStage?: string;
@@ -79,6 +80,7 @@ agents.post("/", async (c) => {
       quietStart,
       quietEnd,
       timezone,
+      quietDays,
       smartSuppress,
       suppressThresh,
       funnelStage,
@@ -109,6 +111,12 @@ agents.post("/", async (c) => {
     if (dailySendCap !== undefined && dailySendCap !== null) {
       if (!Number.isInteger(dailySendCap) || dailySendCap < 1) {
         return c.json({ error: "dailySendCap must be null or a positive integer" }, 400);
+      }
+    }
+
+    if (quietDays !== undefined) {
+      if (!Array.isArray(quietDays) || quietDays.some((d) => !Number.isInteger(d) || d < 0 || d > 6)) {
+        return c.json({ error: "quietDays must be an array of day-of-week numbers (0–6)" }, 400);
       }
     }
 
@@ -168,6 +176,7 @@ agents.post("/", async (c) => {
               start: quietStart ?? "22:00",
               end: quietEnd ?? "08:00",
               timezone: timezone ?? "America/New_York",
+              ...(Array.isArray(quietDays) && quietDays.length > 0 ? { quietDays } : {}),
             },
             smartSuppress: smartSuppress ?? false,
             suppressThresh: suppressThresh ?? 0.5,

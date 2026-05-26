@@ -1,5 +1,5 @@
 import { describe, expect, it } from "bun:test";
-import { getTodayStartUTC, isInQuietHours, peakActivityHour } from "@/lib/engine/scheduling";
+import { getTodayStartUTC, isInQuietHours, isQuietDay, peakActivityHour } from "@/lib/engine/scheduling";
 
 describe("peakActivityHour", () => {
   it("returns null for an all-zero array (no conversion data)", () => {
@@ -90,6 +90,41 @@ describe("getTodayStartUTC", () => {
   it("works for UTC timezone (midnight UTC = midnight UTC)", () => {
     const now = new Date("2026-05-02T14:00:00Z");
     expect(getTodayStartUTC("UTC", now)).toEqual(new Date("2026-05-02T00:00:00.000Z"));
+  });
+});
+
+describe("isQuietDay", () => {
+  const sunday = new Date("2024-01-07T12:00:00Z");    // UTC Sunday
+  const monday = new Date("2024-01-08T12:00:00Z");    // UTC Monday
+  const saturday = new Date("2024-01-06T12:00:00Z");  // UTC Saturday
+
+  it("returns false for empty quietDays", () => {
+    expect(isQuietDay([], "UTC", sunday)).toBe(false);
+  });
+
+  it("returns true when day matches", () => {
+    expect(isQuietDay([0], "UTC", sunday)).toBe(true);   // Sunday=0
+    expect(isQuietDay([6], "UTC", saturday)).toBe(true); // Saturday=6
+  });
+
+  it("returns false when day does not match", () => {
+    expect(isQuietDay([6], "UTC", monday)).toBe(false);
+  });
+
+  it("handles multiple quiet days", () => {
+    expect(isQuietDay([0, 6], "UTC", saturday)).toBe(true);
+    expect(isQuietDay([0, 6], "UTC", monday)).toBe(false);
+  });
+
+  it("returns false for unknown timezone (defensive)", () => {
+    expect(isQuietDay([0], "Invalid/Timezone", sunday)).toBe(false);
+  });
+
+  it("applies timezone correctly (day boundary)", () => {
+    // Saturday 11pm UTC = Sunday in UTC+2
+    const satPm = new Date("2024-01-06T23:00:00Z");
+    expect(isQuietDay([0], "Europe/Helsinki", satPm)).toBe(true);  // Sunday in EET
+    expect(isQuietDay([0], "UTC", satPm)).toBe(false);              // Saturday in UTC
   });
 });
 

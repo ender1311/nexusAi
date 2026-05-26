@@ -5,7 +5,7 @@ import { assignUserToPersona } from "@/lib/engine/persona-assignment";
 import { computeFeatureVector } from "@/lib/engine/feature-vector";
 import { FEATURE_DIM } from "@/lib/engine/feature-vector";
 import { evaluateTargetFilter, buildComputedKeys } from "@/lib/engine/target-filter";
-import { isInQuietHours } from "@/lib/engine/scheduling";
+import { isInQuietHours, isQuietDay } from "@/lib/engine/scheduling";
 import { prisma } from "@/lib/db";
 import type { BanditArm } from "@/lib/engine/types";
 import type { Prisma } from "@/generated/prisma/client";
@@ -155,13 +155,24 @@ export async function decideForUser(input: DecideInput): Promise<DecideResult | 
   if (rule && !skipSchedulingChecks) {
     // 4a. Quiet hours — suppress mode only; none/schedule skip the server-side check.
     // Backward compat: legacy records without mode default to suppress (or schedule if timezone="user").
-    const quietHoursRaw = rule.quietHours as unknown as { mode?: string; start?: string; end?: string; timezone?: string } | null;
+    const quietHoursRaw = rule.quietHours as unknown as { mode?: string; start?: string; end?: string; timezone?: string; quietDays?: number[] } | null;
     const qhMode = quietHoursRaw?.mode ?? (quietHoursRaw?.timezone === "user" ? "schedule" : quietHoursRaw ? "suppress" : "none");
     if (qhMode === "suppress" && quietHoursRaw?.start && quietHoursRaw?.end) {
       const agentTz = quietHoursRaw.timezone ?? "UTC";
       const attrs = user.attributes as Record<string, unknown>;
       const userTz = typeof attrs?.timezone === "string" ? attrs.timezone : agentTz;
       if (isInQuietHours(quietHoursRaw.start, quietHoursRaw.end, userTz, now)) {
+        return { suppressed: true, reason: "quiet_hours" };
+      }
+    }
+
+    // 4a-b. Quiet days — suppress sends on specific days of week (independent of time-based quiet hours)
+    const quietDaysRaw = Array.isArray(quietHoursRaw?.quietDays) ? (quietHoursRaw.quietDays as number[]) : [];
+    if (quietDaysRaw.length > 0) {
+      const agentTz2 = quietHoursRaw?.timezone ?? "UTC";
+      const attrs2 = user.attributes as Record<string, unknown>;
+      const userTz2 = typeof attrs2?.timezone === "string" ? attrs2.timezone : agentTz2;
+      if (isQuietDay(quietDaysRaw, userTz2, now)) {
         return { suppressed: true, reason: "quiet_hours" };
       }
     }

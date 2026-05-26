@@ -27,6 +27,16 @@ const HOUR_OPTIONS = Array.from({ length: 24 }, (_, h) => {
   return { value: h, label: `${display}:00 ${suffix}` };
 });
 
+const DAYS_OF_WEEK = [
+  { value: 0, label: "Sun" },
+  { value: 1, label: "Mon" },
+  { value: 2, label: "Tue" },
+  { value: 3, label: "Wed" },
+  { value: 4, label: "Thu" },
+  { value: 5, label: "Fri" },
+  { value: 6, label: "Sat" },
+];
+
 function resolveInitialQuietHours(initial: SchedulingRule | null): QuietHours {
   const qh = initial?.quietHours;
   if (!qh) return { mode: "none" };
@@ -244,54 +254,97 @@ export function SchedulingEditor({ agentId, initialRule }: Props) {
 
           {/* Suppress: window + fallback timezone */}
           {quietHours.mode === "suppress" && (
-            <div className="flex flex-wrap gap-3 pt-1">
-              <div className="flex-1 min-w-[7rem]">
-                <label className="text-xs text-muted-foreground block mb-1">From</label>
-                <Input
-                  type="time"
-                  value={quietHours.start ?? "22:00"}
-                  onChange={(e) => setQuietHours((q) => ({ ...q, start: e.target.value }))}
-                  className="w-full"
-                />
+            <>
+              <div className="flex flex-wrap gap-3 pt-1">
+                <div className="flex-1 min-w-[7rem]">
+                  <label className="text-xs text-muted-foreground block mb-1">From</label>
+                  <Input
+                    type="time"
+                    value={quietHours.start ?? "22:00"}
+                    onChange={(e) => setQuietHours((q) => ({ ...q, start: e.target.value }))}
+                    className="w-full"
+                  />
+                </div>
+                <div className="flex-1 min-w-[7rem]">
+                  <label className="text-xs text-muted-foreground block mb-1">To</label>
+                  <Input
+                    type="time"
+                    value={quietHours.end ?? "08:00"}
+                    onChange={(e) => setQuietHours((q) => ({ ...q, end: e.target.value }))}
+                    className="w-full"
+                  />
+                </div>
+                <div className="flex-1 min-w-[11rem]">
+                  <label className="text-xs text-muted-foreground block mb-1">Fallback timezone</label>
+                  <Select
+                    value={quietHours.timezone ?? "America/New_York"}
+                    onValueChange={(v) => v && setQuietHours((q) => ({ ...q, timezone: v }))}
+                  >
+                    <SelectTrigger className="w-full">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="America/New_York">Eastern (ET)</SelectItem>
+                      <SelectItem value="America/Chicago">Central (CT)</SelectItem>
+                      <SelectItem value="America/Denver">Mountain (MT)</SelectItem>
+                      <SelectItem value="America/Los_Angeles">Pacific (PT)</SelectItem>
+                      <SelectItem value="America/Phoenix">Arizona (no DST)</SelectItem>
+                      <SelectItem value="Europe/London">London (GMT/BST)</SelectItem>
+                      <SelectItem value="Europe/Paris">Paris (CET)</SelectItem>
+                      <SelectItem value="Europe/Helsinki">Helsinki (EET)</SelectItem>
+                      <SelectItem value="Asia/Dubai">Dubai (GST)</SelectItem>
+                      <SelectItem value="Asia/Kolkata">India (IST)</SelectItem>
+                      <SelectItem value="Asia/Singapore">Singapore (SGT)</SelectItem>
+                      <SelectItem value="Asia/Tokyo">Tokyo (JST)</SelectItem>
+                      <SelectItem value="Australia/Sydney">Sydney (AEST)</SelectItem>
+                      <SelectItem value="Pacific/Auckland">Auckland (NZST)</SelectItem>
+                      <SelectItem value="UTC">UTC</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
               </div>
-              <div className="flex-1 min-w-[7rem]">
-                <label className="text-xs text-muted-foreground block mb-1">To</label>
-                <Input
-                  type="time"
-                  value={quietHours.end ?? "08:00"}
-                  onChange={(e) => setQuietHours((q) => ({ ...q, end: e.target.value }))}
-                  className="w-full"
-                />
+              <div className="space-y-2 pt-2">
+                <label className="text-xs text-muted-foreground block">Quiet Days</label>
+                <div className="flex gap-2 flex-wrap">
+                  {DAYS_OF_WEEK.map((d) => {
+                    const suppressed = (quietHours.quietDays ?? []).includes(d.value);
+                    return (
+                      <button
+                        key={d.value}
+                        type="button"
+                        onClick={() => {
+                          const current = quietHours.quietDays ?? [];
+                          setQuietHours((q) => ({
+                            ...q,
+                            quietDays: suppressed
+                              ? current.filter((x) => x !== d.value)
+                              : [...current, d.value],
+                          }));
+                        }}
+                        className={cn(
+                          "px-3 py-1.5 text-xs rounded-md border font-medium transition-colors",
+                          suppressed
+                            ? "bg-destructive/10 border-destructive/40 text-destructive"
+                            : "bg-background border-input text-muted-foreground hover:border-primary/50 hover:text-foreground",
+                        )}
+                      >
+                        {d.label}
+                      </button>
+                    );
+                  })}
+                </div>
+                {(quietHours.quietDays ?? []).length > 0 && (
+                  <p className="text-xs text-muted-foreground">
+                    No sends on:{" "}
+                    {(quietHours.quietDays ?? [])
+                      .slice()
+                      .sort((a, b) => a - b)
+                      .map((d) => DAYS_OF_WEEK.find((x) => x.value === d)?.label)
+                      .join(", ")}
+                  </p>
+                )}
               </div>
-              <div className="flex-1 min-w-[11rem]">
-                <label className="text-xs text-muted-foreground block mb-1">Fallback timezone</label>
-                <Select
-                  value={quietHours.timezone ?? "America/New_York"}
-                  onValueChange={(v) => v && setQuietHours((q) => ({ ...q, timezone: v }))}
-                >
-                  <SelectTrigger className="w-full">
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="America/New_York">Eastern (ET)</SelectItem>
-                    <SelectItem value="America/Chicago">Central (CT)</SelectItem>
-                    <SelectItem value="America/Denver">Mountain (MT)</SelectItem>
-                    <SelectItem value="America/Los_Angeles">Pacific (PT)</SelectItem>
-                    <SelectItem value="America/Phoenix">Arizona (no DST)</SelectItem>
-                    <SelectItem value="Europe/London">London (GMT/BST)</SelectItem>
-                    <SelectItem value="Europe/Paris">Paris (CET)</SelectItem>
-                    <SelectItem value="Europe/Helsinki">Helsinki (EET)</SelectItem>
-                    <SelectItem value="Asia/Dubai">Dubai (GST)</SelectItem>
-                    <SelectItem value="Asia/Kolkata">India (IST)</SelectItem>
-                    <SelectItem value="Asia/Singapore">Singapore (SGT)</SelectItem>
-                    <SelectItem value="Asia/Tokyo">Tokyo (JST)</SelectItem>
-                    <SelectItem value="Australia/Sydney">Sydney (AEST)</SelectItem>
-                    <SelectItem value="Pacific/Auckland">Auckland (NZST)</SelectItem>
-                    <SelectItem value="UTC">UTC</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-            </div>
+            </>
           )}
 
           {/* Schedule: deliver-at hour */}
