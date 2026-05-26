@@ -57,6 +57,16 @@ const FREQ_PERIODS = [
   { value: "month", label: "Month" },
 ];
 
+const DAYS_OF_WEEK = [
+  { value: 0, label: "Sun" },
+  { value: 1, label: "Mon" },
+  { value: 2, label: "Tue" },
+  { value: 3, label: "Wed" },
+  { value: 4, label: "Thu" },
+  { value: 5, label: "Fri" },
+  { value: 6, label: "Sat" },
+];
+
 const ALGORITHM_OPTIONS = [
   {
     value: "thompson",
@@ -122,9 +132,11 @@ interface FormData {
   quietStart: string;
   quietEnd: string;
   timezone: string;
+  quietDays: number[];   // 0=Sunday, 6=Saturday; days to suppress sends
   smartSuppress: boolean;
   suppressThresh: number;
   uniqueUsersCap: number | null;
+  dailySendCap: number | null;
 }
 
 const defaultForm: FormData = {
@@ -140,10 +152,23 @@ const defaultForm: FormData = {
   quietStart: "22:00",
   quietEnd: "08:00",
   timezone: "America/New_York",
+  quietDays: [],
   smartSuppress: false,
   suppressThresh: 0.5,
   uniqueUsersCap: null,
+  dailySendCap: null,
 };
+
+const DAILY_SEND_CAP_PRESETS = [
+  { label: "100",   value: "100" },
+  { label: "500",   value: "500" },
+  { label: "1K",    value: "1000" },
+  { label: "5K",    value: "5000" },
+  { label: "10K",   value: "10000" },
+  { label: "50K",   value: "50000" },
+  { label: "Custom…", value: "custom" },
+  { label: "Unlimited", value: "unlimited" },
+];
 
 const UNIQUE_USERS_PRESETS = [
   { label: "1K",   value: "1000" },
@@ -183,8 +208,11 @@ export function AgentWizard({ personas }: { personas: Persona[] }) {
   const [selectedPushVariants, setSelectedPushVariants] = useState<VariantWithMessage[]>([]);
   const [selectedDestKey, setSelectedDestKey] = useState<string>("");
   const [saving, setSaving] = useState(false);
+  const [submitError, setSubmitError] = useState<string | null>(null);
   const [uniqueUsersPreset, setUniqueUsersPreset] = useState<string>("unlimited");
   const [uniqueUsersCustom, setUniqueUsersCustom] = useState<string>("");
+  const [dailySendCapPreset, setDailySendCapPreset] = useState<string>("unlimited");
+  const [dailySendCapCustom, setDailySendCapCustom] = useState<string>("");
 
   const update = (key: keyof FormData, value: unknown) => setForm((f) => ({ ...f, [key]: value }));
 
@@ -220,6 +248,7 @@ export function AgentWizard({ personas }: { personas: Persona[] }) {
 
   const handleSubmit = async () => {
     setSaving(true);
+    setSubmitError(null);
     try {
       const res = await fetch("/api/agents", {
         method: "POST",
@@ -229,6 +258,15 @@ export function AgentWizard({ personas }: { personas: Persona[] }) {
       if (res.ok) {
         const agent = await res.json();
         router.push(`/agents/${agent.id}`);
+      } else {
+        let msg = "Failed to launch agent. Please try again.";
+        try {
+          const errBody = await res.json();
+          if (typeof errBody?.error === "string") msg = errBody.error;
+        } catch {
+          // ignore parse error, use default message
+        }
+        setSubmitError(msg);
       }
     } finally {
       setSaving(false);
@@ -296,10 +334,13 @@ export function AgentWizard({ personas }: { personas: Persona[] }) {
             <ChevronRight className="h-4 w-4 ml-1" />
           </Button>
         ) : (
-          <Button size="sm" onClick={handleSubmit} disabled={saving || !form.name.trim()}>
-            {saving ? "Saving..." : "Launch Agent"}
-            <Rocket className="h-4 w-4 ml-1" />
-          </Button>
+          <div className="flex flex-col items-end gap-1">
+            <Button size="sm" onClick={handleSubmit} disabled={saving || !form.name.trim()}>
+              {saving ? "Saving..." : "Launch Agent"}
+              <Rocket className="h-4 w-4 ml-1" />
+            </Button>
+            {submitError && <p className="text-sm text-red-500 mt-2">{submitError}</p>}
+          </div>
         )}
       </div>
 
@@ -822,6 +863,51 @@ export function AgentWizard({ personas }: { personas: Persona[] }) {
             </div>
 
             <div className="border rounded-lg p-4 space-y-3">
+              <div>
+                <h3 className="text-sm font-semibold">Quiet Days</h3>
+                <p className="text-xs text-muted-foreground mt-0.5">
+                  No sends will be made on the selected days. Applies on top of quiet hours.
+                </p>
+              </div>
+              <div className="flex gap-2 flex-wrap">
+                {DAYS_OF_WEEK.map((d) => {
+                  const suppressed = form.quietDays.includes(d.value);
+                  return (
+                    <button
+                      key={d.value}
+                      type="button"
+                      onClick={() => {
+                        update(
+                          "quietDays",
+                          suppressed
+                            ? form.quietDays.filter((x) => x !== d.value)
+                            : [...form.quietDays, d.value],
+                        );
+                      }}
+                      className={cn(
+                        "px-3 py-1.5 text-xs rounded-md border font-medium transition-colors",
+                        suppressed
+                          ? "bg-destructive/10 border-destructive/40 text-destructive"
+                          : "bg-background border-input text-muted-foreground hover:border-primary/50 hover:text-foreground",
+                      )}
+                    >
+                      {d.label}
+                    </button>
+                  );
+                })}
+              </div>
+              {form.quietDays.length > 0 && (
+                <p className="text-xs text-muted-foreground">
+                  Suppressed:{" "}
+                  {form.quietDays
+                    .sort((a, b) => a - b)
+                    .map((d) => DAYS_OF_WEEK.find((x) => x.value === d)?.label)
+                    .join(", ")}
+                </p>
+              )}
+            </div>
+
+            <div className="border rounded-lg p-4 space-y-3">
               <div className="flex items-center justify-between">
                 <div>
                   <h3 className="text-sm font-semibold">Smart Suppression</h3>
@@ -900,6 +986,58 @@ export function AgentWizard({ personas }: { personas: Persona[] }) {
                 )}
               </div>
             </div>
+
+            <div className="border rounded-lg p-4 space-y-3">
+              <div>
+                <h3 className="text-sm font-semibold">Max Sends Per Day</h3>
+                <p className="text-xs text-muted-foreground mt-0.5">
+                  Total sends this agent can make per calendar day (UTC). Caps the daily send volume across all users. Leave unlimited for no daily ceiling.
+                </p>
+              </div>
+              <div className="flex items-center gap-3">
+                <Select
+                  value={dailySendCapPreset}
+                  onValueChange={(v) => {
+                    if (!v) return;
+                    setDailySendCapPreset(v);
+                    if (v === "unlimited") {
+                      setDailySendCapCustom("");
+                      update("dailySendCap", null);
+                    } else if (v !== "custom") {
+                      update("dailySendCap", parseInt(v, 10));
+                    }
+                  }}
+                >
+                  <SelectTrigger className="w-36">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {DAILY_SEND_CAP_PRESETS.map((opt) => (
+                      <SelectItem key={opt.value} value={opt.value}>{opt.label}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                {dailySendCapPreset === "custom" && (
+                  <Input
+                    type="number"
+                    min={1}
+                    className="w-28"
+                    placeholder="e.g. 2500"
+                    value={dailySendCapCustom}
+                    onChange={(e) => {
+                      setDailySendCapCustom(e.target.value);
+                      const n = parseInt(e.target.value, 10);
+                      update("dailySendCap", !isNaN(n) && n >= 1 ? n : null);
+                    }}
+                  />
+                )}
+                {form.dailySendCap !== null && (
+                  <span className="text-xs text-muted-foreground tabular-nums">
+                    = {form.dailySendCap.toLocaleString()} sends/day
+                  </span>
+                )}
+              </div>
+            </div>
           </div>
         </div>
       )}
@@ -947,9 +1085,22 @@ export function AgentWizard({ personas }: { personas: Persona[] }) {
               <h3 className="text-sm font-semibold">Scheduling</h3>
               <p className="text-sm">Max {form.frequencyCap.maxSends} sends per {form.frequencyCap.period}</p>
               <p className="text-sm">Quiet: {form.quietStart}–{form.quietEnd} {form.timezone}</p>
+              {form.quietDays.length > 0 && (
+                <p className="text-sm">
+                  <span className="text-muted-foreground">Quiet days: </span>
+                  {form.quietDays
+                    .sort((a, b) => a - b)
+                    .map((d) => DAYS_OF_WEEK.find((x) => x.value === d)?.label)
+                    .join(", ")}
+                </p>
+              )}
               <p className="text-sm">
                 <span className="text-muted-foreground">Max unique users: </span>
                 {form.uniqueUsersCap !== null ? form.uniqueUsersCap.toLocaleString() : "Unlimited"}
+              </p>
+              <p className="text-sm">
+                <span className="text-muted-foreground">Max sends per day: </span>
+                {form.dailySendCap !== null ? form.dailySendCap.toLocaleString() : "Unlimited"}
               </p>
             </div>
           </div>
@@ -975,10 +1126,13 @@ export function AgentWizard({ personas }: { personas: Persona[] }) {
               <ChevronRight className="h-4 w-4 ml-1" />
             </Button>
           ) : (
-            <Button onClick={handleSubmit} disabled={saving || !form.name.trim()}>
-              {saving ? "Saving..." : "Launch Agent"}
-              <Rocket className="h-4 w-4 ml-1" />
-            </Button>
+            <div className="flex flex-col items-end gap-1">
+              <Button onClick={handleSubmit} disabled={saving || !form.name.trim()}>
+                {saving ? "Saving..." : "Launch Agent"}
+                <Rocket className="h-4 w-4 ml-1" />
+              </Button>
+              {submitError && <p className="text-sm text-red-500 mt-2">{submitError}</p>}
+            </div>
           )}
         </div>
       </div>

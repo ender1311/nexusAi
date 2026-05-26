@@ -180,4 +180,6 @@ export interface QuietHours {
   timezone?: string;
   /** schedule mode: 0–23 hour to deliver in each user's local timezone via Braze in_local_time */
   deliverAtHour?: number;
+  /** Days of the week on which sends are suppressed (0=Sunday, 6=Saturday). Empty array = no day suppression. */
+  quietDays?: number[];
 }

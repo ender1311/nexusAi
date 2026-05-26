@@ -127,6 +127,31 @@ export function getTodayStartUTC(timezone: string, now: Date = new Date()): Date
  * @param timezone  IANA timezone string, e.g. "America/Los_Angeles", "UTC"
  * @param now       Current time as a Date object
  */
+/**
+ * Returns true if `now` falls on one of the suppressed days of the week in the given timezone.
+ *
+ * @param quietDays  Array of day-of-week numbers to suppress (0=Sunday, 6=Saturday)
+ * @param timezone   IANA timezone string
+ * @param now        Current time as a Date object
+ */
+export function isQuietDay(quietDays: number[], timezone: string, now: Date): boolean {
+  if (quietDays.length === 0) return false;
+  let dayOfWeek: number;
+  try {
+    // "Sunday"=0, "Monday"=1, ... "Saturday"=6
+    const parts = new Intl.DateTimeFormat("en-US", {
+      timeZone: timezone,
+      weekday: "short",
+    }).formatToParts(now);
+    const weekday = parts.find((p) => p.type === "weekday")?.value;
+    const MAP: Record<string, number> = { Sun: 0, Mon: 1, Tue: 2, Wed: 3, Thu: 4, Fri: 5, Sat: 6 };
+    dayOfWeek = MAP[weekday ?? ""] ?? now.getUTCDay();
+  } catch {
+    return false; // unknown timezone → don't suppress
+  }
+  return quietDays.includes(dayOfWeek);
+}
+
 export function isInQuietHours(start: string, end: string, timezone: string, now: Date): boolean {
   let tzTime: string;
   try {

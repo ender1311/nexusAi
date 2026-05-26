@@ -278,6 +278,39 @@ describe("POST /api/agents — uniqueUsersCap", () => {
   });
 });
 
+describe("POST /api/agents — dailySendCap", () => {
+  it("stores dailySendCap when provided", async () => {
+    const res = await apiPost("/agents", {
+      name: "Capped Agent",
+      funnelStage: "wau",
+      dailySendCap: 500,
+    });
+    expect(res.status).toBe(201);
+    const body = await res.json();
+    expect(body.dailySendCap).toBe(500);
+  });
+
+  it("dailySendCap null means unlimited", async () => {
+    const res = await apiPost("/agents", {
+      name: "Unlimited Agent",
+      funnelStage: "wau",
+      dailySendCap: null,
+    });
+    expect(res.status).toBe(201);
+    const body = await res.json();
+    expect(body.dailySendCap).toBeNull();
+  });
+
+  it("rejects non-positive dailySendCap", async () => {
+    const res = await apiPost("/agents", {
+      name: "Bad Agent",
+      funnelStage: "wau",
+      dailySendCap: -1,
+    });
+    expect(res.status).toBe(400);
+  });
+});
+
 describe("POST /api/agents — sourceTemplateId", () => {
   it("stores sourceTemplateId on variant when provided", async () => {
     // Create template data directly via Prisma for a real FK-valid ID
@@ -320,6 +353,73 @@ describe("POST /api/agents — sourceTemplateId", () => {
     expect(variant).not.toBeNull();
     expect(variant!.sourceTemplateId).toBe(templateVariant.id);
     expect(variant!.deeplink).toBe("youversion://bible");
+  });
+});
+
+describe("POST /api/agents — goal weight fields", () => {
+  it("weightMode property goals are preserved", async () => {
+    const res = await apiPost("/agents", {
+      name: "Weight Mode Agent",
+      algorithm: "thompson",
+      funnelStage: "wau",
+      goals: [
+        {
+          eventName: "order_completed",
+          tier: "best",
+          valueWeight: 5,
+          weightMode: "property",
+          weightProperty: "order_value",
+          weightDefault: 2.5,
+        },
+      ],
+      messages: [],
+    });
+    const body = await res.json();
+    expect(res.status).toBe(201);
+
+    const goals = await prisma.goal.findMany({ where: { agentId: body.id } });
+    expect(goals).toHaveLength(1);
+    expect(goals[0].weightMode).toBe("property");
+    expect(goals[0].weightProperty).toBe("order_value");
+    expect(goals[0].weightDefault).toBe(2.5);
+  });
+});
+
+describe("POST /api/agents — targetPersonaIds", () => {
+  it("targetPersonaIds creates persona targets", async () => {
+    const persona = await prisma.persona.create({
+      data: { name: "P1", label: "p1", traits: "{}", centroid: "[]" },
+    });
+
+    const res = await apiPost("/agents", {
+      name: "Persona Agent",
+      algorithm: "thompson",
+      funnelStage: "wau",
+      goals: [],
+      messages: [],
+      targetPersonaIds: [persona.id],
+    });
+    const body = await res.json();
+    expect(res.status).toBe(201);
+
+    const targets = await prisma.agentPersonaTarget.findMany({ where: { agentId: body.id } });
+    expect(targets).toHaveLength(1);
+    expect(targets[0].personaId).toBe(persona.id);
+  });
+});
+
+describe("POST /api/agents — validation", () => {
+  it("returns 400 when name is empty string", async () => {
+    const res = await apiPost("/agents", {
+      name: "",
+      algorithm: "thompson",
+      funnelStage: "wau",
+      goals: [],
+      messages: [],
+    });
+    const body = await res.json();
+    expect(res.status).toBe(400);
+    expect(body.error).toBe("name is required");
   });
 });
 

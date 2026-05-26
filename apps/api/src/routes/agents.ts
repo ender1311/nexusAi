@@ -46,6 +46,9 @@ agents.post("/", async (c) => {
         tier: string;
         valueWeight: number;
         description?: string;
+        weightMode?: string;
+        weightProperty?: string | null;
+        weightDefault?: number;
       }>;
       messages?: Array<{
         name: string;
@@ -56,11 +59,14 @@ agents.post("/", async (c) => {
       quietStart?: string;
       quietEnd?: string;
       timezone?: string;
+      quietDays?: number[];
       smartSuppress?: boolean;
       suppressThresh?: number;
       funnelStage?: string;
       targetFilter?: unknown;
       uniqueUsersCap?: number | null;
+      dailySendCap?: number | null;
+      targetPersonaIds?: string[];
     }>();
 
     const {
@@ -74,11 +80,14 @@ agents.post("/", async (c) => {
       quietStart,
       quietEnd,
       timezone,
+      quietDays,
       smartSuppress,
       suppressThresh,
       funnelStage,
       targetFilter,
       uniqueUsersCap,
+      dailySendCap,
+      targetPersonaIds = [],
     } = body;
 
     if (typeof name !== "string" || name.trim().length === 0) {
@@ -99,6 +108,18 @@ agents.post("/", async (c) => {
       }
     }
 
+    if (dailySendCap !== undefined && dailySendCap !== null) {
+      if (!Number.isInteger(dailySendCap) || dailySendCap < 1) {
+        return c.json({ error: "dailySendCap must be null or a positive integer" }, 400);
+      }
+    }
+
+    if (quietDays !== undefined) {
+      if (!Array.isArray(quietDays) || quietDays.some((d) => !Number.isInteger(d) || d < 0 || d > 6)) {
+        return c.json({ error: "quietDays must be an array of day-of-week numbers (0–6)" }, 400);
+      }
+    }
+
     const agent = await prisma.agent.create({
       data: {
         name,
@@ -108,6 +129,7 @@ agents.post("/", async (c) => {
         status: "draft",
         funnelStage: funnelStage as string,
         ...(uniqueUsersCap !== undefined ? { uniqueUsersCap } : {}),
+        ...(dailySendCap !== undefined ? { dailySendCap } : {}),
         ...(targetFilter !== undefined
           ? { targetFilter: targetFilter as Prisma.InputJsonValue }
           : {}),
@@ -117,6 +139,9 @@ agents.post("/", async (c) => {
             tier: g.tier,
             valueWeight: g.valueWeight,
             description: g.description,
+            weightMode: g.weightMode ?? "fixed",
+            weightProperty: g.weightProperty ?? null,
+            weightDefault: g.weightDefault ?? 1.0,
           })),
         },
         messages: {
@@ -151,6 +176,7 @@ agents.post("/", async (c) => {
               start: quietStart ?? "22:00",
               end: quietEnd ?? "08:00",
               timezone: timezone ?? "America/New_York",
+              ...(Array.isArray(quietDays) && quietDays.length > 0 ? { quietDays } : {}),
             },
             smartSuppress: smartSuppress ?? false,
             suppressThresh: suppressThresh ?? 0.5,
@@ -160,6 +186,14 @@ agents.post("/", async (c) => {
     });
 
     void revalidate("agents");
+
+    if (targetPersonaIds.length > 0) {
+      await prisma.agentPersonaTarget.createMany({
+        data: targetPersonaIds.map((personaId) => ({ agentId: agent.id, personaId })),
+        skipDuplicates: true,
+      });
+    }
+
     return c.json(agent, 201);
   } catch (error) {
     console.error("POST /agents error:", error);
