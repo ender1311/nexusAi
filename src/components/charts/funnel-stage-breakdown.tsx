@@ -13,7 +13,7 @@ export function FunnelStageBreakdown({ rows, title = "Users by Funnel Stage" }: 
   if (total === 0) return null;
 
   // Sort: known stages first in canonical order, unknown last
-  const ORDER = ["new", "dau4", "wau", "mau", "lapsed_dau", "lapsed_dau4", "lapsed_wau", "lapsed_mau"];
+  const ORDER = ["new", "dau4", "wau", "mau", "lapsed_dau4", "lapsed_wau", "lapsed_mau"];
   const sorted = [...rows].sort((a, b) => {
     const ai = ORDER.indexOf(a.stage);
     const bi = ORDER.indexOf(b.stage);

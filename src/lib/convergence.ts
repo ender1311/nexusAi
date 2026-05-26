@@ -8,7 +8,6 @@ export const SENDS_PER_MONTH: Partial<Record<FunnelStage, number>> = {
   wau:          9,   // ~6–12 sends/month  (1–3×/week)
   mau:          4,   // 4 sends/month      (real send cadence)
   lapsed_dau4:  2,   // 2 sends/month      (real send cadence)
-  lapsed_dau:   2,
   lapsed_wau:   2,
   lapsed_mau:   2,
   new:         25,
