@@ -8,6 +8,8 @@ type FetchOptions = RequestInit & {
   revalidate?: number;
   /** Set to true when the caller has verified the current user is an admin. */
   isAdmin?: boolean;
+  /** Request timeout in ms. Defaults to 5000 for reads; use 15000+ for write-heavy mutations. */
+  timeout?: number;
 };
 
 /** Thrown by apiFetch when the API service returns a non-2xx response. Carries the upstream status code. */
@@ -29,12 +31,12 @@ export async function apiFetch<T>(path: string, options: FetchOptions = {}): Pro
     throw new Error("API_SERVICE_URL and INTERNAL_API_SECRET must be set");
   }
 
-  const { tags, revalidate, isAdmin, ...init } = options;
+  const { tags, revalidate, isAdmin, timeout = 5000, ...init } = options;
   const hasBody = !!init.body;
 
   const res = await fetch(`${API_BASE}${path}`, {
     ...init,
-    signal: AbortSignal.timeout(5000),
+    signal: AbortSignal.timeout(timeout),
     headers: {
       ...(init.headers as Record<string, string> | undefined),
       ...(hasBody && { "Content-Type": "application/json" }),
