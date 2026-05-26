@@ -183,6 +183,7 @@ export function AgentWizard({ personas }: { personas: Persona[] }) {
   const [selectedPushVariants, setSelectedPushVariants] = useState<VariantWithMessage[]>([]);
   const [selectedDestKey, setSelectedDestKey] = useState<string>("");
   const [saving, setSaving] = useState(false);
+  const [submitError, setSubmitError] = useState<string | null>(null);
   const [uniqueUsersPreset, setUniqueUsersPreset] = useState<string>("unlimited");
   const [uniqueUsersCustom, setUniqueUsersCustom] = useState<string>("");
 
@@ -220,6 +221,7 @@ export function AgentWizard({ personas }: { personas: Persona[] }) {
 
   const handleSubmit = async () => {
     setSaving(true);
+    setSubmitError(null);
     try {
       const res = await fetch("/api/agents", {
         method: "POST",
@@ -229,6 +231,15 @@ export function AgentWizard({ personas }: { personas: Persona[] }) {
       if (res.ok) {
         const agent = await res.json();
         router.push(`/agents/${agent.id}`);
+      } else {
+        let msg = "Failed to launch agent. Please try again.";
+        try {
+          const errBody = await res.json();
+          if (typeof errBody?.error === "string") msg = errBody.error;
+        } catch {
+          // ignore parse error, use default message
+        }
+        setSubmitError(msg);
       }
     } finally {
       setSaving(false);
@@ -296,10 +307,13 @@ export function AgentWizard({ personas }: { personas: Persona[] }) {
             <ChevronRight className="h-4 w-4 ml-1" />
           </Button>
         ) : (
-          <Button size="sm" onClick={handleSubmit} disabled={saving || !form.name.trim()}>
-            {saving ? "Saving..." : "Launch Agent"}
-            <Rocket className="h-4 w-4 ml-1" />
-          </Button>
+          <div className="flex flex-col items-end gap-1">
+            <Button size="sm" onClick={handleSubmit} disabled={saving || !form.name.trim()}>
+              {saving ? "Saving..." : "Launch Agent"}
+              <Rocket className="h-4 w-4 ml-1" />
+            </Button>
+            {submitError && <p className="text-sm text-red-500 mt-2">{submitError}</p>}
+          </div>
         )}
       </div>
 
@@ -975,10 +989,13 @@ export function AgentWizard({ personas }: { personas: Persona[] }) {
               <ChevronRight className="h-4 w-4 ml-1" />
             </Button>
           ) : (
-            <Button onClick={handleSubmit} disabled={saving || !form.name.trim()}>
-              {saving ? "Saving..." : "Launch Agent"}
-              <Rocket className="h-4 w-4 ml-1" />
-            </Button>
+            <div className="flex flex-col items-end gap-1">
+              <Button onClick={handleSubmit} disabled={saving || !form.name.trim()}>
+                {saving ? "Saving..." : "Launch Agent"}
+                <Rocket className="h-4 w-4 ml-1" />
+              </Button>
+              {submitError && <p className="text-sm text-red-500 mt-2">{submitError}</p>}
+            </div>
           )}
         </div>
       </div>

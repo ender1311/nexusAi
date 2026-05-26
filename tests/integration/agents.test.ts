@@ -323,6 +323,73 @@ describe("POST /api/agents — sourceTemplateId", () => {
   });
 });
 
+describe("POST /api/agents — goal weight fields", () => {
+  it("weightMode property goals are preserved", async () => {
+    const res = await apiPost("/agents", {
+      name: "Weight Mode Agent",
+      algorithm: "thompson",
+      funnelStage: "wau",
+      goals: [
+        {
+          eventName: "order_completed",
+          tier: "best",
+          valueWeight: 5,
+          weightMode: "property",
+          weightProperty: "order_value",
+          weightDefault: 2.5,
+        },
+      ],
+      messages: [],
+    });
+    const body = await res.json();
+    expect(res.status).toBe(201);
+
+    const goals = await prisma.goal.findMany({ where: { agentId: body.id } });
+    expect(goals).toHaveLength(1);
+    expect(goals[0].weightMode).toBe("property");
+    expect(goals[0].weightProperty).toBe("order_value");
+    expect(goals[0].weightDefault).toBe(2.5);
+  });
+});
+
+describe("POST /api/agents — targetPersonaIds", () => {
+  it("targetPersonaIds creates persona targets", async () => {
+    const persona = await prisma.persona.create({
+      data: { name: "P1", label: "p1", traits: "{}", centroid: "[]" },
+    });
+
+    const res = await apiPost("/agents", {
+      name: "Persona Agent",
+      algorithm: "thompson",
+      funnelStage: "wau",
+      goals: [],
+      messages: [],
+      targetPersonaIds: [persona.id],
+    });
+    const body = await res.json();
+    expect(res.status).toBe(201);
+
+    const targets = await prisma.agentPersonaTarget.findMany({ where: { agentId: body.id } });
+    expect(targets).toHaveLength(1);
+    expect(targets[0].personaId).toBe(persona.id);
+  });
+});
+
+describe("POST /api/agents — validation", () => {
+  it("returns 400 when name is empty string", async () => {
+    const res = await apiPost("/agents", {
+      name: "",
+      algorithm: "thompson",
+      funnelStage: "wau",
+      goals: [],
+      messages: [],
+    });
+    const body = await res.json();
+    expect(res.status).toBe(400);
+    expect(body.error).toBe("name is required");
+  });
+});
+
 describe("PATCH /api/agents/[id] — uniqueUsersCap", () => {
   it("sets uniqueUsersCap to a positive integer and persists it", async () => {
     const agent = await prisma.agent.create({ data: { name: "Cap Agent", algorithm: "thompson", epsilon: 0.1 } });

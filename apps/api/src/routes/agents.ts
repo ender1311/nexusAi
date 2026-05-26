@@ -46,6 +46,9 @@ agents.post("/", async (c) => {
         tier: string;
         valueWeight: number;
         description?: string;
+        weightMode?: string;
+        weightProperty?: string | null;
+        weightDefault?: number;
       }>;
       messages?: Array<{
         name: string;
@@ -61,6 +64,7 @@ agents.post("/", async (c) => {
       funnelStage?: string;
       targetFilter?: unknown;
       uniqueUsersCap?: number | null;
+      targetPersonaIds?: string[];
     }>();
 
     const {
@@ -79,6 +83,7 @@ agents.post("/", async (c) => {
       funnelStage,
       targetFilter,
       uniqueUsersCap,
+      targetPersonaIds = [],
     } = body;
 
     if (typeof name !== "string" || name.trim().length === 0) {
@@ -117,6 +122,9 @@ agents.post("/", async (c) => {
             tier: g.tier,
             valueWeight: g.valueWeight,
             description: g.description,
+            weightMode: g.weightMode ?? "fixed",
+            weightProperty: g.weightProperty ?? null,
+            weightDefault: g.weightDefault ?? 1.0,
           })),
         },
         messages: {
@@ -160,6 +168,14 @@ agents.post("/", async (c) => {
     });
 
     void revalidate("agents");
+
+    if (targetPersonaIds.length > 0) {
+      await prisma.agentPersonaTarget.createMany({
+        data: targetPersonaIds.map((personaId) => ({ agentId: agent.id, personaId })),
+        skipDuplicates: true,
+      });
+    }
+
     return c.json(agent, 201);
   } catch (error) {
     console.error("POST /agents error:", error);
