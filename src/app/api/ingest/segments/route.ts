@@ -11,8 +11,8 @@ type SegmentUserRecord = {
   };
 };
 
-const CHUNK = 50;
-const MAX_BATCH = 1000;
+const CHUNK = 200;
+const MAX_BATCH = 10_000;
 
 export async function POST(req: NextRequest): Promise<NextResponse> {
   if (!verifyIngestAuth(req.headers)) {
@@ -44,7 +44,7 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
 
   if (rawUsers.length > MAX_BATCH) {
     return NextResponse.json(
-      { error: `Batch too large: maximum ${MAX_BATCH} users per request` },
+      { error: `Batch too large: maximum ${MAX_BATCH.toLocaleString()} users per request` },
       { status: 400 },
     );
   }
