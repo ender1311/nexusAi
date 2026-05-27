@@ -93,6 +93,12 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
       }
     }
 
+    if (body.targetSegmentName !== undefined && body.targetSegmentName !== null) {
+      if (typeof body.targetSegmentName !== "string" || body.targetSegmentName.trim().length === 0) {
+        return NextResponse.json({ error: "targetSegmentName must be null or a non-empty string" }, { status: 400 });
+      }
+    }
+
     const agent = await prisma.agent.update({
       where: { id },
       data: {
@@ -109,6 +115,7 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
         ...(body.dailySendCap !== undefined ? { dailySendCap: body.dailySendCap } : {}),
         ...(body.languageFilter !== undefined ? { languageFilter: body.languageFilter } : {}),
         ...(body.color !== undefined ? { color: body.color } : {}),
+        ...(body.targetSegmentName !== undefined ? { targetSegmentName: body.targetSegmentName } : {}),
       },
     });
     revalidatePath(`/agents/${id}`);

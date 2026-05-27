@@ -53,6 +53,7 @@ export async function POST(req: NextRequest) {
       uniqueUsersCap,
       dailySendCap,
       targetPersonaIds,
+      targetSegmentName,
     } = body;
 
     if (typeof name !== "string" || name.trim().length === 0) {
@@ -73,6 +74,9 @@ export async function POST(req: NextRequest) {
       if (!Number.isInteger(dailySendCap) || (dailySendCap as number) < 1) {
         return NextResponse.json({ error: "dailySendCap must be null or a positive integer" }, { status: 400 });
       }
+    }
+    if (targetSegmentName !== undefined && targetSegmentName !== null && (typeof targetSegmentName !== "string" || (targetSegmentName as string).trim().length === 0)) {
+      return NextResponse.json({ error: "targetSegmentName must be null or a non-empty string" }, { status: 400 });
     }
     if (quietDays !== undefined) {
       if (
@@ -98,6 +102,7 @@ export async function POST(req: NextRequest) {
         funnelStage: funnelStage as string,
         ...(uniqueUsersCap !== undefined ? { uniqueUsersCap: uniqueUsersCap as number | null } : {}),
         ...(dailySendCap !== undefined ? { dailySendCap: dailySendCap as number | null } : {}),
+        ...(targetSegmentName !== undefined ? { targetSegmentName: typeof targetSegmentName === "string" ? (targetSegmentName as string).trim() : null } : {}),
         ...(targetFilter !== undefined && targetFilter !== null
           ? { targetFilter: targetFilter as Prisma.InputJsonValue }
           : {}),
