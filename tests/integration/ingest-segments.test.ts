@@ -37,8 +37,8 @@ describe("validation", () => {
     expect(res.status).toBe(400);
   });
 
-  it("returns 400 when batch exceeds 1000 users", async () => {
-    const users = Array.from({ length: 1001 }, (_, i) => ({
+  it("returns 400 when batch exceeds maximum users", async () => {
+    const users = Array.from({ length: 10_001 }, (_, i) => ({
       external_user_id: `user_${i}`,
       attributes: { ht_segment_name: "big_segment" },
     }));
@@ -46,7 +46,7 @@ describe("validation", () => {
     const res = await POST(req as NextRequest);
     expect(res.status).toBe(400);
     const body = await res.json();
-    expect(body.error).toContain("1000");
+    expect(body.error).toContain("10,000");
   });
 });
 
