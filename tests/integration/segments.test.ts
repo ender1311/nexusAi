@@ -23,9 +23,9 @@ describe("GET /api/segments", () => {
     const res = await GET();
     const body = await res.json();
     expect(body.data).toEqual([
-      { name: "alpha_segment", assignedTo: null },
-      { name: "mid_segment", assignedTo: null },
-      { name: "zebra_segment", assignedTo: null },
+      { name: "alpha_segment", userCount: 2, assignedTo: null },
+      { name: "mid_segment", userCount: 1, assignedTo: null },
+      { name: "zebra_segment", userCount: 1, assignedTo: null },
     ]);
   });
 
@@ -35,6 +35,6 @@ describe("GET /api/segments", () => {
 
     const res = await GET();
     const body = await res.json();
-    expect(body.data).toEqual([{ name: "bible_readers", assignedTo: agent.name }]);
+    expect(body.data).toEqual([{ name: "bible_readers", userCount: 1, assignedTo: agent.name }]);
   });
 });

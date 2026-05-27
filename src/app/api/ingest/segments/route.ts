@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { revalidateTag } from "next/cache";
 import { prisma } from "@/lib/db";
 import { verifyIngestAuth } from "@/lib/ingest-auth";
 
@@ -117,6 +118,8 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
       },
     })
     .catch(() => {});
+
+  revalidateTag("segments", "max");
 
   return NextResponse.json(responseBody, { status: 200 });
 }

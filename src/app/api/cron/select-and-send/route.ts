@@ -1,6 +1,13 @@
 import { NextRequest, NextResponse } from "next/server";
 import { revalidateTag } from "next/cache";
 import { randomUUID } from "crypto";
+import {
+  getCachedDashboardCounts,
+  getCachedDashboardTimeSeries,
+  getCachedAgentList,
+  getCachedPerformanceMetrics,
+  getCachedSegments,
+} from "@/lib/cache";
 import { prisma } from "@/lib/db";
 import type { Prisma } from "@/generated/prisma/client";
 import { createBrazeClient } from "@/lib/braze/client";
@@ -1551,6 +1558,16 @@ export async function POST(req: NextRequest) {
     revalidateTag("dashboard-stats", "max");
     revalidateTag("performance", "max");
   }
+
+  // Warm the most-visited caches so the first page load after this cron gets a hit.
+  // Fire-and-forget: warming failures don't affect the cron response.
+  void Promise.all([
+    getCachedDashboardCounts(),
+    getCachedDashboardTimeSeries(),
+    getCachedAgentList(),
+    getCachedPerformanceMetrics(),
+    getCachedSegments(),
+  ]).catch(() => {});
 
   return NextResponse.json({
     ok: true,

@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
+import { revalidateTag } from "next/cache";
 import { prisma } from "@/lib/db";
 import { batchUpsertArmStats, batchUpsertUserArmStats } from "@/lib/arm-stats";
+import { getCachedDashboardCounts, getCachedPerformanceMetrics, getCachedVariantMetrics } from "@/lib/cache";
 
 // Allow up to 300s execution time on Vercel
 export const maxDuration = 300;
@@ -120,6 +122,17 @@ export async function POST(req: NextRequest) {
       data:  { reward: -NO_ENGAGE_PENALTY, brazeAnalyticsFetchedAt: now },
     });
   }
+
+  // Bust caches that depend on arm stats / reward data and warm them
+  // immediately so the next page load gets a cache hit instead of a cold query.
+  revalidateTag("dashboard-stats", "max");
+  revalidateTag("performance", "max");
+  revalidateTag("braze-stats", "max");
+  void Promise.all([
+    getCachedDashboardCounts(),
+    getCachedPerformanceMetrics(),
+    getCachedVariantMetrics(),
+  ]).catch(() => {});
 
   return NextResponse.json({
     ok:        true,
