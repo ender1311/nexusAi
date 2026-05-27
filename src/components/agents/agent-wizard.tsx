@@ -202,12 +202,12 @@ export function AgentWizard({ personas }: { personas: Persona[] }) {
   const [uniqueUsersCustom, setUniqueUsersCustom] = useState<string>("");
   const [dailySendCapPreset, setDailySendCapPreset] = useState<string>("unlimited");
   const [dailySendCapCustom, setDailySendCapCustom] = useState<string>("");
-  const [segments, setSegments] = useState<string[]>([]);
+  const [segments, setSegments] = useState<{ name: string; assignedTo: string | null }[]>([]);
 
   useEffect(() => {
     fetch("/api/segments")
       .then((r) => r.json())
-      .then((j: { data: string[] }) => setSegments(j.data))
+      .then((j: { data: { name: string; assignedTo: string | null }[] }) => setSegments(j.data))
       .catch(() => {});
   }, []);
 
@@ -444,7 +444,12 @@ export function AgentWizard({ personas }: { personas: Persona[] }) {
                     </SelectTrigger>
                     <SelectContent>
                       {segments.map((s) => (
-                        <SelectItem key={s} value={s}>{s}</SelectItem>
+                        <SelectItem key={s.name} value={s.name} disabled={s.assignedTo !== null}>
+                          <span className={s.assignedTo ? "text-muted-foreground" : undefined}>
+                            {s.name}
+                            {s.assignedTo && <span className="ml-2 text-xs">({s.assignedTo})</span>}
+                          </span>
+                        </SelectItem>
                       ))}
                     </SelectContent>
                   </Select>

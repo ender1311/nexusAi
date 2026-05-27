@@ -78,6 +78,13 @@ export async function POST(req: NextRequest) {
     if (targetSegmentName !== undefined && targetSegmentName !== null && (typeof targetSegmentName !== "string" || (targetSegmentName as string).trim().length === 0)) {
       return NextResponse.json({ error: "targetSegmentName must be null or a non-empty string" }, { status: 400 });
     }
+    if (targetSegmentName && typeof targetSegmentName === "string") {
+      const trimmed = (targetSegmentName as string).trim();
+      const conflict = await prisma.agent.findFirst({ where: { targetSegmentName: trimmed }, select: { name: true } });
+      if (conflict) {
+        return NextResponse.json({ error: `Segment "${trimmed}" is already assigned to agent "${conflict.name}"` }, { status: 409 });
+      }
+    }
     if (quietDays !== undefined) {
       if (
         !Array.isArray(quietDays) ||
