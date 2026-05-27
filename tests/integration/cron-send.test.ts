@@ -7,6 +7,7 @@ import {
   createUser, createSchedulingRule, linkAgentToPersona,
   createUserDecision,
   createUserAgentAssignment,   // ← add this
+  createUserSegment,
 } from "../helpers/builders";
 import { recencyMultiplier } from "@/lib/engine/beta-pdf";
 
@@ -854,5 +855,81 @@ describe("newsletter channel eligibility and language_tag filters", () => {
 
     expect(res.status).toBe(200);
     expect(body.sent).toBe(1);
+  });
+});
+
+describe("segment targeting", () => {
+  it("agent with targetSegmentName targets ONLY users in that segment, not others with matching funnelStage", async () => {
+    const persona = await createPersona();
+    const agent = await createAgent({ funnelStage: "wau", targetSegmentName: "bible_readers" });
+    const msg = await createMessage(agent.id, { brazeCampaignId: "camp_seg1" });
+    await createVariant(msg.id);
+    await linkAgentToPersona(agent.id, persona.id);
+    await createSchedulingRule(agent.id);
+
+    // User in segment — should be sent to
+    await createUser("usr_in_segment", { personaId: persona.id, funnelStage: "wau" });
+    await createUserSegment("usr_in_segment", "bible_readers");
+
+    // User NOT in segment but has matching funnelStage — should NOT be sent to
+    await createUser("usr_not_in_segment", { personaId: persona.id, funnelStage: "wau" });
+
+    const res = await POST(buildRequest("POST", undefined, CRON_AUTH) as NextRequest);
+    const body = await res.json();
+
+    expect(res.status).toBe(200);
+    expect(body.sent).toBe(1);
+
+    const inSegmentDecisions = await prisma.userDecision.findMany({ where: { userId: "usr_in_segment" } });
+    const notInSegmentDecisions = await prisma.userDecision.findMany({ where: { userId: "usr_not_in_segment" } });
+    expect(inSegmentDecisions).toHaveLength(1);
+    expect(notInSegmentDecisions).toHaveLength(0);
+  });
+
+  it("agent with targetSegmentName set to a non-existent segment sends to nobody", async () => {
+    const persona = await createPersona();
+    const agent = await createAgent({ funnelStage: "wau", targetSegmentName: "nonexistent_segment" });
+    const msg = await createMessage(agent.id, { brazeCampaignId: "camp_seg2" });
+    await createVariant(msg.id);
+    await linkAgentToPersona(agent.id, persona.id);
+    await createSchedulingRule(agent.id);
+
+    // User in persona with matching funnelStage — but segment doesn't exist
+    await createUser("usr_seg_nobody", { personaId: persona.id, funnelStage: "wau" });
+
+    const res = await POST(buildRequest("POST", undefined, CRON_AUTH) as NextRequest);
+    const body = await res.json();
+
+    expect(res.status).toBe(200);
+    expect(body.sent).toBe(0);
+
+    const decisions = await prisma.userDecision.findMany({ where: { userId: "usr_seg_nobody" } });
+    expect(decisions).toHaveLength(0);
+  });
+
+  it("agent without targetSegmentName still uses funnelStage filtering (regression)", async () => {
+    const persona = await createPersona();
+    // Agent targets "wau" funnelStage, no segment targeting
+    const agent = await createAgent({ funnelStage: "wau", targetSegmentName: undefined });
+    const msg = await createMessage(agent.id, { brazeCampaignId: "camp_seg3" });
+    await createVariant(msg.id);
+    await linkAgentToPersona(agent.id, persona.id);
+    await createSchedulingRule(agent.id);
+
+    // User with matching funnelStage — should be sent to
+    await createUser("usr_wau_match", { personaId: persona.id, funnelStage: "wau" });
+
+    // User with non-matching funnelStage — should NOT be sent to
+    await createUser("usr_lapsed_no_match", { personaId: persona.id, funnelStage: "lapsed" });
+
+    const res = await POST(buildRequest("POST", undefined, CRON_AUTH) as NextRequest);
+    await res.json();
+
+    expect(res.status).toBe(200);
+    // Only the wau user should be sent to
+    const wauDecisions = await prisma.userDecision.findMany({ where: { userId: "usr_wau_match" } });
+    const lapsedDecisions = await prisma.userDecision.findMany({ where: { userId: "usr_lapsed_no_match" } });
+    expect(wauDecisions.length).toBeGreaterThan(0);
+    expect(lapsedDecisions).toHaveLength(0);
   });
 });

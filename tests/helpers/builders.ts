@@ -8,6 +8,7 @@ export async function createAgent(overrides: {
   funnelStage?: string;
   targetFilter?: object;
   staleFunnelStageDays?: number | null;
+  targetSegmentName?: string | null;
 } = {}) {
   return prisma.agent.create({
     data: {
@@ -214,6 +215,12 @@ export async function createCampaignContent(overrides: {
 
 export async function linkAgentToPersona(agentId: string, personaId: string) {
   return prisma.agentPersonaTarget.create({ data: { agentId, personaId } });
+}
+
+export async function createUserSegment(externalId: string, segmentName: string) {
+  return prisma.userSegment.create({
+    data: { externalId, segmentName },
+  });
 }
 
 export async function createUserAgentAssignment(params: {

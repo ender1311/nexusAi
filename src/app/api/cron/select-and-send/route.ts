@@ -297,15 +297,37 @@ export async function POST(req: NextRequest) {
               ...(staleAt && { funnelStageUpdatedAt: { gte: staleAt } }),
             }
           : {};
-        const rows = await prisma.trackedUser.findMany({
-          where:  { personaId: { in: personaIds }, ...langFilter, ...funnelFilter },
-          select: { externalId: true, preferredSendHour: true },
-        });
-        eligibleUsersByAgent.set(agent.id, rows.map((r) => r.externalId));
-        preferredHourByAgent.set(
-          agent.id,
-          new Map(rows.map((r) => [r.externalId, r.preferredSendHour])),
-        );
+        if (agent.targetSegmentName) {
+          // Segment-based targeting: query UserSegment first, then fetch those TrackedUsers
+          const members = await prisma.userSegment.findMany({
+            where: { segmentName: agent.targetSegmentName },
+            select: { externalId: true },
+          });
+          if (members.length === 0) {
+            eligibleUsersByAgent.set(agent.id, []);
+            return;
+          }
+          const memberIds = members.map((m) => m.externalId);
+          const rows = await prisma.trackedUser.findMany({
+            where: { externalId: { in: memberIds }, personaId: { in: personaIds } },
+            select: { externalId: true, preferredSendHour: true },
+          });
+          eligibleUsersByAgent.set(agent.id, rows.map((r) => r.externalId));
+          preferredHourByAgent.set(
+            agent.id,
+            new Map(rows.map((r) => [r.externalId, r.preferredSendHour])),
+          );
+        } else {
+          const rows = await prisma.trackedUser.findMany({
+            where:  { personaId: { in: personaIds }, ...langFilter, ...funnelFilter },
+            select: { externalId: true, preferredSendHour: true },
+          });
+          eligibleUsersByAgent.set(agent.id, rows.map((r) => r.externalId));
+          preferredHourByAgent.set(
+            agent.id,
+            new Map(rows.map((r) => [r.externalId, r.preferredSendHour])),
+          );
+        }
       })
     ),
     // ─── Phase 0 setup: fetch cooldown config in parallel with lottery queries ───
@@ -383,8 +405,9 @@ export async function POST(req: NextRequest) {
           const lang = attrs?.language_tag as string | undefined;
           if (!lang?.startsWith(effectiveLang)) continue;
         }
-        // Funnel stage filter: skip user if their funnelStage doesn't match the agent's
-        if (agent.funnelStage && user.funnelStage !== agent.funnelStage) continue;
+        // Funnel stage filter: skip user if their funnelStage doesn't match the agent's.
+        // Skip this check when segment targeting is active — segment membership is the filter.
+        if (!agent.targetSegmentName && agent.funnelStage && user.funnelStage !== agent.funnelStage) continue;
         eligible.push(agent.id);
       }
       if (eligible.length > 0) eligibleAgentsByUser.set(user.externalId, eligible);
