@@ -97,6 +97,11 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
       if (typeof body.targetSegmentName !== "string" || body.targetSegmentName.trim().length === 0) {
         return NextResponse.json({ error: "targetSegmentName must be null or a non-empty string" }, { status: 400 });
       }
+      const trimmed = body.targetSegmentName.trim();
+      const conflict = await prisma.agent.findFirst({ where: { targetSegmentName: trimmed, id: { not: id } }, select: { name: true } });
+      if (conflict) {
+        return NextResponse.json({ error: `Segment "${trimmed}" is already assigned to agent "${conflict.name}"` }, { status: 409 });
+      }
     }
 
     const agent = await prisma.agent.update({
