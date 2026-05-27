@@ -22,6 +22,14 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { PushNotificationPreview } from "@/components/agents/push-notification-preview";
+import {
+  buildSpecificVerseDeeplink,
+  GENERIC_BIBLE_DEEPLINK,
+  isSpecificVerseDeeplink,
+  parseUsfmFromDeeplink,
+  type SpecificVerseDeeplinkMode,
+} from "@/lib/push-deeplinks";
+import { cn } from "@/lib/utils";
 
 const CATEGORIES = [
   "reader",
@@ -68,6 +76,18 @@ export function TemplateFormSheet({ mode, variant, children }: Props) {
   const [deeplink, setDeeplink] = useState(variant?.deeplink ?? "");
   const [cta, setCta] = useState(variant?.cta ?? "");
 
+  // Only meaningful when subcategory === "specific-verse"
+  const [svMode, setSvMode] = useState<SpecificVerseDeeplinkMode>(
+    variant?.subcategory === "specific-verse" && isSpecificVerseDeeplink(variant?.deeplink)
+      ? "specific"
+      : "generic"
+  );
+  const [svUsfm, setSvUsfm] = useState(
+    isSpecificVerseDeeplink(variant?.deeplink)
+      ? (parseUsfmFromDeeplink(variant?.deeplink) ?? "")
+      : ""
+  );
+
   const subcategoryOptions = SUBCATEGORIES[category] ?? [];
 
   function resetForm() {
@@ -79,6 +99,8 @@ export function TemplateFormSheet({ mode, variant, children }: Props) {
       setBody("");
       setDeeplink("");
       setCta("");
+      setSvMode("generic");
+      setSvUsfm("");
     }
   }
 
@@ -86,6 +108,14 @@ export function TemplateFormSheet({ mode, variant, children }: Props) {
     e.preventDefault();
     setLoading(true);
     setFormError(null);
+
+    const effectiveDeeplink =
+      subcategory === "specific-verse"
+        ? (svMode === "generic"
+            ? GENERIC_BIBLE_DEEPLINK
+            : (svUsfm.trim() ? buildSpecificVerseDeeplink(svUsfm.trim()) : null))
+        : (deeplink.trim() || null);
+
     try {
       let res: Response;
       if (mode === "create") {
@@ -98,7 +128,7 @@ export function TemplateFormSheet({ mode, variant, children }: Props) {
             subcategory: subcategory || undefined,
             title: title || undefined,
             body,
-            deeplink: deeplink || undefined,
+            deeplink: effectiveDeeplink ?? undefined,
             cta: cta || undefined,
           }),
         });
@@ -110,7 +140,7 @@ export function TemplateFormSheet({ mode, variant, children }: Props) {
             name,
             title: title || null,
             body,
-            deeplink: deeplink || null,
+            deeplink: effectiveDeeplink,
             cta: cta || null,
             category,
           }),
@@ -221,12 +251,57 @@ export function TemplateFormSheet({ mode, variant, children }: Props) {
 
           <div className="space-y-1.5">
             <Label htmlFor="deeplink">Deeplink</Label>
-            <Input
-              id="deeplink"
-              value={deeplink}
-              onChange={(e) => setDeeplink(e.target.value)}
-              placeholder="youversion://bible or https://..."
-            />
+            {subcategory === "specific-verse" ? (
+              <div className="space-y-2">
+                <div className="flex rounded-md border overflow-hidden text-xs">
+                  <button
+                    type="button"
+                    className={cn(
+                      "px-3 py-1.5 font-medium transition-colors",
+                      svMode === "generic"
+                        ? "bg-primary text-primary-foreground"
+                        : "text-muted-foreground hover:text-foreground",
+                    )}
+                    onClick={() => setSvMode("generic")}
+                  >
+                    Generic
+                  </button>
+                  <button
+                    type="button"
+                    className={cn(
+                      "px-3 py-1.5 font-medium transition-colors border-l",
+                      svMode === "specific"
+                        ? "bg-primary text-primary-foreground"
+                        : "text-muted-foreground hover:text-foreground",
+                    )}
+                    onClick={() => setSvMode("specific")}
+                  >
+                    Specific Verse
+                  </button>
+                </div>
+                {svMode === "specific" && (
+                  <Input
+                    value={svUsfm}
+                    onChange={(e) => setSvUsfm(e.target.value)}
+                    placeholder="e.g. MAT.1.1 or JHN.1.1-15"
+                  />
+                )}
+                <p className="text-xs font-mono text-muted-foreground break-all">
+                  {svMode === "generic"
+                    ? "youversion://bible"
+                    : svUsfm
+                    ? `youversion://bible?reference=${svUsfm}`
+                    : "—"}
+                </p>
+              </div>
+            ) : (
+              <Input
+                id="deeplink"
+                value={deeplink}
+                onChange={(e) => setDeeplink(e.target.value)}
+                placeholder="youversion://bible or https://..."
+              />
+            )}
           </div>
 
           <div className="space-y-1.5">
@@ -245,7 +320,13 @@ export function TemplateFormSheet({ mode, variant, children }: Props) {
             <PushNotificationPreview
               title={title || undefined}
               body={body || "Your message body will appear here."}
-              deeplink={deeplink || undefined}
+              deeplink={
+                subcategory === "specific-verse"
+                  ? (svMode === "generic"
+                      ? GENERIC_BIBLE_DEEPLINK
+                      : (svUsfm ? buildSpecificVerseDeeplink(svUsfm) : undefined))
+                  : (deeplink || undefined)
+              }
             />
           </div>
 

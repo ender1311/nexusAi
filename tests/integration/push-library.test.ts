@@ -160,6 +160,75 @@ describe("POST /api/push-library", () => {
   });
 });
 
+describe("specific-verse deeplinks", () => {
+  it("POST /api/push-library creates specific-verse variant with USFM deeplink", async () => {
+    mockAuth.roles = ["admin"];
+    await seedLibrary();
+
+    const req = buildRequest("POST", {
+      name: "Verse of the Day",
+      category: "reader",
+      subcategory: "specific-verse",
+      body: "Read Matthew 1:1 today.",
+      deeplink: "youversion://bible?reference=MAT.1.1",
+    }) as NextRequest;
+    const res = await POST(req);
+    const body = await res.json();
+
+    expect(res.status).toBe(201);
+    expect(body.data.deeplink).toBe("youversion://bible?reference=MAT.1.1");
+    expect(body.data.subcategory).toBe("specific-verse");
+    expect(body.data.name).toBe("Verse of the Day");
+    expect(body.data.body).toBe("Read Matthew 1:1 today.");
+  });
+
+  it("POST /api/push-library creates specific-verse variant with generic deeplink", async () => {
+    mockAuth.roles = ["admin"];
+    await seedLibrary();
+
+    const req = buildRequest("POST", {
+      name: "Open Bible Generic",
+      category: "reader",
+      subcategory: "specific-verse",
+      body: "Tap to read your Bible.",
+      deeplink: "youversion://bible",
+    }) as NextRequest;
+    const res = await POST(req);
+    const body = await res.json();
+
+    expect(res.status).toBe(201);
+    expect(body.data.deeplink).toBe("youversion://bible");
+    expect(body.data.subcategory).toBe("specific-verse");
+  });
+
+  it("GET /api/push-library returns specific-verse deeplink in grouped response", async () => {
+    const { agent } = await seedLibrary();
+    const msg = await createMessage(agent.id);
+    const variant = await createVariant(msg.id, {
+      name: "John 3:16",
+      title: "The Greatest Love",
+      body: "For God so loved the world...",
+      deeplink: "youversion://bible?reference=JHN.3.16",
+      category: "reader",
+      subcategory: "specific-verse",
+      status: "active",
+    });
+
+    const res = await GET();
+    const body = await res.json();
+
+    expect(res.status).toBe(200);
+    const allVariants = body.data.flatMap((g: { variants: unknown[] }) => g.variants);
+    const foundVariant = allVariants.find(
+      (v: { id: string }) => v.id === variant.id
+    ) as { deeplink?: string; subcategory?: string } | undefined;
+
+    expect(foundVariant).toBeDefined();
+    expect(foundVariant?.deeplink).toBe("youversion://bible?reference=JHN.3.16");
+    expect(foundVariant?.subcategory).toBe("specific-verse");
+  });
+});
+
 describe("DELETE /api/push-library/[id]", () => {
   it("returns 403 for non-admin", async () => {
     mockAuth.roles = [];
