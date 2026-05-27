@@ -98,7 +98,7 @@ export const getCachedAgentList = cache(
         orderBy: { updatedAt: "desc" },
       }),
     ["agent-list"],
-    { tags: ["agents"], revalidate: 14400 }
+    { tags: ["agents"], revalidate: 900 }
   )
 );
 
@@ -111,7 +111,7 @@ export const getCachedControlTowerAgents = unstable_cache(
       orderBy: { updatedAt: "desc" },
     }),
   ["control-tower-agents"],
-  { tags: ["agents"], revalidate: 14400 }
+  { tags: ["agents"], revalidate: 900 }
 );
 
 // ── Persona data ─────────────────────────────────────────────────────────────
@@ -125,7 +125,7 @@ export const getCachedActivePersonas = unstable_cache(
       orderBy: { name: "asc" },
     }),
   ["personas-active"],
-  { tags: ["personas"], revalidate: 14400 }
+  { tags: ["personas"], revalidate: 900 }
 );
 
 /** Persona distribution with user counts for the dashboard chart. */
@@ -139,7 +139,7 @@ export const getCachedPersonaDistribution = cache(
         take: 20,
       }),
     ["personas-distribution"],
-    { tags: ["personas"], revalidate: 14400 }
+    { tags: ["personas"], revalidate: 900 }
   )
 );
 
@@ -437,7 +437,7 @@ export const getCachedAllVariantNames = cache(
   unstable_cache(
     () => prisma.messageVariant.findMany({ select: { id: true, name: true } }),
     ["all-variant-names"],
-    { tags: ["agents"], revalidate: 14400 }
+    { tags: ["agents"], revalidate: 900 }
   )
 );
 
