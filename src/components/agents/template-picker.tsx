@@ -63,10 +63,15 @@ type FetchState =
   | { status: "done"; variants: VariantWithMessage[]; fetchedCategory: string; fetchedSubcategory: string }
   | { status: "error"; message: string };
 
-export type TemplatePickerProps = {
-  agentId: string;
-  onSaved: () => void;
+type DraftMessage = {
+  name: string;
+  channel: "push";
+  variants: Array<{ name: string; title?: string; body: string; deeplink?: string; sourceTemplateId: string }>;
 };
+
+export type TemplatePickerProps =
+  | { agentId: string; onSaved: () => void; onAddToDraft?: never }
+  | { onAddToDraft: (msg: DraftMessage) => void; agentId?: never; onSaved?: never };
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -79,7 +84,7 @@ function buildMessageName(category: string, subcategory: string): string {
 
 // ─── Component ────────────────────────────────────────────────────────────────
 
-export function TemplatePicker({ agentId, onSaved }: TemplatePickerProps) {
+export function TemplatePicker(props: TemplatePickerProps) {
   const firstCategory = CATEGORIES[0];
   const firstSubcategory = firstCategory.subcategories[0];
 
@@ -161,18 +166,16 @@ export function TemplatePicker({ agentId, onSaved }: TemplatePickerProps) {
 
   async function handleSave() {
     if (saving) return;
-    setSaving(true);
-    setSaveError(null);
 
-    const variants =
+    const selectedVariants =
       fetchState.status === "done"
         ? fetchState.variants.filter((v) => selectedVariantIds.has(v.id))
         : [];
 
-    const payload = {
+    const payload: DraftMessage = {
       name: messageName.trim(),
       channel: "push",
-      variants: variants.map((v) => ({
+      variants: selectedVariants.map((v) => ({
         name: v.name,
         title: v.title ?? undefined,
         body: v.body,
@@ -181,19 +184,28 @@ export function TemplatePicker({ agentId, onSaved }: TemplatePickerProps) {
       })),
     };
 
+    // Draft mode (wizard): add to parent state, reset for next message
+    if (props.onAddToDraft) {
+      props.onAddToDraft(payload);
+      setSelectedVariantIds(new Set());
+      setNameManuallyEdited(false);
+      return;
+    }
+
+    // Existing-agent mode: POST to the API
+    setSaving(true);
+    setSaveError(null);
     try {
-      const res = await fetch(`/api/agents/${agentId}/messages`, {
+      const res = await fetch(`/api/agents/${props.agentId}/messages`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(payload),
       });
-
       if (!res.ok) {
         const json = (await res.json()) as { error?: string };
         throw new Error(json.error ?? `HTTP ${res.status}`);
       }
-
-      onSaved();
+      props.onSaved();
     } catch (err) {
       setSaveError(err instanceof Error ? err.message : "Failed to save message.");
     } finally {
@@ -272,7 +284,7 @@ export function TemplatePicker({ agentId, onSaved }: TemplatePickerProps) {
             : `${selectedCount} variant${selectedCount === 1 ? "" : "s"} selected`}
         </span>
         <Button size="sm" disabled={!canSave} onClick={handleSave}>
-          {saving ? "Saving…" : "Save Message"}
+          {saving ? "Adding…" : props.onAddToDraft ? "Add Message" : "Save Message"}
         </Button>
       </div>
 
