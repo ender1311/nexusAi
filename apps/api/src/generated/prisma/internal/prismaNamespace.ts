@@ -407,7 +407,8 @@ export const ModelName = {
   ProcessedEventId: 'ProcessedEventId',
   IngestSyncLog: 'IngestSyncLog',
   CampaignContent: 'CampaignContent',
-  DemoUserGroup: 'DemoUserGroup'
+  DemoUserGroup: 'DemoUserGroup',
+  UserSegment: 'UserSegment'
 } as const
 
 export type ModelName = (typeof ModelName)[keyof typeof ModelName]
@@ -423,7 +424,7 @@ export type TypeMap<ExtArgs extends runtime.Types.Extensions.InternalArgs = runt
     omit: GlobalOmitOptions
   }
   meta: {
-    modelProps: "agent" | "goal" | "message" | "messageVariant" | "deeplink" | "userDecision" | "trackedUser" | "persona" | "agentPersonaTarget" | "personaArmStats" | "userArmStats" | "linUCBArm" | "schedulingRule" | "modelMetric" | "planSet" | "planSetMember" | "appSetting" | "userAgentAssignment" | "cronRun" | "failedBrazeSend" | "processedEventId" | "ingestSyncLog" | "campaignContent" | "demoUserGroup"
+    modelProps: "agent" | "goal" | "message" | "messageVariant" | "deeplink" | "userDecision" | "trackedUser" | "persona" | "agentPersonaTarget" | "personaArmStats" | "userArmStats" | "linUCBArm" | "schedulingRule" | "modelMetric" | "planSet" | "planSetMember" | "appSetting" | "userAgentAssignment" | "cronRun" | "failedBrazeSend" | "processedEventId" | "ingestSyncLog" | "campaignContent" | "demoUserGroup" | "userSegment"
     txIsolationLevel: TransactionIsolationLevel
   }
   model: {
@@ -2203,6 +2204,80 @@ export type TypeMap<ExtArgs extends runtime.Types.Extensions.InternalArgs = runt
         }
       }
     }
+    UserSegment: {
+      payload: Prisma.$UserSegmentPayload<ExtArgs>
+      fields: Prisma.UserSegmentFieldRefs
+      operations: {
+        findUnique: {
+          args: Prisma.UserSegmentFindUniqueArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$UserSegmentPayload> | null
+        }
+        findUniqueOrThrow: {
+          args: Prisma.UserSegmentFindUniqueOrThrowArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$UserSegmentPayload>
+        }
+        findFirst: {
+          args: Prisma.UserSegmentFindFirstArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$UserSegmentPayload> | null
+        }
+        findFirstOrThrow: {
+          args: Prisma.UserSegmentFindFirstOrThrowArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$UserSegmentPayload>
+        }
+        findMany: {
+          args: Prisma.UserSegmentFindManyArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$UserSegmentPayload>[]
+        }
+        create: {
+          args: Prisma.UserSegmentCreateArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$UserSegmentPayload>
+        }
+        createMany: {
+          args: Prisma.UserSegmentCreateManyArgs<ExtArgs>
+          result: BatchPayload
+        }
+        createManyAndReturn: {
+          args: Prisma.UserSegmentCreateManyAndReturnArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$UserSegmentPayload>[]
+        }
+        delete: {
+          args: Prisma.UserSegmentDeleteArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$UserSegmentPayload>
+        }
+        update: {
+          args: Prisma.UserSegmentUpdateArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$UserSegmentPayload>
+        }
+        deleteMany: {
+          args: Prisma.UserSegmentDeleteManyArgs<ExtArgs>
+          result: BatchPayload
+        }
+        updateMany: {
+          args: Prisma.UserSegmentUpdateManyArgs<ExtArgs>
+          result: BatchPayload
+        }
+        updateManyAndReturn: {
+          args: Prisma.UserSegmentUpdateManyAndReturnArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$UserSegmentPayload>[]
+        }
+        upsert: {
+          args: Prisma.UserSegmentUpsertArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$UserSegmentPayload>
+        }
+        aggregate: {
+          args: Prisma.UserSegmentAggregateArgs<ExtArgs>
+          result: runtime.Types.Utils.Optional<Prisma.AggregateUserSegment>
+        }
+        groupBy: {
+          args: Prisma.UserSegmentGroupByArgs<ExtArgs>
+          result: runtime.Types.Utils.Optional<Prisma.UserSegmentGroupByOutputType>[]
+        }
+        count: {
+          args: Prisma.UserSegmentCountArgs<ExtArgs>
+          result: runtime.Types.Utils.Optional<Prisma.UserSegmentCountAggregateOutputType> | number
+        }
+      }
+    }
   }
 } & {
   other: {
@@ -2251,9 +2326,11 @@ export const AgentScalarFieldEnum = {
   epsilon: 'epsilon',
   funnelStage: 'funnelStage',
   targetFilter: 'targetFilter',
+  targetSegmentName: 'targetSegmentName',
   fallbackSendHour: 'fallbackSendHour',
   audienceCap: 'audienceCap',
   uniqueUsersCap: 'uniqueUsersCap',
+  dailySendCap: 'dailySendCap',
   languageFilter: 'languageFilter',
   staleFunnelStageDays: 'staleFunnelStageDays',
   color: 'color',
@@ -2604,6 +2681,16 @@ export const DemoUserGroupScalarFieldEnum = {
 export type DemoUserGroupScalarFieldEnum = (typeof DemoUserGroupScalarFieldEnum)[keyof typeof DemoUserGroupScalarFieldEnum]
 
 
+export const UserSegmentScalarFieldEnum = {
+  id: 'id',
+  externalId: 'externalId',
+  segmentName: 'segmentName',
+  syncedAt: 'syncedAt'
+} as const
+
+export type UserSegmentScalarFieldEnum = (typeof UserSegmentScalarFieldEnum)[keyof typeof UserSegmentScalarFieldEnum]
+
+
 export const SortOrder = {
   asc: 'asc',
   desc: 'desc'
@@ -2868,6 +2955,7 @@ export type GlobalOmitConfig = {
   ingestSyncLog?: Prisma.IngestSyncLogOmit
   campaignContent?: Prisma.CampaignContentOmit
   demoUserGroup?: Prisma.DemoUserGroupOmit
+  userSegment?: Prisma.UserSegmentOmit
 }
 
 /* Types for Logging */

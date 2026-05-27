@@ -159,3 +159,8 @@ export type CampaignContent = Prisma.CampaignContentModel
  * 
  */
 export type DemoUserGroup = Prisma.DemoUserGroupModel
+/**
+ * Model UserSegment
+ * 
+ */
+export type UserSegment = Prisma.UserSegmentModel
