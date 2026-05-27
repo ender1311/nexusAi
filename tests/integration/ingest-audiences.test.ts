@@ -95,7 +95,7 @@ describe("validation", () => {
     const res = await POST(req as unknown as NextRequest);
     expect(res.status).toBe(400);
     const body = await res.json();
-    expect(body.error).toContain("10000");
+    expect(body.error).toContain("10,000");
   });
 });
 

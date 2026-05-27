@@ -71,7 +71,7 @@ export async function POST(
 
   if (totalReceived > MAX_BATCH) {
     return NextResponse.json(
-      { error: `Batch too large: maximum ${MAX_BATCH} users per request` },
+      { error: `Batch too large: maximum ${MAX_BATCH.toLocaleString()} users per request` },
       { status: 400 },
     );
   }
