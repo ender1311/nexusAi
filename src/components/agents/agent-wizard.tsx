@@ -13,12 +13,11 @@ import { cn } from "@/lib/utils";
 import { Check, ChevronRight, Bot, Target, MessageSquare, Calendar, Rocket, Pencil } from "lucide-react";
 import { GoalTier, Channel, FrequencyCap, FunnelStage, FUNNEL_STAGES, FUNNEL_STAGE_META } from "@/types/agent";
 import { estimateConvergence } from "@/lib/convergence";
-import type { VariantWithMessage } from "@/types/agent";
 import type { Persona } from "@/types/persona";
 import { PersonaSelector } from "@/components/personas/persona-selector";
 import { PersonaBadge } from "@/components/personas/persona-badge";
 import { GoalPresetPicker } from "@/components/agents/goal-preset-picker";
-import { PushVariantPicker } from "@/components/agents/push-variant-picker";
+import { TemplatePicker } from "@/components/agents/template-picker";
 import { YouVersionGoalPreset } from "@/lib/constants/youversion";
 
 const STEPS = [
@@ -40,15 +39,6 @@ const GOAL_TIERS: Array<{ value: GoalTier; label: string; color: string; weight:
 
 const CHANNELS: Channel[] = ["push", "email", "sms"];
 
-const PUSH_DESTINATIONS = [
-  { key: "reader",           label: "General Reader",   category: "reader",           subcategory: "open-bible"     },
-  { key: "bible-verse",      label: "Bible Verse",      category: "reader",           subcategory: "specific-verse" },
-  { key: "audio-bible",      label: "Audio Bible",      category: "reader",           subcategory: "audio-bible"    },
-  { key: "plans",            label: "Plans",            category: "plans",            subcategory: undefined        },
-  { key: "votd",             label: "VOTD",             category: "votd",             subcategory: undefined        },
-  { key: "guided-scripture", label: "Guided Scripture", category: "guided-scripture", subcategory: undefined        },
-  { key: "guided-prayer",    label: "Guided Prayer",    category: "guided-prayer",    subcategory: undefined        },
-];
 
 const FREQ_PERIODS = [
   { value: "day", label: "Day" },
@@ -204,9 +194,6 @@ export function AgentWizard({ personas }: { personas: Persona[] }) {
     name: "", channel: "push",
     variants: [{ ...emptyVariant(), name: "V1" }],
   });
-  // For push channel: selected DB variant options (id, title, body, deeplink, etc.)
-  const [selectedPushVariants, setSelectedPushVariants] = useState<VariantWithMessage[]>([]);
-  const [selectedDestKey, setSelectedDestKey] = useState<string>("");
   const [saving, setSaving] = useState(false);
   const [submitError, setSubmitError] = useState<string | null>(null);
   const [uniqueUsersPreset, setUniqueUsersPreset] = useState<string>("unlimited");
@@ -225,23 +212,22 @@ export function AgentWizard({ personas }: { personas: Persona[] }) {
   const removeGoal = (i: number) => update("goals", form.goals.filter((_, idx) => idx !== i));
 
   const addMessage = () => {
-    if (!newMsg.name.trim()) return;
-    const variantsToSave = newMsg.channel === "push"
-      ? selectedPushVariants.map((v) => ({
-          ...emptyVariant(),
-          name: v.name,
-          title: v.title ?? "",
-          body: v.body,
-          deeplink: v.deeplink ?? "",
-          cta: v.cta ?? "",
-          sourceTemplateId: v.id,   // v.id is the template variant's id — the clone relationship
-        }))
-      : newMsg.variants;
-    if (variantsToSave.length === 0) return;
-    update("messages", [...form.messages, { ...newMsg, variants: variantsToSave }]);
-    setNewMsg({ name: "", channel: "push", variants: [{ ...emptyVariant(), name: "V1" }] });
-    setSelectedPushVariants([]);
-    setSelectedDestKey("");
+    if (!newMsg.name.trim() || newMsg.variants.length === 0) return;
+    update("messages", [...form.messages, { ...newMsg, variants: newMsg.variants }]);
+    setNewMsg({ name: "", channel: newMsg.channel, variants: [{ ...emptyVariant(), name: "V1" }] });
+  };
+
+  // Called by TemplatePicker in draft mode (push channel wizard flow)
+  const addMessageFromTemplate = (msg: { name: string; channel: "push"; variants: Array<{ name: string; title?: string; body: string; deeplink?: string; sourceTemplateId: string }> }) => {
+    const variantsToSave = msg.variants.map((v) => ({
+      ...emptyVariant(),
+      name: v.name,
+      title: v.title ?? "",
+      body: v.body,
+      deeplink: v.deeplink ?? "",
+      sourceTemplateId: v.sourceTemplateId,
+    }));
+    update("messages", [...form.messages, { name: msg.name, channel: "push", variants: variantsToSave }]);
   };
 
   const removeMessage = (i: number) => update("messages", form.messages.filter((_, idx) => idx !== i));
@@ -317,12 +303,9 @@ export function AgentWizard({ personas }: { personas: Persona[] }) {
           <Button
             size="sm"
             onClick={() => {
-              if (step === 3) {
-                // Auto-commit pending message if user filled it in but didn't click "Add Message"
-                const hasVariants = newMsg.channel === "push"
-                  ? selectedPushVariants.length > 0
-                  : newMsg.variants.length > 0;
-                if (newMsg.name.trim() && hasVariants) {
+              if (step === 3 && newMsg.channel !== "push") {
+                // Auto-commit pending email/SMS message if user filled it in but didn't click "Add Message"
+                if (newMsg.name.trim() && newMsg.variants.length > 0) {
                   addMessage();
                 }
               }
@@ -638,124 +621,85 @@ export function AgentWizard({ personas }: { personas: Persona[] }) {
             Configure which channels and message variants the agent can test.
           </p>
 
-          <div className="border rounded-lg p-4 space-y-3 bg-muted/30">
-            <h3 className="text-sm font-medium">Add Message</h3>
-            <div className="flex gap-2">
+          {/* Push channel: use the full TemplatePicker in draft mode */}
+          {newMsg.channel === "push" ? (
+            <div className="border rounded-lg p-4 bg-muted/30">
+              <div className="flex items-center justify-between mb-4">
+                <h3 className="text-sm font-medium">Add Push Message</h3>
+                <Select value={newMsg.channel} onValueChange={(v) => setNewMsg((m) => ({ ...m, channel: v as Channel, variants: [{ ...emptyVariant(), name: "V1" }] }))}>
+                  <SelectTrigger className="w-28 h-7 text-xs">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {CHANNELS.map((c) => (
+                      <SelectItem key={c} value={c}>{c.toUpperCase()}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+              <TemplatePicker onAddToDraft={addMessageFromTemplate} />
+            </div>
+          ) : (
+            /* Email / SMS: manual variant form */
+            <div className="border rounded-lg p-4 space-y-3 bg-muted/30">
+              <div className="flex items-center justify-between">
+                <h3 className="text-sm font-medium">Add Message</h3>
+                <Select value={newMsg.channel} onValueChange={(v) => setNewMsg((m) => ({ ...m, channel: v as Channel, variants: [{ ...emptyVariant(), name: "V1" }] }))}>
+                  <SelectTrigger className="w-28 h-7 text-xs">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {CHANNELS.map((c) => (
+                      <SelectItem key={c} value={c}>{c.toUpperCase()}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
               <Input
                 placeholder="Message name"
                 value={newMsg.name}
                 onChange={(e) => setNewMsg((m) => ({ ...m, name: e.target.value }))}
-                className="flex-1"
               />
-              <Select value={newMsg.channel} onValueChange={(v) => {
-                setNewMsg((m) => ({ ...m, channel: v as Channel }));
-                setSelectedPushVariants([]);
-                setSelectedDestKey("");
-              }}>
-                <SelectTrigger className="w-28">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  {CHANNELS.map((c) => (
-                    <SelectItem key={c} value={c}>{c.toUpperCase()}</SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-            {newMsg.channel === "push" ? (
-              <div className="pt-2 border-t space-y-3">
-                <div>
-                  <p className="text-xs font-medium text-muted-foreground mb-2">Destination</p>
-                  <div className="flex gap-2 flex-wrap">
-                    {PUSH_DESTINATIONS.map((dest) => (
-                      <button
-                        key={dest.key}
-                        type="button"
-                        onClick={() => {
-                          setSelectedDestKey(dest.key);
-                          setSelectedPushVariants([]);
-                        }}
-                        className={cn(
-                          "px-3 py-1.5 rounded-full text-xs font-medium border transition-colors",
-                          selectedDestKey === dest.key
-                            ? "border-primary bg-primary text-primary-foreground"
-                            : "border-border bg-background hover:border-primary/50"
-                        )}
-                      >
-                        {dest.label}
-                      </button>
-                    ))}
-                  </div>
-                </div>
-                {selectedDestKey && (() => {
-                  const dest = PUSH_DESTINATIONS.find((d) => d.key === selectedDestKey);
-                  return (
-                    <div>
-                      <p className="text-xs font-medium text-muted-foreground mb-2">Select approved push variants</p>
-                      <PushVariantPicker
-                        selectedVariantIds={selectedPushVariants.map((v) => v.id)}
-                        category={dest?.category}
-                        subcategory={dest?.subcategory}
-                        onToggle={(v) => {
-                          setSelectedPushVariants((prev) => {
-                            const exists = prev.some((p) => p.id === v.id);
-                            return exists ? prev.filter((p) => p.id !== v.id) : [...prev, v];
-                          });
-                        }}
-                        onBulkSelect={(variants) => setSelectedPushVariants(variants)}
-                      />
-                      {selectedPushVariants.length > 0 && (
-                        <p className="text-xs text-green-700 font-medium mt-1">
-                          {selectedPushVariants.length} variant(s) selected
-                        </p>
-                      )}
-                    </div>
-                  );
-                })()}
-              </div>
-            ) : (
-              <>
-                {newMsg.variants.map((v, vi) => (
-                  <div key={vi} className="space-y-2 pt-2 border-t">
+              {newMsg.variants.map((v, vi) => (
+                <div key={vi} className="space-y-2 pt-2 border-t">
+                  <Input
+                    placeholder="Body text"
+                    value={v.body}
+                    onChange={(e) => {
+                      const variants = [...newMsg.variants];
+                      variants[vi] = { ...v, body: e.target.value };
+                      setNewMsg((m) => ({ ...m, variants }));
+                    }}
+                  />
+                  {newMsg.channel === "email" && (
                     <Input
-                      placeholder="Body text"
-                      value={v.body}
+                      placeholder="Subject line"
+                      value={v.subject}
                       onChange={(e) => {
                         const variants = [...newMsg.variants];
-                        variants[vi] = { ...v, body: e.target.value };
+                        variants[vi] = { ...v, subject: e.target.value };
                         setNewMsg((m) => ({ ...m, variants }));
                       }}
                     />
-                    {newMsg.channel === "email" && (
-                      <Input
-                        placeholder="Subject line"
-                        value={v.subject}
-                        onChange={(e) => {
-                          const variants = [...newMsg.variants];
-                          variants[vi] = { ...v, subject: e.target.value };
-                          setNewMsg((m) => ({ ...m, variants }));
-                        }}
-                      />
-                    )}
-                  </div>
-                ))}
-                <Button
-                  size="sm"
-                  variant="outline"
-                  onClick={() => setNewMsg((m) => ({ ...m, variants: [...m.variants, { ...emptyVariant(), name: `V${m.variants.length + 1}` }] }))}
-                >
-                  + Add Variant
-                </Button>
-              </>
-            )}
-            <Button
-              size="sm"
-              onClick={addMessage}
-              disabled={!newMsg.name.trim() || (newMsg.channel === "push" ? selectedPushVariants.length === 0 : newMsg.variants.length === 0)}
-            >
-              Add Message
-            </Button>
-          </div>
+                  )}
+                </div>
+              ))}
+              <Button
+                size="sm"
+                variant="outline"
+                onClick={() => setNewMsg((m) => ({ ...m, variants: [...m.variants, { ...emptyVariant(), name: `V${m.variants.length + 1}` }] }))}
+              >
+                + Add Variant
+              </Button>
+              <Button
+                size="sm"
+                onClick={addMessage}
+                disabled={!newMsg.name.trim() || newMsg.variants.length === 0}
+              >
+                Add Message
+              </Button>
+            </div>
+          )}
 
           {form.messages.map((m, i) => (
             <div key={i} className="border rounded-lg p-3 flex items-center justify-between">
