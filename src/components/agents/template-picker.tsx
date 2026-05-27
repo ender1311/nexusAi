@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import { Check } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { Slider } from "@/components/ui/slider";
 import { cn } from "@/lib/utils";
 import type { VariantWithMessage } from "@/types/agent";
 
@@ -96,6 +97,8 @@ export function TemplatePicker(props: TemplatePickerProps) {
   );
   const [nameManuallyEdited, setNameManuallyEdited] = useState(false);
   const [fetchState, setFetchState] = useState<FetchState>({ status: "idle" });
+  const [autoMode, setAutoMode] = useState(false);
+  const [autoCount, setAutoCount] = useState(2);
   const [saving, setSaving] = useState(false);
   const [saveError, setSaveError] = useState<string | null>(null);
 
@@ -139,6 +142,21 @@ export function TemplatePicker(props: TemplatePickerProps) {
       cancelled = true;
     };
   }, [selectedCategory, selectedSubcategory]);
+
+  // Auto-pick N random variants whenever auto mode is on and variants are available
+  useEffect(() => {
+    if (!autoMode || fetchState.status !== "done") return;
+    const available = fetchState.variants;
+    const count = Math.min(autoCount, available.length);
+    if (count < 2) return;
+    const shuffled = [...available].sort(() => Math.random() - 0.5);
+    setSelectedVariantIds(new Set(shuffled.slice(0, count).map((v) => v.id)));
+  }, [autoMode, autoCount, fetchState]);
+
+  function handleAutoModeToggle(on: boolean) {
+    setAutoMode(on);
+    if (!on) setSelectedVariantIds(new Set());
+  }
 
   function handleCategoryClick(categoryValue: string) {
     if (categoryValue === selectedCategory) return;
@@ -276,6 +294,50 @@ export function TemplatePicker(props: TemplatePickerProps) {
         </div>
       </div>
 
+      {/* Auto-pick controls */}
+      {!isLoading && fetchState.status === "done" && variants.length >= 2 && (
+        <div className="flex items-center gap-3 border-t pt-3">
+          <div className="flex rounded-md border overflow-hidden text-xs shrink-0">
+            <button
+              type="button"
+              className={cn(
+                "px-3 py-1.5 font-medium transition-colors",
+                !autoMode ? "bg-primary text-primary-foreground" : "text-muted-foreground hover:text-foreground",
+              )}
+              onClick={() => handleAutoModeToggle(false)}
+            >
+              I&apos;ll pick
+            </button>
+            <button
+              type="button"
+              className={cn(
+                "px-3 py-1.5 font-medium transition-colors border-l",
+                autoMode ? "bg-primary text-primary-foreground" : "text-muted-foreground hover:text-foreground",
+              )}
+              onClick={() => handleAutoModeToggle(true)}
+            >
+              Pick for me
+            </button>
+          </div>
+          {autoMode && (
+            <>
+              <span className="text-xs text-muted-foreground shrink-0">Variants:</span>
+              <Slider
+                min={2}
+                max={variants.length}
+                step={1}
+                value={[Math.min(autoCount, variants.length)]}
+                onValueChange={(v) => setAutoCount(Array.isArray(v) ? v[0] : v)}
+                className="flex-1"
+              />
+              <span className="text-xs font-semibold tabular-nums w-6 text-right shrink-0">
+                {Math.min(autoCount, variants.length)}
+              </span>
+            </>
+          )}
+        </div>
+      )}
+
       {/* Toolbar: count + save button */}
       <div className="flex items-center justify-between border-t pt-3">
         <span className="text-sm text-muted-foreground">
@@ -316,12 +378,15 @@ export function TemplatePicker(props: TemplatePickerProps) {
               return (
                 <div
                   key={v.id}
-                  onClick={() => handleVariantToggle(v.id)}
+                  onClick={() => !autoMode && handleVariantToggle(v.id)}
                   className={cn(
-                    "relative cursor-pointer rounded-lg border p-2.5 transition-colors",
+                    "relative rounded-lg border p-2.5 transition-colors",
+                    autoMode ? "cursor-default" : "cursor-pointer",
                     selected
                       ? "border-primary bg-primary/5 ring-1 ring-primary"
-                      : "border-border bg-background hover:border-primary/40",
+                      : autoMode
+                        ? "border-border bg-background"
+                        : "border-border bg-background hover:border-primary/40",
                   )}
                 >
                   {selected && (
