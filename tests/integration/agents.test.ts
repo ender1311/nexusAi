@@ -421,6 +421,90 @@ describe("POST /api/agents — validation", () => {
   });
 });
 
+describe("POST /api/agents — targetSegmentName", () => {
+  it("creates agent with targetSegmentName and persists it", async () => {
+    const res = await apiPost("/agents", {
+      name: "Segment Agent",
+      algorithm: "thompson",
+      funnelStage: "wau",
+      targetSegmentName: "bible_readers",
+      goals: [],
+      messages: [],
+    });
+    const body = await res.json();
+    expect(res.status).toBe(201);
+    expect(body.targetSegmentName).toBe("bible_readers");
+
+    const persisted = await prisma.agent.findUnique({ where: { id: body.id } });
+    expect(persisted!.targetSegmentName).toBe("bible_readers");
+  });
+
+  it("returns 400 when targetSegmentName is an empty string", async () => {
+    const res = await apiPost("/agents", {
+      name: "Bad Segment Agent",
+      algorithm: "thompson",
+      funnelStage: "wau",
+      targetSegmentName: "",
+      goals: [],
+      messages: [],
+    });
+    const body = await res.json();
+    expect(res.status).toBe(400);
+    expect(body.error).toBe("targetSegmentName must be null or a non-empty string");
+  });
+
+  it("creates agent with null targetSegmentName (funnel stage mode)", async () => {
+    const res = await apiPost("/agents", {
+      name: "Null Segment Agent",
+      algorithm: "thompson",
+      funnelStage: "wau",
+      targetSegmentName: null,
+      goals: [],
+      messages: [],
+    });
+    const body = await res.json();
+    expect(res.status).toBe(201);
+    expect(body.targetSegmentName).toBeNull();
+  });
+});
+
+describe("PATCH /api/agents/[id] — targetSegmentName", () => {
+  it("sets targetSegmentName to a new segment value and persists it", async () => {
+    const agent = await prisma.agent.create({ data: { name: "Segment Agent", algorithm: "thompson", epsilon: 0.1 } });
+    const req = buildRequest("PATCH", { targetSegmentName: "new_segment" });
+    const res = await patchAgent(req as NextRequest, { params: Promise.resolve({ id: agent.id }) });
+    const body = await res.json();
+    expect(res.status).toBe(200);
+    expect(body.targetSegmentName).toBe("new_segment");
+
+    const persisted = await prisma.agent.findUnique({ where: { id: agent.id } });
+    expect(persisted!.targetSegmentName).toBe("new_segment");
+  });
+
+  it("returns 400 when targetSegmentName is an empty string", async () => {
+    const agent = await prisma.agent.create({ data: { name: "Segment Agent", algorithm: "thompson", epsilon: 0.1 } });
+    const req = buildRequest("PATCH", { targetSegmentName: "" });
+    const res = await patchAgent(req as NextRequest, { params: Promise.resolve({ id: agent.id }) });
+    const body = await res.json();
+    expect(res.status).toBe(400);
+    expect(body.error).toBe("targetSegmentName must be null or a non-empty string");
+  });
+
+  it("clears targetSegmentName to null", async () => {
+    const agent = await prisma.agent.create({
+      data: { name: "Segment Agent", algorithm: "thompson", epsilon: 0.1, targetSegmentName: "old_segment" },
+    });
+    const req = buildRequest("PATCH", { targetSegmentName: null });
+    const res = await patchAgent(req as NextRequest, { params: Promise.resolve({ id: agent.id }) });
+    const body = await res.json();
+    expect(res.status).toBe(200);
+    expect(body.targetSegmentName).toBeNull();
+
+    const persisted = await prisma.agent.findUnique({ where: { id: agent.id } });
+    expect(persisted!.targetSegmentName).toBeNull();
+  });
+});
+
 describe("PATCH /api/agents/[id] — uniqueUsersCap", () => {
   it("sets uniqueUsersCap to a positive integer and persists it", async () => {
     const agent = await prisma.agent.create({ data: { name: "Cap Agent", algorithm: "thompson", epsilon: 0.1 } });

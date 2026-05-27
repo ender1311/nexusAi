@@ -127,6 +127,7 @@ interface FormData {
   suppressThresh: number;
   uniqueUsersCap: number | null;
   dailySendCap: number | null;
+  targetSegmentName: string | null;
 }
 
 const defaultForm: FormData = {
@@ -147,6 +148,7 @@ const defaultForm: FormData = {
   suppressThresh: 0.5,
   uniqueUsersCap: null,
   dailySendCap: null,
+  targetSegmentName: null,
 };
 
 const DAILY_SEND_CAP_PRESETS = [
@@ -311,7 +313,7 @@ export function AgentWizard({ personas }: { personas: Persona[] }) {
               }
               setStep((s) => Math.min(5, s + 1));
             }}
-            disabled={step === 1 && (!form.name.trim() || !form.funnelStage)}
+            disabled={step === 1 && (!form.name.trim() || (form.targetSegmentName === null && !form.funnelStage))}
           >
             Next
             <ChevronRight className="h-4 w-4 ml-1" />
@@ -395,6 +397,43 @@ export function AgentWizard({ personas }: { personas: Persona[] }) {
                 />
               </div>
             )}
+            {/* Targeting Mode */}
+            <div>
+              <label className="text-sm font-medium">Targeting Mode</label>
+              <p className="text-xs text-muted-foreground mt-0.5 mb-2">
+                Target users by funnel stage or by a Hightouch audience segment.
+              </p>
+              <div className="flex rounded-md border overflow-hidden text-sm mb-2">
+                <button
+                  type="button"
+                  className={cn("flex-1 px-3 py-2 font-medium transition-colors",
+                    form.targetSegmentName === null
+                      ? "bg-primary text-primary-foreground"
+                      : "text-muted-foreground hover:text-foreground")}
+                  onClick={() => update("targetSegmentName", null)}
+                >
+                  Funnel Stage
+                </button>
+                <button
+                  type="button"
+                  className={cn("flex-1 px-3 py-2 font-medium transition-colors border-l",
+                    form.targetSegmentName !== null
+                      ? "bg-primary text-primary-foreground"
+                      : "text-muted-foreground hover:text-foreground")}
+                  onClick={() => update("targetSegmentName", "")}
+                >
+                  HT Segment
+                </button>
+              </div>
+              {form.targetSegmentName !== null ? (
+                <Input
+                  placeholder="e.g. bible_readers_segment"
+                  value={form.targetSegmentName}
+                  onChange={(e) => update("targetSegmentName", e.target.value)}
+                />
+              ) : null}
+            </div>
+            {form.targetSegmentName === null && (
             <div>
               <label className="text-sm font-medium">Funnel Stage *</label>
               <Select
@@ -413,6 +452,7 @@ export function AgentWizard({ personas }: { personas: Persona[] }) {
                 </SelectContent>
               </Select>
             </div>
+            )}
             <div>
               <label className="text-sm font-medium">Target Personas</label>
               <p className="text-xs text-muted-foreground mb-2 mt-0.5">
@@ -1064,7 +1104,7 @@ export function AgentWizard({ personas }: { personas: Persona[] }) {
           {step < 5 ? (
             <Button
               onClick={() => setStep((s) => Math.min(5, s + 1))}
-              disabled={step === 1 && (!form.name.trim() || !form.funnelStage)}
+              disabled={step === 1 && (!form.name.trim() || (form.targetSegmentName === null && !form.funnelStage))}
             >
               Next
               <ChevronRight className="h-4 w-4 ml-1" />

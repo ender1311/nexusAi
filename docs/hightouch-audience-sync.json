@@ -1,0 +1,13 @@
+{
+    "users": [
+        {% for row in rows %}
+        {
+            "external_user_id": {{ row['user_id'] | append: '' | json }},
+            "braze_id": {{ row['braze_user_id_latest'] | append: '' | json }},
+            "attributes": {
+                "ht_segment_name": "your_segment_name",
+            }
+        }{% unless forloop.last %},{% endunless %}
+        {% endfor %}
+        ]
+    }

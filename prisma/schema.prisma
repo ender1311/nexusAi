@@ -21,6 +21,7 @@ model Agent {
   epsilon     Float       @default(0.1)
   funnelStage      String      @default("wau")
   targetFilter     Json?
+  targetSegmentName String?  // null = target by funnelStage; non-null = target users in this HT segment
   fallbackSendHour Int?        // 0-23 UTC-naive hour; Braze delivers at this hour in user's local timezone via in_local_time
   audienceCap      Int?        // max users reached per cron run; null = unlimited
   uniqueUsersCap   Int?        // max lifetime unique users this agent will ever target; null = unlimited
@@ -421,4 +422,15 @@ model DemoUserGroup {
   userIds   Json     @default("[]")  // string[]
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
+}
+
+// HT audience segment membership — populated by POST /api/ingest/segments
+model UserSegment {
+  id          String   @id @default(cuid())
+  externalId  String   // TrackedUser.externalId (no FK — same pattern as UserDecision)
+  segmentName String
+  syncedAt    DateTime @default(now()) @updatedAt
+
+  @@unique([externalId, segmentName])
+  @@index([segmentName])  // cron segment filter
 }

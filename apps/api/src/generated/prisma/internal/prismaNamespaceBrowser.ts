@@ -74,7 +74,8 @@ export const ModelName = {
   ProcessedEventId: 'ProcessedEventId',
   IngestSyncLog: 'IngestSyncLog',
   CampaignContent: 'CampaignContent',
-  DemoUserGroup: 'DemoUserGroup'
+  DemoUserGroup: 'DemoUserGroup',
+  UserSegment: 'UserSegment'
 } as const
 
 export type ModelName = (typeof ModelName)[keyof typeof ModelName]
@@ -102,9 +103,11 @@ export const AgentScalarFieldEnum = {
   epsilon: 'epsilon',
   funnelStage: 'funnelStage',
   targetFilter: 'targetFilter',
+  targetSegmentName: 'targetSegmentName',
   fallbackSendHour: 'fallbackSendHour',
   audienceCap: 'audienceCap',
   uniqueUsersCap: 'uniqueUsersCap',
+  dailySendCap: 'dailySendCap',
   languageFilter: 'languageFilter',
   staleFunnelStageDays: 'staleFunnelStageDays',
   color: 'color',
@@ -453,6 +456,16 @@ export const DemoUserGroupScalarFieldEnum = {
 } as const
 
 export type DemoUserGroupScalarFieldEnum = (typeof DemoUserGroupScalarFieldEnum)[keyof typeof DemoUserGroupScalarFieldEnum]
+
+
+export const UserSegmentScalarFieldEnum = {
+  id: 'id',
+  externalId: 'externalId',
+  segmentName: 'segmentName',
+  syncedAt: 'syncedAt'
+} as const
+
+export type UserSegmentScalarFieldEnum = (typeof UserSegmentScalarFieldEnum)[keyof typeof UserSegmentScalarFieldEnum]
 
 
 export const SortOrder = {

@@ -31,6 +31,7 @@ export type AgentAvgAggregateOutputType = {
   fallbackSendHour: number | null
   audienceCap: number | null
   uniqueUsersCap: number | null
+  dailySendCap: number | null
   staleFunnelStageDays: number | null
   sortOrder: number | null
 }
@@ -40,6 +41,7 @@ export type AgentSumAggregateOutputType = {
   fallbackSendHour: number | null
   audienceCap: number | null
   uniqueUsersCap: number | null
+  dailySendCap: number | null
   staleFunnelStageDays: number | null
   sortOrder: number | null
 }
@@ -52,9 +54,11 @@ export type AgentMinAggregateOutputType = {
   algorithm: string | null
   epsilon: number | null
   funnelStage: string | null
+  targetSegmentName: string | null
   fallbackSendHour: number | null
   audienceCap: number | null
   uniqueUsersCap: number | null
+  dailySendCap: number | null
   languageFilter: string | null
   staleFunnelStageDays: number | null
   color: string | null
@@ -71,9 +75,11 @@ export type AgentMaxAggregateOutputType = {
   algorithm: string | null
   epsilon: number | null
   funnelStage: string | null
+  targetSegmentName: string | null
   fallbackSendHour: number | null
   audienceCap: number | null
   uniqueUsersCap: number | null
+  dailySendCap: number | null
   languageFilter: string | null
   staleFunnelStageDays: number | null
   color: string | null
@@ -91,9 +97,11 @@ export type AgentCountAggregateOutputType = {
   epsilon: number
   funnelStage: number
   targetFilter: number
+  targetSegmentName: number
   fallbackSendHour: number
   audienceCap: number
   uniqueUsersCap: number
+  dailySendCap: number
   languageFilter: number
   staleFunnelStageDays: number
   color: number
@@ -109,6 +117,7 @@ export type AgentAvgAggregateInputType = {
   fallbackSendHour?: true
   audienceCap?: true
   uniqueUsersCap?: true
+  dailySendCap?: true
   staleFunnelStageDays?: true
   sortOrder?: true
 }
@@ -118,6 +127,7 @@ export type AgentSumAggregateInputType = {
   fallbackSendHour?: true
   audienceCap?: true
   uniqueUsersCap?: true
+  dailySendCap?: true
   staleFunnelStageDays?: true
   sortOrder?: true
 }
@@ -130,9 +140,11 @@ export type AgentMinAggregateInputType = {
   algorithm?: true
   epsilon?: true
   funnelStage?: true
+  targetSegmentName?: true
   fallbackSendHour?: true
   audienceCap?: true
   uniqueUsersCap?: true
+  dailySendCap?: true
   languageFilter?: true
   staleFunnelStageDays?: true
   color?: true
@@ -149,9 +161,11 @@ export type AgentMaxAggregateInputType = {
   algorithm?: true
   epsilon?: true
   funnelStage?: true
+  targetSegmentName?: true
   fallbackSendHour?: true
   audienceCap?: true
   uniqueUsersCap?: true
+  dailySendCap?: true
   languageFilter?: true
   staleFunnelStageDays?: true
   color?: true
@@ -169,9 +183,11 @@ export type AgentCountAggregateInputType = {
   epsilon?: true
   funnelStage?: true
   targetFilter?: true
+  targetSegmentName?: true
   fallbackSendHour?: true
   audienceCap?: true
   uniqueUsersCap?: true
+  dailySendCap?: true
   languageFilter?: true
   staleFunnelStageDays?: true
   color?: true
@@ -276,9 +292,11 @@ export type AgentGroupByOutputType = {
   epsilon: number
   funnelStage: string
   targetFilter: runtime.JsonValue | null
+  targetSegmentName: string | null
   fallbackSendHour: number | null
   audienceCap: number | null
   uniqueUsersCap: number | null
+  dailySendCap: number | null
   languageFilter: string
   staleFunnelStageDays: number | null
   color: string
@@ -319,9 +337,11 @@ export type AgentWhereInput = {
   epsilon?: Prisma.FloatFilter<"Agent"> | number
   funnelStage?: Prisma.StringFilter<"Agent"> | string
   targetFilter?: Prisma.JsonNullableFilter<"Agent">
+  targetSegmentName?: Prisma.StringNullableFilter<"Agent"> | string | null
   fallbackSendHour?: Prisma.IntNullableFilter<"Agent"> | number | null
   audienceCap?: Prisma.IntNullableFilter<"Agent"> | number | null
   uniqueUsersCap?: Prisma.IntNullableFilter<"Agent"> | number | null
+  dailySendCap?: Prisma.IntNullableFilter<"Agent"> | number | null
   languageFilter?: Prisma.StringFilter<"Agent"> | string
   staleFunnelStageDays?: Prisma.IntNullableFilter<"Agent"> | number | null
   color?: Prisma.StringFilter<"Agent"> | string
@@ -345,9 +365,11 @@ export type AgentOrderByWithRelationInput = {
   epsilon?: Prisma.SortOrder
   funnelStage?: Prisma.SortOrder
   targetFilter?: Prisma.SortOrderInput | Prisma.SortOrder
+  targetSegmentName?: Prisma.SortOrderInput | Prisma.SortOrder
   fallbackSendHour?: Prisma.SortOrderInput | Prisma.SortOrder
   audienceCap?: Prisma.SortOrderInput | Prisma.SortOrder
   uniqueUsersCap?: Prisma.SortOrderInput | Prisma.SortOrder
+  dailySendCap?: Prisma.SortOrderInput | Prisma.SortOrder
   languageFilter?: Prisma.SortOrder
   staleFunnelStageDays?: Prisma.SortOrderInput | Prisma.SortOrder
   color?: Prisma.SortOrder
@@ -374,9 +396,11 @@ export type AgentWhereUniqueInput = Prisma.AtLeast<{
   epsilon?: Prisma.FloatFilter<"Agent"> | number
   funnelStage?: Prisma.StringFilter<"Agent"> | string
   targetFilter?: Prisma.JsonNullableFilter<"Agent">
+  targetSegmentName?: Prisma.StringNullableFilter<"Agent"> | string | null
   fallbackSendHour?: Prisma.IntNullableFilter<"Agent"> | number | null
   audienceCap?: Prisma.IntNullableFilter<"Agent"> | number | null
   uniqueUsersCap?: Prisma.IntNullableFilter<"Agent"> | number | null
+  dailySendCap?: Prisma.IntNullableFilter<"Agent"> | number | null
   languageFilter?: Prisma.StringFilter<"Agent"> | string
   staleFunnelStageDays?: Prisma.IntNullableFilter<"Agent"> | number | null
   color?: Prisma.StringFilter<"Agent"> | string
@@ -400,9 +424,11 @@ export type AgentOrderByWithAggregationInput = {
   epsilon?: Prisma.SortOrder
   funnelStage?: Prisma.SortOrder
   targetFilter?: Prisma.SortOrderInput | Prisma.SortOrder
+  targetSegmentName?: Prisma.SortOrderInput | Prisma.SortOrder
   fallbackSendHour?: Prisma.SortOrderInput | Prisma.SortOrder
   audienceCap?: Prisma.SortOrderInput | Prisma.SortOrder
   uniqueUsersCap?: Prisma.SortOrderInput | Prisma.SortOrder
+  dailySendCap?: Prisma.SortOrderInput | Prisma.SortOrder
   languageFilter?: Prisma.SortOrder
   staleFunnelStageDays?: Prisma.SortOrderInput | Prisma.SortOrder
   color?: Prisma.SortOrder
@@ -428,9 +454,11 @@ export type AgentScalarWhereWithAggregatesInput = {
   epsilon?: Prisma.FloatWithAggregatesFilter<"Agent"> | number
   funnelStage?: Prisma.StringWithAggregatesFilter<"Agent"> | string
   targetFilter?: Prisma.JsonNullableWithAggregatesFilter<"Agent">
+  targetSegmentName?: Prisma.StringNullableWithAggregatesFilter<"Agent"> | string | null
   fallbackSendHour?: Prisma.IntNullableWithAggregatesFilter<"Agent"> | number | null
   audienceCap?: Prisma.IntNullableWithAggregatesFilter<"Agent"> | number | null
   uniqueUsersCap?: Prisma.IntNullableWithAggregatesFilter<"Agent"> | number | null
+  dailySendCap?: Prisma.IntNullableWithAggregatesFilter<"Agent"> | number | null
   languageFilter?: Prisma.StringWithAggregatesFilter<"Agent"> | string
   staleFunnelStageDays?: Prisma.IntNullableWithAggregatesFilter<"Agent"> | number | null
   color?: Prisma.StringWithAggregatesFilter<"Agent"> | string
@@ -448,9 +476,11 @@ export type AgentCreateInput = {
   epsilon?: number
   funnelStage?: string
   targetFilter?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
+  targetSegmentName?: string | null
   fallbackSendHour?: number | null
   audienceCap?: number | null
   uniqueUsersCap?: number | null
+  dailySendCap?: number | null
   languageFilter?: string
   staleFunnelStageDays?: number | null
   color?: string
@@ -474,9 +504,11 @@ export type AgentUncheckedCreateInput = {
   epsilon?: number
   funnelStage?: string
   targetFilter?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
+  targetSegmentName?: string | null
   fallbackSendHour?: number | null
   audienceCap?: number | null
   uniqueUsersCap?: number | null
+  dailySendCap?: number | null
   languageFilter?: string
   staleFunnelStageDays?: number | null
   color?: string
@@ -500,9 +532,11 @@ export type AgentUpdateInput = {
   epsilon?: Prisma.FloatFieldUpdateOperationsInput | number
   funnelStage?: Prisma.StringFieldUpdateOperationsInput | string
   targetFilter?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
+  targetSegmentName?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   fallbackSendHour?: Prisma.NullableIntFieldUpdateOperationsInput | number | null
   audienceCap?: Prisma.NullableIntFieldUpdateOperationsInput | number | null
   uniqueUsersCap?: Prisma.NullableIntFieldUpdateOperationsInput | number | null
+  dailySendCap?: Prisma.NullableIntFieldUpdateOperationsInput | number | null
   languageFilter?: Prisma.StringFieldUpdateOperationsInput | string
   staleFunnelStageDays?: Prisma.NullableIntFieldUpdateOperationsInput | number | null
   color?: Prisma.StringFieldUpdateOperationsInput | string
@@ -526,9 +560,11 @@ export type AgentUncheckedUpdateInput = {
   epsilon?: Prisma.FloatFieldUpdateOperationsInput | number
   funnelStage?: Prisma.StringFieldUpdateOperationsInput | string
   targetFilter?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
+  targetSegmentName?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   fallbackSendHour?: Prisma.NullableIntFieldUpdateOperationsInput | number | null
   audienceCap?: Prisma.NullableIntFieldUpdateOperationsInput | number | null
   uniqueUsersCap?: Prisma.NullableIntFieldUpdateOperationsInput | number | null
+  dailySendCap?: Prisma.NullableIntFieldUpdateOperationsInput | number | null
   languageFilter?: Prisma.StringFieldUpdateOperationsInput | string
   staleFunnelStageDays?: Prisma.NullableIntFieldUpdateOperationsInput | number | null
   color?: Prisma.StringFieldUpdateOperationsInput | string
@@ -552,9 +588,11 @@ export type AgentCreateManyInput = {
   epsilon?: number
   funnelStage?: string
   targetFilter?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
+  targetSegmentName?: string | null
   fallbackSendHour?: number | null
   audienceCap?: number | null
   uniqueUsersCap?: number | null
+  dailySendCap?: number | null
   languageFilter?: string
   staleFunnelStageDays?: number | null
   color?: string
@@ -572,9 +610,11 @@ export type AgentUpdateManyMutationInput = {
   epsilon?: Prisma.FloatFieldUpdateOperationsInput | number
   funnelStage?: Prisma.StringFieldUpdateOperationsInput | string
   targetFilter?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
+  targetSegmentName?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   fallbackSendHour?: Prisma.NullableIntFieldUpdateOperationsInput | number | null
   audienceCap?: Prisma.NullableIntFieldUpdateOperationsInput | number | null
   uniqueUsersCap?: Prisma.NullableIntFieldUpdateOperationsInput | number | null
+  dailySendCap?: Prisma.NullableIntFieldUpdateOperationsInput | number | null
   languageFilter?: Prisma.StringFieldUpdateOperationsInput | string
   staleFunnelStageDays?: Prisma.NullableIntFieldUpdateOperationsInput | number | null
   color?: Prisma.StringFieldUpdateOperationsInput | string
@@ -592,9 +632,11 @@ export type AgentUncheckedUpdateManyInput = {
   epsilon?: Prisma.FloatFieldUpdateOperationsInput | number
   funnelStage?: Prisma.StringFieldUpdateOperationsInput | string
   targetFilter?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
+  targetSegmentName?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   fallbackSendHour?: Prisma.NullableIntFieldUpdateOperationsInput | number | null
   audienceCap?: Prisma.NullableIntFieldUpdateOperationsInput | number | null
   uniqueUsersCap?: Prisma.NullableIntFieldUpdateOperationsInput | number | null
+  dailySendCap?: Prisma.NullableIntFieldUpdateOperationsInput | number | null
   languageFilter?: Prisma.StringFieldUpdateOperationsInput | string
   staleFunnelStageDays?: Prisma.NullableIntFieldUpdateOperationsInput | number | null
   color?: Prisma.StringFieldUpdateOperationsInput | string
@@ -612,9 +654,11 @@ export type AgentCountOrderByAggregateInput = {
   epsilon?: Prisma.SortOrder
   funnelStage?: Prisma.SortOrder
   targetFilter?: Prisma.SortOrder
+  targetSegmentName?: Prisma.SortOrder
   fallbackSendHour?: Prisma.SortOrder
   audienceCap?: Prisma.SortOrder
   uniqueUsersCap?: Prisma.SortOrder
+  dailySendCap?: Prisma.SortOrder
   languageFilter?: Prisma.SortOrder
   staleFunnelStageDays?: Prisma.SortOrder
   color?: Prisma.SortOrder
@@ -628,6 +672,7 @@ export type AgentAvgOrderByAggregateInput = {
   fallbackSendHour?: Prisma.SortOrder
   audienceCap?: Prisma.SortOrder
   uniqueUsersCap?: Prisma.SortOrder
+  dailySendCap?: Prisma.SortOrder
   staleFunnelStageDays?: Prisma.SortOrder
   sortOrder?: Prisma.SortOrder
 }
@@ -640,9 +685,11 @@ export type AgentMaxOrderByAggregateInput = {
   algorithm?: Prisma.SortOrder
   epsilon?: Prisma.SortOrder
   funnelStage?: Prisma.SortOrder
+  targetSegmentName?: Prisma.SortOrder
   fallbackSendHour?: Prisma.SortOrder
   audienceCap?: Prisma.SortOrder
   uniqueUsersCap?: Prisma.SortOrder
+  dailySendCap?: Prisma.SortOrder
   languageFilter?: Prisma.SortOrder
   staleFunnelStageDays?: Prisma.SortOrder
   color?: Prisma.SortOrder
@@ -659,9 +706,11 @@ export type AgentMinOrderByAggregateInput = {
   algorithm?: Prisma.SortOrder
   epsilon?: Prisma.SortOrder
   funnelStage?: Prisma.SortOrder
+  targetSegmentName?: Prisma.SortOrder
   fallbackSendHour?: Prisma.SortOrder
   audienceCap?: Prisma.SortOrder
   uniqueUsersCap?: Prisma.SortOrder
+  dailySendCap?: Prisma.SortOrder
   languageFilter?: Prisma.SortOrder
   staleFunnelStageDays?: Prisma.SortOrder
   color?: Prisma.SortOrder
@@ -675,6 +724,7 @@ export type AgentSumOrderByAggregateInput = {
   fallbackSendHour?: Prisma.SortOrder
   audienceCap?: Prisma.SortOrder
   uniqueUsersCap?: Prisma.SortOrder
+  dailySendCap?: Prisma.SortOrder
   staleFunnelStageDays?: Prisma.SortOrder
   sortOrder?: Prisma.SortOrder
 }
@@ -813,9 +863,11 @@ export type AgentCreateWithoutGoalsInput = {
   epsilon?: number
   funnelStage?: string
   targetFilter?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
+  targetSegmentName?: string | null
   fallbackSendHour?: number | null
   audienceCap?: number | null
   uniqueUsersCap?: number | null
+  dailySendCap?: number | null
   languageFilter?: string
   staleFunnelStageDays?: number | null
   color?: string
@@ -838,9 +890,11 @@ export type AgentUncheckedCreateWithoutGoalsInput = {
   epsilon?: number
   funnelStage?: string
   targetFilter?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
+  targetSegmentName?: string | null
   fallbackSendHour?: number | null
   audienceCap?: number | null
   uniqueUsersCap?: number | null
+  dailySendCap?: number | null
   languageFilter?: string
   staleFunnelStageDays?: number | null
   color?: string
@@ -879,9 +933,11 @@ export type AgentUpdateWithoutGoalsInput = {
   epsilon?: Prisma.FloatFieldUpdateOperationsInput | number
   funnelStage?: Prisma.StringFieldUpdateOperationsInput | string
   targetFilter?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
+  targetSegmentName?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   fallbackSendHour?: Prisma.NullableIntFieldUpdateOperationsInput | number | null
   audienceCap?: Prisma.NullableIntFieldUpdateOperationsInput | number | null
   uniqueUsersCap?: Prisma.NullableIntFieldUpdateOperationsInput | number | null
+  dailySendCap?: Prisma.NullableIntFieldUpdateOperationsInput | number | null
   languageFilter?: Prisma.StringFieldUpdateOperationsInput | string
   staleFunnelStageDays?: Prisma.NullableIntFieldUpdateOperationsInput | number | null
   color?: Prisma.StringFieldUpdateOperationsInput | string
@@ -904,9 +960,11 @@ export type AgentUncheckedUpdateWithoutGoalsInput = {
   epsilon?: Prisma.FloatFieldUpdateOperationsInput | number
   funnelStage?: Prisma.StringFieldUpdateOperationsInput | string
   targetFilter?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
+  targetSegmentName?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   fallbackSendHour?: Prisma.NullableIntFieldUpdateOperationsInput | number | null
   audienceCap?: Prisma.NullableIntFieldUpdateOperationsInput | number | null
   uniqueUsersCap?: Prisma.NullableIntFieldUpdateOperationsInput | number | null
+  dailySendCap?: Prisma.NullableIntFieldUpdateOperationsInput | number | null
   languageFilter?: Prisma.StringFieldUpdateOperationsInput | string
   staleFunnelStageDays?: Prisma.NullableIntFieldUpdateOperationsInput | number | null
   color?: Prisma.StringFieldUpdateOperationsInput | string
@@ -929,9 +987,11 @@ export type AgentCreateWithoutMessagesInput = {
   epsilon?: number
   funnelStage?: string
   targetFilter?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
+  targetSegmentName?: string | null
   fallbackSendHour?: number | null
   audienceCap?: number | null
   uniqueUsersCap?: number | null
+  dailySendCap?: number | null
   languageFilter?: string
   staleFunnelStageDays?: number | null
   color?: string
@@ -954,9 +1014,11 @@ export type AgentUncheckedCreateWithoutMessagesInput = {
   epsilon?: number
   funnelStage?: string
   targetFilter?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
+  targetSegmentName?: string | null
   fallbackSendHour?: number | null
   audienceCap?: number | null
   uniqueUsersCap?: number | null
+  dailySendCap?: number | null
   languageFilter?: string
   staleFunnelStageDays?: number | null
   color?: string
@@ -995,9 +1057,11 @@ export type AgentUpdateWithoutMessagesInput = {
   epsilon?: Prisma.FloatFieldUpdateOperationsInput | number
   funnelStage?: Prisma.StringFieldUpdateOperationsInput | string
   targetFilter?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
+  targetSegmentName?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   fallbackSendHour?: Prisma.NullableIntFieldUpdateOperationsInput | number | null
   audienceCap?: Prisma.NullableIntFieldUpdateOperationsInput | number | null
   uniqueUsersCap?: Prisma.NullableIntFieldUpdateOperationsInput | number | null
+  dailySendCap?: Prisma.NullableIntFieldUpdateOperationsInput | number | null
   languageFilter?: Prisma.StringFieldUpdateOperationsInput | string
   staleFunnelStageDays?: Prisma.NullableIntFieldUpdateOperationsInput | number | null
   color?: Prisma.StringFieldUpdateOperationsInput | string
@@ -1020,9 +1084,11 @@ export type AgentUncheckedUpdateWithoutMessagesInput = {
   epsilon?: Prisma.FloatFieldUpdateOperationsInput | number
   funnelStage?: Prisma.StringFieldUpdateOperationsInput | string
   targetFilter?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
+  targetSegmentName?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   fallbackSendHour?: Prisma.NullableIntFieldUpdateOperationsInput | number | null
   audienceCap?: Prisma.NullableIntFieldUpdateOperationsInput | number | null
   uniqueUsersCap?: Prisma.NullableIntFieldUpdateOperationsInput | number | null
+  dailySendCap?: Prisma.NullableIntFieldUpdateOperationsInput | number | null
   languageFilter?: Prisma.StringFieldUpdateOperationsInput | string
   staleFunnelStageDays?: Prisma.NullableIntFieldUpdateOperationsInput | number | null
   color?: Prisma.StringFieldUpdateOperationsInput | string
@@ -1045,9 +1111,11 @@ export type AgentCreateWithoutDecisionsInput = {
   epsilon?: number
   funnelStage?: string
   targetFilter?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
+  targetSegmentName?: string | null
   fallbackSendHour?: number | null
   audienceCap?: number | null
   uniqueUsersCap?: number | null
+  dailySendCap?: number | null
   languageFilter?: string
   staleFunnelStageDays?: number | null
   color?: string
@@ -1070,9 +1138,11 @@ export type AgentUncheckedCreateWithoutDecisionsInput = {
   epsilon?: number
   funnelStage?: string
   targetFilter?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
+  targetSegmentName?: string | null
   fallbackSendHour?: number | null
   audienceCap?: number | null
   uniqueUsersCap?: number | null
+  dailySendCap?: number | null
   languageFilter?: string
   staleFunnelStageDays?: number | null
   color?: string
@@ -1111,9 +1181,11 @@ export type AgentUpdateWithoutDecisionsInput = {
   epsilon?: Prisma.FloatFieldUpdateOperationsInput | number
   funnelStage?: Prisma.StringFieldUpdateOperationsInput | string
   targetFilter?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
+  targetSegmentName?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   fallbackSendHour?: Prisma.NullableIntFieldUpdateOperationsInput | number | null
   audienceCap?: Prisma.NullableIntFieldUpdateOperationsInput | number | null
   uniqueUsersCap?: Prisma.NullableIntFieldUpdateOperationsInput | number | null
+  dailySendCap?: Prisma.NullableIntFieldUpdateOperationsInput | number | null
   languageFilter?: Prisma.StringFieldUpdateOperationsInput | string
   staleFunnelStageDays?: Prisma.NullableIntFieldUpdateOperationsInput | number | null
   color?: Prisma.StringFieldUpdateOperationsInput | string
@@ -1136,9 +1208,11 @@ export type AgentUncheckedUpdateWithoutDecisionsInput = {
   epsilon?: Prisma.FloatFieldUpdateOperationsInput | number
   funnelStage?: Prisma.StringFieldUpdateOperationsInput | string
   targetFilter?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
+  targetSegmentName?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   fallbackSendHour?: Prisma.NullableIntFieldUpdateOperationsInput | number | null
   audienceCap?: Prisma.NullableIntFieldUpdateOperationsInput | number | null
   uniqueUsersCap?: Prisma.NullableIntFieldUpdateOperationsInput | number | null
+  dailySendCap?: Prisma.NullableIntFieldUpdateOperationsInput | number | null
   languageFilter?: Prisma.StringFieldUpdateOperationsInput | string
   staleFunnelStageDays?: Prisma.NullableIntFieldUpdateOperationsInput | number | null
   color?: Prisma.StringFieldUpdateOperationsInput | string
@@ -1161,9 +1235,11 @@ export type AgentCreateWithoutPersonaTargetsInput = {
   epsilon?: number
   funnelStage?: string
   targetFilter?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
+  targetSegmentName?: string | null
   fallbackSendHour?: number | null
   audienceCap?: number | null
   uniqueUsersCap?: number | null
+  dailySendCap?: number | null
   languageFilter?: string
   staleFunnelStageDays?: number | null
   color?: string
@@ -1186,9 +1262,11 @@ export type AgentUncheckedCreateWithoutPersonaTargetsInput = {
   epsilon?: number
   funnelStage?: string
   targetFilter?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
+  targetSegmentName?: string | null
   fallbackSendHour?: number | null
   audienceCap?: number | null
   uniqueUsersCap?: number | null
+  dailySendCap?: number | null
   languageFilter?: string
   staleFunnelStageDays?: number | null
   color?: string
@@ -1227,9 +1305,11 @@ export type AgentUpdateWithoutPersonaTargetsInput = {
   epsilon?: Prisma.FloatFieldUpdateOperationsInput | number
   funnelStage?: Prisma.StringFieldUpdateOperationsInput | string
   targetFilter?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
+  targetSegmentName?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   fallbackSendHour?: Prisma.NullableIntFieldUpdateOperationsInput | number | null
   audienceCap?: Prisma.NullableIntFieldUpdateOperationsInput | number | null
   uniqueUsersCap?: Prisma.NullableIntFieldUpdateOperationsInput | number | null
+  dailySendCap?: Prisma.NullableIntFieldUpdateOperationsInput | number | null
   languageFilter?: Prisma.StringFieldUpdateOperationsInput | string
   staleFunnelStageDays?: Prisma.NullableIntFieldUpdateOperationsInput | number | null
   color?: Prisma.StringFieldUpdateOperationsInput | string
@@ -1252,9 +1332,11 @@ export type AgentUncheckedUpdateWithoutPersonaTargetsInput = {
   epsilon?: Prisma.FloatFieldUpdateOperationsInput | number
   funnelStage?: Prisma.StringFieldUpdateOperationsInput | string
   targetFilter?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
+  targetSegmentName?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   fallbackSendHour?: Prisma.NullableIntFieldUpdateOperationsInput | number | null
   audienceCap?: Prisma.NullableIntFieldUpdateOperationsInput | number | null
   uniqueUsersCap?: Prisma.NullableIntFieldUpdateOperationsInput | number | null
+  dailySendCap?: Prisma.NullableIntFieldUpdateOperationsInput | number | null
   languageFilter?: Prisma.StringFieldUpdateOperationsInput | string
   staleFunnelStageDays?: Prisma.NullableIntFieldUpdateOperationsInput | number | null
   color?: Prisma.StringFieldUpdateOperationsInput | string
@@ -1277,9 +1359,11 @@ export type AgentCreateWithoutSchedulingRuleInput = {
   epsilon?: number
   funnelStage?: string
   targetFilter?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
+  targetSegmentName?: string | null
   fallbackSendHour?: number | null
   audienceCap?: number | null
   uniqueUsersCap?: number | null
+  dailySendCap?: number | null
   languageFilter?: string
   staleFunnelStageDays?: number | null
   color?: string
@@ -1302,9 +1386,11 @@ export type AgentUncheckedCreateWithoutSchedulingRuleInput = {
   epsilon?: number
   funnelStage?: string
   targetFilter?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
+  targetSegmentName?: string | null
   fallbackSendHour?: number | null
   audienceCap?: number | null
   uniqueUsersCap?: number | null
+  dailySendCap?: number | null
   languageFilter?: string
   staleFunnelStageDays?: number | null
   color?: string
@@ -1343,9 +1429,11 @@ export type AgentUpdateWithoutSchedulingRuleInput = {
   epsilon?: Prisma.FloatFieldUpdateOperationsInput | number
   funnelStage?: Prisma.StringFieldUpdateOperationsInput | string
   targetFilter?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
+  targetSegmentName?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   fallbackSendHour?: Prisma.NullableIntFieldUpdateOperationsInput | number | null
   audienceCap?: Prisma.NullableIntFieldUpdateOperationsInput | number | null
   uniqueUsersCap?: Prisma.NullableIntFieldUpdateOperationsInput | number | null
+  dailySendCap?: Prisma.NullableIntFieldUpdateOperationsInput | number | null
   languageFilter?: Prisma.StringFieldUpdateOperationsInput | string
   staleFunnelStageDays?: Prisma.NullableIntFieldUpdateOperationsInput | number | null
   color?: Prisma.StringFieldUpdateOperationsInput | string
@@ -1368,9 +1456,11 @@ export type AgentUncheckedUpdateWithoutSchedulingRuleInput = {
   epsilon?: Prisma.FloatFieldUpdateOperationsInput | number
   funnelStage?: Prisma.StringFieldUpdateOperationsInput | string
   targetFilter?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
+  targetSegmentName?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   fallbackSendHour?: Prisma.NullableIntFieldUpdateOperationsInput | number | null
   audienceCap?: Prisma.NullableIntFieldUpdateOperationsInput | number | null
   uniqueUsersCap?: Prisma.NullableIntFieldUpdateOperationsInput | number | null
+  dailySendCap?: Prisma.NullableIntFieldUpdateOperationsInput | number | null
   languageFilter?: Prisma.StringFieldUpdateOperationsInput | string
   staleFunnelStageDays?: Prisma.NullableIntFieldUpdateOperationsInput | number | null
   color?: Prisma.StringFieldUpdateOperationsInput | string
@@ -1393,9 +1483,11 @@ export type AgentCreateWithoutMetricsInput = {
   epsilon?: number
   funnelStage?: string
   targetFilter?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
+  targetSegmentName?: string | null
   fallbackSendHour?: number | null
   audienceCap?: number | null
   uniqueUsersCap?: number | null
+  dailySendCap?: number | null
   languageFilter?: string
   staleFunnelStageDays?: number | null
   color?: string
@@ -1418,9 +1510,11 @@ export type AgentUncheckedCreateWithoutMetricsInput = {
   epsilon?: number
   funnelStage?: string
   targetFilter?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
+  targetSegmentName?: string | null
   fallbackSendHour?: number | null
   audienceCap?: number | null
   uniqueUsersCap?: number | null
+  dailySendCap?: number | null
   languageFilter?: string
   staleFunnelStageDays?: number | null
   color?: string
@@ -1459,9 +1553,11 @@ export type AgentUpdateWithoutMetricsInput = {
   epsilon?: Prisma.FloatFieldUpdateOperationsInput | number
   funnelStage?: Prisma.StringFieldUpdateOperationsInput | string
   targetFilter?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
+  targetSegmentName?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   fallbackSendHour?: Prisma.NullableIntFieldUpdateOperationsInput | number | null
   audienceCap?: Prisma.NullableIntFieldUpdateOperationsInput | number | null
   uniqueUsersCap?: Prisma.NullableIntFieldUpdateOperationsInput | number | null
+  dailySendCap?: Prisma.NullableIntFieldUpdateOperationsInput | number | null
   languageFilter?: Prisma.StringFieldUpdateOperationsInput | string
   staleFunnelStageDays?: Prisma.NullableIntFieldUpdateOperationsInput | number | null
   color?: Prisma.StringFieldUpdateOperationsInput | string
@@ -1484,9 +1580,11 @@ export type AgentUncheckedUpdateWithoutMetricsInput = {
   epsilon?: Prisma.FloatFieldUpdateOperationsInput | number
   funnelStage?: Prisma.StringFieldUpdateOperationsInput | string
   targetFilter?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
+  targetSegmentName?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   fallbackSendHour?: Prisma.NullableIntFieldUpdateOperationsInput | number | null
   audienceCap?: Prisma.NullableIntFieldUpdateOperationsInput | number | null
   uniqueUsersCap?: Prisma.NullableIntFieldUpdateOperationsInput | number | null
+  dailySendCap?: Prisma.NullableIntFieldUpdateOperationsInput | number | null
   languageFilter?: Prisma.StringFieldUpdateOperationsInput | string
   staleFunnelStageDays?: Prisma.NullableIntFieldUpdateOperationsInput | number | null
   color?: Prisma.StringFieldUpdateOperationsInput | string
@@ -1576,9 +1674,11 @@ export type AgentSelect<ExtArgs extends runtime.Types.Extensions.InternalArgs = 
   epsilon?: boolean
   funnelStage?: boolean
   targetFilter?: boolean
+  targetSegmentName?: boolean
   fallbackSendHour?: boolean
   audienceCap?: boolean
   uniqueUsersCap?: boolean
+  dailySendCap?: boolean
   languageFilter?: boolean
   staleFunnelStageDays?: boolean
   color?: boolean
@@ -1603,9 +1703,11 @@ export type AgentSelectCreateManyAndReturn<ExtArgs extends runtime.Types.Extensi
   epsilon?: boolean
   funnelStage?: boolean
   targetFilter?: boolean
+  targetSegmentName?: boolean
   fallbackSendHour?: boolean
   audienceCap?: boolean
   uniqueUsersCap?: boolean
+  dailySendCap?: boolean
   languageFilter?: boolean
   staleFunnelStageDays?: boolean
   color?: boolean
@@ -1623,9 +1725,11 @@ export type AgentSelectUpdateManyAndReturn<ExtArgs extends runtime.Types.Extensi
   epsilon?: boolean
   funnelStage?: boolean
   targetFilter?: boolean
+  targetSegmentName?: boolean
   fallbackSendHour?: boolean
   audienceCap?: boolean
   uniqueUsersCap?: boolean
+  dailySendCap?: boolean
   languageFilter?: boolean
   staleFunnelStageDays?: boolean
   color?: boolean
@@ -1643,9 +1747,11 @@ export type AgentSelectScalar = {
   epsilon?: boolean
   funnelStage?: boolean
   targetFilter?: boolean
+  targetSegmentName?: boolean
   fallbackSendHour?: boolean
   audienceCap?: boolean
   uniqueUsersCap?: boolean
+  dailySendCap?: boolean
   languageFilter?: boolean
   staleFunnelStageDays?: boolean
   color?: boolean
@@ -1654,7 +1760,7 @@ export type AgentSelectScalar = {
   updatedAt?: boolean
 }
 
-export type AgentOmit<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = runtime.Types.Extensions.GetOmit<"id" | "name" | "description" | "status" | "algorithm" | "epsilon" | "funnelStage" | "targetFilter" | "fallbackSendHour" | "audienceCap" | "uniqueUsersCap" | "languageFilter" | "staleFunnelStageDays" | "color" | "sortOrder" | "createdAt" | "updatedAt", ExtArgs["result"]["agent"]>
+export type AgentOmit<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = runtime.Types.Extensions.GetOmit<"id" | "name" | "description" | "status" | "algorithm" | "epsilon" | "funnelStage" | "targetFilter" | "targetSegmentName" | "fallbackSendHour" | "audienceCap" | "uniqueUsersCap" | "dailySendCap" | "languageFilter" | "staleFunnelStageDays" | "color" | "sortOrder" | "createdAt" | "updatedAt", ExtArgs["result"]["agent"]>
 export type AgentInclude<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
   goals?: boolean | Prisma.Agent$goalsArgs<ExtArgs>
   messages?: boolean | Prisma.Agent$messagesArgs<ExtArgs>
@@ -1686,9 +1792,11 @@ export type $AgentPayload<ExtArgs extends runtime.Types.Extensions.InternalArgs 
     epsilon: number
     funnelStage: string
     targetFilter: runtime.JsonValue | null
+    targetSegmentName: string | null
     fallbackSendHour: number | null
     audienceCap: number | null
     uniqueUsersCap: number | null
+    dailySendCap: number | null
     languageFilter: string
     staleFunnelStageDays: number | null
     color: string
@@ -2132,9 +2240,11 @@ export interface AgentFieldRefs {
   readonly epsilon: Prisma.FieldRef<"Agent", 'Float'>
   readonly funnelStage: Prisma.FieldRef<"Agent", 'String'>
   readonly targetFilter: Prisma.FieldRef<"Agent", 'Json'>
+  readonly targetSegmentName: Prisma.FieldRef<"Agent", 'String'>
   readonly fallbackSendHour: Prisma.FieldRef<"Agent", 'Int'>
   readonly audienceCap: Prisma.FieldRef<"Agent", 'Int'>
   readonly uniqueUsersCap: Prisma.FieldRef<"Agent", 'Int'>
+  readonly dailySendCap: Prisma.FieldRef<"Agent", 'Int'>
   readonly languageFilter: Prisma.FieldRef<"Agent", 'String'>
   readonly staleFunnelStageDays: Prisma.FieldRef<"Agent", 'Int'>
   readonly color: Prisma.FieldRef<"Agent", 'String'>
