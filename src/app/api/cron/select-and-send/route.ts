@@ -318,9 +318,18 @@ export async function POST(req: NextRequest) {
             new Map(rows.map((r) => [r.externalId, r.preferredSendHour])),
           );
         } else {
+          // Bound the query so agents with millions of eligible users don't load the
+          // entire set into memory. audienceCap is the hard per-run limit; when unset,
+          // derive a safe fetch window from dailySendCap (2× for suppression headroom).
+          // Without at least one cap an agent targeting 7M+ users would exhaust the
+          // 300s function timeout before processing a single send.
+          const fetchLimit =
+            agent.audienceCap ??
+            (agent.dailySendCap != null ? agent.dailySendCap * 2 : undefined);
           const rows = await prisma.trackedUser.findMany({
             where:  { personaId: { in: personaIds }, ...langFilter, ...funnelFilter },
             select: { externalId: true, preferredSendHour: true },
+            ...(fetchLimit !== undefined ? { take: fetchLimit } : {}),
           });
           eligibleUsersByAgent.set(agent.id, rows.map((r) => r.externalId));
           preferredHourByAgent.set(
@@ -547,6 +556,26 @@ export async function POST(req: NextRequest) {
         const preCap = lotteryUserIds.length;
         lotteryUserIds = lotteryUserIds.slice(0, agent.audienceCap);
         suppress.audienceCap = preCap - lotteryUserIds.length;
+      }
+    }
+
+    // Daily send cap — stop / trim when the agent has already hit its daily limit.
+    // Counts only confirmed sends (brazeSendId set) to avoid counting Braze-failed attempts.
+    if (agent.dailySendCap != null) {
+      const sentToday = await prisma.userDecision.count({
+        where: {
+          agentId:     agent.id,
+          sentAt:      { gte: todayStart },
+          brazeSendId: { not: null },
+        },
+      });
+      const remaining = agent.dailySendCap - sentToday;
+      if (remaining <= 0) {
+        suppress.dailyCap += lotteryUserIds.length;
+        lotteryUserIds = [];
+      } else if (lotteryUserIds.length > remaining) {
+        suppress.dailyCap += lotteryUserIds.length - remaining;
+        lotteryUserIds = lotteryUserIds.slice(0, remaining);
       }
     }
 
