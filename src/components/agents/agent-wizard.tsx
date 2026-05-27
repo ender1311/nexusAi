@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
@@ -202,6 +202,14 @@ export function AgentWizard({ personas }: { personas: Persona[] }) {
   const [uniqueUsersCustom, setUniqueUsersCustom] = useState<string>("");
   const [dailySendCapPreset, setDailySendCapPreset] = useState<string>("unlimited");
   const [dailySendCapCustom, setDailySendCapCustom] = useState<string>("");
+  const [segments, setSegments] = useState<string[]>([]);
+
+  useEffect(() => {
+    fetch("/api/segments")
+      .then((r) => r.json())
+      .then((j: { data: string[] }) => setSegments(j.data))
+      .catch(() => {});
+  }, []);
 
   const update = (key: keyof FormData, value: unknown) => setForm((f) => ({ ...f, [key]: value }));
 
@@ -426,11 +434,25 @@ export function AgentWizard({ personas }: { personas: Persona[] }) {
                 </button>
               </div>
               {form.targetSegmentName !== null ? (
-                <Input
-                  placeholder="e.g. bible_readers_segment"
-                  value={form.targetSegmentName}
-                  onChange={(e) => update("targetSegmentName", e.target.value)}
-                />
+                segments.length > 0 ? (
+                  <Select
+                    value={form.targetSegmentName || undefined}
+                    onValueChange={(v) => update("targetSegmentName", v)}
+                  >
+                    <SelectTrigger>
+                      <SelectValue placeholder="Select a segment…" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {segments.map((s) => (
+                        <SelectItem key={s} value={s}>{s}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                ) : (
+                  <p className="text-sm text-muted-foreground italic">
+                    No segments synced yet — run a Hightouch segment sync first.
+                  </p>
+                )
               ) : null}
             </div>
             {form.targetSegmentName === null && (
