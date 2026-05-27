@@ -13,6 +13,7 @@ type Props = {
 };
 
 const PRESET_OPTIONS = [
+  { label: "No cap", value: "none" },
   { label: "1 user", value: "1" },
   { label: "5 users", value: "5" },
   { label: "10 users", value: "10" },
@@ -26,10 +27,9 @@ const PRESET_OPTIONS = [
 ];
 
 export function AudienceCapEditor({ agentId, audienceCap }: Props) {
-  // null (legacy unlimited) defaults to 100 in UI — all new agents require a cap
   const initialPreset =
     audienceCap === null
-      ? "100"
+      ? "none"
       : PRESET_OPTIONS.find((o) => o.value === String(audienceCap))
         ? String(audienceCap)
         : "custom";
@@ -70,7 +70,9 @@ export function AudienceCapEditor({ agentId, audienceCap }: Props) {
   function handlePresetChange(value: string | null) {
     if (!value) return;
     setPreset(value);
-    if (value !== "custom") {
+    if (value === "none") {
+      save(null);
+    } else if (value !== "custom") {
       save(parseInt(value, 10));
     }
     // "custom" — wait for user to confirm input
