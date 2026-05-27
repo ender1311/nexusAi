@@ -115,7 +115,7 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
         ...(body.dailySendCap !== undefined ? { dailySendCap: body.dailySendCap } : {}),
         ...(body.languageFilter !== undefined ? { languageFilter: body.languageFilter } : {}),
         ...(body.color !== undefined ? { color: body.color } : {}),
-        ...(body.targetSegmentName !== undefined ? { targetSegmentName: body.targetSegmentName } : {}),
+        ...(body.targetSegmentName !== undefined ? { targetSegmentName: typeof body.targetSegmentName === "string" ? body.targetSegmentName.trim() : null } : {}),
       },
     });
     revalidatePath(`/agents/${id}`);
