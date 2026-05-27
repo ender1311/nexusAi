@@ -7,6 +7,11 @@ import { Input } from "@/components/ui/input";
 import { Slider } from "@/components/ui/slider";
 import { cn } from "@/lib/utils";
 import type { VariantWithMessage } from "@/types/agent";
+import {
+  GENERIC_BIBLE_DEEPLINK,
+  resolveSpecificVerseDeeplink,
+  type SpecificVerseDeeplinkMode,
+} from "@/lib/push-deeplinks";
 
 // ─── Category / subcategory catalogue ────────────────────────────────────────
 
@@ -99,6 +104,8 @@ export function TemplatePicker(props: TemplatePickerProps) {
   const [fetchState, setFetchState] = useState<FetchState>({ status: "idle" });
   const [autoMode, setAutoMode] = useState(false);
   const [autoCount, setAutoCount] = useState(2);
+  const [specificVerseDeeplinkMode, setSpecificVerseDeeplinkMode] =
+    useState<SpecificVerseDeeplinkMode>("specific");
   const [saving, setSaving] = useState(false);
   const [saveError, setSaveError] = useState<string | null>(null);
 
@@ -168,6 +175,9 @@ export function TemplatePicker(props: TemplatePickerProps) {
 
   function handleSubcategoryClick(subcategoryValue: string) {
     setSelectedSubcategory(subcategoryValue);
+    if (subcategoryValue === "specific-verse") {
+      setSpecificVerseDeeplinkMode("specific");
+    }
   }
 
   function handleVariantToggle(variantId: string) {
@@ -197,7 +207,9 @@ export function TemplatePicker(props: TemplatePickerProps) {
         name: v.name,
         title: v.title ?? undefined,
         body: v.body,
-        deeplink: v.deeplink ?? undefined,
+        deeplink: selectedSubcategory === "specific-verse"
+          ? resolveSpecificVerseDeeplink(v.deeplink, specificVerseDeeplinkMode)
+          : (v.deeplink ?? undefined),
         sourceTemplateId: v.id,
       })),
     };
@@ -293,6 +305,46 @@ export function TemplatePicker(props: TemplatePickerProps) {
           ))}
         </div>
       </div>
+
+      {/* Deeplink Version toggle — specific-verse only */}
+      {selectedSubcategory === "specific-verse" && (
+        <div className="space-y-2">
+          <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
+            Deeplink Version
+          </p>
+          <div className="flex rounded-md border overflow-hidden text-xs">
+            <button
+              type="button"
+              className={cn(
+                "px-3 py-1.5 font-medium transition-colors flex-1",
+                specificVerseDeeplinkMode === "generic"
+                  ? "bg-primary text-primary-foreground"
+                  : "text-muted-foreground hover:text-foreground",
+              )}
+              onClick={() => setSpecificVerseDeeplinkMode("generic")}
+            >
+              Generic
+            </button>
+            <button
+              type="button"
+              className={cn(
+                "px-3 py-1.5 font-medium transition-colors border-l flex-1",
+                specificVerseDeeplinkMode === "specific"
+                  ? "bg-primary text-primary-foreground"
+                  : "text-muted-foreground hover:text-foreground",
+              )}
+              onClick={() => setSpecificVerseDeeplinkMode("specific")}
+            >
+              Specific Verse
+            </button>
+          </div>
+          <p className="text-xs font-mono text-muted-foreground">
+            {specificVerseDeeplinkMode === "generic"
+              ? GENERIC_BIBLE_DEEPLINK
+              : "youversion://bible?reference=<verse>"}
+          </p>
+        </div>
+      )}
 
       {/* Auto-pick controls */}
       {!isLoading && fetchState.status === "done" && variants.length >= 2 && (
