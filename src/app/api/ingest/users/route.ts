@@ -657,7 +657,7 @@ export async function POST(req: NextRequest) {
       const planId = brazeAttrs.plan_day_last_plan_id ?? null;
       const planTags = planId ? (planTagMap.get(planId) ?? []) : [];
 
-      const isLapsed = user.funnel_stage === "lapsed" || user.funnel_stage === "lapsed_mau" || user.funnel_stage === "lapsed_dau" || user.funnel_stage === "lapsed_dau4";
+      const isLapsed = user.funnel_stage === "lapsed" || user.funnel_stage === "lapsed_wau" || user.funnel_stage === "lapsed_mau" || user.funnel_stage === "lapsed_dau" || user.funnel_stage === "lapsed_dau4";
       const personaLabel = isLapsed ? "Re-engager" : (classifyPersona(brazeAttrs, planTags) ?? "Bible-first");
       const personaId = personaByLabel.get(personaLabel) ?? null;
 

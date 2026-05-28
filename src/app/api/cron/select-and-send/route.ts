@@ -316,7 +316,14 @@ export async function POST(req: NextRequest) {
           }
           const memberIds = members.map((m) => m.externalId);
           const rows = await prisma.trackedUser.findMany({
-            where: { externalId: { in: memberIds }, personaId: { in: personaIds } },
+            where: {
+              externalId: { in: memberIds },
+              personaId:  { in: personaIds },
+              OR: [
+                { lockedByAgentId: null },
+                { lockedByAgentId: agent.id },
+              ],
+            },
             select: { externalId: true, preferredSendHour: true },
           });
           eligibleUsersByAgent.set(agent.id, rows.map((r) => r.externalId));
@@ -334,7 +341,15 @@ export async function POST(req: NextRequest) {
             agent.audienceCap ??
             (agent.dailySendCap != null ? agent.dailySendCap * 2 : undefined);
           const rows = await prisma.trackedUser.findMany({
-            where:  { personaId: { in: personaIds }, ...langFilter, ...funnelFilter },
+            where:  {
+              personaId: { in: personaIds },
+              ...langFilter,
+              ...funnelFilter,
+              OR: [
+                { lockedByAgentId: null },
+                { lockedByAgentId: agent.id },
+              ],
+            },
             select: { externalId: true, preferredSendHour: true },
             ...(fetchLimit !== undefined ? { take: fetchLimit } : {}),
           });
@@ -601,6 +616,16 @@ export async function POST(req: NextRequest) {
         suppress.uniqueUsersCap += lotteryUserIds.length - remaining;
         lotteryUserIds = lotteryUserIds.slice(0, remaining);
       }
+    }
+
+    // Lock lottery users to this agent — prevents other agents from grabbing them
+    // in subsequent cron runs. Locks are released when the agent is paused or deleted.
+    // Condition: only lock users not already locked by another agent (idempotency).
+    if (lotteryUserIds.length > 0) {
+      await prisma.trackedUser.updateMany({
+        where: { externalId: { in: lotteryUserIds }, lockedByAgentId: null },
+        data:  { lockedByAgentId: agent.id },
+      });
     }
 
     // Check if this agent has any in-window users to process

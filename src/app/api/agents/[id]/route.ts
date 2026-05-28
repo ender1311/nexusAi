@@ -98,6 +98,14 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
       }
     }
 
+    // Release user locks when agent is stopped, paused, or targeting criteria change
+    if (body.status === "paused" || body.status === "draft" || body.targetSegmentName !== undefined || body.funnelStage !== undefined) {
+      await prisma.trackedUser.updateMany({
+        where: { lockedByAgentId: id },
+        data:  { lockedByAgentId: null },
+      });
+    }
+
     const agent = await prisma.agent.update({
       where: { id },
       data: {
@@ -133,6 +141,10 @@ export async function DELETE(_req: NextRequest, { params }: { params: Promise<{ 
   const forbidden = await requireAdmin();
   if (forbidden) return forbidden;
   try {
+    await prisma.trackedUser.updateMany({
+      where: { lockedByAgentId: id },
+      data:  { lockedByAgentId: null },
+    });
     await prisma.agent.delete({ where: { id } });
     revalidatePath("/agents");
     revalidateTag(`agent-${id}`, "max");
