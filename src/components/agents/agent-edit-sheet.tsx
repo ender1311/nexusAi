@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useRouter } from "next/navigation";
 import { Settings } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -13,6 +13,7 @@ import {
   SelectContent,
   SelectItem,
   SelectTrigger,
+  SelectValue,
 } from "@/components/ui/select";
 import {
   Sheet,
@@ -23,12 +24,28 @@ import {
 } from "@/components/ui/sheet";
 import { FunnelStage, FUNNEL_STAGES, FUNNEL_STAGE_META } from "@/types/agent";
 import { AgentColorPicker } from "./agent-color-picker";
+import { cn } from "@/lib/utils";
 
 const ALGORITHM_OPTIONS = [
   { value: "thompson", label: "Thompson Sampling" },
   { value: "epsilon_greedy", label: "Epsilon-Greedy" },
+  { value: "linucb", label: "LinUCB" },
   { value: "contextual", label: "Contextual Bandit" },
 ];
+
+const DAILY_CAP_PRESETS = [
+  { label: "No cap", value: "none" },
+  { label: "100", value: "100" },
+  { label: "250", value: "250" },
+  { label: "500", value: "500" },
+  { label: "1,000", value: "1000" },
+  { label: "2,500", value: "2500" },
+  { label: "5,000", value: "5000" },
+  { label: "10,000", value: "10000" },
+  { label: "Custom…", value: "custom" },
+];
+
+type SegmentOption = { name: string; userCount: number; assignedTo: string | null };
 
 type Props = {
   agentId: string;
@@ -40,6 +57,8 @@ type Props = {
   initialLanguageFilter: string;
   initialColor: string;
   usedColors: string[];
+  initialTargetSegmentName: string | null;
+  initialDailySendCap: number | null;
 };
 
 export function AgentEditSheet({
@@ -52,6 +71,8 @@ export function AgentEditSheet({
   initialLanguageFilter,
   initialColor,
   usedColors,
+  initialTargetSegmentName,
+  initialDailySendCap,
 }: Props) {
   const router = useRouter();
   const [open, setOpen] = useState(false);
@@ -63,10 +84,64 @@ export function AgentEditSheet({
   const [englishOnly, setEnglishOnly] = useState(initialLanguageFilter === "en");
   const [saving, setSaving] = useState(false);
 
+  // Segment targeting
+  const [segmentMode, setSegmentMode] = useState(initialTargetSegmentName !== null);
+  const [targetSegmentName, setTargetSegmentName] = useState<string>(initialTargetSegmentName ?? "");
+  const [segments, setSegments] = useState<SegmentOption[]>([]);
+
+  // Daily send cap
+  const initialCapPreset = initialDailySendCap === null
+    ? "none"
+    : DAILY_CAP_PRESETS.find((o) => o.value === String(initialDailySendCap))
+      ? String(initialDailySendCap)
+      : "custom";
+  const [capPreset, setCapPreset] = useState(initialCapPreset);
+  const [capCustom, setCapCustom] = useState(
+    initialDailySendCap !== null && initialCapPreset === "custom" ? String(initialDailySendCap) : ""
+  );
+
+  // Reset form state when sheet opens
+  const prevOpen = useRef(false);
+  useEffect(() => {
+    if (open && !prevOpen.current) {
+      setName(initialName);
+      setDescription(initialDescription ?? "");
+      setAlgorithm(initialAlgorithm);
+      setEpsilon(initialEpsilon);
+      setFunnelStage(initialFunnelStage);
+      setEnglishOnly(initialLanguageFilter === "en");
+      setSegmentMode(initialTargetSegmentName !== null);
+      setTargetSegmentName(initialTargetSegmentName ?? "");
+      setCapPreset(initialCapPreset);
+      setCapCustom(initialDailySendCap !== null && initialCapPreset === "custom" ? String(initialDailySendCap) : "");
+    }
+    prevOpen.current = open;
+  }, [open, initialName, initialDescription, initialAlgorithm, initialEpsilon, initialFunnelStage,
+      initialLanguageFilter, initialTargetSegmentName, initialDailySendCap, initialCapPreset]);
+
+  // Fetch segments when sheet opens
+  useEffect(() => {
+    if (!open) return;
+    fetch("/api/segments")
+      .then((r) => r.json())
+      .then((j: { data: SegmentOption[] }) => setSegments(j.data))
+      .catch(() => {});
+  }, [open]);
+
+  function resolvedDailySendCap(): number | null {
+    if (capPreset === "none") return null;
+    if (capPreset === "custom") {
+      const n = parseInt(capCustom, 10);
+      return !isNaN(n) && n >= 1 ? n : null;
+    }
+    return parseInt(capPreset, 10);
+  }
+
   async function save() {
     if (!name.trim()) return;
     setSaving(true);
     try {
+      const resolvedSegment = segmentMode ? (targetSegmentName.trim() || null) : null;
       await fetch(`/api/agents/${agentId}`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
@@ -77,6 +152,8 @@ export function AgentEditSheet({
           epsilon,
           funnelStage,
           languageFilter: englishOnly ? "en" : "all",
+          targetSegmentName: resolvedSegment,
+          dailySendCap: resolvedDailySendCap(),
         }),
       });
       setOpen(false);
@@ -85,6 +162,8 @@ export function AgentEditSheet({
       setSaving(false);
     }
   }
+
+  const selectedSegment = segments.find((s) => s.name === targetSegmentName);
 
   return (
     <Sheet open={open} onOpenChange={setOpen}>
@@ -169,34 +248,138 @@ export function AgentEditSheet({
               </div>
             )}
 
-            <div className="space-y-1.5">
-              <label className="text-sm font-medium">Funnel Stage</label>
-              <Select
-                value={funnelStage}
-                onValueChange={(v) => { if (v) setFunnelStage(v as FunnelStage); }}
-              >
-                <SelectTrigger className="w-full">
-                  <span className="flex-1 text-left text-sm truncate">
-                    {FUNNEL_STAGE_META[funnelStage].label}
-                  </span>
-                </SelectTrigger>
-                <SelectContent>
-                  {FUNNEL_STAGES.map((stage) => (
-                    <SelectItem key={stage} value={stage}>
-                      {FUNNEL_STAGE_META[stage].label}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-              <p className="text-xs text-muted-foreground">Determines which users this agent targets.</p>
-            </div>
-
             <div className="flex items-center justify-between rounded-lg border bg-muted/20 px-3 py-3">
               <div>
                 <p className="text-sm font-medium">English only</p>
                 <p className="text-xs text-muted-foreground mt-0.5">Restrict to users with language starting with &quot;en&quot;</p>
               </div>
               <Switch checked={englishOnly} onCheckedChange={setEnglishOnly} />
+            </div>
+          </section>
+
+          <div className="border-t" />
+
+          {/* Targeting */}
+          <section className="space-y-4">
+            <p className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider">Targeting</p>
+
+            <div className="flex rounded-lg border overflow-hidden text-sm">
+              <button
+                type="button"
+                className={cn("flex-1 py-2 text-center transition-colors", !segmentMode ? "bg-primary text-primary-foreground font-medium" : "hover:bg-muted/50 text-muted-foreground")}
+                onClick={() => setSegmentMode(false)}
+              >
+                Funnel Stage
+              </button>
+              <button
+                type="button"
+                className={cn("flex-1 py-2 text-center transition-colors", segmentMode ? "bg-primary text-primary-foreground font-medium" : "hover:bg-muted/50 text-muted-foreground")}
+                onClick={() => setSegmentMode(true)}
+              >
+                HT Segment
+              </button>
+            </div>
+
+            {!segmentMode ? (
+              <div className="space-y-1.5">
+                <label className="text-sm font-medium">Funnel Stage</label>
+                <Select
+                  value={funnelStage}
+                  onValueChange={(v) => { if (v) setFunnelStage(v as FunnelStage); }}
+                >
+                  <SelectTrigger className="w-full">
+                    <span className="flex-1 text-left text-sm truncate">
+                      {FUNNEL_STAGE_META[funnelStage].label}
+                    </span>
+                  </SelectTrigger>
+                  <SelectContent>
+                    {FUNNEL_STAGES.map((stage) => (
+                      <SelectItem key={stage} value={stage}>
+                        {FUNNEL_STAGE_META[stage].label}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                <p className="text-xs text-muted-foreground">Determines which users this agent targets.</p>
+              </div>
+            ) : (
+              <div className="space-y-1.5">
+                <label className="text-sm font-medium">Hightouch Segment</label>
+                {segments.length > 0 ? (
+                  <>
+                    <Select
+                      value={targetSegmentName || undefined}
+                      onValueChange={(v) => { if (v) setTargetSegmentName(v); }}
+                    >
+                      <SelectTrigger className="w-full">
+                        <SelectValue placeholder="Select a segment…" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {segments.map((s) => (
+                          <SelectItem
+                            key={s.name}
+                            value={s.name}
+                            disabled={s.assignedTo !== null && s.assignedTo !== initialTargetSegmentName}
+                          >
+                            <span className={s.assignedTo !== null && s.assignedTo !== initialTargetSegmentName ? "text-muted-foreground" : undefined}>
+                              {s.name}
+                              <span className="ml-2 text-xs text-muted-foreground">
+                                ({s.userCount >= 1000 ? `${(s.userCount / 1000).toFixed(0)}K` : s.userCount} users
+                                {s.assignedTo && s.assignedTo !== initialTargetSegmentName ? ` · ${s.assignedTo}` : ""})
+                              </span>
+                            </span>
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                    {selectedSegment && (
+                      <p className="text-xs text-muted-foreground">
+                        ~{selectedSegment.userCount.toLocaleString()} members synced
+                      </p>
+                    )}
+                  </>
+                ) : (
+                  <p className="text-sm text-muted-foreground italic">
+                    No segments synced yet — run a Hightouch segment sync first.
+                  </p>
+                )}
+              </div>
+            )}
+          </section>
+
+          <div className="border-t" />
+
+          {/* Send Limits */}
+          <section className="space-y-4">
+            <p className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider">Send Limits</p>
+
+            <div className="space-y-1.5">
+              <label className="text-sm font-medium">Daily Send Cap</label>
+              <div className="flex items-center gap-2">
+                <Select value={capPreset} onValueChange={(v) => { if (v) setCapPreset(v); }}>
+                  <SelectTrigger className="w-36">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {DAILY_CAP_PRESETS.map((opt) => (
+                      <SelectItem key={opt.value} value={opt.value}>
+                        {opt.label}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                {capPreset === "custom" && (
+                  <Input
+                    type="number"
+                    min={1}
+                    className="w-24"
+                    placeholder="e.g. 750"
+                    value={capCustom}
+                    onChange={(e) => setCapCustom(e.target.value)}
+                  />
+                )}
+              </div>
+              <p className="text-xs text-muted-foreground">Maximum confirmed sends per 24-hour window.</p>
             </div>
           </section>
         </div>
@@ -206,7 +389,7 @@ export function AgentEditSheet({
           <Button
             className="flex-1"
             onClick={save}
-            disabled={saving || !name.trim()}
+            disabled={saving || !name.trim() || (segmentMode && !targetSegmentName.trim())}
           >
             {saving ? "Saving…" : "Save Changes"}
           </Button>
