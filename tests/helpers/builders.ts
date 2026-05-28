@@ -183,6 +183,23 @@ export async function createUserDecision(params: {
   });
 }
 
+/** Alias for createUserDecision with named-object params (used in giving-conversion tests). */
+export async function createDecision(data: {
+  agentId: string;
+  userId: string;
+  messageVariantId?: string;
+  channel?: string;
+  sentAt?: Date;
+}) {
+  return createUserDecision({
+    agentId: data.agentId,
+    userId: data.userId,
+    messageVariantId: data.messageVariantId,
+    channel: data.channel ?? "push",
+    sentAt: data.sentAt ?? new Date(),
+  });
+}
+
 // Note: title and body are mutually exclusive based on contentType.
 // a-title and b-title use title; verse-text uses body.
 // If you override contentType, also explicitly override title/body accordingly.
