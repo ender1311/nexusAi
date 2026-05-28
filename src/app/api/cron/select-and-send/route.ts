@@ -620,9 +620,10 @@ export async function POST(req: NextRequest) {
 
     // Lock lottery users to this agent — prevents other agents from grabbing them
     // in subsequent cron runs. Locks are released when the agent is paused or deleted.
+    // Condition: only lock users not already locked by another agent (idempotency).
     if (lotteryUserIds.length > 0) {
       await prisma.trackedUser.updateMany({
-        where: { externalId: { in: lotteryUserIds } },
+        where: { externalId: { in: lotteryUserIds }, lockedByAgentId: null },
         data:  { lockedByAgentId: agent.id },
       });
     }

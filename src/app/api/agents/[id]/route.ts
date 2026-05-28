@@ -98,8 +98,8 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
       }
     }
 
-    // Release user locks when agent is stopped or paused
-    if (body.status === "paused" || body.status === "draft") {
+    // Release user locks when agent is stopped, paused, or targeting criteria change
+    if (body.status === "paused" || body.status === "draft" || body.targetSegmentName !== undefined || body.funnelStage !== undefined) {
       await prisma.trackedUser.updateMany({
         where: { lockedByAgentId: id },
         data:  { lockedByAgentId: null },
