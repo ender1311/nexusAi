@@ -1,14 +1,14 @@
 "use client";
 
 import Link from "next/link";
-import { useState, useRef } from "react";
+import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Agent, FUNNEL_STAGE_META } from "@/types/agent";
 import { AgentStatusBadge } from "./agent-status-badge";
 import { cn, formatNumber } from "@/lib/utils";
-import { Bot, MessageSquare, Target, Trash2, Pencil } from "lucide-react";
+import { Bot, MessageSquare, Target, Trash2 } from "lucide-react";
 import { InfoTip } from "@/components/ui/info-tip";
 import {
   AlertDialog,
@@ -23,67 +23,21 @@ import {
 
 type ConvergenceState = "exploring" | "learning" | "converging" | "confident";
 
-function UniqueUsersCapCell({ agentId, uniqueUsers, uniqueUsersCap }: {
-  agentId: string;
+function UniqueUsersCapCell({ uniqueUsers, uniqueUsersCap }: {
   uniqueUsers: number;
   uniqueUsersCap: number | null | undefined;
 }) {
-  const [editing, setEditing] = useState(false);
-  const [value, setValue] = useState(uniqueUsersCap != null ? String(uniqueUsersCap) : "");
-  const inputRef = useRef<HTMLInputElement>(null);
-  const router = useRouter();
-
-  function startEdit(e: React.MouseEvent) {
-    e.preventDefault();
-    e.stopPropagation();
-    setEditing(true);
-    setTimeout(() => inputRef.current?.focus(), 0);
-  }
-
-  async function save() {
-    setEditing(false);
-    const n = value.trim() === "" ? null : parseInt(value, 10);
-    if (n !== null && (isNaN(n) || n < 1)) { setValue(uniqueUsersCap != null ? String(uniqueUsersCap) : ""); return; }
-    await fetch(`/api/agents/${agentId}`, {
-      method: "PATCH",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ uniqueUsersCap: n }),
-    });
-    router.refresh();
-  }
-
   const pct = uniqueUsersCap && uniqueUsersCap > 0 ? Math.min(100, Math.round((uniqueUsers / uniqueUsersCap) * 100)) : null;
 
   return (
-    <div className="text-right min-w-0" onClick={(e) => e.preventDefault()}>
+    <div className="text-right min-w-0">
       <p className="text-xs text-muted-foreground">Unique users</p>
       <div className="flex items-center justify-end gap-1 mt-0.5">
         <span className="text-xs font-medium tabular-nums">{formatNumber(uniqueUsers)}</span>
-        {editing ? (
-          <input
-            ref={inputRef}
-            type="number"
-            min={1}
-            className="w-16 text-xs border rounded px-1 py-0.5 font-medium bg-background"
-            placeholder="cap…"
-            value={value}
-            onChange={(e) => setValue(e.target.value)}
-            onBlur={save}
-            onKeyDown={(e) => { if (e.key === "Enter") save(); if (e.key === "Escape") { setEditing(false); setValue(uniqueUsersCap != null ? String(uniqueUsersCap) : ""); } }}
-            onClick={(e) => e.stopPropagation()}
-          />
-        ) : (
-          <button
-            onClick={startEdit}
-            className="flex items-center gap-0.5 text-xs text-muted-foreground hover:text-foreground transition-colors"
-            title="Set unique users cap"
-          >
-            {uniqueUsersCap != null ? (
-              <span className="tabular-nums">/ {formatNumber(uniqueUsersCap)}{pct !== null ? ` (${pct}%)` : ""}</span>
-            ) : (
-              <Pencil className="h-2.5 w-2.5 opacity-50" />
-            )}
-          </button>
+        {uniqueUsersCap != null && (
+          <span className="text-xs text-muted-foreground tabular-nums">
+            / {formatNumber(uniqueUsersCap)}{pct !== null ? ` (${pct}%)` : ""}
+          </span>
         )}
       </div>
     </div>
@@ -227,7 +181,6 @@ export function AgentCard({ agent, conversionRate, convergenceState, onDelete }:
 
                 {/* Unique users / cap (inline-editable) */}
                 <UniqueUsersCapCell
-                  agentId={agent.id}
                   uniqueUsers={agent.uniqueUsers ?? 0}
                   uniqueUsersCap={agent.uniqueUsersCap}
                 />

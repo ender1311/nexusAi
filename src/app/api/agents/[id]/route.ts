@@ -69,12 +69,6 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
       }
     }
 
-    if (body.uniqueUsersCap !== undefined) {
-      if (body.uniqueUsersCap !== null && (!Number.isInteger(body.uniqueUsersCap) || body.uniqueUsersCap < 1)) {
-        return NextResponse.json({ error: "uniqueUsersCap must be null or a positive integer" }, { status: 400 });
-      }
-    }
-
     if (body.dailySendCap !== undefined) {
       if (body.dailySendCap !== null && (!Number.isInteger(body.dailySendCap) || body.dailySendCap < 1)) {
         return NextResponse.json({ error: "dailySendCap must be null or a positive integer" }, { status: 400 });
@@ -116,7 +110,6 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
         ...(body.targetFilter !== undefined ? { targetFilter: body.targetFilter } : {}),
         ...(body.fallbackSendHour !== undefined ? { fallbackSendHour: body.fallbackSendHour } : {}),
         ...(body.audienceCap !== undefined ? { audienceCap: body.audienceCap } : {}),
-        ...(body.uniqueUsersCap !== undefined ? { uniqueUsersCap: body.uniqueUsersCap } : {}),
         ...(body.dailySendCap !== undefined ? { dailySendCap: body.dailySendCap } : {}),
         ...(body.languageFilter !== undefined ? { languageFilter: body.languageFilter } : {}),
         ...(body.color !== undefined ? { color: body.color } : {}),
