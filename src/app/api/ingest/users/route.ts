@@ -690,6 +690,117 @@ export async function POST(req: NextRequest) {
         },
       });
 
+      // ── Giving conversion attribution ──────────────────────────────────────
+      // When Hightouch syncs gift_amount_most_recent_timestamp and it's a new
+      // gift within the 30-day attribution window after a Nexus send, attribute
+      // a gift_given conversion to that decision.
+      const giftTimestampRaw = raw["gift_amount_most_recent_timestamp"];
+      if (giftTimestampRaw) {
+        if (typeof giftTimestampRaw !== "string" && typeof giftTimestampRaw !== "number") {
+          // skip — unexpected type, can't construct a valid Date
+        } else {
+        const giftDate = new Date(giftTimestampRaw);
+        if (!isNaN(giftDate.getTime())) {
+          const GIVING_ATTRIBUTION_WINDOW_MS = 30 * 24 * 60 * 60 * 1000;
+          const windowStart = new Date(giftDate.getTime() - GIVING_ATTRIBUTION_WINDOW_MS);
+
+          const decision = await prisma.userDecision.findFirst({
+            where: {
+              userId: externalId,
+              conversionAt: null,
+              brazeSendId: { not: null },
+              sentAt: { gte: windowStart, lte: giftDate },
+            },
+            orderBy: { sentAt: "desc" },
+            include: { agent: { include: { goals: true } } },
+          });
+
+          if (decision) {
+            const giftAmount =
+              typeof raw["gift_amount_most_recent"] === "number"
+                ? raw["gift_amount_most_recent"]
+                : null;
+
+            const reward = calculateReward(
+              "gift_given",
+              decision.agent.goals as Parameters<typeof calculateReward>[1],
+              giftAmount !== null ? { gift_amount_most_recent: giftAmount } : {},
+            );
+
+            await prisma.userDecision.update({
+              where: { id: decision.id },
+              data: {
+                conversionEvent: "gift_given",
+                conversionAt: giftDate,
+                reward: reward !== 0 ? reward : null,
+              },
+            }).catch((err) => {
+              console.error("[ingest/users] Failed to write giving conversion attribution:", err);
+            });
+
+            if (reward !== 0) {
+              await accumulateUserStats({
+                externalId,
+                channel: decision.channel,
+                reward,
+                occurredAt: giftDate,
+              }).catch((err) => {
+                console.error("[ingest/users] Failed to accumulate user stats (gift_given):", err);
+              });
+
+              if (decision.messageVariantId) {
+                const deltaAlpha = reward > 0 ? reward : 0;
+                const deltaBeta  = reward <= 0 ? 1 : 0;
+                const deltaWins  = reward > 0 ? 1 : 0;
+
+                await Promise.all([
+                  personaId
+                    ? upsertArmStats({
+                        personaId,
+                        agentId: decision.agentId,
+                        variantId: decision.messageVariantId,
+                        deltaAlpha, deltaBeta, deltaWins,
+                      }).catch((err) => {
+                        console.error("[ingest/users] Failed to update PersonaArmStats (gift_given):", err);
+                      })
+                    : Promise.resolve(),
+                  upsertUserArmStats({
+                    userId: externalId,
+                    agentId: decision.agentId,
+                    variantId: decision.messageVariantId,
+                    deltaAlpha, deltaBeta, deltaWins,
+                  }).catch((err) => {
+                    console.error("[ingest/users] Failed to update UserArmStats (gift_given):", err);
+                  }),
+                ]);
+
+                if (decision.agent.algorithm === "linucb") {
+                  const ctx = decision.decisionContext as Record<string, unknown> | null;
+                  const rawVec = ctx?.contextVector;
+                  const contextVec =
+                    Array.isArray(rawVec) &&
+                    rawVec.length === FEATURE_DIM &&
+                    (rawVec as number[]).every(Number.isFinite)
+                      ? (rawVec as number[])
+                      : null;
+                  if (contextVec) {
+                    await updateLinUCBArm({
+                      agentId: decision.agentId,
+                      variantId: decision.messageVariantId,
+                      contextVec,
+                      reward,
+                    }).catch((err) => {
+                      console.error("[ingest/users] Failed to update LinUCBArm (gift_given):", err);
+                    });
+                  }
+                }
+              }
+            }
+          }
+        }
+        } // end else (giftTimestampRaw is string | number)
+      }
+
       return { upserted: 1, assigned: personaId ? 1 : 0 };
     }));
 

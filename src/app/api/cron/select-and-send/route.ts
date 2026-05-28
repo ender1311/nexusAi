@@ -23,6 +23,7 @@ import { computeFeatureVector, FEATURE_DIM } from "@/lib/engine/feature-vector";
 import type { BanditArm } from "@/lib/engine/types";
 import { recencyMultiplier } from "@/lib/engine/beta-pdf";
 import type { BrazeRecipient } from "@/lib/braze/payload-factory";
+import { GIVING_LINK_SENTINEL, buildGivingDeeplink } from "@/lib/engine/giving-link";
 
 // Allow up to 300s execution time on Vercel
 export const maxDuration = 300;
@@ -1089,8 +1090,16 @@ export async function POST(req: NextRequest) {
             const decisionId = lotteryDecisionIdByUser.get(user.externalId);
             if (!decisionId) continue;
 
+            // Resolve giving deeplink sentinel to per-user URL.
+            // Giving sentinel: compute per-user URL. The ladder in giving-link.ts has only 14 USD rungs,
+            // so most users with similar history share the same amount and thus the same groupKey —
+            // batching is preserved in practice.
+            const resolvedDeeplink = meta.deeplink === GIVING_LINK_SENTINEL
+              ? buildGivingDeeplink((user.attributes as Record<string, unknown>) ?? {})
+              : meta.deeplink;
+
             const groupInLocalTime = isFallback;
-            const groupKey = `${variantId}:${scheduledAt.toISOString()}:${groupInLocalTime}`;
+            const groupKey = `${variantId}:${scheduledAt.toISOString()}:${groupInLocalTime}:${resolvedDeeplink ?? ""}`;
 
             if (!byVariant[groupKey]) {
               byVariant[groupKey] = {
@@ -1100,7 +1109,7 @@ export async function POST(req: NextRequest) {
                 channel:         meta.channel,
                 body:            meta.body,
                 title:           meta.title,
-                deeplink:        meta.deeplink,
+                deeplink:        resolvedDeeplink,
                 inLocalTime:     groupInLocalTime,
                 scheduledAt,
                 externalUserIds: [],
@@ -1475,8 +1484,13 @@ export async function POST(req: NextRequest) {
           const decisionId = decisionIdByUser.get(user.externalId);
           if (!decisionId) continue;
 
+          // Resolve giving deeplink sentinel to per-user URL
+          const resolvedDeeplink = meta.deeplink === GIVING_LINK_SENTINEL
+            ? buildGivingDeeplink((user.attributes as Record<string, unknown>) ?? {})
+            : meta.deeplink;
+
           const groupInLocalTime = isFallback;
-          const groupKey = `${variantId}:${scheduledAt.toISOString()}:${groupInLocalTime}`;
+          const groupKey = `${variantId}:${scheduledAt.toISOString()}:${groupInLocalTime}:${resolvedDeeplink ?? ""}`;
 
           if (!windowByVariant[groupKey]) {
             windowByVariant[groupKey] = {
@@ -1486,7 +1500,7 @@ export async function POST(req: NextRequest) {
               channel:         meta.channel,
               body:            meta.body,
               title:           meta.title,
-              deeplink:        meta.deeplink,
+              deeplink:        resolvedDeeplink,
               inLocalTime:     groupInLocalTime,
               scheduledAt,
               externalUserIds: [],
