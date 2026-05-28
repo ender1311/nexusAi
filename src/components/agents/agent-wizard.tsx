@@ -270,7 +270,7 @@ export function AgentWizard({ personas }: { personas: Persona[] }) {
   };
 
   return (
-    <div className="max-w-2xl mx-auto">
+    <div className="w-full max-w-3xl mx-auto lg:max-w-none">
       {/* Step indicator */}
       <div className="flex items-center mb-8">
         {STEPS.map((s, i) => (
@@ -1064,7 +1064,11 @@ export function AgentWizard({ personas }: { personas: Persona[] }) {
             <div className="border rounded-lg p-4 space-y-2">
               <h3 className="text-sm font-semibold">Basic Info</h3>
               <p className="text-sm"><span className="text-muted-foreground">Name:</span> {form.name || "—"}</p>
-              <p className="text-sm"><span className="text-muted-foreground">Funnel Stage:</span> {form.funnelStage ? FUNNEL_STAGE_META[form.funnelStage].label : "—"}</p>
+              {form.targetSegmentName !== null ? (
+                <p className="text-sm"><span className="text-muted-foreground">HT Segment:</span> {form.targetSegmentName || "—"}</p>
+              ) : (
+                <p className="text-sm"><span className="text-muted-foreground">Funnel Stage:</span> {form.funnelStage ? FUNNEL_STAGE_META[form.funnelStage].label : "—"}</p>
+              )}
               <p className="text-sm"><span className="text-muted-foreground">Algorithm:</span> {ALGORITHM_OPTIONS.find((a) => a.value === form.algorithm)?.label ?? form.algorithm}</p>
               {form.description && <p className="text-sm"><span className="text-muted-foreground">Description:</span> {form.description}</p>}
               {form.targetPersonaIds.length > 0 && (

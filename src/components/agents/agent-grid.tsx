@@ -36,7 +36,7 @@ const SORT_OPTIONS: { value: SortMode; label: string }[] = [
   { value: "custom", label: "Custom" },
   { value: "alpha", label: "Name A–Z" },
   { value: "decisions", label: "Most Decisions" },
-  { value: "cap", label: "Cap ↑" },
+  { value: "cap", label: "Daily cap ↑" },
 ];
 
 function sortAgents(agents: Agent[], mode: SortMode): Agent[] {
@@ -48,8 +48,8 @@ function sortAgents(agents: Agent[], mode: SortMode): Agent[] {
     copy.sort((a, b) => (b._count?.decisions ?? 0) - (a._count?.decisions ?? 0));
   } else if (mode === "cap") {
     copy.sort((a, b) => {
-      const capA = a.audienceCap ?? Infinity;
-      const capB = b.audienceCap ?? Infinity;
+      const capA = a.dailySendCap ?? Infinity;
+      const capB = b.dailySendCap ?? Infinity;
       return capA - capB;
     });
   }
@@ -97,7 +97,6 @@ function SortableAgent({
       )}
       <AgentCard
         agent={agent}
-        audienceCap={agent.audienceCap}
         convergenceState={convergenceState}
       />
     </div>

@@ -103,6 +103,8 @@ export default async function AgentsPage({
     targetFilter: null,
     audienceCap: a.audienceCap,
     uniqueUsersCap: a.uniqueUsersCap,
+    dailySendCap: a.dailySendCap ?? null,
+    targetSegmentName: a.targetSegmentName ?? null,
     uniqueUsers: uniqueUsersMap.get(a.id) ?? 0,
     sortOrder: a.sortOrder ?? 0,
     createdAt: a.createdAt,

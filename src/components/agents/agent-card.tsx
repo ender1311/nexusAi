@@ -99,7 +99,6 @@ const CONVERGENCE_CONFIG: Record<ConvergenceState, { label: string; dotClass: st
 
 interface AgentCardProps {
   agent: Agent;
-  audienceCap?: number | null;
   conversionRate?: number;
   convergenceState?: ConvergenceState;
   onDelete?: (id: string) => void;
@@ -109,9 +108,10 @@ const algorithmLabels: Record<string, string> = {
   thompson: "Thompson Sampling",
   epsilon_greedy: "ε-Greedy",
   contextual: "Contextual Bandit",
+  linucb: "LinUCB",
 };
 
-export function AgentCard({ agent, audienceCap, conversionRate, convergenceState, onDelete }: AgentCardProps) {
+export function AgentCard({ agent, conversionRate, convergenceState, onDelete }: AgentCardProps) {
   const router = useRouter();
   const [showDeleteDialog, setShowDeleteDialog] = useState(false);
   const [deleting, setDeleting] = useState(false);
@@ -148,7 +148,9 @@ export function AgentCard({ agent, audienceCap, conversionRate, convergenceState
                       <p className="text-xs text-muted-foreground mt-0.5 line-clamp-2">{agent.description}</p>
                     )}
                     <Badge variant="secondary" className="mt-1.5 text-xs font-normal max-w-full truncate block">
-                      {FUNNEL_STAGE_META[agent.funnelStage]?.label ?? agent.funnelStage}
+                      {agent.targetSegmentName
+                        ? `Segment: ${agent.targetSegmentName}`
+                        : (FUNNEL_STAGE_META[agent.funnelStage]?.label ?? agent.funnelStage)}
                     </Badge>
                   </div>
                 </div>
@@ -178,6 +180,7 @@ export function AgentCard({ agent, audienceCap, conversionRate, convergenceState
               </div>
             </CardHeader>
             <CardContent className="pt-0 space-y-3">
+              {/* Counts row */}
               <div className="flex gap-4 text-xs text-muted-foreground">
                 <span className="flex items-center gap-1">
                   <Target className="h-3 w-3" />
@@ -189,7 +192,9 @@ export function AgentCard({ agent, audienceCap, conversionRate, convergenceState
                 </span>
               </div>
 
-              <div className="flex items-center justify-between">
+              {/* Stats grid — 2×2 so nothing wraps on narrow screens */}
+              <div className="grid grid-cols-2 gap-x-4 gap-y-2">
+                {/* Algorithm */}
                 <div>
                   <p className="text-xs text-muted-foreground flex items-center gap-1">
                     Algorithm
@@ -201,32 +206,41 @@ export function AgentCard({ agent, audienceCap, conversionRate, convergenceState
                       </InfoTip>
                     </span>
                   </p>
-                  <p className="text-xs font-medium">{algorithmLabels[agent.algorithm]}</p>
+                  <p className="text-xs font-medium">{algorithmLabels[agent.algorithm] ?? agent.algorithm}</p>
                 </div>
-                {agent._count && (
-                  <div className="text-right">
-                    <p className="text-xs text-muted-foreground">Decisions</p>
-                    <p className="text-xs font-medium">{formatNumber(agent._count.decisions)}</p>
-                  </div>
-                )}
+
+                {/* Decisions */}
                 <div className="text-right">
-                  <p className="text-xs text-muted-foreground">Cap / run</p>
-                  <p className="text-xs font-medium">
-                    {audienceCap != null ? formatNumber(audienceCap) : "—"}
+                  <p className="text-xs text-muted-foreground">Decisions</p>
+                  <p className="text-xs font-medium tabular-nums">
+                    {agent._count ? formatNumber(agent._count.decisions) : "—"}
                   </p>
                 </div>
+
+                {/* Daily sends cap */}
+                <div>
+                  <p className="text-xs text-muted-foreground">Daily cap</p>
+                  <p className="text-xs font-medium tabular-nums">
+                    {agent.dailySendCap != null ? formatNumber(agent.dailySendCap) : "—"}
+                  </p>
+                </div>
+
+                {/* Unique users / cap (inline-editable) */}
                 <UniqueUsersCapCell
                   agentId={agent.id}
                   uniqueUsers={agent.uniqueUsers ?? 0}
                   uniqueUsersCap={agent.uniqueUsersCap}
                 />
-                {conversionRate !== undefined && (
-                  <div className="text-right">
+              </div>
+
+              {conversionRate !== undefined && (
+                <div className="pt-1 border-t">
+                  <div className="flex items-center justify-between">
                     <p className="text-xs text-muted-foreground">Conv. Rate</p>
                     <p className="text-sm font-bold text-primary">{conversionRate.toFixed(1)}%</p>
                   </div>
-                )}
-              </div>
+                </div>
+              )}
             </CardContent>
           </Card>
         </Link>
