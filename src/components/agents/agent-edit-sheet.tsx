@@ -42,6 +42,18 @@ const DAILY_CAP_PRESETS = [
   { label: "2,500", value: "2500" },
   { label: "5,000", value: "5000" },
   { label: "10,000", value: "10000" },
+  { label: "50,000", value: "50000" },
+  { label: "Custom…", value: "custom" },
+];
+
+const UNIQUE_USERS_CAP_PRESETS = [
+  { label: "No cap", value: "none" },
+  { label: "1,000", value: "1000" },
+  { label: "5,000", value: "5000" },
+  { label: "10,000", value: "10000" },
+  { label: "50,000", value: "50000" },
+  { label: "100,000", value: "100000" },
+  { label: "500,000", value: "500000" },
   { label: "Custom…", value: "custom" },
 ];
 
@@ -59,6 +71,7 @@ type Props = {
   usedColors: string[];
   initialTargetSegmentName: string | null;
   initialDailySendCap: number | null;
+  initialUniqueUsersCap: number | null;
 };
 
 export function AgentEditSheet({
@@ -73,6 +86,7 @@ export function AgentEditSheet({
   usedColors,
   initialTargetSegmentName,
   initialDailySendCap,
+  initialUniqueUsersCap,
 }: Props) {
   const router = useRouter();
   const [open, setOpen] = useState(false);
@@ -100,6 +114,17 @@ export function AgentEditSheet({
     initialDailySendCap !== null && initialCapPreset === "custom" ? String(initialDailySendCap) : ""
   );
 
+  // Unique users cap
+  const initialUniquePreset = initialUniqueUsersCap === null
+    ? "none"
+    : UNIQUE_USERS_CAP_PRESETS.find((o) => o.value === String(initialUniqueUsersCap))
+      ? String(initialUniqueUsersCap)
+      : "custom";
+  const [uniquePreset, setUniquePreset] = useState(initialUniquePreset);
+  const [uniqueCustom, setUniqueCustom] = useState(
+    initialUniqueUsersCap !== null && initialUniquePreset === "custom" ? String(initialUniqueUsersCap) : ""
+  );
+
   // Reset form state when sheet opens
   const prevOpen = useRef(false);
   useEffect(() => {
@@ -114,10 +139,13 @@ export function AgentEditSheet({
       setTargetSegmentName(initialTargetSegmentName ?? "");
       setCapPreset(initialCapPreset);
       setCapCustom(initialDailySendCap !== null && initialCapPreset === "custom" ? String(initialDailySendCap) : "");
+      setUniquePreset(initialUniquePreset);
+      setUniqueCustom(initialUniqueUsersCap !== null && initialUniquePreset === "custom" ? String(initialUniqueUsersCap) : "");
     }
     prevOpen.current = open;
   }, [open, initialName, initialDescription, initialAlgorithm, initialEpsilon, initialFunnelStage,
-      initialLanguageFilter, initialTargetSegmentName, initialDailySendCap, initialCapPreset]);
+      initialLanguageFilter, initialTargetSegmentName, initialDailySendCap, initialCapPreset,
+      initialUniqueUsersCap, initialUniquePreset]);
 
   // Fetch segments when sheet opens
   useEffect(() => {
@@ -137,6 +165,15 @@ export function AgentEditSheet({
     return parseInt(capPreset, 10);
   }
 
+  function resolvedUniqueUsersCap(): number | null {
+    if (uniquePreset === "none") return null;
+    if (uniquePreset === "custom") {
+      const n = parseInt(uniqueCustom, 10);
+      return !isNaN(n) && n >= 1 ? n : null;
+    }
+    return parseInt(uniquePreset, 10);
+  }
+
   async function save() {
     if (!name.trim()) return;
     setSaving(true);
@@ -154,6 +191,7 @@ export function AgentEditSheet({
           languageFilter: englishOnly ? "en" : "all",
           targetSegmentName: resolvedSegment,
           dailySendCap: resolvedDailySendCap(),
+          uniqueUsersCap: resolvedUniqueUsersCap(),
         }),
       });
       setOpen(false);
@@ -353,6 +391,7 @@ export function AgentEditSheet({
           <section className="space-y-4">
             <p className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider">Send Limits</p>
 
+            {/* Daily send cap */}
             <div className="space-y-1.5">
               <label className="text-sm font-medium">Daily Send Cap</label>
               <div className="flex items-center gap-2">
@@ -379,7 +418,37 @@ export function AgentEditSheet({
                   />
                 )}
               </div>
-              <p className="text-xs text-muted-foreground">Maximum confirmed sends per 24-hour window.</p>
+              <p className="text-xs text-muted-foreground">Maximum total sends per 24-hour UTC window.</p>
+            </div>
+
+            {/* Unique users cap */}
+            <div className="space-y-1.5">
+              <label className="text-sm font-medium">Max Unique Users</label>
+              <div className="flex items-center gap-2">
+                <Select value={uniquePreset} onValueChange={(v) => { if (v) setUniquePreset(v); }}>
+                  <SelectTrigger className="w-36">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {UNIQUE_USERS_CAP_PRESETS.map((opt) => (
+                      <SelectItem key={opt.value} value={opt.value}>
+                        {opt.label}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                {uniquePreset === "custom" && (
+                  <Input
+                    type="number"
+                    min={1}
+                    className="w-24"
+                    placeholder="e.g. 25000"
+                    value={uniqueCustom}
+                    onChange={(e) => setUniqueCustom(e.target.value)}
+                  />
+                )}
+              </div>
+              <p className="text-xs text-muted-foreground">Lifetime ceiling on distinct users this agent will ever target.</p>
             </div>
           </section>
         </div>

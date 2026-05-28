@@ -270,7 +270,7 @@ export function AgentWizard({ personas }: { personas: Persona[] }) {
   };
 
   return (
-    <div className="max-w-2xl mx-auto">
+    <div className="w-full max-w-3xl mx-auto lg:max-w-none">
       {/* Step indicator */}
       <div className="flex items-center mb-8">
         {STEPS.map((s, i) => (

@@ -69,6 +69,8 @@ export interface Agent {
   targetFilter?: Record<string, unknown> | null;
   audienceCap?: number | null;
   uniqueUsersCap?: number | null;
+  dailySendCap?: number | null;
+  targetSegmentName?: string | null;
   uniqueUsers?: number;
   sortOrder?: number;
   createdAt: string;
