@@ -97,6 +97,7 @@ describe("giving conversion attribution", () => {
       messageVariantId: variant.id,
       channel: "push",
       sentAt,
+      brazeSendId: "test_braze_send_outside",
     });
 
     const giftDate = new Date(); // now — 31 days after the send

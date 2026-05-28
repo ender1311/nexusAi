@@ -1090,7 +1090,10 @@ export async function POST(req: NextRequest) {
             const decisionId = lotteryDecisionIdByUser.get(user.externalId);
             if (!decisionId) continue;
 
-            // Resolve giving deeplink sentinel to per-user URL
+            // Resolve giving deeplink sentinel to per-user URL.
+            // Giving sentinel: compute per-user URL. The ladder in giving-link.ts has only 14 USD rungs,
+            // so most users with similar history share the same amount and thus the same groupKey —
+            // batching is preserved in practice.
             const resolvedDeeplink = meta.deeplink === GIVING_LINK_SENTINEL
               ? buildGivingDeeplink((user.attributes as Record<string, unknown>) ?? {})
               : meta.deeplink;
