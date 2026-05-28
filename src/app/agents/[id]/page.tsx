@@ -104,7 +104,6 @@ export default async function AgentDetailPage({ params }: { params: Promise<{ id
                 usedColors={otherAgents.map((a) => a.color)}
                 initialTargetSegmentName={agent.targetSegmentName ?? null}
                 initialDailySendCap={agent.dailySendCap ?? null}
-                initialUniqueUsersCap={agent.uniqueUsersCap ?? null}
               />
             )}
             {isAdmin && <AgentStatusToggle agentId={agent.id} status={agent.status} />}

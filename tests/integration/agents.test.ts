@@ -506,57 +506,38 @@ describe("PATCH /api/agents/[id] — targetSegmentName", () => {
 });
 
 describe("PATCH /api/agents/[id] — uniqueUsersCap", () => {
-  it("sets uniqueUsersCap to a positive integer and persists it", async () => {
-    const agent = await prisma.agent.create({ data: { name: "Cap Agent", algorithm: "thompson", epsilon: 0.1 } });
+  it("silently ignores uniqueUsersCap in PATCH (read-only after creation)", async () => {
+    const agent = await prisma.agent.create({
+      data: { name: "Cap Agent", algorithm: "thompson", epsilon: 0.1, uniqueUsersCap: 1000 },
+    });
     const req = buildRequest("PATCH", { uniqueUsersCap: 500 });
     const res = await patchAgent(req as NextRequest, { params: Promise.resolve({ id: agent.id }) });
-    const body = await res.json();
     expect(res.status).toBe(200);
-    expect(body.uniqueUsersCap).toBe(500);
 
+    // Field must remain unchanged — PATCH does not update uniqueUsersCap
     const persisted = await prisma.agent.findUnique({ where: { id: agent.id } });
-    expect(persisted!.uniqueUsersCap).toBe(500);
+    expect(persisted!.uniqueUsersCap).toBe(1000);
   });
 
-  it("clears uniqueUsersCap to null", async () => {
+  it("silently ignores uniqueUsersCap: null in PATCH", async () => {
     const agent = await prisma.agent.create({
       data: { name: "Cap Agent", algorithm: "thompson", epsilon: 0.1, uniqueUsersCap: 200 },
     });
     const req = buildRequest("PATCH", { uniqueUsersCap: null });
     const res = await patchAgent(req as NextRequest, { params: Promise.resolve({ id: agent.id }) });
-    const body = await res.json();
     expect(res.status).toBe(200);
-    expect(body.uniqueUsersCap).toBeNull();
 
     const persisted = await prisma.agent.findUnique({ where: { id: agent.id } });
-    expect(persisted!.uniqueUsersCap).toBeNull();
+    expect(persisted!.uniqueUsersCap).toBe(200);
   });
 
-  it("returns 400 when uniqueUsersCap is 0", async () => {
+  it("silently ignores invalid uniqueUsersCap values in PATCH (no 400)", async () => {
     const agent = await prisma.agent.create({ data: { name: "Cap Agent", algorithm: "thompson", epsilon: 0.1 } });
-    const req = buildRequest("PATCH", { uniqueUsersCap: 0 });
-    const res = await patchAgent(req as NextRequest, { params: Promise.resolve({ id: agent.id }) });
-    const body = await res.json();
-    expect(res.status).toBe(400);
-    expect(body.error).toBe("uniqueUsersCap must be null or a positive integer");
-  });
-
-  it("returns 400 when uniqueUsersCap is -1", async () => {
-    const agent = await prisma.agent.create({ data: { name: "Cap Agent", algorithm: "thompson", epsilon: 0.1 } });
-    const req = buildRequest("PATCH", { uniqueUsersCap: -1 });
-    const res = await patchAgent(req as NextRequest, { params: Promise.resolve({ id: agent.id }) });
-    const body = await res.json();
-    expect(res.status).toBe(400);
-    expect(body.error).toBe("uniqueUsersCap must be null or a positive integer");
-  });
-
-  it("returns 400 when uniqueUsersCap is a float (1.5)", async () => {
-    const agent = await prisma.agent.create({ data: { name: "Cap Agent", algorithm: "thompson", epsilon: 0.1 } });
-    const req = buildRequest("PATCH", { uniqueUsersCap: 1.5 });
-    const res = await patchAgent(req as NextRequest, { params: Promise.resolve({ id: agent.id }) });
-    const body = await res.json();
-    expect(res.status).toBe(400);
-    expect(body.error).toBe("uniqueUsersCap must be null or a positive integer");
+    for (const val of [0, -1, 1.5]) {
+      const req = buildRequest("PATCH", { uniqueUsersCap: val });
+      const res = await patchAgent(req as NextRequest, { params: Promise.resolve({ id: agent.id }) });
+      expect(res.status).toBe(200);
+    }
   });
 
   it("GET response includes uniqueUsersCap field", async () => {
