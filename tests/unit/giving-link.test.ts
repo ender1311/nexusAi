@@ -115,6 +115,18 @@ describe("selectGiftAmountUSD", () => {
     expect(result).toBe(150);
   });
 
+  it("cap at 1.5× max: non-round max (max=25) stays within cap", () => {
+    // cap = 1.5 * 25 = 37.5 — must snap DOWN to 30, not UP to 50
+    const result = selectGiftAmountUSD({
+      gift_amount_average: 1000,
+      gift_amount_most_recent: 1000,
+      gift_amount_maximum: 25,
+      gift_count_lifetime: 5,
+      gift_count_past_3_to_36_months: 3,
+    });
+    expect(result).toBe(30); // largest ladder value ≤ 37.5
+  });
+
   it("cap at 1.5× max: max=20 → cap=30, snaps to 30", () => {
     // avg=1000 would produce huge amount, but capped at 1.5*20=30
     const result = selectGiftAmountUSD({

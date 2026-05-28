@@ -50,6 +50,16 @@ export function snapToLadder(amount: number, ladder: number[]): number {
   return ladder[ladder.length - 1];
 }
 
+// Floor snap — finds largest rung ≤ amount (used for cap enforcement)
+function snapDownToLadder(amount: number, ladder: number[]): number {
+  let result = ladder[0];
+  for (const step of ladder) {
+    if (step <= amount) result = step;
+    else break;
+  }
+  return result;
+}
+
 /**
  * Round a value to a "nice" step size based on its magnitude.
  * Rounding formula: Math.round(value / step) * step
@@ -73,7 +83,7 @@ export function buildCurrencyLadder(currencyCode: string): number[] {
 
   const rawValues = USD_AMOUNT_LADDER.map((usd) => snapToNiceValue(usd * rate));
 
-  // Remove duplicates while preserving order
+  // Adjacent dedup is sufficient because conversion + snapToNiceValue is monotone non-decreasing
   const unique: number[] = [];
   for (const v of rawValues) {
     if (unique[unique.length - 1] !== v) unique.push(v);
@@ -147,7 +157,7 @@ export function selectGiftAmountUSD(attrs: Record<string, unknown>): number {
     if (amount > cap) {
       // If cap is below the minimum ladder value, return minimum
       if (cap < USD_AMOUNT_LADDER[0]) return USD_AMOUNT_LADDER[0];
-      return snapToLadder(cap, USD_AMOUNT_LADDER);
+      return snapDownToLadder(cap, USD_AMOUNT_LADDER);
     }
   }
 
