@@ -696,7 +696,10 @@ export async function POST(req: NextRequest) {
       // a gift_given conversion to that decision.
       const giftTimestampRaw = raw["gift_amount_most_recent_timestamp"];
       if (giftTimestampRaw) {
-        const giftDate = new Date(giftTimestampRaw as string);
+        if (typeof giftTimestampRaw !== "string" && typeof giftTimestampRaw !== "number") {
+          // skip — unexpected type, can't construct a valid Date
+        } else {
+        const giftDate = new Date(giftTimestampRaw);
         if (!isNaN(giftDate.getTime())) {
           const GIVING_ATTRIBUTION_WINDOW_MS = 30 * 24 * 60 * 60 * 1000;
           const windowStart = new Date(giftDate.getTime() - GIVING_ATTRIBUTION_WINDOW_MS);
@@ -705,6 +708,7 @@ export async function POST(req: NextRequest) {
             where: {
               userId: externalId,
               conversionAt: null,
+              brazeSendId: { not: null },
               sentAt: { gte: windowStart, lte: giftDate },
             },
             orderBy: { sentAt: "desc" },
@@ -730,6 +734,8 @@ export async function POST(req: NextRequest) {
                 conversionAt: giftDate,
                 reward: reward !== 0 ? reward : null,
               },
+            }).catch((err) => {
+              console.error("[ingest/users] Failed to write giving conversion attribution:", err);
             });
 
             if (reward !== 0) {
@@ -792,6 +798,7 @@ export async function POST(req: NextRequest) {
             }
           }
         }
+        } // end else (giftTimestampRaw is string | number)
       }
 
       return { upserted: 1, assigned: personaId ? 1 : 0 };

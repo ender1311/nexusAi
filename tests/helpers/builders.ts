@@ -190,14 +190,22 @@ export async function createDecision(data: {
   messageVariantId?: string;
   channel?: string;
   sentAt?: Date;
+  brazeSendId?: string | null;
 }) {
-  return createUserDecision({
+  const decision = await createUserDecision({
     agentId: data.agentId,
     userId: data.userId,
     messageVariantId: data.messageVariantId,
     channel: data.channel ?? "push",
     sentAt: data.sentAt ?? new Date(),
   });
+  if (data.brazeSendId !== undefined) {
+    return prisma.userDecision.update({
+      where: { id: decision.id },
+      data: { brazeSendId: data.brazeSendId },
+    });
+  }
+  return decision;
 }
 
 // Note: title and body are mutually exclusive based on contentType.

@@ -44,7 +44,7 @@ describe("giving conversion attribution", () => {
     const msg = await createMessage(agent.id, { channel: "push" });
     const variant = await createVariant(msg.id);
 
-    // Create a pending decision sent 5 days ago
+    // Create a pending decision sent 5 days ago (with brazeSendId to mark as delivered)
     const sentAt = new Date(Date.now() - 5 * 24 * 60 * 60 * 1000);
     const decision = await createDecision({
       agentId: agent.id,
@@ -52,6 +52,7 @@ describe("giving conversion attribution", () => {
       messageVariantId: variant.id,
       channel: "push",
       sentAt,
+      brazeSendId: "test_braze_send_001",
     });
 
     // Send user sync with gift timestamp 1 day after the decision
@@ -79,6 +80,7 @@ describe("giving conversion attribution", () => {
     });
     expect(updated?.conversionEvent).toBe("gift_given");
     expect(updated?.conversionAt).not.toBeNull();
+    expect(updated?.reward).not.toBeNull();
   });
 
   it("does NOT attribute when gift timestamp is outside 30-day window", async () => {
