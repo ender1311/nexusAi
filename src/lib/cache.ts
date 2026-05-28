@@ -13,6 +13,8 @@
  *   "dashboard-stats" — new decisions recorded (busted hourly by cron)
  *   "user-count"      — total tracked-user count (long TTL; cron never busts it)
  *   "performance"     — new decisions recorded
+ *   "segments"        — HT segment membership (busted by POST /api/ingest/segments)
+ *   "braze-stats"     — Braze campaign analytics (busted by ingest-braze-analytics cron every 6h)
  */
 import { cache } from "react";
 import { unstable_cache } from "next/cache";
@@ -654,4 +656,26 @@ export const getCachedControlTowerStats = unstable_cache(
   },
   ["control-tower-stats"],
   { tags: ["dashboard-stats", "agents", "personas"], revalidate: 900 }
+);
+
+// ── Segment data ──────────────────────────────────────────────────────────────
+
+export type SegmentInfo = { name: string; userCount: number; assignedTo: string | null };
+
+/** Distinct HT segments with member count and assigned agent. Busted by POST /api/ingest/segments. */
+export const getCachedSegments = unstable_cache(
+  async (): Promise<SegmentInfo[]> => {
+    const [rows, agents] = await Promise.all([
+      prisma.userSegment.groupBy({ by: ["segmentName"], _count: { _all: true }, orderBy: { segmentName: "asc" } }),
+      prisma.agent.findMany({ where: { targetSegmentName: { not: null } }, select: { targetSegmentName: true, name: true } }),
+    ]);
+    const assignedTo = new Map(agents.map((a) => [a.targetSegmentName!, a.name]));
+    return rows.map((r) => ({
+      name: r.segmentName,
+      userCount: r._count._all,
+      assignedTo: assignedTo.get(r.segmentName) ?? null,
+    }));
+  },
+  ["segments"],
+  { tags: ["segments"], revalidate: 900 }
 );
