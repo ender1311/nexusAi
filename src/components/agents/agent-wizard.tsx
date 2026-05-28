@@ -9,7 +9,7 @@ import { Badge } from "@/components/ui/badge";
 import { Slider } from "@/components/ui/slider";
 import { Switch } from "@/components/ui/switch";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { cn } from "@/lib/utils";
+import { cn, formatNumber } from "@/lib/utils";
 import { Check, ChevronRight, Bot, Target, MessageSquare, Calendar, Rocket, Pencil } from "lucide-react";
 import { GoalTier, Channel, FrequencyCap, FunnelStage, FUNNEL_STAGES, FUNNEL_STAGE_META } from "@/types/agent";
 import { estimateConvergence } from "@/lib/convergence";
@@ -445,13 +445,13 @@ export function AgentWizard({ personas }: { personas: Persona[] }) {
                     <SelectContent>
                       {segments.map((s) => (
                         <SelectItem key={s.name} value={s.name} disabled={s.assignedTo !== null}>
-                          <span className={s.assignedTo ? "text-muted-foreground" : undefined}>
-                            {s.name}
-                            <span className="ml-2 text-xs text-muted-foreground">
-                              ({s.userCount >= 1000 ? `${(s.userCount / 1000).toFixed(0)}K` : s.userCount} users
-                              {s.assignedTo ? ` · ${s.assignedTo}` : ""})
+                          <div className={cn("flex flex-col", s.assignedTo && "text-muted-foreground")}>
+                            <span>{s.name}</span>
+                            <span className="text-xs text-muted-foreground">
+                              {formatNumber(s.userCount)} users
+                              {s.assignedTo ? ` · Assigned to: ${s.assignedTo}` : ""}
                             </span>
-                          </span>
+                          </div>
                         </SelectItem>
                       ))}
                     </SelectContent>
