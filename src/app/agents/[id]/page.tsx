@@ -10,7 +10,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Target, MessageSquare, Calendar, BarChart3, Settings, Users2, GitCompare, Send, LayoutDashboard } from "lucide-react";
-import { cn } from "@/lib/utils";
+import { cn, formatNumber } from "@/lib/utils";
 import { TestedVariablesBadges } from "@/components/agents/tested-variables-badges";
 import { VariantDiffTable } from "@/components/agents/variant-diff-table";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
@@ -189,7 +189,7 @@ export default async function AgentDetailPage({ params }: { params: Promise<{ id
             <Suspense fallback={null}>
               <CurrentWinnerCard agentId={agent.id} activeVariants={activeVariants} />
             </Suspense>
-            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+            <div className="grid grid-cols-2 sm:grid-cols-3 xl:grid-cols-5 gap-4">
               <Card>
                 <CardContent className="p-4">
                   <p className="text-xs text-muted-foreground">Goals</p>
@@ -205,7 +205,23 @@ export default async function AgentDetailPage({ params }: { params: Promise<{ id
               <Card>
                 <CardContent className="p-4">
                   <p className="text-xs text-muted-foreground">Total Decisions</p>
-                  <p className="text-2xl font-bold mt-1">{agent._count.decisions}</p>
+                  <p className="text-2xl font-bold mt-1">{formatNumber(agent._count.decisions)}</p>
+                </CardContent>
+              </Card>
+              <Card>
+                <CardContent className="p-4">
+                  <p className="text-xs text-muted-foreground">Daily Send Cap</p>
+                  <p className="text-2xl font-bold mt-1">
+                    {agent.dailySendCap != null ? formatNumber(agent.dailySendCap) : "∞"}
+                  </p>
+                </CardContent>
+              </Card>
+              <Card>
+                <CardContent className="p-4">
+                  <p className="text-xs text-muted-foreground">Unique Users Cap</p>
+                  <p className="text-2xl font-bold mt-1">
+                    {agent.uniqueUsersCap != null ? formatNumber(agent.uniqueUsersCap) : "∞"}
+                  </p>
                 </CardContent>
               </Card>
             </div>
@@ -399,6 +415,28 @@ export default async function AgentDetailPage({ params }: { params: Promise<{ id
                   agentId={agent.id}
                   audienceCap={agent.audienceCap}
                 />
+              </CardContent>
+            </Card>
+            <Card>
+              <CardHeader>
+                <CardTitle className="text-sm font-semibold">Send Limits</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="space-y-0">
+                  <div className="flex justify-between py-2.5 border-b">
+                    <span className="text-sm text-muted-foreground">Daily Send Cap</span>
+                    <span className="text-sm font-medium">
+                      {agent.dailySendCap != null ? formatNumber(agent.dailySendCap) : "Unlimited"}
+                    </span>
+                  </div>
+                  <div className="flex justify-between py-2.5">
+                    <span className="text-sm text-muted-foreground">Max Unique Users</span>
+                    <span className="text-sm font-medium">
+                      {agent.uniqueUsersCap != null ? formatNumber(agent.uniqueUsersCap) : "Unlimited"}
+                    </span>
+                  </div>
+                </div>
+                <p className="text-xs text-muted-foreground mt-3">Edit these via the Edit button above.</p>
               </CardContent>
             </Card>
           </TabsContent>
