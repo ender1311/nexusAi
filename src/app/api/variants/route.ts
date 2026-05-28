@@ -31,6 +31,7 @@ export async function GET(req: NextRequest) {
         message: { select: { channel: true, name: true } },
       },
       orderBy: { createdAt: "asc" },
+      take: 500,
     });
 
     const res = NextResponse.json(variants);

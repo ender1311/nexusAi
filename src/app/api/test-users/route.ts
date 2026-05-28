@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
+import { requireAdmin } from "@/lib/auth";
 
 type TestUser = { externalId: string; name: string; personaId: string | null; createdAt: string };
 
@@ -27,6 +28,9 @@ export async function GET(): Promise<NextResponse<{ data: TestUser[] }> | NextRe
 }
 
 export async function POST(req: NextRequest): Promise<NextResponse<{ data: TestUser }> | NextResponse<{ error: string }>> {
+  const adminRes = await requireAdmin();
+  if (adminRes) return adminRes;
+
   let body: unknown;
   try {
     body = await req.json();
@@ -69,6 +73,9 @@ export async function POST(req: NextRequest): Promise<NextResponse<{ data: TestU
 }
 
 export async function DELETE(req: NextRequest): Promise<NextResponse<{ ok: boolean }> | NextResponse<{ error: string }>> {
+  const adminRes = await requireAdmin();
+  if (adminRes) return adminRes;
+
   const { searchParams } = new URL(req.url);
   const externalId = searchParams.get("externalId");
   if (!externalId) {
