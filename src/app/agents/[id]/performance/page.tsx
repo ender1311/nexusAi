@@ -1,8 +1,11 @@
 export const revalidate = 900;
 
+import { Suspense } from "react";
 import { notFound } from "next/navigation";
+import { unstable_cache } from "next/cache";
 import { Header } from "@/components/layout/header";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Skeleton } from "@/components/ui/skeleton";
 import { prisma } from "@/lib/db";
 import { TimeSeriesChart } from "@/components/charts/time-series-chart";
 import { DailySendsChart } from "@/components/charts/bar-chart";
@@ -28,12 +31,28 @@ function wilsonCI(sends: number, conversions: number): { low: number; high: numb
   };
 }
 
-export default async function AgentPerformancePage({
-  params,
-}: {
-  params: Promise<{ id: string }>;
-}) {
-  const { id } = await params;
+function PerformanceSkeleton() {
+  return (
+    <div className="p-4 sm:p-6 space-y-4 sm:space-y-6">
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-3 sm:gap-4">
+        {[1, 2, 3, 4].map((i) => (
+          <div key={i} className="rounded-xl border bg-muted animate-pulse h-24" />
+        ))}
+      </div>
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        <Skeleton className="h-72 rounded-xl" />
+        <Skeleton className="h-72 rounded-xl" />
+      </div>
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        <Skeleton className="h-48 rounded-xl" />
+        <Skeleton className="h-48 rounded-xl" />
+      </div>
+      <Skeleton className="h-64 rounded-xl" />
+    </div>
+  );
+}
+
+async function PerformanceContent({ id }: { id: string }) {
   const now = new Date();
   const thirtyDaysAgo = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
 
@@ -65,25 +84,23 @@ export default async function AgentPerformancePage({
     }),
   ]);
 
-  if (!agent) notFound();
+  if (!agent) return null; // page-level notFound already fired
 
   if (decisions.length === 0) {
     return (
-      <>
-        <Header title="Performance" description={agent.name} />
-        <div className="p-6 text-center text-muted-foreground">
-          <p>No performance data yet.</p>
-        </div>
-      </>
+      <div className="p-6 text-center text-muted-foreground">
+        <p>No performance data yet.</p>
+      </div>
     );
   }
 
-  // Phase 2: dependent lookups — all run in parallel (saves 3 more round-trips)
+  // Phase 2: dependent lookups — all run in parallel
   const uniquePersonaIds = [...new Set(armStats.map((a) => a.personaId))];
   const uniqueVariantIds = [...new Set(armStats.map((a) => a.variantId))];
   const decidedVariantIds = [...new Set(decisions.map((d) => d.messageVariantId).filter((v): v is string => v !== null))];
 
-  const [personaRows, variantRows, variantNameRows, fleetSends, fleetConversions] = await Promise.all([
+  // Single raw query replaces two separate count() calls — one index scan instead of two
+  const [personaRows, variantRows, variantNameRows, fleetAgg] = await Promise.all([
     uniquePersonaIds.length > 0
       ? prisma.persona.findMany({
           where: { id: { in: uniquePersonaIds } },
@@ -102,11 +119,15 @@ export default async function AgentPerformancePage({
           select: { id: true, name: true },
         })
       : Promise.resolve([]),
-    prisma.userDecision.count({ where: { sentAt: { gte: thirtyDaysAgo } } }),
-    prisma.userDecision.count({
-      where: { sentAt: { gte: thirtyDaysAgo }, conversionAt: { not: null } },
-    }),
+    prisma.$queryRaw<[{ fleet_sends: bigint; fleet_conversions: bigint }]>`
+      SELECT COUNT(*)::bigint AS fleet_sends, COUNT("conversionAt")::bigint AS fleet_conversions
+      FROM "UserDecision"
+      WHERE "sentAt" >= ${thirtyDaysAgo}
+    `,
   ]);
+
+  const fleetSends = Number(fleetAgg[0]?.fleet_sends ?? 0);
+  const fleetConversions = Number(fleetAgg[0]?.fleet_conversions ?? 0);
 
   const personaById = new Map(personaRows.map((p) => [p.id, p]));
   const variantById = new Map(variantRows.map((v) => [v.id, v]));
@@ -237,8 +258,6 @@ export default async function AgentPerformancePage({
   });
 
   // Exploration ratio proxy
-  // - Epsilon-greedy: exactly agent.epsilon
-  // - Thompson Sampling: fraction of sends going to non-best variant (natural exploration proxy)
   let explorePercent: number;
   if (agent.algorithm === "epsilon_greedy") {
     explorePercent = Math.round((agent.epsilon ?? 0.1) * 100);
@@ -250,166 +269,188 @@ export default async function AgentPerformancePage({
   }
 
   return (
-    <>
-      <Header title="Agent Performance" description={agent.name} />
-      <div className="p-4 sm:p-6 space-y-4 sm:space-y-6">
-        <div className={`grid gap-3 sm:gap-4 ${pushSends > 0 ? "grid-cols-2 md:grid-cols-5" : "grid-cols-2 md:grid-cols-4"}`}>
-          <Card>
-            <CardContent className="p-4">
-              <p className="text-xs text-muted-foreground">Total Sends</p>
-              <p className="text-2xl font-bold mt-1">{formatNumber(sends)}</p>
-              <p className="text-xs text-muted-foreground mt-0.5">last 30 days</p>
-            </CardContent>
-          </Card>
-          <Card>
-            <CardContent className="p-4">
-              <p className="text-xs text-muted-foreground">Conversions</p>
-              <p className="text-2xl font-bold mt-1">{formatNumber(conversions)}</p>
-            </CardContent>
-          </Card>
-          <Card>
-            <CardContent className="p-4">
-              <p className="text-xs text-muted-foreground">Conv. Rate</p>
-              <p className="text-2xl font-bold mt-1 text-primary">{convRate.toFixed(2)}%</p>
-            </CardContent>
-          </Card>
-          <Card>
-            <CardContent className="p-4">
-              <p className="text-xs text-muted-foreground">Lift vs Fleet Avg</p>
-              <p
-                className={`text-2xl font-bold mt-1 ${
-                  liftInsufficient || !liftSignificant
-                    ? "text-muted-foreground"
-                    : lift >= 0
-                    ? "text-green-600"
-                    : "text-red-500"
-                }`}
-              >
-                {liftInsufficient ? "~" : ""}{lift >= 0 ? "+" : ""}{lift.toFixed(1)}%
-              </p>
-              <p className="text-[10px] text-muted-foreground/70 mt-0.5">
-                {liftInsufficient
-                  ? `Need ${200 - sends} more sends`
-                  : liftSignificant
-                  ? "p < 0.05 · significant"
-                  : "n.s. · p ≥ 0.05"}
-              </p>
-            </CardContent>
-          </Card>
-          {pushSends > 0 && (
-            <Card>
-              <CardContent className="p-4">
-                <p className="text-xs text-muted-foreground">Push Open Rate</p>
-                <p className="text-2xl font-bold mt-1 text-primary">{pushOpenRate.toFixed(2)}%</p>
-                <p className="text-xs text-muted-foreground mt-0.5">{formatNumber(pushOpens)} of {formatNumber(pushSends)} push</p>
-              </CardContent>
-            </Card>
-          )}
-        </div>
-
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-          <Card>
-            <CardHeader>
-              <CardTitle className="text-sm font-semibold">Conversion Rate Trend</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <TimeSeriesChart data={timeSeries} height={240} showSends />
-            </CardContent>
-          </Card>
-          <Card>
-            <CardHeader>
-              <CardTitle className="text-sm font-semibold">Daily Send Volume</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <DailySendsChart data={timeSeries} height={240} />
-            </CardContent>
-          </Card>
-        </div>
-
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-          {variants.length > 0 && (
-            <Card>
-              <CardHeader>
-                <CardTitle className="text-sm font-semibold">Variant Comparison</CardTitle>
-              </CardHeader>
-              <CardContent>
-                <VariantComparison variants={variants} />
-              </CardContent>
-            </Card>
-          )}
-          <Card>
-            <CardHeader>
-              <CardTitle className="text-sm font-semibold">Exploration Rate</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <ExplorationRatio explorePercent={explorePercent} />
-            </CardContent>
-          </Card>
-        </div>
-
+    <div className="p-4 sm:p-6 space-y-4 sm:space-y-6">
+      <div className={`grid gap-3 sm:gap-4 ${pushSends > 0 ? "grid-cols-2 md:grid-cols-5" : "grid-cols-2 md:grid-cols-4"}`}>
         <Card>
-          <CardHeader>
-            <CardTitle className="text-sm font-semibold">Best Send Times (Discovered)</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <TimingHeatmap data={timingHeatmap} />
+          <CardContent className="p-4">
+            <p className="text-xs text-muted-foreground">Total Sends</p>
+            <p className="text-2xl font-bold mt-1">{formatNumber(sends)}</p>
+            <p className="text-xs text-muted-foreground mt-0.5">last 30 days</p>
           </CardContent>
         </Card>
-
-        {personaBreakdown.length > 0 && (
+        <Card>
+          <CardContent className="p-4">
+            <p className="text-xs text-muted-foreground">Conversions</p>
+            <p className="text-2xl font-bold mt-1">{formatNumber(conversions)}</p>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardContent className="p-4">
+            <p className="text-xs text-muted-foreground">Conv. Rate</p>
+            <p className="text-2xl font-bold mt-1 text-primary">{convRate.toFixed(2)}%</p>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardContent className="p-4">
+            <p className="text-xs text-muted-foreground">Lift vs Fleet Avg</p>
+            <p
+              className={`text-2xl font-bold mt-1 ${
+                liftInsufficient || !liftSignificant
+                  ? "text-muted-foreground"
+                  : lift >= 0
+                  ? "text-green-600"
+                  : "text-red-500"
+              }`}
+            >
+              {liftInsufficient ? "~" : ""}{lift >= 0 ? "+" : ""}{lift.toFixed(1)}%
+            </p>
+            <p className="text-[10px] text-muted-foreground/70 mt-0.5">
+              {liftInsufficient
+                ? `Need ${200 - sends} more sends`
+                : liftSignificant
+                ? "p < 0.05 · significant"
+                : "n.s. · p ≥ 0.05"}
+            </p>
+          </CardContent>
+        </Card>
+        {pushSends > 0 && (
           <Card>
-            <CardHeader>
-              <CardTitle className="text-sm font-semibold">Per-Persona Breakdown</CardTitle>
-            </CardHeader>
-            <CardContent className="p-0">
-              <table className="w-full text-sm">
-                <thead>
-                  <tr className="border-b text-xs text-muted-foreground">
-                    <th className="text-left px-4 py-2 font-medium">Persona</th>
-                    <th className="text-right px-4 py-2 font-medium">Sends</th>
-                    <th className="text-right px-4 py-2 font-medium">Conv. Rate</th>
-                    <th className="text-left px-4 py-2 font-medium">Leading Variant</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {personaBreakdown.map((row) => (
-                    <tr key={row.personaId} className="border-b last:border-0 hover:bg-muted/30">
-                      <td className="px-4 py-2.5">
-                        <div className="flex items-center gap-2">
-                          <span
-                            className={`h-2 w-2 rounded-full shrink-0 bg-${row.color}-500`}
-                          />
-                          <span className="font-medium">{row.name}</span>
-                        </div>
-                      </td>
-                      <td className="px-4 py-2.5 text-right tabular-nums text-muted-foreground">
-                        {formatNumber(row.tries)}
-                      </td>
-                      <td className="px-4 py-2.5 text-right tabular-nums">
-                        <span className={row.convRate >= convRate ? "text-green-600 font-medium" : "text-muted-foreground"}>
-                          {row.convRate.toFixed(1)}%
-                        </span>
-                      </td>
-                      <td className="px-4 py-2.5 text-muted-foreground">
-                        {row.bestVariantName ? (
-                          <span className="text-xs">
-                            {row.bestVariantName}
-                            <span className="ml-1.5 text-muted-foreground/60">
-                              ({(row.bestVariantMean * 100).toFixed(0)}% est.)
-                            </span>
-                          </span>
-                        ) : (
-                          "—"
-                        )}
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
+            <CardContent className="p-4">
+              <p className="text-xs text-muted-foreground">Push Open Rate</p>
+              <p className="text-2xl font-bold mt-1 text-primary">{pushOpenRate.toFixed(2)}%</p>
+              <p className="text-xs text-muted-foreground mt-0.5">{formatNumber(pushOpens)} of {formatNumber(pushSends)} push</p>
             </CardContent>
           </Card>
         )}
       </div>
+
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        <Card>
+          <CardHeader>
+            <CardTitle className="text-sm font-semibold">Conversion Rate Trend</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <TimeSeriesChart data={timeSeries} height={240} showSends />
+          </CardContent>
+        </Card>
+        <Card>
+          <CardHeader>
+            <CardTitle className="text-sm font-semibold">Daily Send Volume</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <DailySendsChart data={timeSeries} height={240} />
+          </CardContent>
+        </Card>
+      </div>
+
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        {variants.length > 0 && (
+          <Card>
+            <CardHeader>
+              <CardTitle className="text-sm font-semibold">Variant Comparison</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <VariantComparison variants={variants} />
+            </CardContent>
+          </Card>
+        )}
+        <Card>
+          <CardHeader>
+            <CardTitle className="text-sm font-semibold">Exploration Rate</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <ExplorationRatio explorePercent={explorePercent} />
+          </CardContent>
+        </Card>
+      </div>
+
+      <Card>
+        <CardHeader>
+          <CardTitle className="text-sm font-semibold">Best Send Times (Discovered)</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <TimingHeatmap data={timingHeatmap} />
+        </CardContent>
+      </Card>
+
+      {personaBreakdown.length > 0 && (
+        <Card>
+          <CardHeader>
+            <CardTitle className="text-sm font-semibold">Per-Persona Breakdown</CardTitle>
+          </CardHeader>
+          <CardContent className="p-0">
+            <table className="w-full text-sm">
+              <thead>
+                <tr className="border-b text-xs text-muted-foreground">
+                  <th className="text-left px-4 py-2 font-medium">Persona</th>
+                  <th className="text-right px-4 py-2 font-medium">Sends</th>
+                  <th className="text-right px-4 py-2 font-medium">Conv. Rate</th>
+                  <th className="text-left px-4 py-2 font-medium">Leading Variant</th>
+                </tr>
+              </thead>
+              <tbody>
+                {personaBreakdown.map((row) => (
+                  <tr key={row.personaId} className="border-b last:border-0 hover:bg-muted/30">
+                    <td className="px-4 py-2.5">
+                      <div className="flex items-center gap-2">
+                        <span
+                          className={`h-2 w-2 rounded-full shrink-0 bg-${row.color}-500`}
+                        />
+                        <span className="font-medium">{row.name}</span>
+                      </div>
+                    </td>
+                    <td className="px-4 py-2.5 text-right tabular-nums text-muted-foreground">
+                      {formatNumber(row.tries)}
+                    </td>
+                    <td className="px-4 py-2.5 text-right tabular-nums">
+                      <span className={row.convRate >= convRate ? "text-green-600 font-medium" : "text-muted-foreground"}>
+                        {row.convRate.toFixed(1)}%
+                      </span>
+                    </td>
+                    <td className="px-4 py-2.5 text-muted-foreground">
+                      {row.bestVariantName ? (
+                        <span className="text-xs">
+                          {row.bestVariantName}
+                          <span className="ml-1.5 text-muted-foreground/60">
+                            ({(row.bestVariantMean * 100).toFixed(0)}% est.)
+                          </span>
+                        </span>
+                      ) : (
+                        "—"
+                      )}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </CardContent>
+        </Card>
+      )}
+    </div>
+  );
+}
+
+export default async function AgentPerformancePage({
+  params,
+}: {
+  params: Promise<{ id: string }>;
+}) {
+  const { id } = await params;
+
+  // Quick cached lookup for header — all heavy queries happen inside the Suspense boundary.
+  const agentMeta = await unstable_cache(
+    () => prisma.agent.findUnique({ where: { id }, select: { name: true } }),
+    ["agent-perf-header", id],
+    { tags: [`agent-${id}`], revalidate: 900 }
+  )();
+  if (!agentMeta) notFound();
+
+  return (
+    <>
+      <Header title="Agent Performance" description={agentMeta.name} />
+      <Suspense fallback={<PerformanceSkeleton />}>
+        <PerformanceContent id={id} />
+      </Suspense>
     </>
   );
 }

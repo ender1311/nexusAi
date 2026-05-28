@@ -351,7 +351,7 @@ export const getCachedPersonaVariantMatrix = unstable_cache(
         _sum: { tries: true, alpha: true },
       }),
       prisma.persona.findMany({ select: { id: true, label: true, name: true }, where: { isActive: true } }),
-      prisma.messageVariant.findMany({ select: { id: true, name: true } }),
+      prisma.messageVariant.findMany({ where: { status: "active" }, select: { id: true, name: true }, take: 200 }),
     ]);
 
     // Build lookup maps
@@ -639,19 +639,23 @@ export const getCachedFunnelStageBreakdown = cache(
 
 export const getCachedControlTowerStats = unstable_cache(
   async () => {
-    const [trackedUsers, personas, agents, decisions, totalConversions] = await Promise.all([
+    const [trackedUsers, personas, agents, decisionRows] = await Promise.all([
       prisma.trackedUser.count(),
       prisma.persona.count({ where: { isActive: true } }),
       prisma.agent.count({ where: { status: "active" } }),
-      prisma.userDecision.aggregate({ _count: { id: true }, _sum: { reward: true } }),
-      prisma.userDecision.count({ where: { conversionAt: { not: null } } }),
+      // Single scan for both total and conversion counts (avoids two separate table scans)
+      prisma.$queryRaw<[{ total: bigint; conversions: bigint }]>`
+        SELECT COUNT(*)::bigint AS total, COUNT("conversionAt")::bigint AS conversions
+        FROM "UserDecision"
+      `,
     ]);
+    const d = decisionRows[0] ?? { total: 0 as unknown as bigint, conversions: 0 as unknown as bigint };
     return {
       trackedUsers,
       personas,
       agents,
-      totalDecisions: decisions._count.id,
-      totalConversions,
+      totalDecisions: Number(d.total),
+      totalConversions: Number(d.conversions),
     };
   },
   ["control-tower-stats"],

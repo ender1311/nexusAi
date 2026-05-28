@@ -98,6 +98,14 @@ export async function POST(req: NextRequest) {
   const matched: string[] = [];
   const unmatched: string[] = [];
 
+  // Batch idempotency check: one query for the whole batch instead of N sequential findUniques.
+  const alreadyProcessedSet = new Set(
+    (await prisma.processedEventId.findMany({
+      where: { eventId: { in: deduped.map((e) => e.event_id) } },
+      select: { eventId: true },
+    })).map((r) => r.eventId)
+  );
+
   for (const event of deduped) {
     const occurredAt = new Date(event.occurred_at);
 
@@ -107,10 +115,7 @@ export async function POST(req: NextRequest) {
     // 14-day window: attributing a send from 89 days ago to a today opt-out is causally wrong.
     if (event.event_name === "push_disabled") {
       // Idempotency: skip if Hightouch already delivered this event in a previous batch
-      const alreadyProcessedOptOut = await prisma.processedEventId.findUnique({
-        where: { eventId: event.event_id },
-      });
-      if (alreadyProcessedOptOut) { unmatched.push(event.event_id); continue; }
+      if (alreadyProcessedSet.has(event.event_id)) { unmatched.push(event.event_id); continue; }
 
       const user = await prisma.trackedUser.findFirst({
         where: { externalId: event.external_user_id },
@@ -173,10 +178,7 @@ export async function POST(req: NextRequest) {
     }
 
     // Idempotency: skip if already processed in a previous batch
-    const alreadyProcessed = await prisma.processedEventId.findUnique({
-      where: { eventId: event.event_id },
-    });
-    if (alreadyProcessed) { unmatched.push(event.event_id); continue; }
+    if (alreadyProcessedSet.has(event.event_id)) { unmatched.push(event.event_id); continue; }
 
     // For plan_completed and other long-horizon events, extend the attribution window to 30 days.
     // Standard short-horizon events use the default 48h window.
