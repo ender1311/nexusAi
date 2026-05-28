@@ -179,7 +179,7 @@ export function AgentCard({ agent, conversionRate, convergenceState, onDelete }:
                   </p>
                 </div>
 
-                {/* Unique users / cap (inline-editable) */}
+                {/* Unique users / cap */}
                 <UniqueUsersCapCell
                   uniqueUsers={agent.uniqueUsers ?? 0}
                   uniqueUsersCap={agent.uniqueUsersCap}
