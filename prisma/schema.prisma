@@ -186,6 +186,10 @@ model TrackedUser {
   funnelStage          String?    // "lapsed" | "connected" | "new_user" | etc; null = unknown
   funnelStageUpdatedAt DateTime?  // set on every ingest when funnelStage is present; used for staleness gate in cron
 
+  // Agent lock — set when the cron selects this user for sends; null = unlocked
+  // No FK constraint on purpose (follows UserAgentAssignment pattern — survives agent soft-delete)
+  lockedByAgentId  String?
+
   // Persona assignment
   personaId         String?
   personaConfidence Float?
@@ -199,6 +203,7 @@ model TrackedUser {
   @@index([personaId])
   @@index([funnelStage])              // cron stage filter (WHERE funnelStage = 'wau')
   @@index([personaId, funnelStage])   // cron eligibility when filtering by both persona + stage
+  @@index([lockedByAgentId])          // lock release queries (WHERE lockedByAgentId = agentId)
   @@map("User")  // keeps the existing DB table — no migration needed for this rename
 }
 
