@@ -442,7 +442,7 @@ export function AgentWizard({ personas }: { personas: Persona[] }) {
                     <SelectTrigger>
                       <SelectValue placeholder="Select a segment…" />
                     </SelectTrigger>
-                    <SelectContent>
+                    <SelectContent className="min-w-[320px]">
                       {segments.map((s) => (
                         <SelectItem key={s.name} value={s.name} disabled={s.assignedTo !== null}>
                           <div className={cn("flex flex-col", s.assignedTo && "text-muted-foreground")}>
