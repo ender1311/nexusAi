@@ -508,7 +508,7 @@ export async function POST(req: NextRequest) {
     const metricsBefore = { sent: totalSent, suppressed: totalSuppressed, errors: totalErrors };
     const personaIds = agent.personaTargets.map((pt) => pt.personaId);
     if (personaIds.length === 0) continue;
-    const suppress = { freqCap: 0, smartSuppress: 0, dailyCap: 0, quietHours: 0, targetFilter: 0, audienceCap: 0 };
+    const suppress = { freqCap: 0, smartSuppress: 0, dailyCap: 0, quietHours: 0, targetFilter: 0, audienceCap: 0, uniqueUsersCap: 0 };
 
     // Derive the users assigned to this agent by the lottery
     const assignedUserIds = [...lotteryMap.entries()]
@@ -582,6 +582,23 @@ export async function POST(req: NextRequest) {
         lotteryUserIds = [];
       } else if (lotteryUserIds.length > remaining) {
         suppress.dailyCap += lotteryUserIds.length - remaining;
+        lotteryUserIds = lotteryUserIds.slice(0, remaining);
+      }
+    }
+
+    // Lifetime unique users cap — stop sends when the agent has reached its ceiling of
+    // distinct users ever targeted. Uses COUNT(DISTINCT) over all UserDecision rows.
+    if (agent.uniqueUsersCap != null) {
+      const rows = await prisma.$queryRaw<[{ n: bigint }]>`
+        SELECT COUNT(DISTINCT "userId")::bigint AS n FROM "UserDecision" WHERE "agentId" = ${agent.id}
+      `;
+      const alreadyReached = Number(rows[0]?.n ?? 0);
+      const remaining = agent.uniqueUsersCap - alreadyReached;
+      if (remaining <= 0) {
+        suppress.uniqueUsersCap += lotteryUserIds.length;
+        lotteryUserIds = [];
+      } else if (lotteryUserIds.length > remaining) {
+        suppress.uniqueUsersCap += lotteryUserIds.length - remaining;
         lotteryUserIds = lotteryUserIds.slice(0, remaining);
       }
     }
