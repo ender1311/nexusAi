@@ -102,6 +102,8 @@ export default async function AgentDetailPage({ params }: { params: Promise<{ id
                 initialLanguageFilter={agent.languageFilter ?? "all"}
                 initialColor={agent.color ?? "#6366f1"}
                 usedColors={otherAgents.map((a) => a.color)}
+                initialTargetSegmentName={agent.targetSegmentName ?? null}
+                initialDailySendCap={agent.dailySendCap ?? null}
               />
             )}
             {isAdmin && <AgentStatusToggle agentId={agent.id} status={agent.status} />}
@@ -424,6 +426,7 @@ export default async function AgentDetailPage({ params }: { params: Promise<{ id
                     ? (agent.targetFilter as Record<string, unknown>)
                     : null
                 }
+                targetSegmentName={agent.targetSegmentName ?? null}
                 allPersonas={allPersonas}
               />
             </Suspense>
@@ -449,14 +452,124 @@ async function AudienceTabContent({
   personaTargets,
   funnelStage,
   targetFilter,
+  targetSegmentName,
   allPersonas,
 }: {
   agentId: string;
   personaTargets: AudiencePersonaTarget[];
   funnelStage: FunnelStage;
   targetFilter: Record<string, unknown> | null;
+  targetSegmentName: string | null;
   allPersonas: Awaited<ReturnType<typeof getCachedActivePersonas>>;
 }) {
+  // ── Segment mode ──────────────────────────────────────────────────────────────
+  if (targetSegmentName) {
+    const STALE_MS = 24 * 60 * 60 * 1000;
+    const now = new Date();
+
+    const [segmentAgg, rawMembers] = await Promise.all([
+      prisma.userSegment.aggregate({
+        where: { segmentName: targetSegmentName },
+        _count: { _all: true },
+        _max: { syncedAt: true },
+      }),
+      prisma.userSegment.findMany({
+        where: { segmentName: targetSegmentName },
+        select: { externalId: true },
+        take: 20,
+        orderBy: { syncedAt: "desc" },
+      }),
+    ]);
+
+    const memberCount = segmentAgg._count._all;
+    const lastSynced = segmentAgg._max.syncedAt;
+    const isStale = !lastSynced || now.getTime() - lastSynced.getTime() > STALE_MS;
+
+    const memberDetails = rawMembers.length > 0
+      ? await prisma.trackedUser.findMany({
+          where: { externalId: { in: rawMembers.map((m) => m.externalId) } },
+          select: { externalId: true, attributes: true, personaId: true },
+        })
+      : [];
+
+    const personaById = new Map(allPersonas.map((p) => [p.id, p.name]));
+
+    return (
+      <div className="space-y-4">
+        <Card>
+          <CardHeader>
+            <div className="flex items-center justify-between">
+              <CardTitle className="text-sm font-semibold">Hightouch Segment</CardTitle>
+              {isStale && (
+                <span className="flex items-center gap-1 text-xs text-amber-600 dark:text-amber-400 font-medium">
+                  <span className="text-base leading-none">⚠</span>
+                  Stale — sync overdue
+                </span>
+              )}
+            </div>
+          </CardHeader>
+          <CardContent className="space-y-3">
+            <div className="flex justify-between py-2 border-b">
+              <span className="text-sm text-muted-foreground">Segment name</span>
+              <span className="text-sm font-mono font-medium">{targetSegmentName}</span>
+            </div>
+            <div className="flex justify-between py-2 border-b">
+              <span className="text-sm text-muted-foreground">Members (DB count)</span>
+              <span className="text-sm font-medium">{memberCount.toLocaleString()}</span>
+            </div>
+            <div className="flex justify-between py-2">
+              <span className="text-sm text-muted-foreground">Last synced</span>
+              <span className={cn("text-sm", isStale ? "text-amber-600 dark:text-amber-400 font-medium" : "text-muted-foreground")}>
+                {lastSynced
+                  ? lastSynced.toLocaleString("en-US", { dateStyle: "medium", timeStyle: "short" })
+                  : "Never"}
+              </span>
+            </div>
+          </CardContent>
+        </Card>
+
+        {memberDetails.length > 0 && (
+          <Card>
+            <CardHeader>
+              <div className="flex items-center justify-between">
+                <CardTitle className="text-sm font-semibold">Segment Member Preview</CardTitle>
+                <span className="text-xs text-muted-foreground">Most recently synced {memberDetails.length}</span>
+              </div>
+            </CardHeader>
+            <CardContent className="p-0">
+              <table className="w-full text-sm">
+                <thead>
+                  <tr className="border-b text-xs text-muted-foreground">
+                    <th className="px-4 py-2 text-left font-medium">External ID</th>
+                    <th className="px-4 py-2 text-left font-medium">Name</th>
+                    <th className="hidden sm:table-cell px-4 py-2 text-left font-medium">Email</th>
+                    <th className="px-4 py-2 text-left font-medium">Persona</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {memberDetails.map((u) => {
+                    const attrs = (u.attributes ?? {}) as Record<string, unknown>;
+                    return (
+                      <tr key={u.externalId} className="border-b last:border-0 hover:bg-muted/40">
+                        <td className="px-4 py-2 font-mono text-xs max-w-[100px] truncate">{u.externalId}</td>
+                        <td className="px-4 py-2 max-w-[80px] truncate">{String(attrs.first_name ?? "—")}</td>
+                        <td className="hidden sm:table-cell px-4 py-2 text-muted-foreground max-w-[160px] truncate">{String(attrs.email ?? "—")}</td>
+                        <td className="px-4 py-2 max-w-[90px] truncate text-muted-foreground text-xs">
+                          {u.personaId ? (personaById.get(u.personaId) ?? u.personaId) : "—"}
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </CardContent>
+          </Card>
+        )}
+      </div>
+    );
+  }
+
+  // ── Funnel-stage mode ─────────────────────────────────────────────────────────
   const targetPersonaIds = personaTargets.map((pt) => pt.personaId);
   const { userCountRows, previewUsers } = await getCachedAgentAudienceData(agentId, targetPersonaIds);
   const userCountByPersona = new Map(userCountRows.map((r) => [r.personaId, r._count.personaId]));

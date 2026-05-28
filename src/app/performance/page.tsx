@@ -325,6 +325,83 @@ async function AgentTableSection() {
   );
 }
 
+async function SegmentBreakdownSection() {
+  const { agents, sendsByAgent, conversionsByAgent } = await getPerfMetrics();
+
+  // Only include agents that are in segment mode
+  const segmentAgents = agents.filter((a) => a.targetSegmentName !== null);
+  if (segmentAgents.length === 0) return null;
+
+  const sendCountByAgent = new Map(sendsByAgent.map((r) => [r.agentId, r._count.id]));
+  const convCountByAgent = new Map(conversionsByAgent.map((r) => [r.agentId, r._count.id]));
+
+  // Aggregate by segment name (multiple agents could share same segment name theoretically,
+  // but the uniqueness constraint means each segment maps to at most one agent)
+  type SegRow = { segmentName: string; agentName: string; agentId: string; status: string; sends: number; conversions: number };
+  const rows: SegRow[] = segmentAgents
+    .map((a) => ({
+      segmentName: a.targetSegmentName!,
+      agentName: a.name,
+      agentId: a.id,
+      status: a.status,
+      sends: sendCountByAgent.get(a.id) ?? 0,
+      conversions: convCountByAgent.get(a.id) ?? 0,
+    }))
+    .filter((r) => r.sends > 0)
+    .sort((a, b) => b.sends - a.sends);
+
+  if (rows.length === 0) return null;
+
+  return (
+    <Card>
+      <CardHeader>
+        <CardTitle className="text-sm font-semibold">Segment Breakdown</CardTitle>
+      </CardHeader>
+      <CardContent>
+        <div className="overflow-x-auto">
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead className="font-semibold">Segment</TableHead>
+                <TableHead className="font-semibold hidden sm:table-cell">Agent</TableHead>
+                <TableHead className="font-semibold hidden sm:table-cell">Status</TableHead>
+                <TableHead className="text-right font-semibold">Sends</TableHead>
+                <TableHead className="text-right font-semibold hidden sm:table-cell">Conversions</TableHead>
+                <TableHead className="text-right font-semibold">Conv. Rate</TableHead>
+                <TableHead />
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {rows.map((r) => {
+                const convRate = r.sends > 0 ? (r.conversions / r.sends) * 100 : 0;
+                return (
+                  <TableRow key={r.segmentName}>
+                    <TableCell className="font-mono text-xs font-medium">{r.segmentName}</TableCell>
+                    <TableCell className="hidden sm:table-cell text-sm">{r.agentName}</TableCell>
+                    <TableCell className="hidden sm:table-cell">
+                      <AgentStatusBadge status={r.status as AgentStatus} />
+                    </TableCell>
+                    <TableCell className="text-right">{formatNumber(r.sends)}</TableCell>
+                    <TableCell className="text-right hidden sm:table-cell">{formatNumber(r.conversions)}</TableCell>
+                    <TableCell className="text-right font-semibold text-primary">
+                      {r.conversions > 0 ? formatPercent(convRate) : <span className="text-muted-foreground font-normal">—</span>}
+                    </TableCell>
+                    <TableCell>
+                      <Link href={`/agents/${r.agentId}/performance`}>
+                        <Button variant="outline" size="sm" className="h-7 text-xs">View</Button>
+                      </Link>
+                    </TableCell>
+                  </TableRow>
+                );
+              })}
+            </TableBody>
+          </Table>
+        </div>
+      </CardContent>
+    </Card>
+  );
+}
+
 async function TopVariantsSection() {
   const [{ variantSends, variantConversions, variantRewards }, allVariantNames] = await Promise.all([
     getVarMetrics(),
@@ -626,6 +703,10 @@ export default function PerformancePage() {
 
         <Suspense fallback={<TableSkeleton />}>
           <AgentTableSection />
+        </Suspense>
+
+        <Suspense fallback={<TableSkeleton />}>
+          <SegmentBreakdownSection />
         </Suspense>
 
         <Suspense fallback={<VariantSkeleton />}>

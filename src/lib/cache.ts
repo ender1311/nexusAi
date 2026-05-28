@@ -255,7 +255,7 @@ export const getCachedPerformanceMetrics = unstable_cache(
     const [agents, rows] = await Promise.all([
       prisma.agent.findMany({
         where: { name: { not: LIBRARY_AGENT_NAME } },
-        select: { id: true, name: true, status: true },
+        select: { id: true, name: true, status: true, targetSegmentName: true },
         orderBy: { updatedAt: "desc" },
       }),
       prisma.$queryRaw<Array<{
