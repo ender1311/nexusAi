@@ -2452,6 +2452,7 @@ export const TrackedUserScalarFieldEnum = {
   brazeId: 'brazeId',
   funnelStage: 'funnelStage',
   funnelStageUpdatedAt: 'funnelStageUpdatedAt',
+  lockedByAgentId: 'lockedByAgentId',
   personaId: 'personaId',
   personaConfidence: 'personaConfidence',
   personaAssignedAt: 'personaAssignedAt',

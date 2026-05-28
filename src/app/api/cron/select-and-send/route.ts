@@ -1092,7 +1092,7 @@ export async function POST(req: NextRequest) {
 
             // Resolve giving deeplink sentinel to per-user URL
             const resolvedDeeplink = meta.deeplink === GIVING_LINK_SENTINEL
-              ? buildGivingDeeplink(user.attributes as Record<string, unknown>)
+              ? buildGivingDeeplink((user.attributes as Record<string, unknown>) ?? {})
               : meta.deeplink;
 
             const groupInLocalTime = isFallback;
@@ -1483,7 +1483,7 @@ export async function POST(req: NextRequest) {
 
           // Resolve giving deeplink sentinel to per-user URL
           const resolvedDeeplink = meta.deeplink === GIVING_LINK_SENTINEL
-            ? buildGivingDeeplink(user.attributes as Record<string, unknown>)
+            ? buildGivingDeeplink((user.attributes as Record<string, unknown>) ?? {})
             : meta.deeplink;
 
           const groupInLocalTime = isFallback;
