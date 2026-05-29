@@ -57,6 +57,38 @@ describe("calculateReward", () => {
     expect(calculateReward("donation", goals, {})).toBeCloseTo(0.05, 5);
   });
 
+  it("property weight mode falls back to weightDefault when property is null", () => {
+    // Number(null) === 0, which would zero the reward; must fall back instead.
+    // best(10) * weightDefault(0.5) / 100 = 0.05
+    expect(calculateReward("donation", goals, { amount: null })).toBeCloseTo(0.05, 5);
+  });
+
+  it("property weight mode falls back to weightDefault when property is empty string", () => {
+    // Number("") === 0, which would zero the reward; must fall back instead.
+    // best(10) * weightDefault(0.5) / 100 = 0.05
+    expect(calculateReward("donation", goals, { amount: "" })).toBeCloseTo(0.05, 5);
+  });
+
+  it("property weight mode falls back to weightDefault when property is whitespace", () => {
+    // Number("  ") === 0; must fall back instead.
+    expect(calculateReward("donation", goals, { amount: "   " })).toBeCloseTo(0.05, 5);
+  });
+
+  it("property weight mode falls back to weightDefault when property is non-numeric string", () => {
+    // Number("abc") === NaN; must fall back instead.
+    expect(calculateReward("donation", goals, { amount: "abc" })).toBeCloseTo(0.05, 5);
+  });
+
+  it("property weight mode accepts a numeric string", () => {
+    // best(10) * Number("3")(3) / 100 = 0.3
+    expect(calculateReward("donation", goals, { amount: "3" })).toBeCloseTo(0.3, 5);
+  });
+
+  it("property weight mode treats explicit 0 as a real value (not a fallback)", () => {
+    // best(10) * 0 / 100 = 0 — a genuine zero, distinct from the missing-property case.
+    expect(calculateReward("donation", goals, { amount: 0 })).toBe(0);
+  });
+
   it("clamps to +1.0 maximum", () => {
     const bigGoals: Goal[] = [
       { id: "g1", agentId: "a1", eventName: "purchase", tier: "best", valueWeight: 500, weightMode: "fixed", weightDefault: 1.0 },

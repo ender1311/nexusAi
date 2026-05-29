@@ -12,6 +12,30 @@ export interface AssignmentConfig {
  */
 type DiscoveredPersona = Awaited<ReturnType<typeof prisma.persona.findMany>>[number];
 
+/**
+ * Pick the persona whose centroid has the highest cosine similarity to the
+ * user vector. Cosine similarity is in [-1, 1], so the search must start below
+ * -1 — initializing at 0 would discard every user whose nearest centroid is a
+ * negative (but still closest) match, dropping them to the largest-persona
+ * fallback instead of their true nearest persona.
+ */
+export function selectNearestPersona(
+  userVec: number[],
+  personas: { id: string; centroid: number[] | null }[],
+): { personaId: string | null; similarity: number } {
+  let bestPersonaId: string | null = null;
+  let bestSimilarity = -Infinity;
+  for (const persona of personas) {
+    if (!persona.centroid) continue;
+    const similarity = cosineSimilarity(userVec, persona.centroid);
+    if (similarity > bestSimilarity) {
+      bestSimilarity = similarity;
+      bestPersonaId = persona.id;
+    }
+  }
+  return { personaId: bestPersonaId, similarity: bestPersonaId === null ? 0 : bestSimilarity };
+}
+
 export async function assignUserToPersona(
   externalId: string,
   config: AssignmentConfig = {},
@@ -38,22 +62,15 @@ export async function assignUserToPersona(
     attributes: (user.attributes as Record<string, unknown>) ?? {},
   });
 
-  let bestPersonaId: string | null = null;
-  let bestSimilarity = 0;
+  const { personaId: bestPersonaId, similarity: bestSimilarity } = selectNearestPersona(
+    userVec,
+    discoveredPersonas.map((p) => ({ id: p.id, centroid: (p.centroid as number[] | null) })),
+  );
 
-  for (const persona of discoveredPersonas) {
-    if (!persona.centroid) continue;
-    const centroid = persona.centroid as number[];
-    const similarity = cosineSimilarity(userVec, centroid);
-    if (similarity > bestSimilarity) {
-      bestSimilarity = similarity;
-      bestPersonaId = persona.id;
-    }
-  }
-
-  // Scale confidence by data richness for low-data users
+  // Scale confidence by data richness for low-data users. Clamp similarity at 0
+  // so a negative-cosine nearest match can't yield a negative confidence.
   const dataRatio = Math.min(1, user.totalDecisions / minInteractions);
-  const effectiveConfidence = bestSimilarity * dataRatio;
+  const effectiveConfidence = Math.max(0, bestSimilarity) * dataRatio;
 
   // Always assign to nearest persona — confidence is recorded but does not gate assignment.
   // Users with no behavioral signal fall back to the largest persona (best population prior).

@@ -36,14 +36,23 @@ export class BrazeClient {
   async get(endpoint: string, params: Record<string, string | number | boolean> = {}, signal?: AbortSignal): Promise<Response> {
     const url = new URL(`${this.restUrl}${endpoint}`);
     Object.entries(params).forEach(([k, v]) => url.searchParams.set(k, String(v)));
-    return fetch(url.toString(), {
-      method: "GET",
-      headers: this.headers(),
-      signal,
-    });
+    const controller = new AbortController();
+    const timer = setTimeout(() => controller.abort(), 10_000);
+    // Abort if either our timeout or the caller's signal fires.
+    if (signal) {
+      if (signal.aborted) controller.abort();
+      else signal.addEventListener("abort", () => controller.abort(), { once: true });
+    }
+    try {
+      return await fetch(url.toString(), {
+        method: "GET",
+        headers: this.headers(),
+        signal: controller.signal,
+      });
+    } finally {
+      clearTimeout(timer);
+    }
   }
-
-
 }
 
 export function createBrazeClient(): BrazeClient | null {

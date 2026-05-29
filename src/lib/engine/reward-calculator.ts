@@ -30,7 +30,15 @@ export function calculateReward(
   let weight: number;
   if (matchingGoal.weightMode === "property" && matchingGoal.weightProperty && eventProperties) {
     const propValue = eventProperties[matchingGoal.weightProperty];
-    const numericValue = typeof propValue === "number" ? propValue : Number(propValue);
+    // Number(null) and Number("") both coerce to a finite 0, which would silently
+    // skip the weightDefault fallback for a missing/blank property. Only a real
+    // number or a non-blank numeric string counts as present.
+    const numericValue =
+      typeof propValue === "number"
+        ? propValue
+        : typeof propValue === "string" && propValue.trim() !== ""
+          ? Number(propValue)
+          : NaN;
     weight = isFinite(numericValue) ? numericValue : (matchingGoal.weightDefault ?? 1.0);
   } else {
     weight = matchingGoal.valueWeight;

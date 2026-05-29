@@ -46,11 +46,12 @@ export function EventPushForm() {
       return;
     }
 
-    const occurredAtISO = new Date(occurredAt).toISOString();
-    if (isNaN(new Date(occurredAt).getTime())) {
+    const occurredAtDate = new Date(occurredAt);
+    if (isNaN(occurredAtDate.getTime())) {
       setResult({ kind: "error", message: "Occurred At is not a valid date." });
       return;
     }
+    const occurredAtISO = occurredAtDate.toISOString();
 
     let properties: Record<string, unknown> = {};
     if (propertiesRaw.trim()) {
