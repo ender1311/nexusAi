@@ -27,6 +27,11 @@ export const FUNNEL_STAGE_META: Record<FunnelStage, { label: string }> = {
   lapsed_mau:  { label: "Lapsed MAU" },
 };
 
+export type SegmentTargeting = {
+  includes: string[];  // user must be in ALL of these segments (AND logic)
+  excludes: string[];  // user must NOT be in ANY of these segments (OR exclusion)
+};
+
 export type AgentStatus = "draft" | "active" | "paused";
 export type Algorithm = "thompson" | "epsilon_greedy" | "contextual";
 
@@ -71,6 +76,7 @@ export interface Agent {
   uniqueUsersCap?: number | null;
   dailySendCap?: number | null;
   targetSegmentName?: string | null;
+  segmentTargeting?: SegmentTargeting | null;
   uniqueUsers?: number;
   sortOrder?: number;
   createdAt: string;
