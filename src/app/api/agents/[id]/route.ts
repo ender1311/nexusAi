@@ -138,7 +138,11 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
         ...(body.languageFilter !== undefined ? { languageFilter: body.languageFilter } : {}),
         ...(body.color !== undefined ? { color: body.color } : {}),
         ...(body.targetSegmentName !== undefined ? { targetSegmentName: typeof body.targetSegmentName === "string" ? body.targetSegmentName.trim() : null } : {}),
-        ...(body.segmentTargeting !== undefined ? { segmentTargeting: body.segmentTargeting } : {}),
+        ...(body.segmentTargeting !== undefined ? {
+          segmentTargeting: body.segmentTargeting === null
+            ? body.segmentTargeting
+            : { includes: body.segmentTargeting.includes.map((s: string) => s.trim()), excludes: body.segmentTargeting.excludes.map((s: string) => s.trim()) },
+        } : {}),
       },
     });
     revalidatePath(`/agents/${id}`);
