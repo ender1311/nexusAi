@@ -1,4 +1,5 @@
 import { prisma } from "@/lib/db";
+import { Prisma } from "@/generated/prisma/client";
 
 export async function createAgent(overrides: {
   name?: string;
@@ -9,7 +10,9 @@ export async function createAgent(overrides: {
   targetFilter?: object;
   staleFunnelStageDays?: number | null;
   targetSegmentName?: string | null;
+  segmentTargeting?: { includes: string[]; excludes: string[] } | null;
 } = {}) {
+  const { segmentTargeting, ...rest } = overrides;
   return prisma.agent.create({
     data: {
       name: "Test Agent",
@@ -17,7 +20,12 @@ export async function createAgent(overrides: {
       epsilon: 0.1,
       status: "active",
       funnelStage: "wau",
-      ...overrides,
+      ...rest,
+      ...(segmentTargeting !== undefined ? {
+        segmentTargeting: segmentTargeting === null
+          ? Prisma.JsonNull
+          : segmentTargeting as Prisma.InputJsonValue,
+      } : {}),
     },
   });
 }

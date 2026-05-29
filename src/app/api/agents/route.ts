@@ -6,7 +6,7 @@ import { prisma } from "@/lib/db";
 import { FUNNEL_STAGES } from "@/types/agent";
 import { isPlainObject } from "@/lib/utils";
 import { detectTestedVariables, type VariantInput } from "@/lib/variant-diff";
-import type { Prisma } from "@/generated/prisma/client";
+import { Prisma } from "@/generated/prisma/client";
 
 export const maxDuration = 15;
 
@@ -55,12 +55,33 @@ export async function POST(req: NextRequest) {
       targetPersonaIds,
       targetSegmentName,
     } = body;
+    const segmentTargeting = body.segmentTargeting as unknown;
 
     if (typeof name !== "string" || name.trim().length === 0) {
       return NextResponse.json({ error: "name is required" }, { status: 400 });
     }
-    if (!funnelStage || !VALID_STAGES.has(funnelStage as (typeof FUNNEL_STAGES)[number])) {
-      return NextResponse.json({ error: "Invalid funnelStage" }, { status: 400 });
+    if (segmentTargeting !== undefined && segmentTargeting !== null) {
+      if (
+        typeof segmentTargeting !== "object" ||
+        Array.isArray(segmentTargeting) ||
+        !Array.isArray((segmentTargeting as { includes?: unknown }).includes) ||
+        !Array.isArray((segmentTargeting as { excludes?: unknown }).excludes) ||
+        (segmentTargeting as { includes: unknown[] }).includes.some((s: unknown) => typeof s !== "string" || !(s as string).trim()) ||
+        (segmentTargeting as { excludes: unknown[] }).excludes.some((s: unknown) => typeof s !== "string" || !(s as string).trim())
+      ) {
+        return NextResponse.json(
+          { error: "segmentTargeting must be null or { includes: string[], excludes: string[] } with non-empty strings" },
+          { status: 400 },
+        );
+      }
+    }
+    const hasSegmentIncludes =
+      Array.isArray((segmentTargeting as { includes?: unknown } | null)?.includes) &&
+      ((segmentTargeting as { includes: unknown[] }).includes.length > 0);
+    if (!hasSegmentIncludes) {
+      if (!funnelStage || !VALID_STAGES.has(funnelStage as (typeof FUNNEL_STAGES)[number])) {
+        return NextResponse.json({ error: "Invalid funnelStage" }, { status: 400 });
+      }
     }
     if (targetFilter !== undefined && targetFilter !== null && !isPlainObject(targetFilter)) {
       return NextResponse.json({ error: "targetFilter must be a plain object" }, { status: 400 });
@@ -110,6 +131,14 @@ export async function POST(req: NextRequest) {
         ...(uniqueUsersCap !== undefined ? { uniqueUsersCap: uniqueUsersCap as number | null } : {}),
         ...(dailySendCap !== undefined ? { dailySendCap: dailySendCap as number | null } : {}),
         ...(targetSegmentName !== undefined ? { targetSegmentName: typeof targetSegmentName === "string" ? (targetSegmentName as string).trim() : null } : {}),
+        ...(segmentTargeting !== undefined ? {
+          segmentTargeting: segmentTargeting === null
+            ? Prisma.DbNull
+            : {
+                includes: (segmentTargeting as { includes: string[]; excludes: string[] }).includes.map((s: string) => s.trim()),
+                excludes: (segmentTargeting as { includes: string[]; excludes: string[] }).excludes.map((s: string) => s.trim()),
+              }
+        } : {}),
         ...(targetFilter !== undefined && targetFilter !== null
           ? { targetFilter: targetFilter as Prisma.InputJsonValue }
           : {}),

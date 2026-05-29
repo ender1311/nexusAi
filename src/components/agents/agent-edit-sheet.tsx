@@ -49,6 +49,66 @@ const DAILY_CAP_PRESETS = [
 
 type SegmentOption = { name: string; userCount: number; assignedTo: string | null };
 
+function SegmentCheckList({
+  segments,
+  selected,
+  currentAgentTargetNames,
+  onChange,
+}: {
+  segments: SegmentOption[];
+  selected: string[];
+  currentAgentTargetNames: string[];
+  onChange: (next: string[]) => void;
+}) {
+  if (segments.length === 0) {
+    return <p className="text-sm text-muted-foreground italic">No segments synced yet — run a Hightouch segment sync first.</p>;
+  }
+  return (
+    <div className="rounded-md border overflow-hidden max-h-48 overflow-y-auto">
+      {segments.map((s) => {
+        const isSelected = selected.includes(s.name);
+        // A segment is "taken" if it's assigned to another agent AND not in current agent's own targets
+        const isTaken = s.assignedTo !== null && !currentAgentTargetNames.includes(s.name);
+        const isDisabled = isTaken && !isSelected;
+        return (
+          <button
+            key={s.name}
+            type="button"
+            disabled={isDisabled}
+            onClick={() => {
+              onChange(isSelected ? selected.filter((n) => n !== s.name) : [...selected, s.name]);
+            }}
+            className={cn(
+              "w-full flex items-center gap-3 px-3 py-2.5 text-left text-sm transition-colors border-b last:border-b-0",
+              isSelected ? "bg-primary/5 text-foreground" : "hover:bg-muted/50",
+              isDisabled ? "opacity-40 cursor-not-allowed" : "cursor-pointer",
+            )}
+          >
+            {/* Checkbox indicator */}
+            <span className={cn(
+              "h-4 w-4 rounded border flex-shrink-0 flex items-center justify-center",
+              isSelected ? "bg-primary border-primary" : "border-input bg-background",
+            )}>
+              {isSelected && (
+                <svg className="h-2.5 w-2.5 text-primary-foreground" fill="none" viewBox="0 0 12 12">
+                  <path d="M2 6l3 3 5-5" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+                </svg>
+              )}
+            </span>
+            <span className="flex-1 min-w-0">
+              <span className="block truncate font-medium">{s.name}</span>
+              <span className="block text-xs text-muted-foreground">
+                {s.userCount >= 1000 ? `${(s.userCount / 1000).toFixed(0)}K` : s.userCount} users
+                {isTaken && s.assignedTo ? ` · ${s.assignedTo}` : ""}
+              </span>
+            </span>
+          </button>
+        );
+      })}
+    </div>
+  );
+}
+
 type Props = {
   agentId: string;
   initialName: string;
@@ -60,6 +120,7 @@ type Props = {
   initialColor: string;
   usedColors: string[];
   initialTargetSegmentName: string | null;
+  initialSegmentTargeting: { includes: string[]; excludes: string[] } | null;
   initialDailySendCap: number | null;
 };
 
@@ -74,6 +135,7 @@ export function AgentEditSheet({
   initialColor,
   usedColors,
   initialTargetSegmentName,
+  initialSegmentTargeting,
   initialDailySendCap,
 }: Props) {
   const router = useRouter();
@@ -86,9 +148,20 @@ export function AgentEditSheet({
   const [englishOnly, setEnglishOnly] = useState(initialLanguageFilter === "en");
   const [saving, setSaving] = useState(false);
 
+  // Compute initial includes/excludes for segment targeting
+  const computeInitialIncludes = () => {
+    if ((initialSegmentTargeting?.includes?.length ?? 0) > 0) {
+      return initialSegmentTargeting!.includes;
+    }
+    return initialTargetSegmentName ? [initialTargetSegmentName] : [];
+  };
+  const computeInitialExcludes = () => initialSegmentTargeting?.excludes ?? [];
+
   // Segment targeting
-  const [segmentMode, setSegmentMode] = useState(initialTargetSegmentName !== null);
-  const [targetSegmentName, setTargetSegmentName] = useState<string>(initialTargetSegmentName ?? "");
+  const hasInitialSegmentMode = (initialSegmentTargeting?.includes?.length ?? 0) > 0 || initialTargetSegmentName !== null;
+  const [segmentMode, setSegmentMode] = useState(hasInitialSegmentMode);
+  const [segmentIncludes, setSegmentIncludes] = useState<string[]>(computeInitialIncludes);
+  const [segmentExcludes, setSegmentExcludes] = useState<string[]>(computeInitialExcludes);
   const [segments, setSegments] = useState<SegmentOption[]>([]);
 
   // Daily send cap
@@ -112,14 +185,17 @@ export function AgentEditSheet({
       setEpsilon(initialEpsilon);
       setFunnelStage(initialFunnelStage);
       setEnglishOnly(initialLanguageFilter === "en");
-      setSegmentMode(initialTargetSegmentName !== null);
-      setTargetSegmentName(initialTargetSegmentName ?? "");
+      const recomputedHasSegmentMode = (initialSegmentTargeting?.includes?.length ?? 0) > 0 || initialTargetSegmentName !== null;
+      setSegmentMode(recomputedHasSegmentMode);
+      setSegmentIncludes(computeInitialIncludes());
+      setSegmentExcludes(computeInitialExcludes());
       setCapPreset(initialCapPreset);
       setCapCustom(initialDailySendCap !== null && initialCapPreset === "custom" ? String(initialDailySendCap) : "");
     }
     prevOpen.current = open;
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open, initialName, initialDescription, initialAlgorithm, initialEpsilon, initialFunnelStage,
-      initialLanguageFilter, initialTargetSegmentName, initialDailySendCap, initialCapPreset]);
+      initialLanguageFilter, initialTargetSegmentName, initialSegmentTargeting, initialDailySendCap, initialCapPreset]);
 
   // Fetch segments when sheet opens
   useEffect(() => {
@@ -143,7 +219,9 @@ export function AgentEditSheet({
     if (!name.trim()) return;
     setSaving(true);
     try {
-      const resolvedSegment = segmentMode ? (targetSegmentName.trim() || null) : null;
+      const resolvedSegmentTargeting = segmentMode
+        ? (segmentIncludes.length > 0 ? { includes: segmentIncludes, excludes: segmentExcludes } : null)
+        : (segmentExcludes.length > 0 ? { includes: [], excludes: segmentExcludes } : null);
       await fetch(`/api/agents/${agentId}`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
@@ -154,7 +232,8 @@ export function AgentEditSheet({
           epsilon,
           funnelStage,
           languageFilter: englishOnly ? "en" : "all",
-          targetSegmentName: resolvedSegment,
+          targetSegmentName: null,  // always clear legacy field when using new UI
+          segmentTargeting: resolvedSegmentTargeting,
           dailySendCap: resolvedDailySendCap(),
         }),
       });
@@ -165,7 +244,8 @@ export function AgentEditSheet({
     }
   }
 
-  const selectedSegment = segments.find((s) => s.name === targetSegmentName);
+  // The current agent's own includes — used to allow re-selecting already-assigned segments
+  const initialIncludes = computeInitialIncludes();
 
   return (
     <Sheet open={open} onOpenChange={setOpen}>
@@ -306,47 +386,28 @@ export function AgentEditSheet({
               </div>
             ) : (
               <div className="space-y-1.5">
-                <label className="text-sm font-medium">Hightouch Segment</label>
-                {segments.length > 0 ? (
-                  <>
-                    <Select
-                      value={targetSegmentName || undefined}
-                      onValueChange={(v) => { if (v) setTargetSegmentName(v); }}
-                    >
-                      <SelectTrigger className="w-full">
-                        <SelectValue placeholder="Select a segment…" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {segments.map((s) => (
-                          <SelectItem
-                            key={s.name}
-                            value={s.name}
-                            disabled={s.assignedTo !== null && s.assignedTo !== initialTargetSegmentName}
-                          >
-                            <span className={s.assignedTo !== null && s.assignedTo !== initialTargetSegmentName ? "text-muted-foreground" : undefined}>
-                              {s.name}
-                              <span className="ml-2 text-xs text-muted-foreground">
-                                ({s.userCount >= 1000 ? `${(s.userCount / 1000).toFixed(0)}K` : s.userCount} users
-                                {s.assignedTo && s.assignedTo !== initialTargetSegmentName ? ` · ${s.assignedTo}` : ""})
-                              </span>
-                            </span>
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                    {selectedSegment && (
-                      <p className="text-xs text-muted-foreground">
-                        ~{selectedSegment.userCount.toLocaleString()} members synced
-                      </p>
-                    )}
-                  </>
-                ) : (
-                  <p className="text-sm text-muted-foreground italic">
-                    No segments synced yet — run a Hightouch segment sync first.
-                  </p>
-                )}
+                <label className="text-sm font-medium">Include Segments (AND)</label>
+                <p className="text-xs text-muted-foreground">User must be in ALL selected segments.</p>
+                <SegmentCheckList
+                  segments={segments}
+                  selected={segmentIncludes}
+                  currentAgentTargetNames={[...initialIncludes]}
+                  onChange={setSegmentIncludes}
+                />
               </div>
             )}
+
+            {/* Exclude Segments — always show as optional */}
+            <div className="space-y-1.5">
+              <label className="text-sm font-medium">Exclude Segments (optional)</label>
+              <p className="text-xs text-muted-foreground">User must NOT be in any selected segment.</p>
+              <SegmentCheckList
+                segments={segments}
+                selected={segmentExcludes}
+                currentAgentTargetNames={[]}
+                onChange={setSegmentExcludes}
+              />
+            </div>
           </section>
 
           <div className="border-t" />
@@ -393,7 +454,7 @@ export function AgentEditSheet({
           <Button
             className="flex-1"
             onClick={save}
-            disabled={saving || !name.trim() || (segmentMode && !targetSegmentName.trim())}
+            disabled={saving || !name.trim() || (segmentMode && segmentIncludes.length === 0)}
           >
             {saving ? "Saving…" : "Save Changes"}
           </Button>

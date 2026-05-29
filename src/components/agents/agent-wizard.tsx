@@ -9,7 +9,7 @@ import { Badge } from "@/components/ui/badge";
 import { Slider } from "@/components/ui/slider";
 import { Switch } from "@/components/ui/switch";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { cn, formatNumber } from "@/lib/utils";
+import { cn } from "@/lib/utils";
 import { Check, ChevronRight, Bot, Target, MessageSquare, Calendar, Rocket, Pencil } from "lucide-react";
 import { GoalTier, Channel, FrequencyCap, FunnelStage, FUNNEL_STAGES, FUNNEL_STAGE_META } from "@/types/agent";
 import { estimateConvergence } from "@/lib/convergence";
@@ -109,6 +109,66 @@ interface MessageDraft {
 }
 
 
+type SegmentOption = { name: string; userCount: number; assignedTo: string | null };
+
+function SegmentCheckList({
+  segments,
+  selected,
+  currentAgentTargetNames,
+  onChange,
+}: {
+  segments: SegmentOption[];
+  selected: string[];
+  currentAgentTargetNames: string[];
+  onChange: (next: string[]) => void;
+}) {
+  if (segments.length === 0) {
+    return <p className="text-sm text-muted-foreground italic">No segments synced yet — run a Hightouch segment sync first.</p>;
+  }
+  return (
+    <div className="rounded-md border overflow-hidden max-h-48 overflow-y-auto">
+      {segments.map((s) => {
+        const isSelected = selected.includes(s.name);
+        const isTaken = s.assignedTo !== null && !currentAgentTargetNames.includes(s.name);
+        const isDisabled = isTaken && !isSelected;
+        return (
+          <button
+            key={s.name}
+            type="button"
+            disabled={isDisabled}
+            onClick={() => {
+              onChange(isSelected ? selected.filter((n) => n !== s.name) : [...selected, s.name]);
+            }}
+            className={cn(
+              "w-full flex items-center gap-3 px-3 py-2.5 text-left text-sm transition-colors border-b last:border-b-0",
+              isSelected ? "bg-primary/5 text-foreground" : "hover:bg-muted/50",
+              isDisabled ? "opacity-40 cursor-not-allowed" : "cursor-pointer",
+            )}
+          >
+            <span className={cn(
+              "h-4 w-4 rounded border flex-shrink-0 flex items-center justify-center",
+              isSelected ? "bg-primary border-primary" : "border-input bg-background",
+            )}>
+              {isSelected && (
+                <svg className="h-2.5 w-2.5 text-primary-foreground" fill="none" viewBox="0 0 12 12">
+                  <path d="M2 6l3 3 5-5" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+                </svg>
+              )}
+            </span>
+            <span className="flex-1 min-w-0">
+              <span className="block truncate font-medium">{s.name}</span>
+              <span className="block text-xs text-muted-foreground">
+                {s.userCount >= 1000 ? `${(s.userCount / 1000).toFixed(0)}K` : s.userCount} users
+                {isTaken && s.assignedTo ? ` · ${s.assignedTo}` : ""}
+              </span>
+            </span>
+          </button>
+        );
+      })}
+    </div>
+  );
+}
+
 interface FormData {
   name: string;
   description: string;
@@ -127,7 +187,9 @@ interface FormData {
   suppressThresh: number;
   uniqueUsersCap: number | null;
   dailySendCap: number | null;
-  targetSegmentName: string | null;
+  segmentMode: boolean;
+  segmentIncludes: string[];
+  segmentExcludes: string[];
 }
 
 const defaultForm: FormData = {
@@ -148,7 +210,9 @@ const defaultForm: FormData = {
   suppressThresh: 0.5,
   uniqueUsersCap: null,
   dailySendCap: null,
-  targetSegmentName: null,
+  segmentMode: false,
+  segmentIncludes: [],
+  segmentExcludes: [],
 };
 
 const DAILY_SEND_CAP_PRESETS = [
@@ -202,12 +266,12 @@ export function AgentWizard({ personas }: { personas: Persona[] }) {
   const [uniqueUsersCustom, setUniqueUsersCustom] = useState<string>("");
   const [dailySendCapPreset, setDailySendCapPreset] = useState<string>("unlimited");
   const [dailySendCapCustom, setDailySendCapCustom] = useState<string>("");
-  const [segments, setSegments] = useState<{ name: string; userCount: number; assignedTo: string | null }[]>([]);
+  const [segments, setSegments] = useState<SegmentOption[]>([]);
 
   useEffect(() => {
     fetch("/api/segments")
       .then((r) => r.json())
-      .then((j: { data: { name: string; userCount: number; assignedTo: string | null }[] }) => setSegments(j.data))
+      .then((j: { data: SegmentOption[] }) => setSegments(j.data))
       .catch(() => {});
   }, []);
 
@@ -246,10 +310,18 @@ export function AgentWizard({ personas }: { personas: Persona[] }) {
     setSaving(true);
     setSubmitError(null);
     try {
+      const payload = {
+        ...form,
+        targetSegmentName: null,
+        segmentTargeting: form.segmentMode
+          ? (form.segmentIncludes.length > 0 ? { includes: form.segmentIncludes, excludes: form.segmentExcludes } : null)
+          : (form.segmentExcludes.length > 0 ? { includes: [], excludes: form.segmentExcludes } : null),
+        funnelStage: form.segmentMode ? "wau" : form.funnelStage,
+      };
       const res = await fetch("/api/agents", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(form),
+        body: JSON.stringify(payload),
       });
       if (res.ok) {
         const agent = await res.json();
@@ -321,7 +393,7 @@ export function AgentWizard({ personas }: { personas: Persona[] }) {
               }
               setStep((s) => Math.min(5, s + 1));
             }}
-            disabled={step === 1 && (!form.name.trim() || (form.targetSegmentName === null && !form.funnelStage))}
+            disabled={step === 1 && (!form.name.trim() || (form.segmentMode ? form.segmentIncludes.length === 0 : !form.funnelStage))}
           >
             Next
             <ChevronRight className="h-4 w-4 ml-1" />
@@ -415,55 +487,38 @@ export function AgentWizard({ personas }: { personas: Persona[] }) {
                 <button
                   type="button"
                   className={cn("flex-1 px-3 py-2 font-medium transition-colors",
-                    form.targetSegmentName === null
+                    !form.segmentMode
                       ? "bg-primary text-primary-foreground"
                       : "text-muted-foreground hover:text-foreground")}
-                  onClick={() => update("targetSegmentName", null)}
+                  onClick={() => update("segmentMode", false)}
                 >
                   Funnel Stage
                 </button>
                 <button
                   type="button"
                   className={cn("flex-1 px-3 py-2 font-medium transition-colors border-l",
-                    form.targetSegmentName !== null
+                    form.segmentMode
                       ? "bg-primary text-primary-foreground"
                       : "text-muted-foreground hover:text-foreground")}
-                  onClick={() => update("targetSegmentName", "")}
+                  onClick={() => update("segmentMode", true)}
                 >
                   HT Segment
                 </button>
               </div>
-              {form.targetSegmentName !== null ? (
-                segments.length > 0 ? (
-                  <Select
-                    value={form.targetSegmentName || undefined}
-                    onValueChange={(v) => update("targetSegmentName", v)}
-                  >
-                    <SelectTrigger>
-                      <SelectValue placeholder="Select a segment…" />
-                    </SelectTrigger>
-                    <SelectContent className="min-w-[320px]">
-                      {segments.map((s) => (
-                        <SelectItem key={s.name} value={s.name} disabled={s.assignedTo !== null}>
-                          <div className={cn("flex flex-col", s.assignedTo && "text-muted-foreground")}>
-                            <span>{s.name}</span>
-                            <span className="text-xs text-muted-foreground">
-                              {formatNumber(s.userCount)} users
-                              {s.assignedTo ? ` · Assigned to: ${s.assignedTo}` : ""}
-                            </span>
-                          </div>
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                ) : (
-                  <p className="text-sm text-muted-foreground italic">
-                    No segments synced yet — run a Hightouch segment sync first.
-                  </p>
-                )
-              ) : null}
+              {form.segmentMode && (
+                <div className="space-y-1.5 mb-2">
+                  <label className="text-xs font-medium text-muted-foreground">Include Segments (AND)</label>
+                  <p className="text-xs text-muted-foreground">User must be in ALL selected segments.</p>
+                  <SegmentCheckList
+                    segments={segments}
+                    selected={form.segmentIncludes}
+                    currentAgentTargetNames={[]}
+                    onChange={(v) => update("segmentIncludes", v)}
+                  />
+                </div>
+              )}
             </div>
-            {form.targetSegmentName === null && (
+            {!form.segmentMode && (
             <div>
               <label className="text-sm font-medium">Funnel Stage *</label>
               <Select
@@ -483,6 +538,17 @@ export function AgentWizard({ personas }: { personas: Persona[] }) {
               </Select>
             </div>
             )}
+            {/* Exclude Segments — always show as optional */}
+            <div className="space-y-1.5">
+              <label className="text-sm font-medium">Exclude Segments (optional)</label>
+              <p className="text-xs text-muted-foreground">User must NOT be in any selected segment.</p>
+              <SegmentCheckList
+                segments={segments}
+                selected={form.segmentExcludes}
+                currentAgentTargetNames={[]}
+                onChange={(v) => update("segmentExcludes", v)}
+              />
+            </div>
             <div>
               <label className="text-sm font-medium">Target Personas</label>
               <p className="text-xs text-muted-foreground mb-2 mt-0.5">
@@ -1064,10 +1130,19 @@ export function AgentWizard({ personas }: { personas: Persona[] }) {
             <div className="border rounded-lg p-4 space-y-2">
               <h3 className="text-sm font-semibold">Basic Info</h3>
               <p className="text-sm"><span className="text-muted-foreground">Name:</span> {form.name || "—"}</p>
-              {form.targetSegmentName !== null ? (
-                <p className="text-sm"><span className="text-muted-foreground">HT Segment:</span> {form.targetSegmentName || "—"}</p>
+              {form.segmentMode ? (
+                <p className="text-sm">
+                  <span className="text-muted-foreground">HT Segments:</span>{" "}
+                  {form.segmentIncludes.length > 0 ? form.segmentIncludes.join(", ") : "—"}
+                </p>
               ) : (
-                <p className="text-sm"><span className="text-muted-foreground">Funnel Stage:</span> {form.funnelStage ? FUNNEL_STAGE_META[form.funnelStage].label : "—"}</p>
+                <p className="text-sm"><span className="text-muted-foreground">Funnel Stage:</span> {form.funnelStage ? FUNNEL_STAGE_META[form.funnelStage as FunnelStage]?.label : "—"}</p>
+              )}
+              {form.segmentExcludes.length > 0 && (
+                <p className="text-sm">
+                  <span className="text-muted-foreground">Exclude:</span>{" "}
+                  {form.segmentExcludes.join(", ")}
+                </p>
               )}
               <p className="text-sm"><span className="text-muted-foreground">Algorithm:</span> {ALGORITHM_OPTIONS.find((a) => a.value === form.algorithm)?.label ?? form.algorithm}</p>
               {form.description && <p className="text-sm"><span className="text-muted-foreground">Description:</span> {form.description}</p>}
@@ -1138,7 +1213,7 @@ export function AgentWizard({ personas }: { personas: Persona[] }) {
           {step < 5 ? (
             <Button
               onClick={() => setStep((s) => Math.min(5, s + 1))}
-              disabled={step === 1 && (!form.name.trim() || (form.targetSegmentName === null && !form.funnelStage))}
+              disabled={step === 1 && (!form.name.trim() || (form.segmentMode ? form.segmentIncludes.length === 0 : !form.funnelStage))}
             >
               Next
               <ChevronRight className="h-4 w-4 ml-1" />

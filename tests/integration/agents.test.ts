@@ -580,3 +580,55 @@ describe("PATCH /api/agents/[id] — uniqueUsersCap", () => {
     }
   });
 });
+
+describe("PATCH /api/agents/:id — segmentTargeting", () => {
+  it("accepts valid segmentTargeting", async () => {
+    const agent = await prisma.agent.create({ data: { name: "Segment Agent", algorithm: "thompson", epsilon: 0.1 } });
+    const req = buildRequest("PATCH", {
+      segmentTargeting: { includes: ["seg_a", "seg_b"], excludes: ["seg_c"] },
+    });
+    const res = await patchAgent(req as NextRequest, { params: Promise.resolve({ id: agent.id }) });
+    expect(res.status).toBe(200);
+    const body = await res.json();
+    expect(body.segmentTargeting).toEqual({ includes: ["seg_a", "seg_b"], excludes: ["seg_c"] });
+  });
+
+  it("accepts null segmentTargeting (clear)", async () => {
+    const agent = await prisma.agent.create({ data: { name: "Segment Agent", algorithm: "thompson", epsilon: 0.1 } });
+    const req = buildRequest("PATCH", { segmentTargeting: null });
+    const res = await patchAgent(req as NextRequest, { params: Promise.resolve({ id: agent.id }) });
+    expect(res.status).toBe(200);
+  });
+
+  it("rejects invalid segmentTargeting shape — includes not an array", async () => {
+    const agent = await prisma.agent.create({ data: { name: "Segment Agent", algorithm: "thompson", epsilon: 0.1 } });
+    const req = buildRequest("PATCH", { segmentTargeting: { includes: "not_array", excludes: [] } });
+    const res = await patchAgent(req as NextRequest, { params: Promise.resolve({ id: agent.id }) });
+    expect(res.status).toBe(400);
+  });
+
+  it("rejects invalid segmentTargeting shape — missing excludes", async () => {
+    const agent = await prisma.agent.create({ data: { name: "Segment Agent", algorithm: "thompson", epsilon: 0.1 } });
+    const req = buildRequest("PATCH", { segmentTargeting: { includes: ["seg_a"] } });
+    const res = await patchAgent(req as NextRequest, { params: Promise.resolve({ id: agent.id }) });
+    expect(res.status).toBe(400);
+  });
+
+  it("rejects segmentTargeting with empty string in includes", async () => {
+    const agent = await prisma.agent.create({ data: { name: "Segment Agent", algorithm: "thompson", epsilon: 0.1 } });
+    const req = buildRequest("PATCH", { segmentTargeting: { includes: ["", "seg_b"], excludes: [] } });
+    const res = await patchAgent(req as NextRequest, { params: Promise.resolve({ id: agent.id }) });
+    expect(res.status).toBe(400);
+  });
+
+  it("releases user locks when segmentTargeting changes", async () => {
+    const agent = await prisma.agent.create({
+      data: { name: "Segment Agent", algorithm: "thompson", epsilon: 0.1, status: "active" },
+    });
+    await prisma.trackedUser.create({ data: { externalId: "u_seg1", lockedByAgentId: agent.id } });
+    const req = buildRequest("PATCH", { segmentTargeting: { includes: ["seg_x"], excludes: [] } });
+    await patchAgent(req as NextRequest, { params: Promise.resolve({ id: agent.id }) });
+    const user = await prisma.trackedUser.findUnique({ where: { externalId: "u_seg1" } });
+    expect(user?.lockedByAgentId).toBeNull();
+  });
+});

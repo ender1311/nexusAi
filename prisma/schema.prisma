@@ -21,7 +21,8 @@ model Agent {
   epsilon     Float       @default(0.1)
   funnelStage      String      @default("wau")
   targetFilter     Json?
-  targetSegmentName String?  // null = target by funnelStage; non-null = target users in this HT segment
+  targetSegmentName String?  // legacy: single include segment; use segmentTargeting for multi-segment
+  segmentTargeting Json?   // null = use targetSegmentName/funnelStage; { includes: string[], excludes: string[] }
   fallbackSendHour Int?        // 0-23 UTC-naive hour; Braze delivers at this hour in user's local timezone via in_local_time
   audienceCap      Int?        // max users reached per cron run; null = unlimited
   uniqueUsersCap   Int?        // max lifetime unique users this agent will ever target; null = unlimited

@@ -98,8 +98,24 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
       }
     }
 
+    if (body.segmentTargeting !== undefined && body.segmentTargeting !== null) {
+      if (
+        typeof body.segmentTargeting !== "object" ||
+        Array.isArray(body.segmentTargeting) ||
+        !Array.isArray(body.segmentTargeting.includes) ||
+        !Array.isArray(body.segmentTargeting.excludes) ||
+        body.segmentTargeting.includes.some((s: unknown) => typeof s !== "string" || !s.trim()) ||
+        body.segmentTargeting.excludes.some((s: unknown) => typeof s !== "string" || !s.trim())
+      ) {
+        return NextResponse.json(
+          { error: "segmentTargeting must be null or { includes: string[], excludes: string[] } with non-empty strings" },
+          { status: 400 },
+        );
+      }
+    }
+
     // Release user locks when agent is stopped, paused, or targeting criteria change
-    if (body.status === "paused" || body.status === "draft" || body.targetSegmentName !== undefined || body.funnelStage !== undefined) {
+    if (body.status === "paused" || body.status === "draft" || body.targetSegmentName !== undefined || body.funnelStage !== undefined || body.segmentTargeting !== undefined) {
       await prisma.trackedUser.updateMany({
         where: { lockedByAgentId: id },
         data:  { lockedByAgentId: null },
@@ -122,6 +138,11 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
         ...(body.languageFilter !== undefined ? { languageFilter: body.languageFilter } : {}),
         ...(body.color !== undefined ? { color: body.color } : {}),
         ...(body.targetSegmentName !== undefined ? { targetSegmentName: typeof body.targetSegmentName === "string" ? body.targetSegmentName.trim() : null } : {}),
+        ...(body.segmentTargeting !== undefined ? {
+          segmentTargeting: body.segmentTargeting === null
+            ? body.segmentTargeting
+            : { includes: body.segmentTargeting.includes.map((s: string) => s.trim()), excludes: body.segmentTargeting.excludes.map((s: string) => s.trim()) },
+        } : {}),
       },
     });
     revalidatePath(`/agents/${id}`);

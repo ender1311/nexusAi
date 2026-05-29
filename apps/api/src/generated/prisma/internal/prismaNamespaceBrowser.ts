@@ -104,6 +104,7 @@ export const AgentScalarFieldEnum = {
   funnelStage: 'funnelStage',
   targetFilter: 'targetFilter',
   targetSegmentName: 'targetSegmentName',
+  segmentTargeting: 'segmentTargeting',
   fallbackSendHour: 'fallbackSendHour',
   audienceCap: 'audienceCap',
   uniqueUsersCap: 'uniqueUsersCap',
