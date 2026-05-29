@@ -19,7 +19,7 @@ import { truncateAll, prisma } from "../helpers/db";
 import { buildRequest } from "../helpers/request";
 import {
   createAgent, createPersona, createMessage, createVariant,
-  createUser, createSchedulingRule, linkAgentToPersona, createUserSegment,
+  createUser, createSchedulingRule, linkAgentToPersona,
 } from "../helpers/builders";
 
 import { POST } from "@/app/api/cron/select-and-send/route";
