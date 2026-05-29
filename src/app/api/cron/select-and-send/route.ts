@@ -305,17 +305,51 @@ export async function POST(req: NextRequest) {
               ...(staleAt && { funnelStageUpdatedAt: { gte: staleAt } }),
             }
           : {};
-        if (agent.targetSegmentName) {
-          // Segment-based targeting: query UserSegment first, then fetch those TrackedUsers
-          const members = await prisma.userSegment.findMany({
-            where: { segmentName: agent.targetSegmentName },
+        const segTargeting = agent.segmentTargeting as { includes: string[]; excludes: string[] } | null;
+        const effectiveIncludes: string[] = segTargeting?.includes.length
+          ? segTargeting.includes
+          : agent.targetSegmentName
+            ? [agent.targetSegmentName]
+            : [];
+        const effectiveExcludes: string[] = segTargeting?.excludes ?? [];
+
+        // Only called when effectiveExcludes.length > 0
+        const fetchExcludedIds = async (): Promise<Set<string>> => {
+          const rows = await prisma.userSegment.findMany({
+            where: { segmentName: { in: effectiveExcludes } },
             select: { externalId: true },
           });
-          if (members.length === 0) {
+          return new Set(rows.map((r) => r.externalId));
+        };
+
+        if (effectiveIncludes.length > 0) {
+          // Fetch all include segments in parallel, then intersect (AND logic)
+          const memberSets = await Promise.all(
+            effectiveIncludes.map((seg) =>
+              prisma.userSegment.findMany({
+                where: { segmentName: seg },
+                select: { externalId: true },
+              }).then((rows) => new Set(rows.map((r) => r.externalId)))
+            )
+          );
+          // AND intersection: user must be in all include segments
+          let memberIds = [...memberSets[0]];
+          for (let i = 1; i < memberSets.length; i++) {
+            memberIds = memberIds.filter((id) => memberSets[i].has(id));
+          }
+          if (memberIds.length === 0) {
             eligibleUsersByAgent.set(agent.id, []);
             return;
           }
-          const memberIds = members.map((m) => m.externalId);
+          // Apply excludes
+          if (effectiveExcludes.length > 0) {
+            const excludedIds = await fetchExcludedIds();
+            memberIds = memberIds.filter((id) => !excludedIds.has(id));
+            if (memberIds.length === 0) {
+              eligibleUsersByAgent.set(agent.id, []);
+              return;
+            }
+          }
           const rows = await prisma.trackedUser.findMany({
             where: {
               externalId: { in: memberIds },
@@ -333,6 +367,7 @@ export async function POST(req: NextRequest) {
             new Map(rows.map((r) => [r.externalId, r.preferredSendHour])),
           );
         } else {
+          // Funnel-stage path (existing logic + exclude support)
           // Bound the query so agents with millions of eligible users don't load the
           // entire set into memory. audienceCap is the hard per-run limit; when unset,
           // derive a safe fetch window from dailySendCap (2× for suppression headroom).
@@ -341,7 +376,7 @@ export async function POST(req: NextRequest) {
           const fetchLimit =
             agent.audienceCap ??
             (agent.dailySendCap != null ? agent.dailySendCap * 2 : undefined);
-          const rows = await prisma.trackedUser.findMany({
+          let rows = await prisma.trackedUser.findMany({
             where:  {
               personaId: { in: personaIds },
               ...langFilter,
@@ -354,6 +389,11 @@ export async function POST(req: NextRequest) {
             select: { externalId: true, preferredSendHour: true },
             ...(fetchLimit !== undefined ? { take: fetchLimit } : {}),
           });
+          // Apply excludes to funnel-stage path
+          if (effectiveExcludes.length > 0) {
+            const excludedIds = await fetchExcludedIds();
+            rows = rows.filter((r) => !excludedIds.has(r.externalId));
+          }
           eligibleUsersByAgent.set(agent.id, rows.map((r) => r.externalId));
           preferredHourByAgent.set(
             agent.id,
@@ -439,7 +479,8 @@ export async function POST(req: NextRequest) {
         }
         // Funnel stage filter: skip user if their funnelStage doesn't match the agent's.
         // Skip this check when segment targeting is active — segment membership is the filter.
-        if (!agent.targetSegmentName && agent.funnelStage && user.funnelStage !== agent.funnelStage) continue;
+        const hasSegmentIncludes = !!(agent.segmentTargeting as { includes?: string[] } | null)?.includes?.length;
+        if (!agent.targetSegmentName && !hasSegmentIncludes && agent.funnelStage && user.funnelStage !== agent.funnelStage) continue;
         eligible.push(agent.id);
       }
       if (eligible.length > 0) eligibleAgentsByUser.set(user.externalId, eligible);
