@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { forwardRef, useCallback, useEffect, useImperativeHandle, useState } from "react";
 import { Check } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -79,6 +79,13 @@ export type TemplatePickerProps =
   | { agentId: string; onSaved: () => void; onAddToDraft?: never }
   | { onAddToDraft: (msg: DraftMessage) => void; agentId?: never; onSaved?: never };
 
+// Imperative handle (draft mode only): lets a parent commit the currently
+// selected-but-unsaved variants without the user clicking "Add Message".
+export type TemplatePickerHandle = {
+  /** Commits the pending selection to the draft. Returns true if anything was committed. */
+  commitPending: () => boolean;
+};
+
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
 function buildMessageName(category: string, subcategory: string): string {
@@ -90,7 +97,8 @@ function buildMessageName(category: string, subcategory: string): string {
 
 // ─── Component ────────────────────────────────────────────────────────────────
 
-export function TemplatePicker(props: TemplatePickerProps) {
+export const TemplatePicker = forwardRef<TemplatePickerHandle, TemplatePickerProps>(
+  function TemplatePicker(props, ref) {
   const firstCategory = CATEGORIES[0];
   const firstSubcategory = firstCategory.subcategories[0];
 
@@ -192,15 +200,14 @@ export function TemplatePicker(props: TemplatePickerProps) {
     });
   }
 
-  async function handleSave() {
-    if (saving) return;
-
+  const buildPayload = useCallback((): DraftMessage | null => {
     const selectedVariants =
       fetchState.status === "done"
         ? fetchState.variants.filter((v) => selectedVariantIds.has(v.id))
         : [];
+    if (selectedVariants.length === 0 || messageName.trim().length === 0) return null;
 
-    const payload: DraftMessage = {
+    return {
       name: messageName.trim(),
       channel: "push",
       variants: selectedVariants.map((v) => ({
@@ -213,14 +220,35 @@ export function TemplatePicker(props: TemplatePickerProps) {
         sourceTemplateId: v.id,
       })),
     };
+  }, [fetchState, selectedVariantIds, messageName, selectedSubcategory, specificVerseDeeplinkMode]);
+
+  // Draft mode (wizard): commit the current selection to parent state, reset for next message.
+  const commitDraft = useCallback((): boolean => {
+    const onAddToDraft = "onAddToDraft" in props ? props.onAddToDraft : undefined;
+    if (!onAddToDraft) return false;
+    const payload = buildPayload();
+    if (!payload) return false;
+    onAddToDraft(payload);
+    setSelectedVariantIds(new Set());
+    setNameManuallyEdited(false);
+    return true;
+  }, [props, buildPayload]);
+
+  // Lets the wizard auto-commit picked verses when advancing, even if the user
+  // never clicked the inner "Add Message" button.
+  useImperativeHandle(ref, () => ({ commitPending: commitDraft }), [commitDraft]);
+
+  async function handleSave() {
+    if (saving) return;
 
     // Draft mode (wizard): add to parent state, reset for next message
-    if (props.onAddToDraft) {
-      props.onAddToDraft(payload);
-      setSelectedVariantIds(new Set());
-      setNameManuallyEdited(false);
+    if ("onAddToDraft" in props && props.onAddToDraft) {
+      commitDraft();
       return;
     }
+
+    const payload = buildPayload();
+    if (!payload) return;
 
     // Existing-agent mode: POST to the API
     setSaving(true);
@@ -458,4 +486,4 @@ export function TemplatePicker(props: TemplatePickerProps) {
       </div>
     </div>
   );
-}
+});
