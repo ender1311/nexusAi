@@ -10,7 +10,7 @@ export interface YouVersionGoalPreset {
 
 export const YOUVERSION_GOALS: YouVersionGoalPreset[] = [
   // Positive goals
-  { eventName: "session_start", label: "Have a session", tier: "best", weight: 10, description: "User starts a session in the app" },
+  { eventName: "session_start", label: "Have a session", tier: "best", weight: 3, description: "User starts a session in the app" },
   { eventName: "gift_completed", label: "Give a gift", tier: "best", weight: 10, description: "User completes a gift/donation" },
   { eventName: "sower_subscribed", label: "Become a sower", tier: "best", weight: 10, description: "User subscribes to sower program" },
   { eventName: "plan_started", label: "Start a bible plan", tier: "very_good", weight: 7, description: "User starts a Bible reading plan" },

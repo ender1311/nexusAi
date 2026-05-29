@@ -1,6 +1,8 @@
 "use client";
 
 import { useState } from "react";
+import { useRouter } from "next/navigation";
+import { toast } from "sonner";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -92,6 +94,7 @@ function normalizeMessage(message: MessageRecord): MessageRecord {
 }
 
 export function AgentMessageManager({ agentId, initialMessages }: AgentMessageManagerProps) {
+  const router = useRouter();
   const [messages, setMessages] = useState<MessageRecord[]>(initialMessages.map(normalizeMessage));
   const [error, setError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
@@ -203,7 +206,14 @@ export function AgentMessageManager({ agentId, initialMessages }: AgentMessageMa
             <DialogHeader>
               <DialogTitle>Add Push Message from Templates</DialogTitle>
             </DialogHeader>
-            <TemplatePicker agentId={agentId} onSaved={() => { setCreateOpen(false); refreshMessages(); }} />
+            <TemplatePicker
+              agentId={agentId}
+              onSaved={() => {
+                setCreateOpen(false);
+                toast.success("New messages have been applied");
+                router.push(`/agents/${agentId}`);
+              }}
+            />
           </DialogContent>
         </Dialog>
       </div>

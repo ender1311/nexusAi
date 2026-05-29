@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
@@ -17,7 +17,7 @@ import type { Persona } from "@/types/persona";
 import { PersonaSelector } from "@/components/personas/persona-selector";
 import { PersonaBadge } from "@/components/personas/persona-badge";
 import { GoalPresetPicker } from "@/components/agents/goal-preset-picker";
-import { TemplatePicker } from "@/components/agents/template-picker";
+import { TemplatePicker, type TemplatePickerHandle } from "@/components/agents/template-picker";
 import { YouVersionGoalPreset } from "@/lib/constants/youversion";
 
 const STEPS = [
@@ -241,6 +241,7 @@ export function AgentWizard({ personas }: { personas: Persona[] }) {
   const router = useRouter();
   const [step, setStep] = useState(1);
   const [form, setForm] = useState<FormData>(defaultForm);
+  const templatePickerRef = useRef<TemplatePickerHandle>(null);
   const [newGoal, setNewGoal] = useState<GoalDraft>({ eventName: "", tier: "best", valueWeight: 10, weightMode: "fixed", weightProperty: null, weightDefault: 1.0 });
   const [editingGoalIdx, setEditingGoalIdx] = useState<number | null>(null);
   const emptyVariant = () => ({
@@ -305,6 +306,20 @@ export function AgentWizard({ personas }: { personas: Persona[] }) {
   };
 
   const removeMessage = (i: number) => update("messages", form.messages.filter((_, idx) => idx !== i));
+
+  // Advance a step, auto-committing any pending Step-3 message the user picked
+  // but didn't explicitly "Add" (push verses live inside TemplatePicker; email/SMS
+  // in the inline form). Without this, picked-but-uncommitted variants are lost.
+  const goNext = () => {
+    if (step === 3) {
+      if (newMsg.channel === "push") {
+        templatePickerRef.current?.commitPending();
+      } else if (newMsg.name.trim() && newMsg.variants.length > 0) {
+        addMessage();
+      }
+    }
+    setStep((s) => Math.min(5, s + 1));
+  };
 
   const handleSubmit = async () => {
     setSaving(true);
@@ -384,15 +399,7 @@ export function AgentWizard({ personas }: { personas: Persona[] }) {
         {step < 5 ? (
           <Button
             size="sm"
-            onClick={() => {
-              if (step === 3 && newMsg.channel !== "push") {
-                // Auto-commit pending email/SMS message if user filled it in but didn't click "Add Message"
-                if (newMsg.name.trim() && newMsg.variants.length > 0) {
-                  addMessage();
-                }
-              }
-              setStep((s) => Math.min(5, s + 1));
-            }}
+            onClick={goNext}
             disabled={step === 1 && (!form.name.trim() || (form.segmentMode ? form.segmentIncludes.length === 0 : !form.funnelStage))}
           >
             Next
@@ -773,7 +780,7 @@ export function AgentWizard({ personas }: { personas: Persona[] }) {
                   </SelectContent>
                 </Select>
               </div>
-              <TemplatePicker onAddToDraft={addMessageFromTemplate} />
+              <TemplatePicker ref={templatePickerRef} onAddToDraft={addMessageFromTemplate} />
             </div>
           ) : (
             /* Email / SMS: manual variant form */
@@ -1212,7 +1219,7 @@ export function AgentWizard({ personas }: { personas: Persona[] }) {
         <div className="flex gap-2">
           {step < 5 ? (
             <Button
-              onClick={() => setStep((s) => Math.min(5, s + 1))}
+              onClick={goNext}
               disabled={step === 1 && (!form.name.trim() || (form.segmentMode ? form.segmentIncludes.length === 0 : !form.funnelStage))}
             >
               Next

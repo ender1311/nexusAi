@@ -7,6 +7,7 @@ import { RoutePreloader } from "@/components/layout/route-preloader";
 import { ThemeProvider } from "next-themes";
 import { withAuth } from "@workos-inc/authkit-nextjs";
 import NextTopLoader from "nextjs-toploader";
+import { Toaster } from "sonner";
 
 const inter = Inter({
   variable: "--font-inter",
@@ -57,6 +58,7 @@ export default async function RootLayout({
     <html lang="en" suppressHydrationWarning>
       <body className={`${inter.variable} ${geistMono.variable} font-sans antialiased`}>
         <NextTopLoader color="var(--primary)" showSpinner={false} height={2} />
+        <Toaster richColors position="top-center" />
         <ThemeProvider attribute="class" defaultTheme="system" enableSystem disableTransitionOnChange>
           {user ? (
             <DataModeProvider>
