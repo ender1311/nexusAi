@@ -112,6 +112,15 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
           { status: 400 },
         );
       }
+      const overlap = body.segmentTargeting.includes.filter((s: string) =>
+        body.segmentTargeting.excludes.includes(s)
+      );
+      if (overlap.length > 0) {
+        return NextResponse.json(
+          { error: `Segment(s) cannot appear in both includes and excludes: ${overlap.join(", ")}` },
+          { status: 400 },
+        );
+      }
     }
 
     // Release user locks when agent is stopped, paused, or targeting criteria change
