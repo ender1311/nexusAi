@@ -631,4 +631,81 @@ describe("PATCH /api/agents/:id — segmentTargeting", () => {
     const user = await prisma.trackedUser.findUnique({ where: { externalId: "u_seg1" } });
     expect(user?.lockedByAgentId).toBeNull();
   });
+
+  it("rejects segmentTargeting with overlap between includes and excludes", async () => {
+    const agent = await prisma.agent.create({ data: { name: "Segment Agent", algorithm: "thompson", epsilon: 0.1 } });
+    const req = buildRequest("PATCH", { segmentTargeting: { includes: ["seg_a", "seg_b"], excludes: ["seg_b"] } });
+    const res = await patchAgent(req as NextRequest, { params: Promise.resolve({ id: agent.id }) });
+    expect(res.status).toBe(400);
+    const body = await res.json();
+    expect(body.error).toContain("seg_b");
+  });
+});
+
+describe("POST /api/agents — segmentTargeting", () => {
+  function basePayload(overrides: Record<string, unknown> = {}) {
+    return {
+      name: "Segment Agent",
+      algorithm: "thompson",
+      epsilon: 0.1,
+      goals: [],
+      messages: [],
+      ...overrides,
+    };
+  }
+
+  it("creates agent with segmentTargeting (no funnelStage required)", async () => {
+    const res = await apiPost("/agents", basePayload({
+      segmentTargeting: { includes: ["seg_a", "seg_b"], excludes: ["seg_c"] },
+    }));
+    expect(res.status).toBe(201);
+    const body = await res.json();
+    expect(body.segmentTargeting).toEqual({ includes: ["seg_a", "seg_b"], excludes: ["seg_c"] });
+  });
+
+  it("creates agent with excludes-only segmentTargeting + funnelStage", async () => {
+    const res = await apiPost("/agents", basePayload({
+      funnelStage: "wau",
+      segmentTargeting: { includes: [], excludes: ["seg_c"] },
+    }));
+    expect(res.status).toBe(201);
+    const body = await res.json();
+    expect(body.segmentTargeting).toEqual({ includes: [], excludes: ["seg_c"] });
+  });
+
+  it("still requires funnelStage when includes is empty", async () => {
+    const res = await apiPost("/agents", basePayload({
+      segmentTargeting: { includes: [], excludes: [] },
+      // no funnelStage
+    }));
+    expect(res.status).toBe(400);
+  });
+
+  it("rejects segmentTargeting with overlap between includes and excludes", async () => {
+    const res = await apiPost("/agents", basePayload({
+      segmentTargeting: { includes: ["seg_a"], excludes: ["seg_a"] },
+    }));
+    expect(res.status).toBe(400);
+    const body = await res.json();
+    expect(body.error).toContain("seg_a");
+  });
+
+  it("rejects segmentTargeting with invalid shape", async () => {
+    const res = await apiPost("/agents", basePayload({
+      segmentTargeting: { includes: "not_array", excludes: [] },
+    }));
+    expect(res.status).toBe(400);
+  });
+
+  it("rejects when include segment is exclusively assigned to another agent via targetSegmentName", async () => {
+    await prisma.agent.create({
+      data: { name: "Other Agent", algorithm: "thompson", epsilon: 0.1, targetSegmentName: "seg_taken" },
+    });
+    const res = await apiPost("/agents", basePayload({
+      segmentTargeting: { includes: ["seg_taken"], excludes: [] },
+    }));
+    expect(res.status).toBe(409);
+    const body = await res.json();
+    expect(body.error).toContain("seg_taken");
+  });
 });

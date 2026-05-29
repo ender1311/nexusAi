@@ -74,6 +74,14 @@ export async function POST(req: NextRequest) {
           { status: 400 },
         );
       }
+      const st = segmentTargeting as { includes: string[]; excludes: string[] };
+      const overlap = st.includes.filter((s: string) => st.excludes.includes(s));
+      if (overlap.length > 0) {
+        return NextResponse.json(
+          { error: `Segment(s) cannot appear in both includes and excludes: ${overlap.join(", ")}` },
+          { status: 400 },
+        );
+      }
     }
     const hasSegmentIncludes =
       Array.isArray((segmentTargeting as { includes?: unknown } | null)?.includes) &&
@@ -104,6 +112,15 @@ export async function POST(req: NextRequest) {
       const conflict = await prisma.agent.findFirst({ where: { targetSegmentName: trimmed }, select: { name: true } });
       if (conflict) {
         return NextResponse.json({ error: `Segment "${trimmed}" is already assigned to agent "${conflict.name}"` }, { status: 409 });
+      }
+    }
+    if (hasSegmentIncludes) {
+      const includeSegs = (segmentTargeting as { includes: string[] }).includes;
+      for (const seg of includeSegs) {
+        const conflict = await prisma.agent.findFirst({ where: { targetSegmentName: seg }, select: { name: true } });
+        if (conflict) {
+          return NextResponse.json({ error: `Segment "${seg}" is exclusively assigned to agent "${conflict.name}"` }, { status: 409 });
+        }
       }
     }
     if (quietDays !== undefined) {

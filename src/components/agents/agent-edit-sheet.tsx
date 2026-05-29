@@ -371,7 +371,7 @@ export function AgentEditSheet({
                 >
                   <SelectTrigger className="w-full">
                     <span className="flex-1 text-left text-sm truncate">
-                      {FUNNEL_STAGE_META[funnelStage].label}
+                      {FUNNEL_STAGE_META[funnelStage]?.label ?? funnelStage}
                     </span>
                   </SelectTrigger>
                   <SelectContent>
