@@ -15,7 +15,11 @@ const channelColors: Record<string, string> = {
 };
 
 export function VariantComparison({ variants }: VariantComparisonProps) {
-  const maxRate = Math.max(...variants.map((v) => v.ciHigh));
+  if (variants.length === 0) return null;
+  // Guard against an all-zero scale (e.g. a fresh agent with no sends yet) —
+  // dividing bar widths by 0 would render NaN%/Infinity% and break the bars.
+  const maxCiHigh = Math.max(...variants.map((v) => v.ciHigh));
+  const maxRate = maxCiHigh > 0 ? maxCiHigh : 1;
 
   return (
     <div className="space-y-3">

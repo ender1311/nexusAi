@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
+import { toast } from "sonner";
 import { Pause, Play } from "lucide-react";
 import { Button } from "@/components/ui/button";
 
@@ -20,12 +21,18 @@ export function AgentStatusToggle({
   async function toggle() {
     setLoading(true);
     try {
-      await fetch(`/api/agents/${agentId}`, {
+      const res = await fetch(`/api/agents/${agentId}`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ status: isActive ? "draft" : "active" }),
       });
+      if (!res.ok) {
+        const body = await res.json().catch(() => ({ error: "Failed to update agent status" }));
+        throw new Error(body.error ?? "Failed to update agent status");
+      }
       router.refresh();
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Failed to update agent status");
     } finally {
       setLoading(false);
     }

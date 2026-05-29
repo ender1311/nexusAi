@@ -1,4 +1,5 @@
 import { describe, it, expect } from "bun:test";
+import { selectNearestPersona } from "@/lib/engine/persona-assignment";
 
 // Unit-test the confidence calculation logic extracted from persona-assignment.ts
 // (the pure math, no DB). The key change: confidence no longer gates assignment.
@@ -69,5 +70,53 @@ describe("persona assignment — confidence calculation", () => {
       personas.sort((a, b) => b.clusterSize - a.clusterSize)[0]?.id ??
       null;
     expect(assignId).toBeNull();
+  });
+});
+
+describe("selectNearestPersona", () => {
+  it("picks the persona with the highest cosine similarity", () => {
+    const userVec = [1, 0, 0];
+    const { personaId, similarity } = selectNearestPersona(userVec, [
+      { id: "p_far", centroid: [0, 1, 0] }, // orthogonal → similarity 0
+      { id: "p_near", centroid: [1, 0, 0] }, // identical → similarity 1
+    ]);
+    expect(personaId).toBe("p_near");
+    expect(similarity).toBeCloseTo(1, 5);
+  });
+
+  it("picks the nearest persona even when its similarity is negative", () => {
+    // All centroids point away from the user; the *least* negative is still the
+    // nearest match. Initializing the search at 0 (instead of -Infinity) would
+    // discard every candidate and return null, dropping the user to a fallback.
+    const userVec = [1, 0, 0];
+    const { personaId, similarity } = selectNearestPersona(userVec, [
+      { id: "p_opposite", centroid: [-1, 0, 0] }, // similarity -1
+      { id: "p_angled", centroid: [-1, 1, 0] }, // similarity ~-0.707 (nearer)
+    ]);
+    expect(personaId).toBe("p_angled");
+    expect(similarity).toBeLessThan(0);
+  });
+
+  it("skips personas with a null centroid", () => {
+    const userVec = [1, 0, 0];
+    const { personaId } = selectNearestPersona(userVec, [
+      { id: "p_null", centroid: null },
+      { id: "p_real", centroid: [1, 0, 0] },
+    ]);
+    expect(personaId).toBe("p_real");
+  });
+
+  it("returns null personaId and 0 similarity when no centroids are usable", () => {
+    const { personaId, similarity } = selectNearestPersona([1, 0, 0], [
+      { id: "p_null", centroid: null },
+    ]);
+    expect(personaId).toBeNull();
+    expect(similarity).toBe(0);
+  });
+
+  it("returns null personaId and 0 similarity for an empty persona list", () => {
+    const { personaId, similarity } = selectNearestPersona([1, 0, 0], []);
+    expect(personaId).toBeNull();
+    expect(similarity).toBe(0);
   });
 });

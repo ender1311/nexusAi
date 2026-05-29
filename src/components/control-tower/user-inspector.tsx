@@ -53,8 +53,10 @@ interface UserData {
   armStats: ArmStat[];
 }
 
-function BetaBar({ alpha, beta }: { alpha: number; beta: number }) {
-  const pct = Math.round((alpha / (alpha + beta)) * 100);
+export function BetaBar({ alpha, beta }: { alpha: number; beta: number }) {
+  // A fresh arm has alpha === beta === 0; 0/0 would render NaN%.
+  const denom = alpha + beta;
+  const pct = denom > 0 ? Math.round((alpha / denom) * 100) : 0;
   return (
     <div className="flex items-center gap-2">
       <div className="flex-1 h-1.5 bg-muted rounded-full overflow-hidden">
