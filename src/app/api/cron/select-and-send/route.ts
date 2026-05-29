@@ -305,8 +305,8 @@ export async function POST(req: NextRequest) {
               ...(staleAt && { funnelStageUpdatedAt: { gte: staleAt } }),
             }
           : {};
-        const segTargeting = agent.segmentTargeting as { includes: string[]; excludes: string[] } | null;
-        const effectiveIncludes: string[] = segTargeting?.includes.length
+        const segTargeting = agent.segmentTargeting as { includes?: string[]; excludes?: string[] } | null;
+        const effectiveIncludes: string[] = segTargeting?.includes?.length
           ? segTargeting.includes
           : agent.targetSegmentName
             ? [agent.targetSegmentName]
