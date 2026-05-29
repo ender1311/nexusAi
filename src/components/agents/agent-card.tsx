@@ -9,6 +9,7 @@ import { Agent, FUNNEL_STAGE_META } from "@/types/agent";
 import { AgentStatusBadge } from "./agent-status-badge";
 import { cn, formatNumber } from "@/lib/utils";
 import { Bot, MessageSquare, Target, Trash2 } from "lucide-react";
+import { toast } from "sonner";
 import { InfoTip } from "@/components/ui/info-tip";
 import {
   AlertDialog,
@@ -73,19 +74,26 @@ export function AgentCard({ agent, conversionRate, convergenceState, onDelete }:
   async function handleDelete() {
     setDeleting(true);
     try {
-      await fetch(`/api/agents/${agent.id}`, { method: "DELETE" });
+      const res = await fetch(`/api/agents/${agent.id}`, { method: "DELETE" });
+      if (!res.ok) {
+        const body = await res.json().catch(() => ({ error: "Failed to delete agent" }));
+        throw new Error(body.error ?? "Failed to delete agent");
+      }
+      setShowDeleteDialog(false);
       onDelete?.(agent.id);
       router.refresh();
+      toast.success(`Agent "${agent.name}" deleted`);
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Failed to delete agent");
     } finally {
       setDeleting(false);
-      setShowDeleteDialog(false);
     }
   }
 
   return (
     <>
-      <div className="relative">
-        <Link href={`/agents/${agent.id}`}>
+      <div className="relative h-full">
+        <Link href={`/agents/${agent.id}`} className="block h-full">
           <Card className="hover:shadow-md hover:border-primary/30 transition-shadow cursor-pointer h-full">
             <CardHeader className="pb-3">
               <div className="flex items-start justify-between gap-2">

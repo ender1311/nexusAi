@@ -60,10 +60,12 @@ function SortableAgent({
   agent,
   convergenceState,
   isCustom,
+  onDelete,
 }: {
   agent: Agent;
   convergenceState?: ConvergenceState;
   isCustom: boolean;
+  onDelete: (id: string) => void;
 }) {
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({
     id: agent.id,
@@ -79,7 +81,7 @@ function SortableAgent({
     <div
       ref={setNodeRef}
       style={style}
-      className={cn("relative group", isDragging && "opacity-50 z-50")}
+      className={cn("relative group h-full", isDragging && "opacity-50 z-50")}
     >
       {isCustom && (
         <div
@@ -98,6 +100,7 @@ function SortableAgent({
       <AgentCard
         agent={agent}
         convergenceState={convergenceState}
+        onDelete={onDelete}
       />
     </div>
   );
@@ -115,6 +118,10 @@ export function AgentGrid({ agents: initialAgents, convergenceStates }: AgentGri
   );
 
   const displayed = sortMode === "custom" ? customOrder : sortAgents(initialAgents, sortMode);
+
+  function handleDelete(id: string) {
+    setCustomOrder((prev) => prev.filter((a) => a.id !== id));
+  }
 
   function handleDragEnd(event: DragEndEvent) {
     const { active, over } = event;
@@ -174,6 +181,7 @@ export function AgentGrid({ agents: initialAgents, convergenceStates }: AgentGri
                 agent={agent}
                 convergenceState={convergenceStates?.[agent.id]}
                 isCustom={sortMode === "custom"}
+                onDelete={handleDelete}
               />
             ))}
           </div>
