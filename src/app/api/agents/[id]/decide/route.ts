@@ -1,8 +1,15 @@
 import { NextRequest, NextResponse } from "next/server";
+import { z } from "zod";
 import { prisma } from "@/lib/db";
 import { ThompsonSampling } from "@/lib/engine/thompson-sampling";
 import { EpsilonGreedy } from "@/lib/engine/epsilon-greedy";
 import type { BanditArm, DecisionResult } from "@/lib/engine/types";
+import { parseBody } from "@/lib/api/parse";
+
+const decideSchema = z.object({
+  userId: z.string({ message: "is required" }).min(1, "is required"),
+  channel: z.string().min(1, "must be a non-empty string").optional(),
+});
 
 type DecideResponseData = DecisionResult & {
   warmupForced: boolean;
@@ -39,25 +46,10 @@ export async function POST(
 
   const { id } = await params;
 
-  let body: unknown;
-  try {
-    body = await req.json();
-  } catch {
-    return NextResponse.json({ error: "Invalid JSON body" }, { status: 400 });
-  }
-
-  if (
-    typeof body !== "object" ||
-    body === null ||
-    !("userId" in body) ||
-    typeof (body as Record<string, unknown>).userId !== "string" ||
-    !(body as Record<string, unknown>).userId
-  ) {
-    return NextResponse.json({ error: "userId is required" }, { status: 400 });
-  }
-
-  const { userId, channel } = body as { userId: string; channel?: unknown };
-  const channelFilter = typeof channel === "string" && channel ? channel : undefined;
+  const parsed = await parseBody(req, decideSchema);
+  if (!parsed.ok) return parsed.response;
+  const { userId, channel } = parsed.data;
+  const channelFilter = channel ?? undefined;
 
   try {
     // Resolve user
