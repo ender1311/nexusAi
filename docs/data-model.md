@@ -168,6 +168,14 @@ erDiagram
         datetime createdAt
     }
 
+    UserPreference {
+        string id PK
+        string workosUserId UK "WorkOS user id"
+        string hiddenStats "JSON array of StatKey strings the user has hidden; default []"
+        datetime createdAt
+        datetime updatedAt
+    }
+
     Agent ||--o{ Goal : "has"
     Agent ||--o{ Message : "has"
     Agent ||--o{ UserDecision : "tracks"

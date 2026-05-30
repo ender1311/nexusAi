@@ -21,6 +21,7 @@ import { CSS } from "@dnd-kit/utilities";
 import { GripVertical } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Agent } from "@/types/agent";
+import type { StatKey } from "@/lib/stat-visibility";
 import { AgentCard } from "./agent-card";
 
 type SortMode = "custom" | "alpha" | "decisions" | "cap";
@@ -30,6 +31,7 @@ type ConvergenceState = "exploring" | "learning" | "converging" | "confident";
 interface AgentGridProps {
   agents: Agent[];
   convergenceStates?: Record<string, ConvergenceState>;
+  hiddenStats?: StatKey[];
 }
 
 const SORT_OPTIONS: { value: SortMode; label: string }[] = [
@@ -59,11 +61,13 @@ function sortAgents(agents: Agent[], mode: SortMode): Agent[] {
 function SortableAgent({
   agent,
   convergenceState,
+  hiddenStats,
   isCustom,
   onDelete,
 }: {
   agent: Agent;
   convergenceState?: ConvergenceState;
+  hiddenStats?: StatKey[];
   isCustom: boolean;
   onDelete: (id: string) => void;
 }) {
@@ -100,13 +104,14 @@ function SortableAgent({
       <AgentCard
         agent={agent}
         convergenceState={convergenceState}
+        hiddenStats={hiddenStats}
         onDelete={onDelete}
       />
     </div>
   );
 }
 
-export function AgentGrid({ agents: initialAgents, convergenceStates }: AgentGridProps) {
+export function AgentGrid({ agents: initialAgents, convergenceStates, hiddenStats }: AgentGridProps) {
   const router = useRouter();
   const [sortMode, setSortMode] = useState<SortMode>("custom");
   const [customOrder, setCustomOrder] = useState<Agent[]>(initialAgents);
@@ -180,6 +185,7 @@ export function AgentGrid({ agents: initialAgents, convergenceStates }: AgentGri
                 key={agent.id}
                 agent={agent}
                 convergenceState={convergenceStates?.[agent.id]}
+                hiddenStats={hiddenStats}
                 isCustom={sortMode === "custom"}
                 onDelete={handleDelete}
               />
