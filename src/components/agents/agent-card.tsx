@@ -8,6 +8,7 @@ import { Badge } from "@/components/ui/badge";
 import { Agent, FUNNEL_STAGE_META } from "@/types/agent";
 import { AgentStatusBadge } from "./agent-status-badge";
 import { cn, formatNumber } from "@/lib/utils";
+import { isStatHidden, type StatKey } from "@/lib/stat-visibility";
 import { Bot, MessageSquare, Target, Trash2 } from "lucide-react";
 import { toast } from "sonner";
 import { InfoTip } from "@/components/ui/info-tip";
@@ -56,6 +57,7 @@ interface AgentCardProps {
   agent: Agent;
   conversionRate?: number;
   convergenceState?: ConvergenceState;
+  hiddenStats?: StatKey[];
   onDelete?: (id: string) => void;
 }
 
@@ -66,8 +68,9 @@ const algorithmLabels: Record<string, string> = {
   linucb: "LinUCB",
 };
 
-export function AgentCard({ agent, conversionRate, convergenceState, onDelete }: AgentCardProps) {
+export function AgentCard({ agent, conversionRate, convergenceState, hiddenStats = [], onDelete }: AgentCardProps) {
   const router = useRouter();
+  const hide = (key: StatKey) => isStatHidden(hiddenStats, key);
   const [showDeleteDialog, setShowDeleteDialog] = useState(false);
   const [deleting, setDeleting] = useState(false);
 
@@ -117,7 +120,7 @@ export function AgentCard({ agent, conversionRate, convergenceState, onDelete }:
                   </div>
                 </div>
                 <div className="flex items-center gap-1 shrink-0 flex-wrap justify-end">
-                  {convergenceState && (() => {
+                  {convergenceState && !hide("agent.convergence") && (() => {
                     const cfg = CONVERGENCE_CONFIG[convergenceState];
                     return (
                       <span className={cn("flex items-center gap-1 text-xs font-medium", cfg.textClass)}>
@@ -157,6 +160,7 @@ export function AgentCard({ agent, conversionRate, convergenceState, onDelete }:
               {/* Stats grid — 2×2 so nothing wraps on narrow screens */}
               <div className="grid grid-cols-2 gap-x-4 gap-y-2">
                 {/* Algorithm */}
+                {!hide("agent.algorithm") && (
                 <div>
                   <p className="text-xs text-muted-foreground flex items-center gap-1">
                     Algorithm
@@ -170,39 +174,47 @@ export function AgentCard({ agent, conversionRate, convergenceState, onDelete }:
                   </p>
                   <p className="text-xs font-medium">{algorithmLabels[agent.algorithm] ?? agent.algorithm}</p>
                 </div>
+                )}
 
                 {/* Decisions */}
+                {!hide("agent.decisions") && (
                 <div className="text-right">
                   <p className="text-xs text-muted-foreground">Decisions</p>
                   <p className="text-xs font-medium tabular-nums">
                     {agent._count ? formatNumber(agent._count.decisions) : "—"}
                   </p>
                 </div>
+                )}
 
                 {/* Daily sends cap */}
+                {!hide("agent.dailyCap") && (
                 <div>
                   <p className="text-xs text-muted-foreground">Daily cap</p>
                   <p className="text-xs font-medium tabular-nums">
                     {agent.dailySendCap != null ? formatNumber(agent.dailySendCap) : "—"}
                   </p>
                 </div>
+                )}
 
                 {/* Unique users / cap */}
+                {!hide("agent.uniqueUsers") && (
                 <UniqueUsersCapCell
                   uniqueUsers={agent.uniqueUsers ?? 0}
                   uniqueUsersCap={agent.uniqueUsersCap}
                 />
+                )}
               </div>
 
-              {(conversionRate !== undefined || agent.pushOpenRate != null) && (
+              {((conversionRate !== undefined && !hide("agent.conversionRate")) ||
+                (agent.pushOpenRate != null && !hide("agent.pushOpenRate"))) && (
                 <div className="pt-1 border-t space-y-1">
-                  {conversionRate !== undefined && (
+                  {conversionRate !== undefined && !hide("agent.conversionRate") && (
                     <div className="flex items-center justify-between">
                       <p className="text-xs text-muted-foreground">Conv. Rate</p>
                       <p className="text-sm font-bold text-primary">{conversionRate.toFixed(1)}%</p>
                     </div>
                   )}
-                  {agent.pushOpenRate != null && (
+                  {agent.pushOpenRate != null && !hide("agent.pushOpenRate") && (
                     <div className="flex items-center justify-between">
                       <p className="text-xs text-muted-foreground">Push Open Rate</p>
                       <span className="flex items-baseline gap-1.5">

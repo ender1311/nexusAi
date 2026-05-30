@@ -8,6 +8,7 @@ import { Input } from "@/components/ui/input";
 import { Slider } from "@/components/ui/slider";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
+import { DisplayPreferences } from "@/components/settings/display-preferences";
 import { CheckCircle2, Loader2, Sparkles, BarChart2 } from "lucide-react";
 
 export default function SettingsPage() {
@@ -284,6 +285,9 @@ export default function SettingsPage() {
             </div>
           </CardContent>
         </Card>
+
+        {/* Display Preferences (per-user) */}
+        <DisplayPreferences />
 
         <div className="flex items-center gap-3">
           <Button onClick={handleSave} disabled={saving}>

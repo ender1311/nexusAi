@@ -11,6 +11,7 @@ import { Bot, Plus, Search } from "lucide-react";
 import { unstable_cache } from "next/cache";
 import { prisma } from "@/lib/db";
 import { getAuth } from "@/lib/auth";
+import { getHiddenStatsForCurrentUser } from "@/lib/user-preferences";
 import { LIBRARY_AGENT_NAME } from "@/lib/engine/template-sync";
 import { getCachedAgentConvergenceStates } from "@/lib/cache";
 
@@ -53,8 +54,9 @@ export default async function AgentsPage({
   // Parallelize WorkOS auth check, agent list, convergence states, unique user counts,
   // and per-agent push open rate (sends + opens from local UserDecision rows — mirrors
   // the per-agent performance page so the card stat is consistent).
-  const [{ isAdmin }, { dbAgents }, convergenceStates, uniqueUserRows, pushRows] = await Promise.all([
+  const [{ isAdmin }, hiddenStats, { dbAgents }, convergenceStates, uniqueUserRows, pushRows] = await Promise.all([
     getAuth(),
+    getHiddenStatsForCurrentUser(),
     unstable_cache(
     async () => {
       const agents = await prisma.agent.findMany({
@@ -183,7 +185,7 @@ export default async function AgentsPage({
             </div>
           )
         ) : (
-          <AgentGrid agents={agents} convergenceStates={convergenceStates} />
+          <AgentGrid agents={agents} convergenceStates={convergenceStates} hiddenStats={hiddenStats} />
         )}
       </div>
     </>

@@ -440,3 +440,14 @@ model UserSegment {
   @@unique([externalId, segmentName])
   @@index([segmentName])  // cron segment filter
 }
+
+// Per-user UI preferences keyed by WorkOS user id. hiddenStats is a JSON array of
+// StatKey strings (see src/lib/stat-visibility.ts) — stats the user has chosen to
+// hide. Empty/absent = show everything.
+model UserPreference {
+  id           String   @id @default(cuid())
+  workosUserId String   @unique
+  hiddenStats  String   @default("[]")
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+}

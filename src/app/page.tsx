@@ -24,6 +24,8 @@ import {
   getCachedFunnelStageBreakdown,
 } from "@/lib/cache";
 import { formatNumber, formatDate } from "@/lib/utils";
+import { getHiddenStatsForCurrentUser } from "@/lib/user-preferences";
+import { isStatHidden } from "@/lib/stat-visibility";
 import { TimeSeriesPoint, DecisionLog } from "@/types/metrics";
 import { Bot, Send, TrendingUp, Users, Plus, CheckCircle2, XCircle } from "lucide-react";
 import { PushOpenRateCard } from "@/components/metrics/push-open-rate-card";
@@ -90,27 +92,29 @@ function ListCardSkeleton() {
 // ---------------------------------------------------------------------------
 
 async function MetricCardsSection() {
-  const [{ sentLast24h, totalConversions, totalDecisions, totalPushSends }, agents, trackedUsers] =
-    await Promise.all([getCachedDashboardCounts(), getCachedAgentList(), getCachedTrackedUserCount()]);
+  const [{ sentLast24h, totalConversions, totalDecisions, totalPushSends }, agents, trackedUsers, hiddenStats] =
+    await Promise.all([getCachedDashboardCounts(), getCachedAgentList(), getCachedTrackedUserCount(), getHiddenStatsForCurrentUser()]);
   const avgConvRate = totalDecisions > 0 ? (totalConversions / totalDecisions) * 100 : 0;
   const activeAgents = agents.filter((a) => a.status === "active").length;
 
   return (
     <>
-      <MetricCard title="Tracked Users" value={formatNumber(trackedUsers)} description="synced from Hightouch" icon={Users} />
-      <MetricCard title="Active Agents" value={activeAgents} description="currently running" icon={Bot} trend={0} />
-      <MetricCard title="Messages Sent (24h)" value={formatNumber(sentLast24h)} description="across all channels" icon={Send} />
-      {avgConvRate > 0 && <MetricCard title="Avg Conversion Rate" value={`${avgConvRate.toFixed(2)}%`} description="last 30 days" icon={TrendingUp} />}
-      <MetricCard title="Total Sends" value={formatNumber(totalPushSends)} description="push, last 30 days" icon={Send} />
+      {!isStatHidden(hiddenStats, "dashboard.trackedUsers") && <MetricCard title="Tracked Users" value={formatNumber(trackedUsers)} description="synced from Hightouch" icon={Users} />}
+      {!isStatHidden(hiddenStats, "dashboard.activeAgents") && <MetricCard title="Active Agents" value={activeAgents} description="currently running" icon={Bot} trend={0} />}
+      {!isStatHidden(hiddenStats, "dashboard.messagesSent24h") && <MetricCard title="Messages Sent (24h)" value={formatNumber(sentLast24h)} description="across all channels" icon={Send} />}
+      {avgConvRate > 0 && !isStatHidden(hiddenStats, "dashboard.avgConversionRate") && <MetricCard title="Avg Conversion Rate" value={`${avgConvRate.toFixed(2)}%`} description="last 30 days" icon={TrendingUp} />}
+      {!isStatHidden(hiddenStats, "dashboard.totalSends") && <MetricCard title="Total Sends" value={formatNumber(totalPushSends)} description="push, last 30 days" icon={Send} />}
     </>
   );
 }
 
 async function PushOpenRateSection() {
-  const [{ totalPushSends, totalPushOpens }, brazeStats] = await Promise.all([
+  const [{ totalPushSends, totalPushOpens }, brazeStats, hiddenStats] = await Promise.all([
     getCachedDashboardCounts(),
     getCachedBrazeStats(),
+    getHiddenStatsForCurrentUser(),
   ]);
+  if (isStatHidden(hiddenStats, "dashboard.pushOpenRate")) return null;
   const nexusOpenRate = totalPushSends > 0 ? (totalPushOpens / totalPushSends) * 100 : 0;
   const bestOpenRate = Math.max(nexusOpenRate, brazeStats?.directOpenRate ?? 0);
 
