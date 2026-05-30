@@ -43,7 +43,10 @@ const securityHeaders = [
 
 const nextConfig: NextConfig = {
   experimental: {
-    optimizePackageImports: ["lucide-react", "recharts", "date-fns"],
+    optimizePackageImports: ["lucide-react", "recharts"],
+    // Next 16 spawns build workers = CPU count; on memory-constrained CI runners
+    // that OOMs. Cap worker count so the build stays within the runner's memory.
+    cpus: 4,
   },
   headers: async () => [
     { source: "/(.*)", headers: securityHeaders },

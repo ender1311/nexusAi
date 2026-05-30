@@ -43,7 +43,6 @@ const TIER_COLORS: Record<string, string> = {
 const algorithmLabels: Record<string, string> = {
   thompson: "Thompson Sampling",
   epsilon_greedy: "ε-Greedy",
-  contextual: "Contextual Bandit",
   linucb: "LinUCB",
 };
 

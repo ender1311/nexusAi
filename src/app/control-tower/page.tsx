@@ -1,5 +1,4 @@
 export const dynamic = "force-dynamic";
-export const revalidate = 900;
 
 import { ControlTowerUI } from "@/components/control-tower/control-tower-ui";
 import { getCachedControlTowerAgents, getCachedControlTowerStats, getCachedFunnelStageBreakdown } from "@/lib/cache";

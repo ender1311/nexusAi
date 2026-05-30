@@ -11,7 +11,7 @@ import { Switch } from "@/components/ui/switch";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { cn } from "@/lib/utils";
 import { Check, ChevronRight, Bot, Target, MessageSquare, Calendar, Rocket, Pencil } from "lucide-react";
-import { GoalTier, Channel, FrequencyCap, FunnelStage, FUNNEL_STAGES, FUNNEL_STAGE_META } from "@/types/agent";
+import { GoalTier, Channel, FrequencyCap, FunnelStage, FUNNEL_STAGES, FUNNEL_STAGE_META, Algorithm } from "@/types/agent";
 import { estimateConvergence } from "@/lib/convergence";
 import type { Persona } from "@/types/persona";
 import { PersonaSelector } from "@/components/personas/persona-selector";
@@ -172,7 +172,7 @@ function SegmentCheckList({
 interface FormData {
   name: string;
   description: string;
-  algorithm: string;
+  algorithm: Algorithm;
   epsilon: number;
   funnelStage: FunnelStage | "";
   targetPersonaIds: string[];

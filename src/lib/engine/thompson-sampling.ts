@@ -1,4 +1,4 @@
-import { ArmStats, BanditArm, DecisionResult } from "./types";
+import { BanditArm, DecisionResult } from "./types";
 
 /**
  * Thompson Sampling using Beta distribution.
@@ -85,21 +85,5 @@ export class ThompsonSampling {
       explore: isExplore,
       predictedReward: bestSample,
     };
-  }
-
-  updateArm(stats: ArmStats, reward: number): ArmStats {
-    return {
-      ...stats,
-      alpha: stats.alpha + (reward > 0 ? reward : 0),
-      beta: stats.beta + (reward <= 0 ? 1 : 0),
-      tries: stats.tries + 1,
-      wins: stats.wins + (reward > 0 ? 1 : 0),
-    };
-  }
-
-  initialStats(): ArmStats {
-    // Pessimistic initialization per Deezer finding — Beta(1,1) implies 50% expected reward;
-    // real push CTR ~3% → Beta(1,30). Reduces noisy exploration during warm-up.
-    return { alpha: 1, beta: 30, tries: 0, wins: 0 };
   }
 }

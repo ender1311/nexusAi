@@ -30,7 +30,6 @@ const ALGORITHM_OPTIONS = [
   { value: "thompson", label: "Thompson Sampling" },
   { value: "epsilon_greedy", label: "Epsilon-Greedy" },
   { value: "linucb", label: "LinUCB" },
-  { value: "contextual", label: "Contextual Bandit" },
 ];
 
 const DAILY_CAP_PRESETS = [

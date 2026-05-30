@@ -1,5 +1,4 @@
 export const dynamic = "force-dynamic";
-export const revalidate = 900;
 
 import { Suspense } from "react";
 import { Header } from "@/components/layout/header";

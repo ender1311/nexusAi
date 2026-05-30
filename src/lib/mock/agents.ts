@@ -62,7 +62,7 @@ export const mockAgents: Agent[] = [
     name: "Retention - Lapsed Users",
     description: "Re-engage users who haven't opened the app in 14+ days",
     status: "active",
-    algorithm: "contextual",
+    algorithm: "linucb",
     epsilon: 0.15,
     funnelStage: "lapsed_mau",
     color: "#10b981",

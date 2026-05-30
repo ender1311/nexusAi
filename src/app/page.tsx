@@ -1,5 +1,4 @@
 export const dynamic = "force-dynamic";
-export const revalidate = 14400;
 export const maxDuration = 30;
 
 import { Suspense } from "react";
