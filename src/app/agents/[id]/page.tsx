@@ -53,12 +53,25 @@ type QuietHours = { start: string; end: string; timezone: string };
 export default async function AgentDetailPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
 
-  const [agent, allPersonas, { isAdmin }, otherAgents] = await Promise.all([
+  const [agent, allPersonas, { isAdmin }, otherAgents, decisionSplit] = await Promise.all([
     getCachedAgent(id),
     getCachedActivePersonas(),
     getAuth(),
     prisma.agent.findMany({ where: { id: { not: id } }, select: { color: true } }),
+    // Split decisions into delivered vs still-pending (future-scheduled in_local_time
+    // sends). The raw _count.decisions lumps them together, which makes a freshly
+    // scheduled agent look like thousands of messages already went out.
+    prisma.$queryRaw<Array<{ delivered: bigint; pending: bigint }>>`
+      SELECT
+        COUNT(*) FILTER (WHERE "scheduledFor" IS NULL OR "scheduledFor" <= NOW()) AS delivered,
+        COUNT(*) FILTER (WHERE "scheduledFor" IS NOT NULL AND "scheduledFor" > NOW()) AS pending
+      FROM "UserDecision"
+      WHERE "agentId" = ${id}
+    `,
   ]);
+
+  const deliveredDecisions = Number(decisionSplit[0]?.delivered ?? 0);
+  const pendingDecisions = Number(decisionSplit[0]?.pending ?? 0);
 
   if (!agent) notFound();
 
@@ -87,8 +100,13 @@ export default async function AgentDetailPage({ params }: { params: Promise<{ id
             <AgentStatusBadge status={agent.status as AgentStatus} />
             <Badge variant="outline" className="text-xs">{algorithmLabels[agent.algorithm] ?? agent.algorithm}</Badge>
             <Badge variant="outline" className="text-xs text-muted-foreground">
-              {agent._count.decisions} decisions
+              {formatNumber(deliveredDecisions)} sent
             </Badge>
+            {pendingDecisions > 0 && (
+              <Badge variant="outline" className="text-xs text-muted-foreground">
+                {formatNumber(pendingDecisions)} scheduled
+              </Badge>
+            )}
           </div>
           <div className="flex gap-2">
             {isAdmin && (
@@ -206,8 +224,13 @@ export default async function AgentDetailPage({ params }: { params: Promise<{ id
               </Card>
               <Card>
                 <CardContent className="p-4">
-                  <p className="text-xs text-muted-foreground">Total Decisions</p>
-                  <p className="text-2xl font-bold mt-1">{formatNumber(agent._count.decisions)}</p>
+                  <p className="text-xs text-muted-foreground">Messages Sent</p>
+                  <p className="text-2xl font-bold mt-1">{formatNumber(deliveredDecisions)}</p>
+                  {pendingDecisions > 0 && (
+                    <p className="text-xs text-muted-foreground mt-1">
+                      +{formatNumber(pendingDecisions)} scheduled
+                    </p>
+                  )}
                 </CardContent>
               </Card>
               <Card>

@@ -89,7 +89,10 @@ export default async function AgentsPage({
     `,
     prisma.$queryRaw<Array<{ agentId: string; sends: bigint; opens: bigint }>>`
       SELECT "agentId",
-             COUNT(*) FILTER (WHERE "channel" = 'push') AS sends,
+             COUNT(*) FILTER (
+               WHERE "channel" = 'push'
+                 AND ("scheduledFor" IS NULL OR "scheduledFor" <= NOW())
+             ) AS sends,
              COUNT(*) FILTER (WHERE "channel" = 'push' AND "pushOpenAt" IS NOT NULL) AS opens
       FROM "UserDecision"
       GROUP BY "agentId"

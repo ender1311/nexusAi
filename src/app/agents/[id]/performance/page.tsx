@@ -75,6 +75,7 @@ async function PerformanceContent({ id }: { id: string }) {
         pushOpenAt: true,
         reward: true,
         channel: true,
+        scheduledFor: true,
         messageVariantId: true,
       },
       orderBy: { sentAt: "asc" },
@@ -177,7 +178,12 @@ async function PerformanceContent({ id }: { id: string }) {
   const sends = decisions.length;
   const conversions = decisions.filter((d) => d.conversionAt !== null).length;
   const convRate = sends > 0 ? (conversions / sends) * 100 : 0;
-  const pushSends = decisions.filter((d) => d.channel === "push").length;
+  // A future-scheduled (in_local_time) send hasn't been delivered yet, so it can't
+  // have an open — counting it as a "send" would deflate the open rate. Exclude
+  // rows whose scheduledFor is still in the future.
+  const isDelivered = (d: { scheduledFor: Date | null }) =>
+    d.scheduledFor === null || d.scheduledFor <= now;
+  const pushSends = decisions.filter((d) => d.channel === "push" && isDelivered(d)).length;
   const pushOpens = decisions.filter((d) => d.channel === "push" && d.pushOpenAt !== null).length;
   const pushOpenRate = pushSends > 0 ? (pushOpens / pushSends) * 100 : 0;
   const { lift, significant: liftSignificant, insufficient: liftInsufficient } = liftSignificance(
