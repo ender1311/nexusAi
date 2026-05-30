@@ -10,6 +10,7 @@ import { Separator } from "@/components/ui/separator";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Send, CheckCircle2, XCircle, Loader2, Users, Trash2, Download } from "lucide-react";
 import type { DemoPreviewResponse, DemoAssignment } from "@/app/api/demo/preview/route";
+import { OptimizationSimulation } from "@/components/demo/optimization-simulation";
 
 // Inline checkbox — shadcn Checkbox not installed in this project
 function Checkbox({ checked, onCheckedChange }: { checked: boolean; onCheckedChange: () => void }) {
@@ -378,6 +379,10 @@ export default function DemoPage() {
             </CardContent>
           </Card>
         )}
+
+        <Separator />
+
+        <OptimizationSimulation />
       </div>
     </>
   );
