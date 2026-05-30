@@ -1,6 +1,6 @@
 import { LinUCB } from "@/lib/engine/linucb";
 import { selectVariant } from "@/lib/engine/select-variant";
-import { assignUserToPersona } from "@/lib/engine/persona-assignment";
+import { assignUserToPersona } from "@/lib/services/persona-service";
 import { computeFeatureVector } from "@/lib/engine/feature-vector";
 import { FEATURE_DIM } from "@/lib/engine/feature-vector";
 import { evaluateTargetFilter, buildComputedKeys } from "@/lib/engine/target-filter";
