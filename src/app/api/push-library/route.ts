@@ -1,8 +1,9 @@
 import { NextRequest, NextResponse } from "next/server";
 import { revalidateTag } from "next/cache";
 import { prisma } from "@/lib/db";
-import { getAuth } from "@/lib/auth";
+import { requireAdmin } from "@/lib/auth";
 import { LIBRARY_AGENT_NAME } from "@/lib/engine/template-sync";
+import { fail, handleRouteError } from "@/lib/api/respond";
 
 const VALID_CATEGORIES = new Set([
   "reader", "plans", "votd", "guided-scripture", "guided-prayer",
@@ -55,23 +56,20 @@ export async function GET() {
     const res = NextResponse.json({ data });
     res.headers.set("Cache-Control", "public, s-maxage=30, stale-while-revalidate=60");
     return res;
-  } catch (error) {
-    console.error("GET /api/push-library error:", error);
-    return NextResponse.json({ error: "Failed to fetch templates" }, { status: 500 });
+  } catch (err) {
+    return handleRouteError("GET /api/push-library", err);
   }
 }
 
 export async function POST(req: NextRequest) {
-  const { isAdmin } = await getAuth();
-  if (!isAdmin) {
-    return NextResponse.json({ error: "Forbidden" }, { status: 403 });
-  }
+  const forbidden = await requireAdmin();
+  if (forbidden) return forbidden;
 
   let body: Record<string, unknown>;
   try {
     body = await req.json();
   } catch {
-    return NextResponse.json({ error: "Invalid JSON" }, { status: 400 });
+    return fail("Invalid JSON", 400);
   }
 
   const { name, category, subcategory, title, body: msgBody, deeplink, cta } = body as {
@@ -85,13 +83,13 @@ export async function POST(req: NextRequest) {
   };
 
   if (typeof name !== "string" || name.trim() === "") {
-    return NextResponse.json({ error: "name is required" }, { status: 400 });
+    return fail("name is required", 400);
   }
   if (typeof category !== "string" || !VALID_CATEGORIES.has(category)) {
-    return NextResponse.json({ error: "Invalid category" }, { status: 400 });
+    return fail("Invalid category", 400);
   }
   if (typeof msgBody !== "string" || msgBody.trim() === "") {
-    return NextResponse.json({ error: "body is required" }, { status: 400 });
+    return fail("body is required", 400);
   }
 
   try {
@@ -140,8 +138,7 @@ export async function POST(req: NextRequest) {
 
     revalidateTag("agents", "max");
     return NextResponse.json({ data: variant }, { status: 201 });
-  } catch (error) {
-    console.error("POST /api/push-library error:", error);
-    return NextResponse.json({ error: "Failed to create push" }, { status: 500 });
+  } catch (err) {
+    return handleRouteError("POST /api/push-library", err);
   }
 }

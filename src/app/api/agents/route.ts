@@ -7,6 +7,7 @@ import { FUNNEL_STAGES } from "@/types/agent";
 import { isPlainObject } from "@/lib/utils";
 import { detectTestedVariables, type VariantInput } from "@/lib/variant-diff";
 import { Prisma } from "@/generated/prisma/client";
+import { fail, handleRouteError } from "@/lib/api/respond";
 
 export const maxDuration = 15;
 
@@ -19,8 +20,7 @@ export async function GET() {
     res.headers.set("Cache-Control", "public, s-maxage=30, stale-while-revalidate=60");
     return res;
   } catch (err) {
-    console.error("GET /api/agents proxy error:", err);
-    return NextResponse.json({ error: "Failed to fetch agents" }, { status: 500 });
+    return handleRouteError("GET /api/agents", err);
   }
 }
 
@@ -31,7 +31,7 @@ export async function POST(req: NextRequest) {
   try {
     const body = await req.json().catch(() => null) as Record<string, unknown> | null;
     if (!body || typeof body !== "object") {
-      return NextResponse.json({ error: "Invalid JSON body" }, { status: 400 });
+      return fail("Invalid JSON body", 400);
     }
 
     const {
@@ -58,7 +58,7 @@ export async function POST(req: NextRequest) {
     const segmentTargeting = body.segmentTargeting as unknown;
 
     if (typeof name !== "string" || name.trim().length === 0) {
-      return NextResponse.json({ error: "name is required" }, { status: 400 });
+      return fail("name is required", 400);
     }
     if (segmentTargeting !== undefined && segmentTargeting !== null) {
       if (
@@ -69,18 +69,15 @@ export async function POST(req: NextRequest) {
         (segmentTargeting as { includes: unknown[] }).includes.some((s: unknown) => typeof s !== "string" || !(s as string).trim()) ||
         (segmentTargeting as { excludes: unknown[] }).excludes.some((s: unknown) => typeof s !== "string" || !(s as string).trim())
       ) {
-        return NextResponse.json(
-          { error: "segmentTargeting must be null or { includes: string[], excludes: string[] } with non-empty strings" },
-          { status: 400 },
+        return fail(
+          "segmentTargeting must be null or { includes: string[], excludes: string[] } with non-empty strings",
+          400,
         );
       }
       const st = segmentTargeting as { includes: string[]; excludes: string[] };
       const overlap = st.includes.filter((s: string) => st.excludes.includes(s));
       if (overlap.length > 0) {
-        return NextResponse.json(
-          { error: `Segment(s) cannot appear in both includes and excludes: ${overlap.join(", ")}` },
-          { status: 400 },
-        );
+        return fail(`Segment(s) cannot appear in both includes and excludes: ${overlap.join(", ")}`, 400);
       }
     }
     const hasSegmentIncludes =
@@ -88,30 +85,30 @@ export async function POST(req: NextRequest) {
       ((segmentTargeting as { includes: unknown[] }).includes.length > 0);
     if (!hasSegmentIncludes) {
       if (!funnelStage || !VALID_STAGES.has(funnelStage as (typeof FUNNEL_STAGES)[number])) {
-        return NextResponse.json({ error: "Invalid funnelStage" }, { status: 400 });
+        return fail("Invalid funnelStage", 400);
       }
     }
     if (targetFilter !== undefined && targetFilter !== null && !isPlainObject(targetFilter)) {
-      return NextResponse.json({ error: "targetFilter must be a plain object" }, { status: 400 });
+      return fail("targetFilter must be a plain object", 400);
     }
     if (uniqueUsersCap !== undefined && uniqueUsersCap !== null) {
       if (!Number.isInteger(uniqueUsersCap) || (uniqueUsersCap as number) < 1) {
-        return NextResponse.json({ error: "uniqueUsersCap must be null or a positive integer" }, { status: 400 });
+        return fail("uniqueUsersCap must be null or a positive integer", 400);
       }
     }
     if (dailySendCap !== undefined && dailySendCap !== null) {
       if (!Number.isInteger(dailySendCap) || (dailySendCap as number) < 1) {
-        return NextResponse.json({ error: "dailySendCap must be null or a positive integer" }, { status: 400 });
+        return fail("dailySendCap must be null or a positive integer", 400);
       }
     }
     if (targetSegmentName !== undefined && targetSegmentName !== null && (typeof targetSegmentName !== "string" || (targetSegmentName as string).trim().length === 0)) {
-      return NextResponse.json({ error: "targetSegmentName must be null or a non-empty string" }, { status: 400 });
+      return fail("targetSegmentName must be null or a non-empty string", 400);
     }
     if (targetSegmentName && typeof targetSegmentName === "string") {
       const trimmed = (targetSegmentName as string).trim();
       const conflict = await prisma.agent.findFirst({ where: { targetSegmentName: trimmed }, select: { name: true } });
       if (conflict) {
-        return NextResponse.json({ error: `Segment "${trimmed}" is already assigned to agent "${conflict.name}"` }, { status: 409 });
+        return fail(`Segment "${trimmed}" is already assigned to agent "${conflict.name}"`, 409);
       }
     }
     if (hasSegmentIncludes) {
@@ -119,7 +116,7 @@ export async function POST(req: NextRequest) {
       for (const seg of includeSegs) {
         const conflict = await prisma.agent.findFirst({ where: { targetSegmentName: seg }, select: { name: true } });
         if (conflict) {
-          return NextResponse.json({ error: `Segment "${seg}" is exclusively assigned to agent "${conflict.name}"` }, { status: 409 });
+          return fail(`Segment "${seg}" is exclusively assigned to agent "${conflict.name}"`, 409);
         }
       }
     }
@@ -128,7 +125,7 @@ export async function POST(req: NextRequest) {
         !Array.isArray(quietDays) ||
         (quietDays as unknown[]).some((d) => !Number.isInteger(d) || (d as number) < 0 || (d as number) > 6)
       ) {
-        return NextResponse.json({ error: "quietDays must be an array of day-of-week numbers (0–6)" }, { status: 400 });
+        return fail("quietDays must be an array of day-of-week numbers (0–6)", 400);
       }
     }
 
@@ -224,7 +221,6 @@ export async function POST(req: NextRequest) {
 
     return NextResponse.json(agent, { status: 201 });
   } catch (err) {
-    console.error("POST /api/agents error:", err);
-    return NextResponse.json({ error: "Failed to create agent" }, { status: 500 });
+    return handleRouteError("POST /api/agents", err);
   }
 }

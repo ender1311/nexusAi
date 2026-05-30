@@ -185,10 +185,13 @@ export async function POST(req: NextRequest) {
 
     return NextResponse.json({ data: result });
   } catch (err) {
-    const message = err instanceof Error ? err.message : "Migration failed";
-    // Surface validation errors (persona not found) as 400; DB errors as 500
-    const isValidation = message.startsWith("Personas not found");
+    const message = err instanceof Error ? err.message : "";
     console.error("[personas/migrate] error:", err);
-    return NextResponse.json({ error: message }, { status: isValidation ? 400 : 500 });
+    // "Personas not found: …" is a deliberate, client-safe validation error → 400.
+    // Everything else (DB/Prisma) must not leak its message → generic 500.
+    if (message.startsWith("Personas not found")) {
+      return NextResponse.json({ error: message }, { status: 400 });
+    }
+    return NextResponse.json({ error: "Migration failed" }, { status: 500 });
   }
 }

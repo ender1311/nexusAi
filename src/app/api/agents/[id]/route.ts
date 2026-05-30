@@ -4,6 +4,7 @@ import { prisma } from "@/lib/db";
 import { FUNNEL_STAGES } from "@/types/agent";
 import { isPlainObject } from "@/lib/utils";
 import { requireAdmin } from "@/lib/auth";
+import { fail, handleRouteError } from "@/lib/api/respond";
 
 const VALID_STAGES = new Set(FUNNEL_STAGES);
 const VALID_STATUSES = new Set(["draft", "active", "paused"]);
@@ -20,13 +21,12 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ id:
         _count: { select: { decisions: true } },
       },
     });
-    if (!agent) return NextResponse.json({ error: "Not found" }, { status: 404 });
+    if (!agent) return fail("Not found", 404);
     const res = NextResponse.json(agent);
     res.headers.set("Cache-Control", "private, max-age=30");
     return res;
-  } catch (error) {
-    console.error(`GET /api/agents/${id} error:`, error);
-    return NextResponse.json({ error: "Failed to fetch agent" }, { status: 500 });
+  } catch (err) {
+    return handleRouteError(`GET /api/agents/${id}`, err);
   }
 }
 
@@ -38,15 +38,15 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
     const body = await req.json();
 
     if (body.funnelStage !== undefined && !VALID_STAGES.has(body.funnelStage)) {
-      return NextResponse.json({ error: "Invalid funnelStage" }, { status: 400 });
+      return fail("Invalid funnelStage", 400);
     }
 
     if (body.status !== undefined && !VALID_STATUSES.has(body.status)) {
-      return NextResponse.json({ error: "Invalid status" }, { status: 400 });
+      return fail("Invalid status", 400);
     }
 
     if (body.targetFilter !== undefined && body.targetFilter !== null && !isPlainObject(body.targetFilter)) {
-      return NextResponse.json({ error: "targetFilter must be a plain object" }, { status: 400 });
+      return fail("targetFilter must be a plain object", 400);
     }
 
     if (body.fallbackSendHour !== undefined) {
@@ -56,45 +56,42 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
           body.fallbackSendHour < 0 ||
           body.fallbackSendHour > 23)
       ) {
-        return NextResponse.json(
-          { error: "fallbackSendHour must be null or an integer 0–23" },
-          { status: 400 },
-        );
+        return fail("fallbackSendHour must be null or an integer 0–23", 400);
       }
     }
 
     if (body.audienceCap !== undefined) {
       if (body.audienceCap !== null && (!Number.isInteger(body.audienceCap) || body.audienceCap < 1)) {
-        return NextResponse.json({ error: "audienceCap must be null or a positive integer" }, { status: 400 });
+        return fail("audienceCap must be null or a positive integer", 400);
       }
     }
 
     if (body.dailySendCap !== undefined) {
       if (body.dailySendCap !== null && (!Number.isInteger(body.dailySendCap) || body.dailySendCap < 1)) {
-        return NextResponse.json({ error: "dailySendCap must be null or a positive integer" }, { status: 400 });
+        return fail("dailySendCap must be null or a positive integer", 400);
       }
     }
 
     if (body.languageFilter !== undefined && body.languageFilter !== null) {
       if (typeof body.languageFilter !== "string" || body.languageFilter.trim() === "") {
-        return NextResponse.json({ error: "languageFilter must be a non-empty string or null" }, { status: 400 });
+        return fail("languageFilter must be a non-empty string or null", 400);
       }
     }
 
     if (body.color !== undefined) {
       if (typeof body.color !== "string" || !/^#[0-9a-fA-F]{6}$/.test(body.color)) {
-        return NextResponse.json({ error: "color must be a 6-digit hex value" }, { status: 400 });
+        return fail("color must be a 6-digit hex value", 400);
       }
     }
 
     if (body.targetSegmentName !== undefined && body.targetSegmentName !== null) {
       if (typeof body.targetSegmentName !== "string" || body.targetSegmentName.trim().length === 0) {
-        return NextResponse.json({ error: "targetSegmentName must be null or a non-empty string" }, { status: 400 });
+        return fail("targetSegmentName must be null or a non-empty string", 400);
       }
       const trimmed = body.targetSegmentName.trim();
       const conflict = await prisma.agent.findFirst({ where: { targetSegmentName: trimmed, id: { not: id } }, select: { name: true } });
       if (conflict) {
-        return NextResponse.json({ error: `Segment "${trimmed}" is already assigned to agent "${conflict.name}"` }, { status: 409 });
+        return fail(`Segment "${trimmed}" is already assigned to agent "${conflict.name}"`, 409);
       }
     }
 
@@ -107,19 +104,16 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
         body.segmentTargeting.includes.some((s: unknown) => typeof s !== "string" || !s.trim()) ||
         body.segmentTargeting.excludes.some((s: unknown) => typeof s !== "string" || !s.trim())
       ) {
-        return NextResponse.json(
-          { error: "segmentTargeting must be null or { includes: string[], excludes: string[] } with non-empty strings" },
-          { status: 400 },
+        return fail(
+          "segmentTargeting must be null or { includes: string[], excludes: string[] } with non-empty strings",
+          400,
         );
       }
       const overlap = body.segmentTargeting.includes.filter((s: string) =>
         body.segmentTargeting.excludes.includes(s)
       );
       if (overlap.length > 0) {
-        return NextResponse.json(
-          { error: `Segment(s) cannot appear in both includes and excludes: ${overlap.join(", ")}` },
-          { status: 400 },
-        );
+        return fail(`Segment(s) cannot appear in both includes and excludes: ${overlap.join(", ")}`, 400);
       }
     }
 
@@ -160,9 +154,8 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
     revalidateTag("agents", "max");
     revalidateTag("performance", "max"); // status change affects performance page
     return NextResponse.json(agent);
-  } catch (error) {
-    console.error(`PATCH /api/agents/${id} error:`, error);
-    return NextResponse.json({ error: "Failed to update agent" }, { status: 500 });
+  } catch (err) {
+    return handleRouteError(`PATCH /api/agents/${id}`, err);
   }
 }
 
@@ -181,8 +174,7 @@ export async function DELETE(_req: NextRequest, { params }: { params: Promise<{ 
     revalidateTag("agents", "max");
     revalidateTag("performance", "max");
     return NextResponse.json({ ok: true });
-  } catch (error) {
-    console.error(`DELETE /api/agents/${id} error:`, error);
-    return NextResponse.json({ error: "Failed to delete agent" }, { status: 500 });
+  } catch (err) {
+    return handleRouteError(`DELETE /api/agents/${id}`, err);
   }
 }

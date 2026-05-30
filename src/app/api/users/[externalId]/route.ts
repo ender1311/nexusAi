@@ -1,5 +1,6 @@
-import { NextRequest, NextResponse } from "next/server";
+import { NextRequest } from "next/server";
 import { prisma } from "@/lib/db";
+import { ok, fail, handleRouteError } from "@/lib/api/respond";
 
 export async function GET(
   _req: NextRequest,
@@ -7,69 +8,69 @@ export async function GET(
 ) {
   const { externalId } = await params;
 
-  const user = await prisma.trackedUser.findUnique({
-    where: { externalId },
-    include: { persona: true },
-  });
+  try {
+    const user = await prisma.trackedUser.findUnique({
+      where: { externalId },
+      include: { persona: true },
+    });
 
-  if (!user) {
-    return NextResponse.json({ error: "User not found" }, { status: 404 });
-  }
+    if (!user) {
+      return fail("User not found", 404);
+    }
 
-  const [recentDecisions, totalDecisions, totalConversions, rewardAgg, armStats] = await Promise.all([
-    prisma.userDecision.findMany({
-      where: { userId: externalId },
-      orderBy: { sentAt: "desc" },
-      take: 10,
-      include: {
-        variant: {
-          select: {
-            id: true,
-            name: true,
-            title: true,
-            body: true,
-            message: { select: { channel: true, agent: { select: { id: true, name: true } } } },
+    const [recentDecisions, totalDecisions, totalConversions, rewardAgg, armStats] = await Promise.all([
+      prisma.userDecision.findMany({
+        where: { userId: externalId },
+        orderBy: { sentAt: "desc" },
+        take: 10,
+        include: {
+          variant: {
+            select: {
+              id: true,
+              name: true,
+              title: true,
+              body: true,
+              message: { select: { channel: true, agent: { select: { id: true, name: true } } } },
+            },
           },
         },
-      },
-    }),
-    prisma.userDecision.count({ where: { userId: externalId } }),
-    prisma.userDecision.count({ where: { userId: externalId, conversionAt: { not: null } } }),
-    prisma.userDecision.aggregate({ where: { userId: externalId }, _sum: { reward: true } }),
-    user.personaId
-      ? prisma.personaArmStats.findMany({
-          where: { personaId: user.personaId },
-          orderBy: { tries: "desc" },
-          take: 20,
-        })
-      : Promise.resolve([]),
-  ]);
+      }),
+      prisma.userDecision.count({ where: { userId: externalId } }),
+      prisma.userDecision.count({ where: { userId: externalId, conversionAt: { not: null } } }),
+      prisma.userDecision.aggregate({ where: { userId: externalId }, _sum: { reward: true } }),
+      user.personaId
+        ? prisma.personaArmStats.findMany({
+            where: { personaId: user.personaId },
+            orderBy: { tries: "desc" },
+            take: 20,
+          })
+        : Promise.resolve([]),
+    ]);
 
-  // Enrich arm stats with variant + agent names
-  const variantIds = [...new Set(armStats.map((s) => s.variantId))];
-  const variants =
-    variantIds.length > 0
-      ? await prisma.messageVariant.findMany({
-          where: { id: { in: variantIds } },
-          select: {
-            id: true,
-            name: true,
-            title: true,
-            body: true,
-            message: { select: { channel: true, agent: { select: { id: true, name: true } } } },
-          },
-        })
-      : [];
-  const variantMap = new Map(variants.map((v) => [v.id, v]));
+    // Enrich arm stats with variant + agent names
+    const variantIds = [...new Set(armStats.map((s) => s.variantId))];
+    const variants =
+      variantIds.length > 0
+        ? await prisma.messageVariant.findMany({
+            where: { id: { in: variantIds } },
+            select: {
+              id: true,
+              name: true,
+              title: true,
+              body: true,
+              message: { select: { channel: true, agent: { select: { id: true, name: true } } } },
+            },
+          })
+        : [];
+    const variantMap = new Map(variants.map((v) => [v.id, v]));
 
-  const enrichedArmStats = armStats.map((s) => ({
-    ...s,
-    variant: variantMap.get(s.variantId) ?? null,
-    expectedReward: s.alpha / Math.max(1, s.alpha + s.beta),
-  }));
+    const enrichedArmStats = armStats.map((s) => ({
+      ...s,
+      variant: variantMap.get(s.variantId) ?? null,
+      expectedReward: s.alpha / Math.max(1, s.alpha + s.beta),
+    }));
 
-  return NextResponse.json({
-    data: {
+    return ok({
       user: {
         externalId: user.externalId,
         personaId: user.personaId,
@@ -81,6 +82,8 @@ export async function GET(
       },
       recentDecisions,
       armStats: enrichedArmStats,
-    },
-  });
+    });
+  } catch (err) {
+    return handleRouteError(`GET /api/users/${externalId}`, err);
+  }
 }
