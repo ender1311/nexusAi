@@ -2,6 +2,8 @@ export const dynamic = "force-dynamic";
 export const maxDuration = 30;
 
 import { Suspense, cache } from "react";
+import Link from "next/link";
+import { Settings } from "lucide-react";
 import { Header } from "@/components/layout/header";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
@@ -194,6 +196,16 @@ export default function DataIngestPage() {
             <EventPushForm />
           </TabsContent>
         </Tabs>
+
+        <div className="pt-2 border-t">
+          <Link
+            href="/settings"
+            className="inline-flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground transition-colors"
+          >
+            <Settings className="h-4 w-4" />
+            Settings
+          </Link>
+        </div>
       </div>
     </>
   );

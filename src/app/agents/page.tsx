@@ -50,8 +50,10 @@ export default async function AgentsPage({
     ...(safeStage ? { funnelStage: safeStage } : {}),
   };
 
-  // Parallelize WorkOS auth check, agent list, convergence states, and unique user counts.
-  const [{ isAdmin }, { dbAgents }, convergenceStates, uniqueUserRows] = await Promise.all([
+  // Parallelize WorkOS auth check, agent list, convergence states, unique user counts,
+  // and per-agent push open rate (sends + opens from local UserDecision rows — mirrors
+  // the per-agent performance page so the card stat is consistent).
+  const [{ isAdmin }, { dbAgents }, convergenceStates, uniqueUserRows, pushRows] = await Promise.all([
     getAuth(),
     unstable_cache(
     async () => {
@@ -83,9 +85,19 @@ export default async function AgentsPage({
       FROM "UserDecision"
       GROUP BY "agentId"
     `,
+    prisma.$queryRaw<Array<{ agentId: string; sends: bigint; opens: bigint }>>`
+      SELECT "agentId",
+             COUNT(*) FILTER (WHERE "channel" = 'push') AS sends,
+             COUNT(*) FILTER (WHERE "channel" = 'push' AND "pushOpenAt" IS NOT NULL) AS opens
+      FROM "UserDecision"
+      GROUP BY "agentId"
+    `,
   ]);
 
   const uniqueUsersMap = new Map(uniqueUserRows.map((r) => [r.agentId, Number(r.cnt)]));
+  const pushStatsMap = new Map(
+    pushRows.map((r) => [r.agentId, { sends: Number(r.sends), opens: Number(r.opens) }]),
+  );
 
   // Determine whether any filters are active (for empty-state messaging)
   const hasFilters = search !== "" || status !== "all" || stage !== undefined;
@@ -106,6 +118,12 @@ export default async function AgentsPage({
     dailySendCap: a.dailySendCap ?? null,
     targetSegmentName: a.targetSegmentName ?? null,
     uniqueUsers: uniqueUsersMap.get(a.id) ?? 0,
+    pushSends: pushStatsMap.get(a.id)?.sends ?? 0,
+    pushOpens: pushStatsMap.get(a.id)?.opens ?? 0,
+    pushOpenRate: (() => {
+      const s = pushStatsMap.get(a.id);
+      return s && s.sends > 0 ? (s.opens / s.sends) * 100 : null;
+    })(),
     sortOrder: a.sortOrder ?? 0,
     createdAt: a.createdAt,
     updatedAt: a.updatedAt,
