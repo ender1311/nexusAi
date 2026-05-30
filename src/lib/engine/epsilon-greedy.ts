@@ -1,4 +1,4 @@
-import { ArmStats, BanditArm, DecisionResult } from "./types";
+import { BanditArm, DecisionResult } from "./types";
 
 export class EpsilonGreedy {
   constructor(private epsilon: number = 0.1) {}
@@ -35,25 +35,5 @@ export class EpsilonGreedy {
       explore: false,
       predictedReward: bestRate,
     };
-  }
-
-  updateArm(stats: ArmStats, reward: number): ArmStats {
-    return {
-      ...stats,
-      tries: stats.tries + 1,
-      wins: stats.wins + (reward > 0 ? 1 : 0),
-      alpha: stats.alpha + (reward > 0 ? reward : 0),
-      beta: stats.beta + (reward <= 0 ? 1 : 0),
-    };
-  }
-
-  decayEpsilon(minEpsilon = 0.01): void {
-    this.epsilon = Math.max(minEpsilon, this.epsilon * 0.995);
-  }
-
-  initialStats(): ArmStats {
-    // Pessimistic initialization per Deezer finding — Beta(1,1) implies 50% expected reward;
-    // real push CTR ~3% → Beta(1,30). Reduces noisy exploration during warm-up.
-    return { alpha: 1, beta: 30, tries: 0, wins: 0 };
   }
 }

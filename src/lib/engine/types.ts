@@ -22,19 +22,3 @@ export interface BanditArm {
   id: string;
   stats: ArmStats;
 }
-
-// --- LinUCB types ---
-
-export interface LinUCBStats {
-  /** Inverse of the design matrix A, stored flattened row-major (d×d floats).
-   *  Maintained incrementally via the Sherman-Morrison rank-1 update. */
-  aInv: number[];
-  /** Accumulated reward vector b (d floats): Σ r_t * x_t */
-  b: number[];
-  tries: number;
-}
-
-export interface LinUCBArm {
-  id: string;
-  linucbStats: LinUCBStats;
-}

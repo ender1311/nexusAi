@@ -33,7 +33,7 @@ export type SegmentTargeting = {
 };
 
 export type AgentStatus = "draft" | "active" | "paused";
-export type Algorithm = "thompson" | "epsilon_greedy" | "contextual";
+export type Algorithm = "thompson" | "epsilon_greedy" | "linucb";
 
 export const AGENT_PALETTE: string[] = [
   // Reds

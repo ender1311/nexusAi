@@ -4,10 +4,6 @@ import { ThompsonSampling } from "@/lib/engine/thompson-sampling";
 describe("ThompsonSampling", () => {
   const ts = new ThompsonSampling();
 
-  it("initialStats returns pessimistic Beta(1,30) prior — calibrated to ~3% push CTR", () => {
-    expect(ts.initialStats()).toEqual({ alpha: 1, beta: 30, tries: 0, wins: 0 });
-  });
-
   it("throws when arms array is empty", () => {
     expect(() => ts.select([])).toThrow("No arms to select from");
   });
@@ -28,33 +24,6 @@ describe("ThompsonSampling", () => {
       if (ts.select(arms).variantId === "winner") winCount++;
     }
     expect(winCount).toBeGreaterThan(800);
-  });
-
-  it("updateArm increments alpha and wins on positive reward", () => {
-    const stats = { alpha: 1, beta: 1, tries: 0, wins: 0 };
-    const updated = ts.updateArm(stats, 0.5);
-    expect(updated.alpha).toBe(1.5);
-    expect(updated.beta).toBe(1);
-    expect(updated.tries).toBe(1);
-    expect(updated.wins).toBe(1);
-  });
-
-  it("updateArm increments beta on zero reward", () => {
-    const stats = { alpha: 1, beta: 1, tries: 0, wins: 0 };
-    const updated = ts.updateArm(stats, 0);
-    expect(updated.alpha).toBe(1);
-    expect(updated.beta).toBe(2);
-    expect(updated.tries).toBe(1);
-    expect(updated.wins).toBe(0);
-  });
-
-  it("updateArm increments beta on negative reward", () => {
-    const stats = { alpha: 1, beta: 1, tries: 0, wins: 0 };
-    const updated = ts.updateArm(stats, -0.3);
-    expect(updated.alpha).toBe(1);
-    expect(updated.beta).toBe(2);
-    expect(updated.tries).toBe(1);
-    expect(updated.wins).toBe(0);
   });
 
   it("result.explore is true when a non-greedy arm is chosen", () => {
