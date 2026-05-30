@@ -185,6 +185,8 @@ async function attributeCanvasOpen(
   event: EventRecord,
   canvasStepId: string,
   occurredAt: Date,
+  canonicalUserId: string,
+  matchIds: string[],
 ): Promise<boolean> {
   const variant = await prisma.messageVariant.findFirst({
     where:   { brazeCanvasStepId: canvasStepId },
@@ -195,11 +197,13 @@ async function attributeCanvasOpen(
   const { agentId } = variant.message;
   const variantId   = variant.id;
 
-  // Try to stamp an existing decision (from a Nexus-controlled send of this variant)
+  // Try to stamp an existing decision (from a Nexus-controlled send of this variant).
+  // Match on the full id-set: a send keyed on the numeric YouVersion id and an open
+  // event keyed on the 24-hex Braze id refer to the same user (see resolveEventIds).
   const windowStart = new Date(occurredAt.getTime() - 48 * 60 * 60 * 1000);
   const existing = await prisma.userDecision.findFirst({
     where: {
-      userId: event.external_user_id,
+      userId: { in: matchIds },
       agentId,
       messageVariantId: variantId,
       pushOpenAt: null,
@@ -218,7 +222,7 @@ async function attributeCanvasOpen(
     // sentAt ≈ occurredAt (best approximation for independently-sent canvases).
     await prisma.userDecision.create({
       data: {
-        userId:          event.external_user_id,
+        userId:          canonicalUserId,
         agentId,
         messageVariantId: variantId,
         channel:         "push",
@@ -232,7 +236,7 @@ async function attributeCanvasOpen(
   // Credit the arm: push open on an exactly-attributed variant is a positive signal.
   // deltaAlpha=1 (open), deltaBeta=0 (not a failure), deltaWins=1.
   const user = await prisma.trackedUser.findFirst({
-    where:  { externalId: event.external_user_id },
+    where:  { externalId: canonicalUserId },
     select: { personaId: true },
   });
 
@@ -244,7 +248,7 @@ async function attributeCanvasOpen(
         }).catch(() => {})
       : Promise.resolve(),
     upsertUserArmStats({
-      userId: event.external_user_id, agentId, variantId,
+      userId: canonicalUserId, agentId, variantId,
       deltaAlpha: 1, deltaBeta: 0, deltaWins: 1,
     }).catch(() => {}),
   ]);
@@ -269,11 +273,47 @@ async function attributeEvents(
   let matched = 0;
   let unmatched = 0;
 
+  // ── Identity bridge ────────────────────────────────────────────────────
+  // Push-open events key on Braze's internal 24-hex id, but Nexus stores each
+  // verified user's decisions under their numeric YouVersion id (== externalId).
+  // Pre-resolve brazeId → externalId for the whole batch so the time-window match
+  // can find a decision regardless of which id namespace the event arrived on.
+  // (Unverified users have externalId === brazeId, so the map is a no-op for them.)
+  const brazeIdCandidates = new Set<string>();
+  for (const e of events) {
+    const ext = e.external_user_id?.trim();
+    if (ext) brazeIdCandidates.add(ext);
+    const bid = typeof e.properties?.braze_user_id === "string" ? e.properties.braze_user_id.trim() : "";
+    if (bid) brazeIdCandidates.add(bid);
+  }
+  const brazeToExternal = new Map<string, string>();
+  if (brazeIdCandidates.size > 0) {
+    const rows = await prisma.trackedUser.findMany({
+      where: { brazeId: { in: [...brazeIdCandidates] } },
+      select: { brazeId: true, externalId: true },
+    });
+    for (const r of rows) if (r.brazeId) brazeToExternal.set(r.brazeId, r.externalId);
+  }
+
+  // canonical = the Nexus externalId (numeric YouVersion id for verified users,
+  // braze id for unverified). matchIds = every id form that could key a decision.
+  const resolveEventIds = (event: EventRecord): { canonical: string; matchIds: string[] } => {
+    const incoming = event.external_user_id?.trim() ?? "";
+    const bid = typeof event.properties?.braze_user_id === "string" ? event.properties.braze_user_id.trim() : "";
+    const canonical =
+      (bid && brazeToExternal.get(bid)) ||
+      (incoming && brazeToExternal.get(incoming)) ||
+      incoming;
+    const matchIds = [...new Set([incoming, bid, canonical].filter(Boolean))];
+    return { canonical, matchIds };
+  };
+
   for (const event of events) {
     const occurredAt = new Date(event.occurred_at);
     if (isNaN(occurredAt.getTime())) { unmatched++; continue; }
 
     const isPushOpen = event.event_name === "push_open";
+    const { canonical: canonicalUserId, matchIds } = resolveEventIds(event);
 
     // ── Idempotency: skip if already processed in a previous batch ────────
     const alreadyProcessed = await prisma.processedEventId.findUnique({
@@ -287,7 +327,7 @@ async function attributeEvents(
         ? event.properties.canvas_step_id
         : null;
       if (canvasStepId) {
-        const handled = await attributeCanvasOpen(event, canvasStepId, occurredAt);
+        const handled = await attributeCanvasOpen(event, canvasStepId, occurredAt, canonicalUserId, matchIds);
         if (handled) {
           await prisma.processedEventId.create({ data: { eventId: event.event_id } }).catch(() => {});
           matched++;
@@ -303,7 +343,7 @@ async function attributeEvents(
     // push_open: also require pushOpenAt: null so we don't double-stamp the same send
     const decision = await prisma.userDecision.findFirst({
       where: {
-        userId: event.external_user_id,
+        userId: { in: matchIds },
         conversionAt: null,
         ...(isPushOpen ? { pushOpenAt: null } : {}),
         sentAt: { gte: windowStart, lte: occurredAt },
@@ -344,7 +384,7 @@ async function attributeEvents(
 
       if (reward !== 0) {
         await accumulateUserStats({
-          externalId: event.external_user_id,
+          externalId: decision.userId,
           channel: decision.channel,
           reward,
           occurredAt,
@@ -355,7 +395,7 @@ async function attributeEvents(
 
       if (decision.messageVariantId) {
         const user = await prisma.trackedUser.findFirst({
-          where: { externalId: event.external_user_id },
+          where: { externalId: decision.userId },
           select: { personaId: true },
         });
         const deltaAlpha = reward > 0 ? reward : 0;
@@ -373,7 +413,7 @@ async function attributeEvents(
               })
             : Promise.resolve(),
           upsertUserArmStats({
-            userId: event.external_user_id,
+            userId: decision.userId,
             agentId: decision.agentId,
             variantId: decision.messageVariantId,
             deltaAlpha, deltaBeta, deltaWins,
