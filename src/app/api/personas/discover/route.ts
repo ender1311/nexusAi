@@ -1,7 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { revalidateTag } from "next/cache";
-import { discoverPersonas } from "@/lib/engine/persona-discovery";
-import { batchAssignPersonas } from "@/lib/engine/persona-assignment";
+import { discoverPersonas, batchAssignPersonas } from "@/lib/services/persona-service";
 import { requireAdmin } from "@/lib/auth";
 
 /**

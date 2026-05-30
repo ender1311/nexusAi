@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { revalidateTag } from "next/cache";
 import { prisma } from "@/lib/db";
 import { calculateReward } from "@/lib/engine/reward-calculator";
-import { accumulateUserStats } from "@/lib/engine/user-stats";
+import { accumulateUserStats } from "@/lib/services/user-stats-service";
 import { upsertArmStats, upsertUserArmStats } from "@/lib/arm-stats";
 import { verifyIngestAuth } from "@/lib/ingest-auth";
 

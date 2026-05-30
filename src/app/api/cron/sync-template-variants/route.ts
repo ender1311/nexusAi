@@ -2,7 +2,8 @@ export const maxDuration = 300;
 
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
-import { LIBRARY_AGENT_NAME, TEMPLATE_COPY_FIELDS, syncClonesFromTemplate } from "@/lib/engine/template-sync";
+import { LIBRARY_AGENT_NAME, TEMPLATE_COPY_FIELDS } from "@/lib/engine/template-sync";
+import { syncClonesFromTemplate } from "@/lib/services/template-service";
 
 function verifyAuth(req: NextRequest): boolean {
   const token = req.headers.get("authorization")?.replace("Bearer ", "");

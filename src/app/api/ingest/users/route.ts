@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
 import { classifyPersona, BrazeAttributes } from "@/lib/engine/plan-persona-classifier";
 import { calculateReward } from "@/lib/engine/reward-calculator";
-import { accumulateUserStats } from "@/lib/engine/user-stats";
+import { accumulateUserStats } from "@/lib/services/user-stats-service";
 import { upsertArmStats, upsertUserArmStats, updateLinUCBArm } from "@/lib/arm-stats";
 import { verifyIngestAuth } from "@/lib/ingest-auth";
 import { FEATURE_DIM } from "@/lib/engine/feature-vector";

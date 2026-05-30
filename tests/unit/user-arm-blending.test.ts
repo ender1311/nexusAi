@@ -1,22 +1,6 @@
 import { describe, it, expect } from "bun:test";
 import type { BanditArm } from "@/lib/engine/types";
-
-// Replicate the blendArm helper from the cron exactly so we can unit-test it.
-function blendArm(
-  personaArm: BanditArm,
-  userStats: { alpha: number; beta: number; tries: number; wins: number } | undefined,
-): BanditArm {
-  if (!userStats || userStats.tries === 0) return personaArm;
-  return {
-    id: personaArm.id,
-    stats: {
-      alpha: personaArm.stats.alpha + userStats.wins,
-      beta:  personaArm.stats.beta  + (userStats.tries - userStats.wins),
-      tries: personaArm.stats.tries + userStats.tries,
-      wins:  personaArm.stats.wins  + userStats.wins,
-    },
-  };
-}
+import { blendArm } from "@/lib/engine/select-variant";
 
 const personaArm: BanditArm = {
   id: "var_001",

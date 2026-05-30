@@ -16,9 +16,9 @@ import { evaluateTargetFilter, buildComputedKeys } from "@/lib/engine/target-fil
 import { buildAgentLottery } from "@/lib/engine/agent-lottery";
 import { getTodayStartUTC, computeScheduledAt, peakActivityHour, isInQuietHours, isBlackoutDate }  from "@/lib/engine/scheduling";
 import { isTimingMatch } from "@/lib/engine/send-timing";
-import { ThompsonSampling } from "@/lib/engine/thompson-sampling";
-import { EpsilonGreedy } from "@/lib/engine/epsilon-greedy";
 import { LinUCB } from "@/lib/engine/linucb";
+import { selectVariant, blendArm } from "@/lib/engine/select-variant";
+import { parseFrequencyCap, parseQuietHours } from "@/lib/schemas/scheduling";
 import { computeFeatureVector, FEATURE_DIM } from "@/lib/engine/feature-vector";
 import type { BanditArm } from "@/lib/engine/types";
 import { recencyMultiplier } from "@/lib/engine/beta-pdf";
@@ -27,27 +27,6 @@ import { GIVING_LINK_SENTINEL, buildGivingDeeplink } from "@/lib/engine/giving-l
 
 // Allow up to 300s execution time on Vercel
 export const maxDuration = 300;
-
-/**
- * Blend persona-level prior with per-user observations to form a personalised arm.
- * The persona's Beta distribution is the prior; user-specific wins/tries shift it.
- * This is a standard Bayesian posterior update: more user data → more personalised.
- */
-function blendArm(
-  personaArm: BanditArm,
-  userStats: { alpha: number; beta: number; tries: number; wins: number } | undefined,
-): BanditArm {
-  if (!userStats || userStats.tries === 0) return personaArm;
-  return {
-    id: personaArm.id,
-    stats: {
-      alpha: personaArm.stats.alpha + userStats.wins,
-      beta:  personaArm.stats.beta  + (userStats.tries - userStats.wins),
-      tries: personaArm.stats.tries + userStats.tries,
-      wins:  personaArm.stats.wins  + userStats.wins,
-    },
-  };
-}
 
 function verifyAuth(req: NextRequest): boolean {
   const token = req.headers.get("authorization")?.replace("Bearer ", "");
@@ -702,7 +681,7 @@ export async function POST(req: NextRequest) {
     const rule = agent.schedulingRule;
 
     // Resolve quiet hours mode (backward compat: timezone==="user" → schedule, any tz → suppress, absent → none)
-    const quietHoursRaw = rule?.quietHours as { mode?: string; start?: string; end?: string; timezone?: string; deliverAtHour?: number } | null;
+    const quietHoursRaw = parseQuietHours(rule?.quietHours);
     const qhMode = quietHoursRaw?.mode ?? (quietHoursRaw?.timezone === "user" ? "schedule" : quietHoursRaw ? "suppress" : "none");
     const quietHoursConfig = qhMode === "suppress" ? quietHoursRaw : null;
     const scheduleDeliverHour = qhMode === "schedule" ? (quietHoursRaw?.deliverAtHour ?? 8) : null;
@@ -803,7 +782,7 @@ export async function POST(req: NextRequest) {
       const userExternalIds = users.map((u) => u.externalId);
 
       // 4b. Bulk frequency cap check and 4d. Global daily cap — run in parallel (independent reads)
-      const freqCap = rule?.frequencyCap as unknown as { maxSends?: number; period?: string } | null;
+      const freqCap = parseFrequencyCap(rule?.frequencyCap);
       const hasLotteryFreqCap = rule && typeof freqCap?.maxSends === "number";
       const lotteryPeriodMs: Record<string, number> = {
         day:    86_400_000,
@@ -1045,7 +1024,8 @@ export async function POST(req: NextRequest) {
                     attributes:       (user.attributes as Record<string, unknown>) ?? {},
                   });
             lotteryContextVector = context;
-            selectedVariantId = new LinUCB().select(linucbArms, context).variantId;
+            // linucbArms is non-empty (guarded above)
+            selectedVariantId = selectVariant({ algorithm: "linucb", linucbArms, context })!;
           } else {
             // Thompson / EpsilonGreedy: blend persona prior with user-specific posterior
             // Fall back to uniform priors (alpha=1, beta=30) for cold-start personas with no arm stats yet
@@ -1062,10 +1042,12 @@ export async function POST(req: NextRequest) {
               .filter(Boolean) as BanditArm[];
             if (arms.length === 0) continue;
 
-            selectedVariantId =
+            // arms is non-empty (guarded above)
+            selectedVariantId = selectVariant(
               agent.algorithm === "epsilon_greedy"
-                ? new EpsilonGreedy(agent.epsilon).select(arms).variantId
-                : new ThompsonSampling().select(arms, recencyPenalties).variantId;
+                ? { algorithm: "epsilon_greedy", arms, epsilon: agent.epsilon }
+                : { algorithm: "thompson", arms, recencyPenalties },
+            )!;
           }
 
           // Schedule mode: force in_local_time via Braze at the configured hour.
@@ -1249,7 +1231,7 @@ export async function POST(req: NextRequest) {
       const currentDayET = dayIndexMap[weekdayStr] ?? 0;
 
       // Frequency cap and global daily cap — run in parallel since they're independent reads
-      const windowFreqCap = rule?.frequencyCap as unknown as { maxSends?: number; period?: string } | null;
+      const windowFreqCap = parseFrequencyCap(rule?.frequencyCap);
       const hasFreqCap = rule && typeof windowFreqCap?.maxSends === "number";
       const periodMs: Record<string, number> = {
         day:    86_400_000,
@@ -1450,7 +1432,8 @@ export async function POST(req: NextRequest) {
                     attributes:       (user.attributes as Record<string, unknown>) ?? {},
                   });
             windowContextVector = context;
-            selectedVariantId = new LinUCB().select(linucbArms, context).variantId;
+            // linucbArms is non-empty (guarded above)
+            selectedVariantId = selectVariant({ algorithm: "linucb", linucbArms, context })!;
           } else {
             const personaArms = armStatsByPersona.get(pid) ?? new Map(
               windowVariants.map((v) => [v.id, { id: v.id, stats: { alpha: 1, beta: 30, tries: 0, wins: 0 } } as BanditArm])
@@ -1465,10 +1448,12 @@ export async function POST(req: NextRequest) {
               .filter(Boolean) as BanditArm[];
             if (arms.length === 0) continue;
 
-            selectedVariantId =
+            // arms is non-empty (guarded above)
+            selectedVariantId = selectVariant(
               agent.algorithm === "epsilon_greedy"
-                ? new EpsilonGreedy(agent.epsilon).select(arms).variantId
-                : new ThompsonSampling().select(arms, windowRecencyPenalties).variantId;
+                ? { algorithm: "epsilon_greedy", arms, epsilon: agent.epsilon }
+                : { algorithm: "thompson", arms, recencyPenalties: windowRecencyPenalties },
+            )!;
           }
 
           // Schedule mode: force in_local_time via Braze at the configured hour.

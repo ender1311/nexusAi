@@ -1,6 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it } from "bun:test";
 import { truncateAll, prisma } from "../helpers/db";
-import { accumulateUserStats, recordUserSend } from "@/lib/engine/user-stats";
+import { accumulateUserStats, recordUserSend } from "@/lib/services/user-stats-service";
 
 beforeEach(async () => { await truncateAll(); });
 afterEach(async () => { await truncateAll(); });
