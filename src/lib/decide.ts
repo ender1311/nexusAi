@@ -1,11 +1,10 @@
-import { ThompsonSampling } from "@/lib/engine/thompson-sampling";
-import { EpsilonGreedy } from "@/lib/engine/epsilon-greedy";
 import { LinUCB } from "@/lib/engine/linucb";
+import { selectVariant } from "@/lib/engine/select-variant";
 import { assignUserToPersona } from "@/lib/engine/persona-assignment";
 import { computeFeatureVector } from "@/lib/engine/feature-vector";
 import { FEATURE_DIM } from "@/lib/engine/feature-vector";
 import { evaluateTargetFilter, buildComputedKeys } from "@/lib/engine/target-filter";
-import { isInQuietHours, isQuietDay } from "@/lib/engine/scheduling";
+import { isInQuietHours, isQuietDay, peakActivityHour } from "@/lib/engine/scheduling";
 import { prisma } from "@/lib/db";
 import type { BanditArm } from "@/lib/engine/types";
 import type { Prisma } from "@/generated/prisma/client";
@@ -60,18 +59,6 @@ export type DecideResult =
       /** Best send hour (0-23) derived from user's hourlyStats app-usage curve; null if no data */
       recommendedSendHour: number | null;
     };
-
-/** Compute optimal send hour from a user's hourly engagement curve (24-element array). */
-function computeOptimalSendHour(hourlyStats: unknown): number | null {
-  const raw = Array.isArray(hourlyStats) ? (hourlyStats as number[]) : [];
-  if (raw.length === 0) return null;
-  let best = -1, bestVal = -1;
-  for (let h = 0; h < Math.min(24, raw.length); h++) {
-    const v = typeof raw[h] === "number" ? raw[h] : 0;
-    if (v > bestVal) { bestVal = v; best = h; }
-  }
-  return bestVal > 0 ? best : null;
-}
 
 /**
  * Core bandit decision function. Shared by /api/decide and /api/cron/select-and-send.
@@ -245,8 +232,8 @@ export async function decideForUser(input: DecideInput): Promise<DecideResult | 
       attributes: (user.attributes as Record<string, unknown>) ?? {},
     });
 
-    const result = linUCB.select(linUCBArms, featureVec);
-    selectedVariantId = result.variantId;
+    // linUCBArms is non-empty (built from the guaranteed-non-empty variants list)
+    selectedVariantId = selectVariant({ algorithm: "linucb", linucbArms: linUCBArms, context: featureVec })!;
   } else {
     // Thompson Sampling or Epsilon-Greedy: load/seed PersonaArmStats.
     // Pessimistic Beta(1,30) prior — calibrated to ~3% push CTR (Deezer research).
@@ -274,18 +261,19 @@ export async function decideForUser(input: DecideInput): Promise<DecideResult | 
       })
     );
 
-    const result =
+    // armStats is non-empty (built from the guaranteed-non-empty variants list)
+    selectedVariantId = selectVariant(
       agent.algorithm === "epsilon_greedy"
-        ? new EpsilonGreedy(agent.epsilon).select(armStats)
-        : new ThompsonSampling().select(armStats);
-    selectedVariantId = result.variantId;
+        ? { algorithm: "epsilon_greedy", arms: armStats, epsilon: agent.epsilon }
+        : { algorithm: "thompson", arms: armStats },
+    )!;
   }
 
   const selected = variants.find((v) => v.id === selectedVariantId);
   if (!selected) throw new Error(`Selected variant ${selectedVariantId} not found — may have been deleted during cron run`);
 
   // 6. Compute recommended send hour from user's app-usage hourly curve
-  const recommendedSendHour = computeOptimalSendHour(user.hourlyStats);
+  const recommendedSendHour = peakActivityHour(user.hourlyStats);
 
   // 7. Record the decision (include context snapshot for analysis and oracle training)
   // For LinUCB agents, also persist the feature vector so the reward path can apply
