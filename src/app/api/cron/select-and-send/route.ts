@@ -14,7 +14,7 @@ import { createBrazeClient } from "@/lib/braze/client";
 import { PayloadFactory } from "@/lib/braze/payload-factory";
 import { evaluateTargetFilter, buildComputedKeys } from "@/lib/engine/target-filter";
 import { buildAgentLottery } from "@/lib/engine/agent-lottery";
-import { getTodayStartUTC, computeScheduledAt, peakActivityHour, isInQuietHours }  from "@/lib/engine/scheduling";
+import { getTodayStartUTC, computeScheduledAt, peakActivityHour, isInQuietHours, isBlackoutDate }  from "@/lib/engine/scheduling";
 import { isTimingMatch } from "@/lib/engine/send-timing";
 import { ThompsonSampling } from "@/lib/engine/thompson-sampling";
 import { EpsilonGreedy } from "@/lib/engine/epsilon-greedy";
@@ -565,7 +565,7 @@ export async function POST(req: NextRequest) {
     const metricsBefore = { sent: totalSent, suppressed: totalSuppressed, errors: totalErrors };
     const personaIds = agent.personaTargets.map((pt) => pt.personaId);
     if (personaIds.length === 0) continue;
-    const suppress = { freqCap: 0, smartSuppress: 0, dailyCap: 0, quietHours: 0, targetFilter: 0, audienceCap: 0, uniqueUsersCap: 0 };
+    const suppress = { freqCap: 0, smartSuppress: 0, dailyCap: 0, quietHours: 0, targetFilter: 0, audienceCap: 0, uniqueUsersCap: 0, blackout: 0 };
 
     // Derive the users assigned to this agent by the lottery
     const assignedUserIds = [...lotteryMap.entries()]
@@ -706,6 +706,12 @@ export async function POST(req: NextRequest) {
     const qhMode = quietHoursRaw?.mode ?? (quietHoursRaw?.timezone === "user" ? "schedule" : quietHoursRaw ? "suppress" : "none");
     const quietHoursConfig = qhMode === "suppress" ? quietHoursRaw : null;
     const scheduleDeliverHour = qhMode === "schedule" ? (quietHoursRaw?.deliverAtHour ?? 8) : null;
+
+    // Global blackout calendar dates ("YYYY-MM-DD") on which no send may be scheduled.
+    const blackoutDatesRaw = rule?.blackoutDates;
+    const blackoutDates: string[] = Array.isArray(blackoutDatesRaw)
+      ? blackoutDatesRaw.filter((d): d is string => typeof d === "string")
+      : [];
 
     // Pre-seed PersonaArmStats for all persona × variant combinations so
     // concurrent decideForUser calls don't race on the upsert — run in parallel.
@@ -1072,6 +1078,14 @@ export async function POST(req: NextRequest) {
             scheduleDeliverHour ?? agent.fallbackSendHour ?? 8,
             now,
           );
+
+          // Global blackout: suppress sends landing on a blackout calendar date (checks the
+          // scheduledAt UTC anchor, so rolled-forward fallback sends are caught too).
+          if (isBlackoutDate(scheduledAt, blackoutDates)) {
+            totalSuppressed++;
+            suppress.blackout++;
+            continue;
+          }
 
           // Timing window: only select users whose preferred send time is within the next 2 hours.
           // Users on the fallback path (isFallback=true) have no behavioral preference and are
@@ -1467,6 +1481,14 @@ export async function POST(req: NextRequest) {
             scheduleDeliverHour ?? agent.fallbackSendHour ?? 8,
             now,
           );
+
+          // Global blackout: suppress sends landing on a blackout calendar date (checks the
+          // scheduledAt UTC anchor, so rolled-forward fallback sends are caught too).
+          if (isBlackoutDate(scheduledAt, blackoutDates)) {
+            totalSuppressed++;
+            suppress.blackout++;
+            continue;
+          }
 
           decisionInputs.push({
             user,

@@ -76,7 +76,12 @@ export default async function MessagesPage({ params }: { params: Promise<{ id: s
 
   return (
     <>
-      <Header title="Messages & Variants" description={agent.name} />
+      <Header
+        title="Messages & Variants"
+        description={agent.name}
+        backHref={`/agents/${agent.id}`}
+        backLabel={`Back to ${agent.name}`}
+      />
       <div className="p-4 sm:p-6 max-w-4xl">
         <AgentMessageManager agentId={agent.id} initialMessages={initialMessages} />
       </div>

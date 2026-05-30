@@ -447,7 +447,12 @@ export default async function AgentPerformancePage({
 
   return (
     <>
-      <Header title="Agent Performance" description={agentMeta.name} />
+      <Header
+        title="Agent Performance"
+        description={agentMeta.name}
+        backHref={`/agents/${id}`}
+        backLabel={`Back to ${agentMeta.name}`}
+      />
       <Suspense fallback={<PerformanceSkeleton />}>
         <PerformanceContent id={id} />
       </Suspense>
