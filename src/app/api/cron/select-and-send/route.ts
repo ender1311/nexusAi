@@ -22,8 +22,13 @@ import { parseFrequencyCap, parseQuietHours } from "@/lib/schemas/scheduling";
 import { computeFeatureVector, FEATURE_DIM } from "@/lib/engine/feature-vector";
 import type { BanditArm } from "@/lib/engine/types";
 import { recencyMultiplier } from "@/lib/engine/beta-pdf";
-import type { BrazeRecipient } from "@/lib/braze/payload-factory";
-import { GIVING_LINK_SENTINEL, buildGivingDeeplink } from "@/lib/engine/giving-link";
+import { buildEligibleAgentsByUser, classifyExplorationWindows } from "@/lib/cron/exploration-window";
+import { selectAudience, trimToCap } from "@/lib/cron/caps";
+import {
+  groupDecisionsByVariant,
+  dispatchSendGroups,
+  type VariantSendGroup,
+} from "@/lib/cron/send-grouping";
 
 // Allow up to 300s execution time on Vercel
 export const maxDuration = 300;
@@ -33,155 +38,6 @@ function verifyAuth(req: NextRequest): boolean {
   const secret = process.env.CRON_SECRET;
   if (!secret) return false; // always require CRON_SECRET — no fallback for cron
   return token === secret;
-}
-
-type VariantSendGroup = {
-  variantId: string;
-  brazeVariantId: string | null;
-  brazeCampaignId: string | null;
-  channel: string;
-  body: string;
-  title: string | null;
-  deeplink: string | null;
-  inLocalTime?: boolean;
-  scheduledAt?: Date;
-  externalUserIds: string[];
-  /** Nexus externalIds that are actually Braze user IDs (unverified users).
-   *  These are sent via the recipients[] format with braze_id instead of external_user_id. */
-  brazeOnlyIds: Set<string>;
-  decisionIds: string[];
-};
-
-// Local helper to send a batch of users for a variant group.
-// Encapsulates channel switch, payload building, Braze POST, and brazeSendId update.
-async function sendVariantGroup(
-  group: VariantSendGroup,
-  batchUserIds: string[],
-  batchDecisionIds: string[],
-  brazeClient: ReturnType<typeof createBrazeClient>,
-  factory: PayloadFactory,
-  agentId: string,
-  prisma: typeof import("@/lib/db").prisma,
-  onSuccessfulBatch?: (userIds: string[]) => void,
-): Promise<{ sent: number; errors: number }> {
-  try {
-    // BRAZE_NEXUS_CAMPAIGN_ID is the authoritative single Nexus campaign.
-    // It takes precedence over per-message DB values so all sends flow through
-    // one campaign and can be tracked in aggregate in Braze.
-    const resolvedCampaignId =
-      process.env.BRAZE_NEXUS_CAMPAIGN_ID ??
-      group.brazeCampaignId ??
-      undefined;
-
-    // Use recipients[] format when the batch contains unverified users (braze_id only).
-    // Verified users get { external_user_id }; unverified users get { braze_id }.
-    const hasBrazeOnly = batchUserIds.some((id) => group.brazeOnlyIds.has(id));
-    const audience = hasBrazeOnly
-      ? { recipients: batchUserIds.map((id): BrazeRecipient =>
-          group.brazeOnlyIds.has(id) ? { braze_id: id } : { external_user_id: id }
-        )}
-      : { externalUserIds: batchUserIds };
-    let payload: Record<string, unknown>;
-
-    if (group.channel === "push") {
-      payload = factory.buildPushPayload(
-        { title: group.title ?? "", body: group.body, deeplink: group.deeplink ?? undefined },
-        audience,
-        resolvedCampaignId,
-        group.brazeVariantId ?? undefined,
-        group.inLocalTime,
-      );
-    } else if (group.channel === "email") {
-      payload = factory.buildEmailPayload(
-        { subject: group.title ?? "", htmlBody: group.body },
-        audience,
-        resolvedCampaignId,
-        group.brazeVariantId ?? undefined,
-        group.inLocalTime,
-      );
-    } else {
-      payload = factory.buildSmsPayload(
-        { body: group.body },
-        audience,
-        resolvedCampaignId,
-        group.brazeVariantId ?? undefined,
-        group.inLocalTime,
-      );
-    }
-
-    // Route to scheduled endpoint when group has a future send time
-    const endpoint = group.scheduledAt
-      ? "/messages/schedule/create"
-      : "/messages/send";
-
-    if (group.scheduledAt) {
-      payload = { ...payload, schedule: { time: group.scheduledAt.toISOString() } };
-    }
-
-    // Do NOT pass send_id to Braze — Braze Currents events carry Braze's auto-assigned
-    // send_id back to us via /api/ingest/braze-events. We store a local UUID on
-    // UserDecision only as an "accepted by Braze" marker for the daily cap check.
-    const sendId = randomUUID();
-
-    const res = await brazeClient!.post(endpoint, payload);
-    if (res.ok) {
-      // Parse schedule_id for scheduled sends (returned by /messages/schedule/create)
-      let brazeScheduleId: string | null = null;
-      if (group.scheduledAt) {
-        try {
-          const json = await res.json() as { schedule_id?: string };
-          brazeScheduleId = json.schedule_id ?? null;
-        } catch { /* ignore parse errors */ }
-      }
-      // Persist tracking IDs on decisions so the analytics cron can match them
-      await prisma.userDecision.updateMany({
-        where: { id: { in: batchDecisionIds } },
-        data: {
-          brazeSendId: sendId,
-          ...(brazeScheduleId && { brazeScheduleId }),
-        },
-      });
-      if (onSuccessfulBatch) {
-        onSuccessfulBatch(batchUserIds);
-      }
-      return { sent: batchUserIds.length, errors: 0 };
-    } else {
-      // HTTP-level Braze error (non-exception path) — record failure, don't count as sent
-      let responseBody: unknown;
-      try { responseBody = await res.json(); } catch { responseBody = null; }
-      const reason = `HTTP ${res.status}: ${JSON.stringify(responseBody)}`;
-      console.error("[cron/select-and-send] Braze HTTP error:", reason, { variantId: group.variantId });
-      void prisma.failedBrazeSend.create({
-        data: {
-          agentId,
-          variantId: group.variantId,
-          channel:    group.channel,
-          userIds:    batchUserIds,
-          decisionIds: batchDecisionIds,
-          reason,
-        },
-      }).catch((dbErr: unknown) => {
-        console.error("[cron/select-and-send] Failed to write FailedBrazeSend record:", dbErr);
-      });
-      return { sent: 0, errors: batchUserIds.length };
-    }
-  } catch (err) {
-    const reason = err instanceof Error ? err.message : String(err);
-    console.error("[cron/select-and-send] Braze send error:", err);
-    void prisma.failedBrazeSend.create({
-      data: {
-        agentId,
-        variantId: group.variantId,
-        channel:   group.channel,
-        userIds:   batchUserIds,
-        decisionIds: batchDecisionIds,
-        reason,
-      },
-    }).catch((dbErr: unknown) => {
-      console.error("[cron/select-and-send] Failed to write FailedBrazeSend record:", dbErr);
-    });
-    return { sent: 0, errors: batchUserIds.length };
-  }
 }
 
 export async function POST(req: NextRequest) {
@@ -421,88 +277,15 @@ export async function POST(req: NextRequest) {
     ]);
     const assignmentByUser = new Map(existingAssignments.map((a) => [a.externalUserId, a]));
 
-    // For each exploration agent, index the personas it targets
-    const agentPersonaSets = new Map<string, Set<string>>();
-    for (const agent of explorationAgents) {
-      agentPersonaSets.set(
-        agent.id,
-        new Set(agent.personaTargets.map((pt) => pt.personaId))
-      );
-    }
-
-    // Build eligible agent list per user (respects per-agent language filter)
-    const eligibleAgentsByUser = new Map<string, string[]>();
-    for (const user of explorationUsers) {
-      if (!user.personaId) continue;
-      const eligible: string[] = [];
-      for (const agent of explorationAgents) {
-        if (!agentPersonaSets.get(agent.id)?.has(user.personaId)) continue;
-        const attrs = user.attributes as Record<string, unknown>;
-        // Channel eligibility: newsletter_push_enabled / newsletter_email_enabled must not be
-        // explicitly false. Absent or true = eligible (opt-out model; HT default: true).
-        const agentHasPush = agent.messages.some((m) => m.channel === "push");
-        if (agentHasPush && attrs?.newsletter_push_enabled === false) continue;
-        const agentHasEmail = agent.messages.some((m) => m.channel === "email");
-        if (agentHasEmail && attrs?.newsletter_email_enabled === false) continue;
-        // Language filter: agent.languageFilter takes precedence;
-        // push agents without explicit filter default to English-only sends.
-        const effectiveLang =
-          (agent.languageFilter && agent.languageFilter !== "all")
-            ? agent.languageFilter
-            : agentHasPush
-              ? "en"
-              : null;
-        if (effectiveLang) {
-          const lang = attrs?.language_tag as string | undefined;
-          if (!lang?.startsWith(effectiveLang)) continue;
-        }
-        // Funnel stage filter: skip user if their funnelStage doesn't match the agent's.
-        // Skip this check when segment targeting is active — segment membership is the filter.
-        const hasSegmentIncludes = !!(agent.segmentTargeting as { includes?: string[] } | null)?.includes?.length;
-        if (!agent.targetSegmentName && !hasSegmentIncludes && agent.funnelStage && user.funnelStage !== agent.funnelStage) continue;
-        eligible.push(agent.id);
-      }
-      if (eligible.length > 0) eligibleAgentsByUser.set(user.externalId, eligible);
-    }
-
-    // Class A: new assignments (no prior record) — bulk create in one round trip
-    const toCreate: Array<{ externalUserId: string; agentId: string }> = [];
-    // Class D: reset existing assignments (cooldown expired) — upsert per row (different agentId per user)
-    const toReset:  Array<{ externalUserId: string; agentId: string }> = [];
-    const toClose:  string[] = []; // assignment IDs where window expired without 4 sends
-
-    for (const user of explorationUsers) {
-      const assignment = assignmentByUser.get(user.externalId);
-
-      if (!assignment) {
-        // Class A: no prior assignment — newly eligible
-        const eligible = eligibleAgentsByUser.get(user.externalId) ?? [];
-        if (eligible.length === 0) continue;
-        const agentId = eligible[Math.floor(Math.random() * eligible.length)];
-        toCreate.push({ externalUserId: user.externalId, agentId });
-        inWindowMap.set(user.externalId, agentId);
-      } else if (assignment.windowCompletedAt === null) {
-        const age = now.getTime() - assignment.startedAt.getTime();
-        if (age <= windowMs) {
-          // Class B: active window — keep locked
-          inWindowMap.set(user.externalId, assignment.agentId);
-        } else {
-          // Class C: 8 days elapsed, never hit 4 sends — close window
-          toClose.push(assignment.id);
-        }
-      } else {
-        const timeSinceComplete = now.getTime() - assignment.windowCompletedAt.getTime();
-        if (timeSinceComplete > cooldownMs) {
-          // Class D: cooldown expired — new window
-          const eligible = eligibleAgentsByUser.get(user.externalId) ?? [];
-          if (eligible.length === 0) continue;
-          const agentId = eligible[Math.floor(Math.random() * eligible.length)];
-          toReset.push({ externalUserId: user.externalId, agentId });
-          inWindowMap.set(user.externalId, agentId);
-        }
-        // Class E: cooldown not yet expired — no action
-      }
-    }
+    const eligibleAgentsByUser = buildEligibleAgentsByUser(explorationAgents, explorationUsers);
+    const classification = classifyExplorationWindows(
+      explorationUsers,
+      assignmentByUser,
+      eligibleAgentsByUser,
+      { now, windowMs, cooldownMs },
+    );
+    const { toCreate, toReset, toClose } = classification;
+    for (const [uid, aid] of classification.inWindowMap) inWindowMap.set(uid, aid);
 
     // Apply DB writes:
     // Class A — single createMany (1 round trip for any number of new users)
@@ -557,49 +340,14 @@ export async function POST(req: NextRequest) {
     // Apply audience cap — time-bucketed selection when prioritizeLastSeen is on (default),
     // otherwise fall back to Fisher-Yates random shuffle.
     if (agent.audienceCap !== null && agent.audienceCap !== undefined) {
-      const prioritizeLastSeen = agent.schedulingRule?.prioritizeLastSeen !== false;
-      if (prioritizeLastSeen) {
-        // Partition users: those whose preferred send hour is within ±1 of the current UTC
-        // hour go first (time-match), then users with no preference (fallback timing).
-        // Users whose preferred hour is far from current are deferred to their matching run.
-        const currentHour = now.getUTCHours();
-        const hourMap = preferredHourByAgent.get(agent.id) ?? new Map<string, number | null>();
-        const timeMatch: string[] = [];
-        const noPreference: string[] = [];
-        for (const uid of lotteryUserIds) {
-          const h = hourMap.get(uid);
-          if (h !== null && h !== undefined) {
-            const diff = Math.abs(h - currentHour);
-            // Wrap around midnight: hour 23 and hour 0 are adjacent
-            if (Math.min(diff, 24 - diff) <= 1) timeMatch.push(uid);
-            // else: deferred to the matching hourly run — not counted as suppressed
-          } else {
-            noPreference.push(uid);
-          }
-        }
-        // Shuffle within each partition for fairness, then concat in priority order
-        for (let i = timeMatch.length - 1; i > 0; i--) {
-          const j = Math.floor(Math.random() * (i + 1));
-          [timeMatch[i], timeMatch[j]] = [timeMatch[j], timeMatch[i]];
-        }
-        for (let i = noPreference.length - 1; i > 0; i--) {
-          const j = Math.floor(Math.random() * (i + 1));
-          [noPreference[i], noPreference[j]] = [noPreference[j], noPreference[i]];
-        }
-        const eligible = [...timeMatch, ...noPreference];
-        const preCap = eligible.length;
-        lotteryUserIds = eligible.slice(0, agent.audienceCap);
-        suppress.audienceCap = preCap - lotteryUserIds.length;
-      } else {
-        // Original behavior: Fisher-Yates random lottery across all eligible users
-        for (let i = lotteryUserIds.length - 1; i > 0; i--) {
-          const j = Math.floor(Math.random() * (i + 1));
-          [lotteryUserIds[i], lotteryUserIds[j]] = [lotteryUserIds[j], lotteryUserIds[i]];
-        }
-        const preCap = lotteryUserIds.length;
-        lotteryUserIds = lotteryUserIds.slice(0, agent.audienceCap);
-        suppress.audienceCap = preCap - lotteryUserIds.length;
-      }
+      const selection = selectAudience(lotteryUserIds, {
+        audienceCap: agent.audienceCap,
+        prioritizeLastSeen: agent.schedulingRule?.prioritizeLastSeen !== false,
+        currentHour: now.getUTCHours(),
+        preferredHourByUser: preferredHourByAgent.get(agent.id) ?? new Map<string, number | null>(),
+      });
+      lotteryUserIds = selection.kept;
+      suppress.audienceCap = selection.suppressed;
     }
 
     // Daily send cap — stop / trim when the agent has already hit its daily limit.
@@ -612,14 +360,9 @@ export async function POST(req: NextRequest) {
           brazeSendId: { not: null },
         },
       });
-      const remaining = agent.dailySendCap - sentToday;
-      if (remaining <= 0) {
-        suppress.dailyCap += lotteryUserIds.length;
-        lotteryUserIds = [];
-      } else if (lotteryUserIds.length > remaining) {
-        suppress.dailyCap += lotteryUserIds.length - remaining;
-        lotteryUserIds = lotteryUserIds.slice(0, remaining);
-      }
+      const trimmed = trimToCap(lotteryUserIds, agent.dailySendCap - sentToday);
+      lotteryUserIds = trimmed.kept;
+      suppress.dailyCap += trimmed.suppressed;
     }
 
     // Lifetime unique users cap — stop sends when the agent has reached its ceiling of
@@ -629,14 +372,9 @@ export async function POST(req: NextRequest) {
         SELECT COUNT(DISTINCT "userId")::bigint AS n FROM "UserDecision" WHERE "agentId" = ${agent.id}
       `;
       const alreadyReached = Number(rows[0]?.n ?? 0);
-      const remaining = agent.uniqueUsersCap - alreadyReached;
-      if (remaining <= 0) {
-        suppress.uniqueUsersCap += lotteryUserIds.length;
-        lotteryUserIds = [];
-      } else if (lotteryUserIds.length > remaining) {
-        suppress.uniqueUsersCap += lotteryUserIds.length - remaining;
-        lotteryUserIds = lotteryUserIds.slice(0, remaining);
-      }
+      const trimmed = trimToCap(lotteryUserIds, agent.uniqueUsersCap - alreadyReached);
+      lotteryUserIds = trimmed.kept;
+      suppress.uniqueUsersCap += trimmed.suppressed;
     }
 
     // Lock lottery users to this agent — prevents other agents from grabbing them
@@ -937,7 +675,7 @@ export async function POST(req: NextRequest) {
 
       // Batch-decide for lottery users: load arm stats once, select variant in-memory,
       // then bulk-create all UserDecision records in a single createManyAndReturn call.
-      const byVariant: Record<string, VariantSendGroup> = {};
+      let byVariant: Record<string, VariantSendGroup> = {};
 
       if (quietFiltered.length > 0) {
         // Collect unique personaIds among eligible users
@@ -1121,75 +859,18 @@ export async function POST(req: NextRequest) {
           }
 
           // Group by variant + scheduled time for batch sending
-          for (const { user, variantId, scheduledAt, inLocalTime: isFallback } of lotteryDecisionInputs) {
-            const meta = variantMeta.get(variantId);
-            if (!meta) continue;
-            const decisionId = lotteryDecisionIdByUser.get(user.externalId);
-            if (!decisionId) continue;
-
-            // Resolve giving deeplink sentinel to per-user URL.
-            // Giving sentinel: compute per-user URL. The ladder in giving-link.ts has only 14 USD rungs,
-            // so most users with similar history share the same amount and thus the same groupKey —
-            // batching is preserved in practice.
-            const resolvedDeeplink = meta.deeplink === GIVING_LINK_SENTINEL
-              ? buildGivingDeeplink((user.attributes as Record<string, unknown>) ?? {})
-              : meta.deeplink;
-
-            const groupInLocalTime = isFallback;
-            const groupKey = `${variantId}:${scheduledAt.toISOString()}:${groupInLocalTime}:${resolvedDeeplink ?? ""}`;
-
-            if (!byVariant[groupKey]) {
-              byVariant[groupKey] = {
-                variantId,
-                brazeVariantId:  meta.brazeVariantId,
-                brazeCampaignId: meta.brazeCampaignId,
-                channel:         meta.channel,
-                body:            meta.body,
-                title:           meta.title,
-                deeplink:        resolvedDeeplink,
-                inLocalTime:     groupInLocalTime,
-                scheduledAt,
-                externalUserIds: [],
-                brazeOnlyIds:    new Set(),
-                decisionIds:     [],
-              };
-            }
-            byVariant[groupKey].externalUserIds.push(user.externalId);
-            // Unverified users have externalId === brazeId — flag them for braze_id targeting
-            if (user.brazeId && user.externalId === user.brazeId) {
-              byVariant[groupKey].brazeOnlyIds.add(user.externalId);
-            }
-            byVariant[groupKey].decisionIds.push(decisionId);
-          }
+          byVariant = groupDecisionsByVariant(lotteryDecisionInputs, variantMeta, lotteryDecisionIdByUser);
         }
       }
 
-      // Send all variant groups in parallel batches of 50
+      // Send all variant groups in parallel batches
       {
-        const BATCH = 50;
-        const CONCURRENCY = 50;
-        const sendTasks: Array<() => Promise<{ sent: number; errors: number }>> = [];
-        for (const group of Object.values(byVariant)) {
-          for (let i = 0; i < group.externalUserIds.length; i += BATCH) {
-            const batchUserIds    = group.externalUserIds.slice(i, i + BATCH);
-            const batchDecisionIds = group.decisionIds.slice(i, i + BATCH);
-            sendTasks.push(
-              () => sendVariantGroup(group, batchUserIds, batchDecisionIds, brazeClient, factory, agent.id, prisma),
-            );
-          }
-        }
-
-        for (let i = 0; i < sendTasks.length; i += CONCURRENCY) {
-          const results = await Promise.allSettled(sendTasks.slice(i, i + CONCURRENCY).map((t) => t()));
-          for (const r of results) {
-            if (r.status === "fulfilled") {
-              totalSent += r.value.sent;
-              totalErrors += r.value.errors;
-            } else {
-              totalErrors++;
-            }
-          }
-        }
+        const { sent, errors } = await dispatchSendGroups(
+          Object.values(byVariant),
+          { brazeClient, factory, agentId: agent.id, prisma },
+        );
+        totalSent += sent;
+        totalErrors += errors;
       }
 
       if (users.length < 500) break;
@@ -1315,8 +996,8 @@ export async function POST(req: NextRequest) {
 
       // Batch-decide for in-window users: load arm stats once, select variant in-memory,
       // then bulk-create all UserDecision records in a single createMany call.
-      const windowByVariant: Record<string, VariantSendGroup> = {};
-      const sentWindowUserIds: string[] = [];
+      let windowByVariant: Record<string, VariantSendGroup> = {};
+      let sentWindowUserIds: string[] = [];
 
       if (quietWindowUsers.length > 0) {
         // Collect all unique personaIds among eligible window users
@@ -1526,77 +1207,18 @@ export async function POST(req: NextRequest) {
         }
 
         // Group by variant + scheduled time for batch sending
-        for (const { user, variantId, scheduledAt, inLocalTime: isFallback } of decisionInputs) {
-          const meta = variantMeta.get(variantId);
-          if (!meta) continue;
-          const decisionId = decisionIdByUser.get(user.externalId);
-          if (!decisionId) continue;
-
-          // Resolve giving deeplink sentinel to per-user URL
-          const resolvedDeeplink = meta.deeplink === GIVING_LINK_SENTINEL
-            ? buildGivingDeeplink((user.attributes as Record<string, unknown>) ?? {})
-            : meta.deeplink;
-
-          const groupInLocalTime = isFallback;
-          const groupKey = `${variantId}:${scheduledAt.toISOString()}:${groupInLocalTime}:${resolvedDeeplink ?? ""}`;
-
-          if (!windowByVariant[groupKey]) {
-            windowByVariant[groupKey] = {
-              variantId,
-              brazeVariantId:  meta.brazeVariantId,
-              brazeCampaignId: meta.brazeCampaignId,
-              channel:         meta.channel,
-              body:            meta.body,
-              title:           meta.title,
-              deeplink:        resolvedDeeplink,
-              inLocalTime:     groupInLocalTime,
-              scheduledAt,
-              externalUserIds: [],
-              brazeOnlyIds:    new Set(),
-              decisionIds:     [],
-            };
-          }
-          windowByVariant[groupKey].externalUserIds.push(user.externalId);
-          if (user.brazeId && user.externalId === user.brazeId) {
-            windowByVariant[groupKey].brazeOnlyIds.add(user.externalId);
-          }
-          windowByVariant[groupKey].decisionIds.push(decisionId);
-        }
+        windowByVariant = groupDecisionsByVariant(decisionInputs, variantMeta, decisionIdByUser);
       }
 
-      // Send all window variant groups in parallel batches of 50
+      // Send all window variant groups in parallel batches
       {
-        const BATCH = 50;
-        const CONCURRENCY = 50;
-        type WindowSendTask = () => Promise<{ sent: number; errors: number; userIds: string[] }>;
-        const windowSendTasks: WindowSendTask[] = [];
-        for (const group of Object.values(windowByVariant)) {
-          for (let i = 0; i < group.externalUserIds.length; i += BATCH) {
-            const batchUserIds     = group.externalUserIds.slice(i, i + BATCH);
-            const batchDecisionIds = group.decisionIds.slice(i, i + BATCH);
-            windowSendTasks.push(async () => {
-              const localSent: string[] = [];
-              const result = await sendVariantGroup(
-                group, batchUserIds, batchDecisionIds, brazeClient, factory, agent.id, prisma,
-                (userIds) => localSent.push(...userIds),
-              );
-              return { ...result, userIds: localSent };
-            });
-          }
-        }
-
-        for (let i = 0; i < windowSendTasks.length; i += CONCURRENCY) {
-          const results = await Promise.allSettled(windowSendTasks.slice(i, i + CONCURRENCY).map((t) => t()));
-          for (const r of results) {
-            if (r.status === "fulfilled") {
-              totalSent += r.value.sent;
-              totalErrors += r.value.errors;
-              sentWindowUserIds.push(...r.value.userIds);
-            } else {
-              totalErrors++;
-            }
-          }
-        }
+        const { sent, errors, sentUserIds } = await dispatchSendGroups(
+          Object.values(windowByVariant),
+          { brazeClient, factory, agentId: agent.id, prisma },
+        );
+        totalSent += sent;
+        totalErrors += errors;
+        sentWindowUserIds = sentUserIds;
       }
 
       // Increment sendCount for each user who was actually sent to.
