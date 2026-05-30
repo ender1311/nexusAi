@@ -322,7 +322,7 @@ export default async function AgentDetailPage({ params }: { params: Promise<{ id
                                   {msg.channel === "push" && v.title && (
                                     <p className="text-xs text-muted-foreground">Title: {v.title}</p>
                                   )}
-                                  <p className="text-xs text-muted-foreground mt-0.5 truncate">{v.body}</p>
+                                  <p className="text-xs text-muted-foreground mt-0.5 truncate">Body: {v.body}</p>
                                   {msg.channel === "push" && v.deeplink && (
                                     <p className="text-xs text-muted-foreground truncate">Link: {v.deeplink}</p>
                                   )}
