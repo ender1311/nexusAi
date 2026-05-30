@@ -194,12 +194,27 @@ export function AgentCard({ agent, conversionRate, convergenceState, onDelete }:
                 />
               </div>
 
-              {conversionRate !== undefined && (
-                <div className="pt-1 border-t">
-                  <div className="flex items-center justify-between">
-                    <p className="text-xs text-muted-foreground">Conv. Rate</p>
-                    <p className="text-sm font-bold text-primary">{conversionRate.toFixed(1)}%</p>
-                  </div>
+              {(conversionRate !== undefined || agent.pushOpenRate != null) && (
+                <div className="pt-1 border-t space-y-1">
+                  {conversionRate !== undefined && (
+                    <div className="flex items-center justify-between">
+                      <p className="text-xs text-muted-foreground">Conv. Rate</p>
+                      <p className="text-sm font-bold text-primary">{conversionRate.toFixed(1)}%</p>
+                    </div>
+                  )}
+                  {agent.pushOpenRate != null && (
+                    <div className="flex items-center justify-between">
+                      <p className="text-xs text-muted-foreground">Push Open Rate</p>
+                      <span className="flex items-baseline gap-1.5">
+                        <span className="text-xs text-muted-foreground tabular-nums">
+                          {formatNumber(agent.pushOpens ?? 0)}/{formatNumber(agent.pushSends ?? 0)}
+                        </span>
+                        <span className="text-sm font-bold text-primary tabular-nums">
+                          {agent.pushOpenRate.toFixed(1)}%
+                        </span>
+                      </span>
+                    </div>
+                  )}
                 </div>
               )}
             </CardContent>
