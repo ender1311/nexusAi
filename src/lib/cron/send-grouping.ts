@@ -1,0 +1,273 @@
+import { randomUUID } from "crypto";
+import { createBrazeClient } from "@/lib/braze/client";
+import { PayloadFactory } from "@/lib/braze/payload-factory";
+import type { BrazeRecipient } from "@/lib/braze/payload-factory";
+import { GIVING_LINK_SENTINEL, buildGivingDeeplink } from "@/lib/engine/giving-link";
+
+export type VariantSendGroup = {
+  variantId: string;
+  brazeVariantId: string | null;
+  brazeCampaignId: string | null;
+  channel: string;
+  body: string;
+  title: string | null;
+  deeplink: string | null;
+  inLocalTime?: boolean;
+  scheduledAt?: Date;
+  externalUserIds: string[];
+  /** Nexus externalIds that are actually Braze user IDs (unverified users).
+   *  These are sent via the recipients[] format with braze_id instead of external_user_id. */
+  brazeOnlyIds: Set<string>;
+  decisionIds: string[];
+};
+
+export type VariantMeta = {
+  channel: string;
+  body: string;
+  title: string | null;
+  deeplink: string | null;
+  brazeCampaignId: string | null;
+  brazeVariantId: string | null;
+};
+
+type GroupUser = {
+  externalId: string;
+  brazeId: string | null;
+  attributes: unknown;
+};
+
+/**
+ * Pure: group per-user decisions into per-variant send batches, keyed by
+ * variant + scheduled time + local-time flag + resolved deeplink so that users
+ * sharing a payload are sent together. Resolves the giving-link sentinel to a
+ * per-user URL. No DB / network access.
+ */
+export function groupDecisionsByVariant(
+  inputs: Array<{ user: GroupUser; variantId: string; scheduledAt: Date; inLocalTime: boolean }>,
+  variantMeta: Map<string, VariantMeta>,
+  decisionIdByUser: Map<string, string>,
+): Record<string, VariantSendGroup> {
+  const byVariant: Record<string, VariantSendGroup> = {};
+
+  for (const { user, variantId, scheduledAt, inLocalTime: isFallback } of inputs) {
+    const meta = variantMeta.get(variantId);
+    if (!meta) continue;
+    const decisionId = decisionIdByUser.get(user.externalId);
+    if (!decisionId) continue;
+
+    const resolvedDeeplink = meta.deeplink === GIVING_LINK_SENTINEL
+      ? buildGivingDeeplink((user.attributes as Record<string, unknown>) ?? {})
+      : meta.deeplink;
+
+    const groupInLocalTime = isFallback;
+    const groupKey = `${variantId}:${scheduledAt.toISOString()}:${groupInLocalTime}:${resolvedDeeplink ?? ""}`;
+
+    if (!byVariant[groupKey]) {
+      byVariant[groupKey] = {
+        variantId,
+        brazeVariantId:  meta.brazeVariantId,
+        brazeCampaignId: meta.brazeCampaignId,
+        channel:         meta.channel,
+        body:            meta.body,
+        title:           meta.title,
+        deeplink:        resolvedDeeplink,
+        inLocalTime:     groupInLocalTime,
+        scheduledAt,
+        externalUserIds: [],
+        brazeOnlyIds:    new Set(),
+        decisionIds:     [],
+      };
+    }
+    byVariant[groupKey].externalUserIds.push(user.externalId);
+    // Unverified users have externalId === brazeId — flag them for braze_id targeting
+    if (user.brazeId && user.externalId === user.brazeId) {
+      byVariant[groupKey].brazeOnlyIds.add(user.externalId);
+    }
+    byVariant[groupKey].decisionIds.push(decisionId);
+  }
+
+  return byVariant;
+}
+
+// Send a batch of users for a variant group.
+// Encapsulates channel switch, payload building, Braze POST, and brazeSendId update.
+export async function sendVariantGroup(
+  group: VariantSendGroup,
+  batchUserIds: string[],
+  batchDecisionIds: string[],
+  brazeClient: ReturnType<typeof createBrazeClient>,
+  factory: PayloadFactory,
+  agentId: string,
+  prisma: typeof import("@/lib/db").prisma,
+  onSuccessfulBatch?: (userIds: string[]) => void,
+): Promise<{ sent: number; errors: number }> {
+  try {
+    // BRAZE_NEXUS_CAMPAIGN_ID is the authoritative single Nexus campaign.
+    // It takes precedence over per-message DB values so all sends flow through
+    // one campaign and can be tracked in aggregate in Braze.
+    const resolvedCampaignId =
+      process.env.BRAZE_NEXUS_CAMPAIGN_ID ??
+      group.brazeCampaignId ??
+      undefined;
+
+    // Use recipients[] format when the batch contains unverified users (braze_id only).
+    // Verified users get { external_user_id }; unverified users get { braze_id }.
+    const hasBrazeOnly = batchUserIds.some((id) => group.brazeOnlyIds.has(id));
+    const audience = hasBrazeOnly
+      ? { recipients: batchUserIds.map((id): BrazeRecipient =>
+          group.brazeOnlyIds.has(id) ? { braze_id: id } : { external_user_id: id }
+        )}
+      : { externalUserIds: batchUserIds };
+    let payload: Record<string, unknown>;
+
+    if (group.channel === "push") {
+      payload = factory.buildPushPayload(
+        { title: group.title ?? "", body: group.body, deeplink: group.deeplink ?? undefined },
+        audience,
+        resolvedCampaignId,
+        group.brazeVariantId ?? undefined,
+        group.inLocalTime,
+      );
+    } else if (group.channel === "email") {
+      payload = factory.buildEmailPayload(
+        { subject: group.title ?? "", htmlBody: group.body },
+        audience,
+        resolvedCampaignId,
+        group.brazeVariantId ?? undefined,
+        group.inLocalTime,
+      );
+    } else {
+      payload = factory.buildSmsPayload(
+        { body: group.body },
+        audience,
+        resolvedCampaignId,
+        group.brazeVariantId ?? undefined,
+        group.inLocalTime,
+      );
+    }
+
+    // Route to scheduled endpoint when group has a future send time
+    const endpoint = group.scheduledAt
+      ? "/messages/schedule/create"
+      : "/messages/send";
+
+    if (group.scheduledAt) {
+      payload = { ...payload, schedule: { time: group.scheduledAt.toISOString() } };
+    }
+
+    // Do NOT pass send_id to Braze — Braze Currents events carry Braze's auto-assigned
+    // send_id back to us via /api/ingest/braze-events. We store a local UUID on
+    // UserDecision only as an "accepted by Braze" marker for the daily cap check.
+    const sendId = randomUUID();
+
+    const res = await brazeClient!.post(endpoint, payload);
+    if (res.ok) {
+      // Parse schedule_id for scheduled sends (returned by /messages/schedule/create)
+      let brazeScheduleId: string | null = null;
+      if (group.scheduledAt) {
+        try {
+          const json = await res.json() as { schedule_id?: string };
+          brazeScheduleId = json.schedule_id ?? null;
+        } catch { /* ignore parse errors */ }
+      }
+      // Persist tracking IDs on decisions so the analytics cron can match them
+      await prisma.userDecision.updateMany({
+        where: { id: { in: batchDecisionIds } },
+        data: {
+          brazeSendId: sendId,
+          ...(brazeScheduleId && { brazeScheduleId }),
+        },
+      });
+      if (onSuccessfulBatch) {
+        onSuccessfulBatch(batchUserIds);
+      }
+      return { sent: batchUserIds.length, errors: 0 };
+    } else {
+      // HTTP-level Braze error (non-exception path) — record failure, don't count as sent
+      let responseBody: unknown;
+      try { responseBody = await res.json(); } catch { responseBody = null; }
+      const reason = `HTTP ${res.status}: ${JSON.stringify(responseBody)}`;
+      console.error("[cron/select-and-send] Braze HTTP error:", reason, { variantId: group.variantId });
+      void prisma.failedBrazeSend.create({
+        data: {
+          agentId,
+          variantId: group.variantId,
+          channel:    group.channel,
+          userIds:    batchUserIds,
+          decisionIds: batchDecisionIds,
+          reason,
+        },
+      }).catch((dbErr: unknown) => {
+        console.error("[cron/select-and-send] Failed to write FailedBrazeSend record:", dbErr);
+      });
+      return { sent: 0, errors: batchUserIds.length };
+    }
+  } catch (err) {
+    const reason = err instanceof Error ? err.message : String(err);
+    console.error("[cron/select-and-send] Braze send error:", err);
+    void prisma.failedBrazeSend.create({
+      data: {
+        agentId,
+        variantId: group.variantId,
+        channel:   group.channel,
+        userIds:   batchUserIds,
+        decisionIds: batchDecisionIds,
+        reason,
+      },
+    }).catch((dbErr: unknown) => {
+      console.error("[cron/select-and-send] Failed to write FailedBrazeSend record:", dbErr);
+    });
+    return { sent: 0, errors: batchUserIds.length };
+  }
+}
+
+/**
+ * Split each variant group into BATCH-sized chunks and POST them to Braze with
+ * bounded concurrency. Returns aggregate counts and the externalIds Braze
+ * accepted (used by the in-window pool to bump sendCount).
+ */
+export async function dispatchSendGroups(
+  groups: VariantSendGroup[],
+  ctx: {
+    brazeClient: ReturnType<typeof createBrazeClient>;
+    factory: PayloadFactory;
+    agentId: string;
+    prisma: typeof import("@/lib/db").prisma;
+  },
+): Promise<{ sent: number; errors: number; sentUserIds: string[] }> {
+  const BATCH = 50;
+  const CONCURRENCY = 50;
+  const tasks: Array<() => Promise<{ sent: number; errors: number; userIds: string[] }>> = [];
+  for (const group of groups) {
+    for (let i = 0; i < group.externalUserIds.length; i += BATCH) {
+      const batchUserIds = group.externalUserIds.slice(i, i + BATCH);
+      const batchDecisionIds = group.decisionIds.slice(i, i + BATCH);
+      tasks.push(async () => {
+        const localSent: string[] = [];
+        const result = await sendVariantGroup(
+          group, batchUserIds, batchDecisionIds, ctx.brazeClient, ctx.factory, ctx.agentId, ctx.prisma,
+          (userIds) => localSent.push(...userIds),
+        );
+        return { ...result, userIds: localSent };
+      });
+    }
+  }
+
+  let sent = 0;
+  let errors = 0;
+  const sentUserIds: string[] = [];
+  for (let i = 0; i < tasks.length; i += CONCURRENCY) {
+    const results = await Promise.allSettled(tasks.slice(i, i + CONCURRENCY).map((t) => t()));
+    for (const r of results) {
+      if (r.status === "fulfilled") {
+        sent += r.value.sent;
+        errors += r.value.errors;
+        sentUserIds.push(...r.value.userIds);
+      } else {
+        errors++;
+      }
+    }
+  }
+
+  return { sent, errors, sentUserIds };
+}
