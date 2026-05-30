@@ -337,7 +337,14 @@ async function attributeEvents(
       }
     }
 
-    const attributionHours = LONG_HORIZON.has(event.event_name) ? 30 * 24 : 48;
+    // in_local_time sends deliver up to 12h after their UTC scheduledFor anchor (far-west
+    // timezones), but the matcher windows on sentAt — so a late open could land past a flat
+    // 48h sentAt window and be silently dropped. Widen the push-open lookback by that buffer,
+    // mirroring LOCAL_TIME_DELIVERY_BUFFER_MS in agent-send-delivery-status.ts.
+    const LOCAL_TIME_DELIVERY_BUFFER_HOURS = 12;
+    const attributionHours =
+      (LONG_HORIZON.has(event.event_name) ? 30 * 24 : 48) +
+      (isPushOpen ? LOCAL_TIME_DELIVERY_BUFFER_HOURS : 0);
     const windowStart = new Date(occurredAt.getTime() - attributionHours * 60 * 60 * 1000);
 
     // push_open: also require pushOpenAt: null so we don't double-stamp the same send
