@@ -37,7 +37,12 @@ export default async function SchedulingPage({ params }: { params: Promise<{ id:
 
   return (
     <>
-      <Header title="Scheduling & Guardrails" description={agent.name} />
+      <Header
+        title="Scheduling & Guardrails"
+        description={agent.name}
+        backHref={`/agents/${id}`}
+        backLabel={`Back to ${agent.name}`}
+      />
       <SchedulingEditor agentId={id} initialRule={schedulingRule} />
     </>
   );

@@ -36,7 +36,12 @@ export default async function GoalsPage({ params }: { params: Promise<{ id: stri
 
   return (
     <>
-      <Header title="Goals Configuration" description={agent.name} />
+      <Header
+        title="Goals Configuration"
+        description={agent.name}
+        backHref={`/agents/${id}`}
+        backLabel={`Back to ${agent.name}`}
+      />
       <div className="p-4 sm:p-6 max-w-2xl space-y-4 sm:space-y-6">
         <GoalsEditor agentId={id} initialGoals={goals} />
       </div>

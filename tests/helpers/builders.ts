@@ -148,6 +148,7 @@ export async function createSchedulingRule(
   overrides: {
     frequencyCap?: object;
     quietHours?: object;
+    blackoutDates?: string[];
     smartSuppress?: boolean;
     suppressThresh?: number;
   } = {}

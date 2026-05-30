@@ -1,5 +1,5 @@
 import { describe, expect, it } from "bun:test";
-import { getTodayStartUTC, isInQuietHours, isQuietDay, peakActivityHour } from "@/lib/engine/scheduling";
+import { getTodayStartUTC, isBlackoutDate, isInQuietHours, isQuietDay, peakActivityHour } from "@/lib/engine/scheduling";
 
 describe("peakActivityHour", () => {
   it("returns null for an all-zero array (no conversion data)", () => {
@@ -214,5 +214,36 @@ describe("isInQuietHours", () => {
       expect(inPT).toBe(true);
       expect(inUTC).toBe(false);
     });
+  });
+});
+
+describe("isBlackoutDate", () => {
+  it("returns false when there are no blackout dates", () => {
+    expect(isBlackoutDate(new Date("2026-05-30T08:00:00Z"), [])).toBe(false);
+  });
+
+  it("returns true when the scheduled UTC date is in the blackout set", () => {
+    expect(isBlackoutDate(new Date("2026-05-30T08:00:00Z"), ["2026-05-30"])).toBe(true);
+  });
+
+  it("returns false when the scheduled UTC date is not in the blackout set", () => {
+    expect(isBlackoutDate(new Date("2026-05-29T08:00:00Z"), ["2026-05-30"])).toBe(false);
+  });
+
+  it("matches against the UTC calendar date of scheduledAt (rolled-forward fallback case)", () => {
+    // A fallback send rolled forward to the next UTC day must be caught by that day's blackout.
+    const rolledForward = new Date("2026-05-30T00:00:00Z");
+    expect(isBlackoutDate(rolledForward, ["2026-05-30"])).toBe(true);
+  });
+
+  it("uses UTC date, not local — 23:59Z still belongs to that UTC day", () => {
+    expect(isBlackoutDate(new Date("2026-05-30T23:59:59Z"), ["2026-05-30"])).toBe(true);
+    expect(isBlackoutDate(new Date("2026-05-30T23:59:59Z"), ["2026-05-31"])).toBe(false);
+  });
+
+  it("handles multiple blackout dates", () => {
+    const blackout = ["2026-05-30", "2026-05-31", "2026-06-01"];
+    expect(isBlackoutDate(new Date("2026-05-31T12:00:00Z"), blackout)).toBe(true);
+    expect(isBlackoutDate(new Date("2026-06-02T12:00:00Z"), blackout)).toBe(false);
   });
 });

@@ -152,6 +152,26 @@ export function isQuietDay(quietDays: number[], timezone: string, now: Date): bo
   return quietDays.includes(dayOfWeek);
 }
 
+/**
+ * Returns true if the scheduled send lands on one of the agent's blackout dates.
+ *
+ * Blackout dates are global "YYYY-MM-DD" calendar dates on which no messages may
+ * be sent, regardless of any other scheduling rule. We compare them against the
+ * UTC calendar date of `scheduledAt` — the Braze schedule anchor — which is also
+ * the delivery date for in_local_time sends. This matters because the fallback
+ * path rolls a past send-hour forward to *tomorrow*, so a Friday cron run can
+ * produce a Saturday delivery: checking `scheduledAt` (not `now`) is what catches
+ * that rolled-forward date.
+ *
+ * @param scheduledAt    The computed UTC send time (from computeScheduledAt).
+ * @param blackoutDates  Global blackout calendar dates as "YYYY-MM-DD" strings.
+ */
+export function isBlackoutDate(scheduledAt: Date, blackoutDates: string[]): boolean {
+  if (blackoutDates.length === 0) return false;
+  const ymd = scheduledAt.toISOString().slice(0, 10);
+  return blackoutDates.includes(ymd);
+}
+
 export function isInQuietHours(start: string, end: string, timezone: string, now: Date): boolean {
   let tzTime: string;
   try {
