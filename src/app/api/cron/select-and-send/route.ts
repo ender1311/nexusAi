@@ -18,6 +18,7 @@ import { getTodayStartUTC, computeScheduledAt, peakActivityHour, isInQuietHours,
 import { isTimingMatch } from "@/lib/engine/send-timing";
 import { LinUCB } from "@/lib/engine/linucb";
 import { selectVariant, blendArm } from "@/lib/engine/select-variant";
+import { parseFrequencyCap, parseQuietHours } from "@/lib/schemas/scheduling";
 import { computeFeatureVector, FEATURE_DIM } from "@/lib/engine/feature-vector";
 import type { BanditArm } from "@/lib/engine/types";
 import { recencyMultiplier } from "@/lib/engine/beta-pdf";
@@ -680,7 +681,7 @@ export async function POST(req: NextRequest) {
     const rule = agent.schedulingRule;
 
     // Resolve quiet hours mode (backward compat: timezone==="user" → schedule, any tz → suppress, absent → none)
-    const quietHoursRaw = rule?.quietHours as { mode?: string; start?: string; end?: string; timezone?: string; deliverAtHour?: number } | null;
+    const quietHoursRaw = parseQuietHours(rule?.quietHours);
     const qhMode = quietHoursRaw?.mode ?? (quietHoursRaw?.timezone === "user" ? "schedule" : quietHoursRaw ? "suppress" : "none");
     const quietHoursConfig = qhMode === "suppress" ? quietHoursRaw : null;
     const scheduleDeliverHour = qhMode === "schedule" ? (quietHoursRaw?.deliverAtHour ?? 8) : null;
@@ -781,7 +782,7 @@ export async function POST(req: NextRequest) {
       const userExternalIds = users.map((u) => u.externalId);
 
       // 4b. Bulk frequency cap check and 4d. Global daily cap — run in parallel (independent reads)
-      const freqCap = rule?.frequencyCap as unknown as { maxSends?: number; period?: string } | null;
+      const freqCap = parseFrequencyCap(rule?.frequencyCap);
       const hasLotteryFreqCap = rule && typeof freqCap?.maxSends === "number";
       const lotteryPeriodMs: Record<string, number> = {
         day:    86_400_000,
@@ -1230,7 +1231,7 @@ export async function POST(req: NextRequest) {
       const currentDayET = dayIndexMap[weekdayStr] ?? 0;
 
       // Frequency cap and global daily cap — run in parallel since they're independent reads
-      const windowFreqCap = rule?.frequencyCap as unknown as { maxSends?: number; period?: string } | null;
+      const windowFreqCap = parseFrequencyCap(rule?.frequencyCap);
       const hasFreqCap = rule && typeof windowFreqCap?.maxSends === "number";
       const periodMs: Record<string, number> = {
         day:    86_400_000,

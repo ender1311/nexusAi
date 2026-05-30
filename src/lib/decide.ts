@@ -5,6 +5,7 @@ import { computeFeatureVector } from "@/lib/engine/feature-vector";
 import { FEATURE_DIM } from "@/lib/engine/feature-vector";
 import { evaluateTargetFilter, buildComputedKeys } from "@/lib/engine/target-filter";
 import { isInQuietHours, isQuietDay, peakActivityHour } from "@/lib/engine/scheduling";
+import { parseQuietHours, parseFrequencyCap } from "@/lib/schemas/scheduling";
 import { prisma } from "@/lib/db";
 import type { BanditArm } from "@/lib/engine/types";
 import type { Prisma } from "@/generated/prisma/client";
@@ -142,7 +143,7 @@ export async function decideForUser(input: DecideInput): Promise<DecideResult | 
   if (rule && !skipSchedulingChecks) {
     // 4a. Quiet hours — suppress mode only; none/schedule skip the server-side check.
     // Backward compat: legacy records without mode default to suppress (or schedule if timezone="user").
-    const quietHoursRaw = rule.quietHours as unknown as { mode?: string; start?: string; end?: string; timezone?: string; quietDays?: number[] } | null;
+    const quietHoursRaw = parseQuietHours(rule.quietHours);
     const qhMode = quietHoursRaw?.mode ?? (quietHoursRaw?.timezone === "user" ? "schedule" : quietHoursRaw ? "suppress" : "none");
     if (qhMode === "suppress" && quietHoursRaw?.start && quietHoursRaw?.end) {
       const agentTz = quietHoursRaw.timezone ?? "UTC";
@@ -154,7 +155,7 @@ export async function decideForUser(input: DecideInput): Promise<DecideResult | 
     }
 
     // 4a-b. Quiet days — suppress sends on specific days of week (independent of time-based quiet hours)
-    const quietDaysRaw = Array.isArray(quietHoursRaw?.quietDays) ? (quietHoursRaw.quietDays as number[]) : [];
+    const quietDaysRaw = quietHoursRaw?.quietDays ?? [];
     if (quietDaysRaw.length > 0) {
       const agentTz2 = quietHoursRaw?.timezone ?? "UTC";
       const attrs2 = user.attributes as Record<string, unknown>;
@@ -165,7 +166,7 @@ export async function decideForUser(input: DecideInput): Promise<DecideResult | 
     }
 
     // 4b. Frequency cap — count recent decisions in the configured window
-    const freqCap = rule.frequencyCap as unknown as { maxSends?: number; period?: string } | null;
+    const freqCap = parseFrequencyCap(rule.frequencyCap);
     if (typeof freqCap?.maxSends === "number") {
       const periodMs: Record<string, number> = {
         day:    86_400_000,
