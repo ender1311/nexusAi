@@ -15,7 +15,7 @@ import { TestedVariablesBadges } from "@/components/agents/tested-variables-badg
 import { VariantDiffTable } from "@/components/agents/variant-diff-table";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { TestedVariable, MessageVariant, AgentStatus, FunnelStage } from "@/types/agent";
-import { getCachedAgent, getCachedActivePersonas, getCachedAgentAudienceData } from "@/lib/cache";
+import { getCachedAgent, getCachedActivePersonas, getCachedAgentAudienceData, getCachedAgentDecisionSplit } from "@/lib/cache";
 import { prisma } from "@/lib/db";
 import { getAuth } from "@/lib/auth";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -52,27 +52,19 @@ type QuietHours = { start: string; end: string; timezone: string };
 export default async function AgentDetailPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
 
-  const [agent, allPersonas, { isAdmin }, otherAgents, decisionSplit] = await Promise.all([
+  const [agent, allPersonas, { isAdmin }] = await Promise.all([
     getCachedAgent(id),
     getCachedActivePersonas(),
     getAuth(),
-    prisma.agent.findMany({ where: { id: { not: id } }, select: { color: true } }),
-    // Split decisions into delivered vs still-pending (future-scheduled in_local_time
-    // sends). The raw _count.decisions lumps them together, which makes a freshly
-    // scheduled agent look like thousands of messages already went out.
-    prisma.$queryRaw<Array<{ delivered: bigint; pending: bigint }>>`
-      SELECT
-        COUNT(*) FILTER (WHERE "scheduledFor" IS NULL OR "scheduledFor" <= NOW()) AS delivered,
-        COUNT(*) FILTER (WHERE "scheduledFor" IS NOT NULL AND "scheduledFor" > NOW()) AS pending
-      FROM "UserDecision"
-      WHERE "agentId" = ${id}
-    `,
   ]);
 
-  const deliveredDecisions = Number(decisionSplit[0]?.delivered ?? 0);
-  const pendingDecisions = Number(decisionSplit[0]?.pending ?? 0);
-
   if (!agent) notFound();
+
+  // Admin-only: colors of other agents feed the edit sheet's color picker.
+  // Non-admins never see the sheet, so skip the query entirely for them.
+  const usedColors = isAdmin
+    ? (await prisma.agent.findMany({ where: { id: { not: id } }, select: { color: true } })).map((a) => a.color)
+    : [];
 
   const freqCap = agent.schedulingRule?.frequencyCap as FrequencyCap | null;
   const quietHours = agent.schedulingRule?.quietHours as QuietHours | null;
@@ -98,14 +90,9 @@ export default async function AgentDetailPage({ params }: { params: Promise<{ id
           <div className="flex flex-wrap items-center gap-2">
             <AgentStatusBadge status={agent.status as AgentStatus} />
             <Badge variant="outline" className="text-xs">{algorithmLabels[agent.algorithm] ?? agent.algorithm}</Badge>
-            <Badge variant="outline" className="text-xs text-muted-foreground">
-              {formatNumber(deliveredDecisions)} sent
-            </Badge>
-            {pendingDecisions > 0 && (
-              <Badge variant="outline" className="text-xs text-muted-foreground">
-                {formatNumber(pendingDecisions)} scheduled
-              </Badge>
-            )}
+            <Suspense fallback={<Skeleton className="h-5 w-16 rounded-full" />}>
+              <SentCountBadges agentId={agent.id} />
+            </Suspense>
           </div>
           <div className="flex gap-2">
             {isAdmin && (
@@ -118,7 +105,7 @@ export default async function AgentDetailPage({ params }: { params: Promise<{ id
                 initialFunnelStage={agent.funnelStage as FunnelStage}
                 initialLanguageFilter={agent.languageFilter ?? "all"}
                 initialColor={agent.color ?? "#6366f1"}
-                usedColors={otherAgents.map((a) => a.color)}
+                usedColors={usedColors}
                 initialTargetSegmentName={agent.targetSegmentName ?? null}
                 initialSegmentTargeting={
                   (agent.segmentTargeting as { includes: string[]; excludes: string[] } | null) ?? null
@@ -224,12 +211,9 @@ export default async function AgentDetailPage({ params }: { params: Promise<{ id
               <Card>
                 <CardContent className="p-4">
                   <p className="text-xs text-muted-foreground">Messages Sent</p>
-                  <p className="text-2xl font-bold mt-1">{formatNumber(deliveredDecisions)}</p>
-                  {pendingDecisions > 0 && (
-                    <p className="text-xs text-muted-foreground mt-1">
-                      +{formatNumber(pendingDecisions)} scheduled
-                    </p>
-                  )}
+                  <Suspense fallback={<Skeleton className="h-8 w-16 mt-1" />}>
+                    <MessagesSentValue agentId={agent.id} />
+                  </Suspense>
                 </CardContent>
               </Card>
               <Card>
@@ -503,6 +487,39 @@ export default async function AgentDetailPage({ params }: { params: Promise<{ id
           </TabsContent>
         </Tabs>
       </div>
+    </>
+  );
+}
+
+/** Top-bar "N sent" + optional "N scheduled" badges — streamed so the slow
+ *  UserDecision count doesn't block the agent shell. */
+async function SentCountBadges({ agentId }: { agentId: string }) {
+  const { delivered, pending } = await getCachedAgentDecisionSplit(agentId);
+  return (
+    <>
+      <Badge variant="outline" className="text-xs text-muted-foreground">
+        {formatNumber(delivered)} sent
+      </Badge>
+      {pending > 0 && (
+        <Badge variant="outline" className="text-xs text-muted-foreground">
+          {formatNumber(pending)} scheduled
+        </Badge>
+      )}
+    </>
+  );
+}
+
+/** Overview "Messages Sent" card value — same streamed count as the top bar. */
+async function MessagesSentValue({ agentId }: { agentId: string }) {
+  const { delivered, pending } = await getCachedAgentDecisionSplit(agentId);
+  return (
+    <>
+      <p className="text-2xl font-bold mt-1">{formatNumber(delivered)}</p>
+      {pending > 0 && (
+        <p className="text-xs text-muted-foreground mt-1">
+          +{formatNumber(pending)} scheduled
+        </p>
+      )}
     </>
   );
 }

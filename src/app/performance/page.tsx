@@ -17,10 +17,10 @@ import {
   getCachedLiftSettings,
   getCachedLiftCounts,
   getCachedAllVariantNames,
-  getCachedBrazeStats,
   getCachedChartDecisions,
   getCachedPersonaVariantMatrix,
 } from "@/lib/cache";
+import { getCachedBrazeStats } from "@/lib/braze/analytics";
 import { baselineLiftSignificance, liftSignificance } from "@/lib/engine/lift-significance";
 import { cn, formatNumber, formatPercent } from "@/lib/utils";
 import type { AgentMetric, VariantMetric } from "@/types/metrics";
@@ -41,7 +41,7 @@ const getLiftSets = cache(getCachedLiftSettings);
 // calls getLiftCounts() shares the same resolution without a duplicate query.
 const getLiftCounts = cache(async () => {
   const { liftSince } = await getLiftSets();
-  const liftSinceDate = liftSince ? new Date(liftSince as unknown as string) : null;
+  const liftSinceDate = liftSince ? new Date(liftSince) : null;
   return getCachedLiftCounts(liftSinceDate);
 });
 

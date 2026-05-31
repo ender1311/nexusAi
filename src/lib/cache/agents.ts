@@ -1,0 +1,155 @@
+/**
+ * Agent-scoped `unstable_cache` wrappers.
+ * See ./index.ts for the tag taxonomy.
+ */
+import { cache } from "react";
+import { unstable_cache } from "next/cache";
+import { prisma } from "@/lib/db";
+import { LIBRARY_AGENT_NAME } from "@/lib/engine/template-sync";
+import { TTL } from "./ttl";
+
+/** Full agent detail with all relations. Tagged for targeted invalidation. */
+export function getCachedAgent(id: string) {
+  return unstable_cache(
+    () =>
+      prisma.agent.findUnique({
+        where: { id },
+        include: {
+          goals: true,
+          messages: { include: { variants: true } },
+          schedulingRule: true,
+          personaTargets: { include: { persona: true } },
+          _count: { select: { decisions: true } },
+        },
+      }),
+    ["agent", id],
+    { tags: [`agent-${id}`, "agents"], revalidate: TTL.STANDARD }
+  )();
+}
+
+/**
+ * Delivered vs still-pending decision counts for one agent.
+ * Split because the raw _count.decisions lumps future-scheduled in_local_time
+ * sends in with delivered ones, making a freshly scheduled agent look like
+ * thousands already went out. Cached + tagged so the detail page can stream it
+ * in its own Suspense boundary instead of blocking the shell.
+ */
+export function getCachedAgentDecisionSplit(id: string) {
+  return unstable_cache(
+    async () => {
+      const rows = await prisma.$queryRaw<Array<{ delivered: bigint; pending: bigint }>>`
+        SELECT
+          COUNT(*) FILTER (WHERE "scheduledFor" IS NULL OR "scheduledFor" <= NOW()) AS delivered,
+          COUNT(*) FILTER (WHERE "scheduledFor" IS NOT NULL AND "scheduledFor" > NOW()) AS pending
+        FROM "UserDecision"
+        WHERE "agentId" = ${id}
+      `;
+      return {
+        delivered: Number(rows[0]?.delivered ?? 0),
+        pending: Number(rows[0]?.pending ?? 0),
+      };
+    },
+    ["agent-decision-split", id],
+    { tags: [`agent-${id}`, "dashboard-stats"], revalidate: TTL.STANDARD }
+  )();
+}
+
+/** User count by persona + preview users for an agent's audience tab. */
+export function getCachedAgentAudienceData(agentId: string, personaIds: string[]) {
+  const key = personaIds.slice().sort().join(",");
+  return unstable_cache(
+    async () => {
+      if (personaIds.length === 0) return { userCountRows: [], previewUsers: [] };
+      const [userCountRows, previewUsers] = await Promise.all([
+        prisma.trackedUser.groupBy({
+          by: ["personaId"],
+          where: { personaId: { in: personaIds } },
+          _count: { personaId: true },
+        }),
+        prisma.trackedUser.findMany({
+          where: { personaId: { in: personaIds } },
+          select: { externalId: true, personaId: true, attributes: true },
+          take: 20,
+        }),
+      ]);
+      return { userCountRows, previewUsers };
+    },
+    ["agent-audience", agentId, key],
+    { tags: [`agent-${agentId}`, "agents"], revalidate: TTL.STANDARD }
+  )();
+}
+
+/** Lightweight agent list for dashboard sidebar. Direct DB query avoids HTTP round-trip on cold start. */
+export const getCachedAgentList = cache(
+  unstable_cache(
+    () =>
+      prisma.agent.findMany({
+        where: { name: { not: LIBRARY_AGENT_NAME } },
+        select: {
+          id: true,
+          name: true,
+          status: true,
+          _count: { select: { decisions: true } },
+        },
+        orderBy: { updatedAt: "desc" },
+      }),
+    ["agent-list"],
+    { tags: ["agents"], revalidate: TTL.STANDARD }
+  )
+);
+
+/** Agent list for control tower — includes funnelStage and description. */
+export const getCachedControlTowerAgents = unstable_cache(
+  () =>
+    prisma.agent.findMany({
+      where: { name: { not: LIBRARY_AGENT_NAME } },
+      select: { id: true, name: true, description: true, status: true, funnelStage: true, color: true },
+      orderBy: { updatedAt: "desc" },
+    }),
+  ["control-tower-agents"],
+  { tags: ["agents"], revalidate: TTL.STANDARD }
+);
+
+/**
+ * Per-agent card stats for the agents list: unique-user counts and push
+ * send/open counts. Both are full-table GROUP BYs over UserDecision (19M+ rows),
+ * so they're cached together instead of running on every page request.
+ * Numbers are materialized inside the cache fn (unstable_cache JSON-serializes,
+ * which would otherwise choke on bigint).
+ */
+export const getCachedAgentCardStats = unstable_cache(
+  async () => {
+    const [uniqueUserRows, pushRows] = await Promise.all([
+      prisma.$queryRaw<Array<{ agentId: string; cnt: bigint }>>`
+        SELECT "agentId", COUNT(DISTINCT "userId") AS cnt
+        FROM "UserDecision"
+        GROUP BY "agentId"
+      `,
+      prisma.$queryRaw<Array<{ agentId: string; sends: bigint; opens: bigint }>>`
+        SELECT "agentId",
+               COUNT(*) FILTER (
+                 WHERE "channel" = 'push'
+                   AND ("scheduledFor" IS NULL OR "scheduledFor" <= NOW())
+               ) AS sends,
+               COUNT(*) FILTER (WHERE "channel" = 'push' AND "pushOpenAt" IS NOT NULL) AS opens
+        FROM "UserDecision"
+        GROUP BY "agentId"
+      `,
+    ]);
+    return {
+      uniqueUsers: uniqueUserRows.map((r) => ({ agentId: r.agentId, count: Number(r.cnt) })),
+      pushStats: pushRows.map((r) => ({ agentId: r.agentId, sends: Number(r.sends), opens: Number(r.opens) })),
+    };
+  },
+  ["agent-card-stats"],
+  { tags: ["agents", "dashboard-stats"], revalidate: TTL.STANDARD }
+);
+
+/** All variant id+name pairs for display in performance tables. */
+export const getCachedAllVariantNames = cache(
+  unstable_cache(
+    () => prisma.messageVariant.findMany({ select: { id: true, name: true } }),
+    ["all-variant-names"],
+    { tags: ["agents"], revalidate: TTL.STANDARD }
+  )
+);

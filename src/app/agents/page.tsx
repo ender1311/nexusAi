@@ -13,7 +13,7 @@ import { prisma } from "@/lib/db";
 import { getAuth } from "@/lib/auth";
 import { getHiddenStatsForCurrentUser } from "@/lib/user-preferences";
 import { LIBRARY_AGENT_NAME } from "@/lib/engine/template-sync";
-import { getCachedAgentConvergenceStates } from "@/lib/cache";
+import { getCachedAgentConvergenceStates, getCachedAgentCardStats } from "@/lib/cache";
 
 const PAGE_SIZE = 20;
 
@@ -54,7 +54,7 @@ export default async function AgentsPage({
   // Parallelize WorkOS auth check, agent list, convergence states, unique user counts,
   // and per-agent push open rate (sends + opens from local UserDecision rows — mirrors
   // the per-agent performance page so the card stat is consistent).
-  const [{ isAdmin }, hiddenStats, { dbAgents }, convergenceStates, uniqueUserRows, pushRows] = await Promise.all([
+  const [{ isAdmin }, hiddenStats, { dbAgents }, convergenceStates, cardStats] = await Promise.all([
     getAuth(),
     getHiddenStatsForCurrentUser(),
     unstable_cache(
@@ -82,26 +82,12 @@ export default async function AgentsPage({
     { tags: ["agents"], revalidate: 900 },
   )(),
     getCachedAgentConvergenceStates(),
-    prisma.$queryRaw<Array<{ agentId: string; cnt: bigint }>>`
-      SELECT "agentId", COUNT(DISTINCT "userId") AS cnt
-      FROM "UserDecision"
-      GROUP BY "agentId"
-    `,
-    prisma.$queryRaw<Array<{ agentId: string; sends: bigint; opens: bigint }>>`
-      SELECT "agentId",
-             COUNT(*) FILTER (
-               WHERE "channel" = 'push'
-                 AND ("scheduledFor" IS NULL OR "scheduledFor" <= NOW())
-             ) AS sends,
-             COUNT(*) FILTER (WHERE "channel" = 'push' AND "pushOpenAt" IS NOT NULL) AS opens
-      FROM "UserDecision"
-      GROUP BY "agentId"
-    `,
+    getCachedAgentCardStats(),
   ]);
 
-  const uniqueUsersMap = new Map(uniqueUserRows.map((r) => [r.agentId, Number(r.cnt)]));
+  const uniqueUsersMap = new Map(cardStats.uniqueUsers.map((r) => [r.agentId, r.count]));
   const pushStatsMap = new Map(
-    pushRows.map((r) => [r.agentId, { sends: Number(r.sends), opens: Number(r.opens) }]),
+    cardStats.pushStats.map((r) => [r.agentId, { sends: r.sends, opens: r.opens }]),
   );
 
   // Determine whether any filters are active (for empty-state messaging)

@@ -18,10 +18,10 @@ import {
   getCachedTrackedUserCount,
   getCachedDashboardTimeSeries,
   getCachedRecentDecisions,
-  getCachedBrazeStats,
   getCachedAllVariantNames,
   getCachedFunnelStageBreakdown,
 } from "@/lib/cache";
+import { getCachedBrazeStats } from "@/lib/braze/analytics";
 import { formatNumber, formatDate } from "@/lib/utils";
 import { getHiddenStatsForCurrentUser } from "@/lib/user-preferences";
 import { isStatHidden } from "@/lib/stat-visibility";

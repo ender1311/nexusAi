@@ -1,4 +1,7 @@
-import { BrazeClient } from "./client";
+import { cache } from "react";
+import { unstable_cache } from "next/cache";
+import { BrazeClient, createBrazeClient } from "./client";
+import { TTL } from "@/lib/cache/ttl";
 
 export class BrazeAnalytics {
   constructor(private client: BrazeClient) {}
@@ -84,3 +87,61 @@ export class BrazeAnalytics {
     return normalized;
   }
 }
+
+/**
+ * Braze campaign direct/total open rates for the Nexus campaign, cached 4h.
+ * Returns null when Braze is unconfigured or the call fails/times out.
+ * Wraps an external HTTP call (3s AbortController timeout) — lives here, not in
+ * the DB cache module, since it isn't a Prisma query.
+ */
+export const getCachedBrazeStats = cache(unstable_cache(
+  async () => {
+    const campaignId = process.env.BRAZE_NEXUS_CAMPAIGN_ID;
+    if (!campaignId) return null;
+    const brazeClient = createBrazeClient();
+    if (!brazeClient) return null;
+    try {
+      const daysSince = 60;
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 3000);
+      let res: Response;
+      try {
+        res = await brazeClient.get(
+          "/campaigns/data_series",
+          { campaign_id: campaignId, length: Math.max(daysSince, 3) },
+          controller.signal,
+        );
+      } finally {
+        clearTimeout(timeoutId);
+      }
+      if (!res.ok) return null;
+      const data = await res.json() as { data?: Array<{ messages?: Record<string, unknown[]> }> };
+      let sends = 0, directOpens = 0, totalOpens = 0;
+      for (const point of (data.data ?? [])) {
+        if (!point.messages) continue;
+        for (const variations of Object.values(point.messages)) {
+          if (!Array.isArray(variations)) continue;
+          for (const v of variations) {
+            const s = v as Record<string, unknown>;
+            if (typeof s.sent === "number") sends += s.sent;
+            else if (typeof s.sends === "number") sends += s.sends;
+            if (typeof s.direct_opens === "number") directOpens += s.direct_opens;
+            if (typeof s.total_opens === "number") totalOpens += s.total_opens;
+          }
+        }
+      }
+      if (sends === 0) return null;
+      return {
+        sends,
+        directOpens,
+        totalOpens,
+        directOpenRate: parseFloat(((directOpens / sends) * 100).toFixed(2)),
+        totalOpenRate: parseFloat(((totalOpens / sends) * 100).toFixed(2)),
+      };
+    } catch {
+      return null;
+    }
+  },
+  ["braze-campaign-stats"],
+  { tags: ["braze-stats"], revalidate: TTL.LONG }
+));
