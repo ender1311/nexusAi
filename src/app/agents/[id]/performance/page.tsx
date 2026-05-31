@@ -76,6 +76,7 @@ async function PerformanceContent({ id }: { id: string }) {
         reward: true,
         channel: true,
         scheduledFor: true,
+        brazeSendId: true,
         messageVariantId: true,
       },
       orderBy: { sentAt: "asc" },
@@ -178,11 +179,13 @@ async function PerformanceContent({ id }: { id: string }) {
   const sends = decisions.length;
   const conversions = decisions.filter((d) => d.conversionAt !== null).length;
   const convRate = sends > 0 ? (conversions / sends) * 100 : 0;
-  // A future-scheduled (in_local_time) send hasn't been delivered yet, so it can't
-  // have an open — counting it as a "send" would deflate the open rate. Exclude
-  // rows whose scheduledFor is still in the future.
-  const isDelivered = (d: { scheduledFor: Date | null }) =>
-    d.scheduledFor === null || d.scheduledFor <= now;
+  // "Delivered" for open-rate purposes means Braze actually accepted the send
+  // (brazeSendId set — sentAt defaults to now() at insert so it can't be trusted)
+  // AND the delivery time has passed (a future-scheduled in_local_time send gets a
+  // brazeSendId at scheduling time but can't have an open yet). Counting either
+  // phantom/unsent rows or still-pending rows deflates the open rate.
+  const isDelivered = (d: { scheduledFor: Date | null; brazeSendId: string | null }) =>
+    d.brazeSendId !== null && (d.scheduledFor === null || d.scheduledFor <= now);
   const pushSends = decisions.filter((d) => d.channel === "push" && isDelivered(d)).length;
   const pushOpens = decisions.filter((d) => d.channel === "push" && d.pushOpenAt !== null).length;
   const pushOpenRate = pushSends > 0 ? (pushOpens / pushSends) * 100 : 0;
