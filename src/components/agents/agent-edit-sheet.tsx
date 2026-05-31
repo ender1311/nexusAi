@@ -24,6 +24,7 @@ import {
 } from "@/components/ui/sheet";
 import { FunnelStage, FUNNEL_STAGES, FUNNEL_STAGE_META } from "@/types/agent";
 import { AgentColorPicker } from "./agent-color-picker";
+import { resolveSegmentTargeting } from "@/lib/agent-targeting";
 import { cn } from "@/lib/utils";
 
 const ALGORITHM_OPTIONS = [
@@ -218,9 +219,7 @@ export function AgentEditSheet({
     if (!name.trim()) return;
     setSaving(true);
     try {
-      const resolvedSegmentTargeting = segmentMode
-        ? (segmentIncludes.length > 0 ? { includes: segmentIncludes, excludes: segmentExcludes } : null)
-        : (segmentExcludes.length > 0 ? { includes: [], excludes: segmentExcludes } : null);
+      const resolvedSegmentTargeting = resolveSegmentTargeting(segmentMode, segmentIncludes, segmentExcludes);
       await fetch(`/api/agents/${agentId}`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },

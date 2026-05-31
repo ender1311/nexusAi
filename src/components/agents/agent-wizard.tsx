@@ -19,6 +19,7 @@ import { PersonaBadge } from "@/components/personas/persona-badge";
 import { GoalPresetPicker } from "@/components/agents/goal-preset-picker";
 import { TemplatePicker, type TemplatePickerHandle } from "@/components/agents/template-picker";
 import { YouVersionGoalPreset } from "@/lib/constants/youversion";
+import { resolveSegmentTargeting } from "@/lib/agent-targeting";
 
 const STEPS = [
   { id: 1, label: "Basic Info", icon: Bot },
@@ -81,7 +82,7 @@ const ALGORITHM_OPTIONS = [
   },
 ];
 
-interface GoalDraft {
+type GoalDraft = {
   eventName: string;
   tier: GoalTier;
   valueWeight: number;
@@ -90,7 +91,7 @@ interface GoalDraft {
   weightDefault: number;
 }
 
-interface MessageDraft {
+type MessageDraft = {
   name: string;
   channel: Channel;
   variants: Array<{
@@ -169,7 +170,7 @@ function SegmentCheckList({
   );
 }
 
-interface FormData {
+type FormData = {
   name: string;
   description: string;
   algorithm: Algorithm;
@@ -328,9 +329,7 @@ export function AgentWizard({ personas }: { personas: Persona[] }) {
       const payload = {
         ...form,
         targetSegmentName: null,
-        segmentTargeting: form.segmentMode
-          ? (form.segmentIncludes.length > 0 ? { includes: form.segmentIncludes, excludes: form.segmentExcludes } : null)
-          : (form.segmentExcludes.length > 0 ? { includes: [], excludes: form.segmentExcludes } : null),
+        segmentTargeting: resolveSegmentTargeting(form.segmentMode, form.segmentIncludes, form.segmentExcludes),
         funnelStage: form.segmentMode ? "wau" : form.funnelStage,
       };
       const res = await fetch("/api/agents", {
