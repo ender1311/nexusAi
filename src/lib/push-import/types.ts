@@ -41,3 +41,12 @@ export type ImportPlan = {
   unmatched: Extract<StemPlan, { matched: false }>[];
   totals: { stems: number; matchedStems: number; unmatchedStems: number; creates: number; updates: number; noops: number };
 };
+
+/** Pure snapshot of a candidate variant for plan matching (no DB access in plan stage). */
+export type VariantSnapshot = {
+  id: string;
+  name: string;
+  body: string;
+  sourceFile: string | null;       // actionFeatures.sourceFile
+  existingLanguages: Set<string>;  // languages already present as translation rows
+};
