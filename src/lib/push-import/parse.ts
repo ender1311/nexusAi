@@ -2,6 +2,10 @@ import { load as parseYaml } from "js-yaml";
 import { normalizePushLocaleTag } from "@/lib/push-locale";
 import type { ParsedFilename, ParsedCopy } from "./types";
 
+// Loose gate only. Canonicalization (and the authority on valid languages) is
+// normalizePushLocaleTag — note it collapses unknown zh scripts (e.g. zh_XX) to
+// bare "zh", so two such filenames would resolve to the same language and collide
+// (last-write-wins) when grouped.
 const LANG_TOKEN = /^[a-z]{2,3}(_[a-z]{2,4})?$/i;
 
 /**
