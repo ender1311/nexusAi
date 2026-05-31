@@ -29,6 +29,8 @@ import {
   dispatchSendGroups,
   type VariantSendGroup,
 } from "@/lib/cron/send-grouping";
+import { VERSE_PUSH_SENTINEL, isVerseStrategy, type VersePool, type VerseStrategy } from "@/lib/verse-content";
+import { loadVersePool } from "@/lib/cron/verse-pool";
 
 // Allow up to 300s execution time on Vercel
 export const maxDuration = 300;
@@ -448,7 +450,19 @@ export async function POST(req: NextRequest) {
         m.set(r.language, { title: r.title, body: r.body });
       }
     }
-    const localization = { enabled: localizeEnabled, translationsByVariant };
+    // Verse-push experiment: variants flagged with VERSE_PUSH_SENTINEL resolve
+    // their copy from the CampaignContent verse pool at send time.
+    const strategyByVariant = new Map<string, VerseStrategy>();
+    for (const msg of agent.messages) {
+      for (const v of msg.variants) {
+        if (v.body === VERSE_PUSH_SENTINEL && isVerseStrategy(v.subcategory)) {
+          strategyByVariant.set(v.id, v.subcategory);
+        }
+      }
+    }
+    let versePool: VersePool | undefined;
+    if (strategyByVariant.size > 0) versePool = await loadVersePool(prisma);
+    const localization = { enabled: localizeEnabled, translationsByVariant, versePool, strategyByVariant };
     const initialAlpha = agent.algorithm !== "linucb" ? 1 : 0;
     const initialBeta  = agent.algorithm !== "linucb" ? 30 : 0;
     await Promise.all(

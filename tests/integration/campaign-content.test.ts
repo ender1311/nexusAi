@@ -170,6 +170,35 @@ describe("POST /api/campaign-content", () => {
     const body = await res.json();
     expect(body.error).toMatch(/title/);
   });
+
+  it("accepts a reference contentType with a body and returns 201", async () => {
+    const req = buildRequest("POST", {
+      campaign: "resurrection-push",
+      contentType: "reference",
+      language: "es",
+      usfmReference: "JHN.3.16",
+      body: "Juan 3:16",
+    }) as NextRequest;
+    const res = await POST(req);
+    expect(res.status).toBe(201);
+    const body = await res.json();
+    expect(body.data.contentType).toBe("reference");
+    expect(body.data.body).toBe("Juan 3:16");
+  });
+
+  it("rejects a reference contentType without a body", async () => {
+    const req = buildRequest("POST", {
+      campaign: "resurrection-push",
+      contentType: "reference",
+      language: "es",
+      usfmReference: "JHN.3.16",
+      // body omitted intentionally
+    }) as NextRequest;
+    const res = await POST(req);
+    expect(res.status).toBe(400);
+    const body = await res.json();
+    expect(body.error).toMatch(/body/);
+  });
 });
 
 describe("PATCH /api/campaign-content/[id]", () => {
