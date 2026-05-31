@@ -24,6 +24,7 @@ type LiftPanelProps = {
 
 export async function LiftPanel({ nexusSendsCount: sendsProp, nexusConversionsCount: convProp }: LiftPanelProps = {}) {
   const { baselineRate, liftSince } = await getCachedLiftSettings();
+  const liftSinceDate = liftSince ? new Date(liftSince) : null;
 
   // Headline counts — use pre-computed values when passed in (avoids duplicate DB queries
   // when the parent already fetched them), otherwise fall back to uncached COUNT queries.
@@ -33,7 +34,7 @@ export async function LiftPanel({ nexusSendsCount: sendsProp, nexusConversionsCo
     nexusSendsCount = sendsProp;
     nexusConversionsCount = convProp;
   } else {
-    const liftSinceFilter = liftSince ? { gte: liftSince } : undefined;
+    const liftSinceFilter = liftSinceDate ? { gte: liftSinceDate } : undefined;
     [nexusSendsCount, nexusConversionsCount] = await Promise.all([
       prisma.userDecision.count({
         where: { sentAt: liftSinceFilter, reward: { not: null } },
@@ -49,7 +50,7 @@ export async function LiftPanel({ nexusSendsCount: sendsProp, nexusConversionsCo
   // Sparkline — from cached chart decisions (already limited to last 30 days).
   // Filter further to the lift window if a start date is configured.
   const { rewardByDate } = await getCachedChartDecisions();
-  const liftSinceStr = liftSince?.toISOString().slice(0, 10) ?? null;
+  const liftSinceStr = liftSinceDate?.toISOString().slice(0, 10) ?? null;
 
   const sparklineData: TimeSeriesPoint[] = rewardByDate
     .filter((r) => !liftSinceStr || r.date >= liftSinceStr)
@@ -124,7 +125,7 @@ export async function LiftPanel({ nexusSendsCount: sendsProp, nexusConversionsCo
 
         {/* Context line */}
         <p className="text-xs text-muted-foreground">
-          {nexusSendsCount.toLocaleString()} scored sends · since {formatDate(liftSince)}
+          {nexusSendsCount.toLocaleString()} scored sends · since {formatDate(liftSinceDate)}
         </p>
 
         {/* Sparkline */}
@@ -139,7 +140,7 @@ export async function LiftPanel({ nexusSendsCount: sendsProp, nexusConversionsCo
 
         {/* Footer */}
         <p className="text-xs text-muted-foreground">
-          Nexus rate = reward &gt; 0 / scored sends · Baseline: configured in Settings · since {formatDate(liftSince)}
+          Nexus rate = reward &gt; 0 / scored sends · Baseline: configured in Settings · since {formatDate(liftSinceDate)}
         </p>
       </CardContent>
     </Card>
