@@ -129,6 +129,7 @@ export const getCachedAgentCardStats = unstable_cache(
         SELECT "agentId",
                COUNT(*) FILTER (
                  WHERE "channel" = 'push'
+                   AND "brazeSendId" IS NOT NULL
                    AND ("scheduledFor" IS NULL OR "scheduledFor" <= NOW())
                ) AS sends,
                COUNT(*) FILTER (WHERE "channel" = 'push' AND "pushOpenAt" IS NOT NULL) AS opens
