@@ -35,19 +35,30 @@ describe("ingest/users batch size cap (10000)", () => {
     expect(body.error).toContain("10000");
   });
 
-  it("accepts and upserts a batch over the old 1000 limit", async () => {
-    const COUNT = 1001;
-    const users = Array.from({ length: COUNT }, (_, i) => ({
-      external_user_id: `usr_${i}`,
-      attributes: { language_tag: "en" },
-    }));
+  it("accepts a batch over the old 1000 limit (no 'too large' rejection)", async () => {
+    // Prove the cap moved past 1000 without paying for 1000 real upserts: the
+    // size check runs before the anonymous-filter early-return, so a 1001-row
+    // batch that's mostly anonymous flows past the old limit and only upserts
+    // the few identified rows. The chunked upsert path itself is covered by the
+    // existing ingest-users batch/identity-resolution integration tests.
+    const IDENTIFIED = 5;
+    const TOTAL = 1001;
+    const users = [
+      ...Array.from({ length: IDENTIFIED }, (_, i) => ({
+        external_user_id: `usr_${i}`,
+        attributes: { language_tag: "en" },
+      })),
+      ...Array.from({ length: TOTAL - IDENTIFIED }, () => ({ attributes: {} })), // anonymous
+    ];
     const req = buildRequest("POST", { users }, AUTH);
     const res = await POST(req as NextRequest);
     const body = await res.json();
     expect(res.status).toBe(200);
-    expect(body.upserted).toBe(COUNT);
+    expect(body.error).toBeUndefined();
+    expect(body.upserted).toBe(IDENTIFIED);
+    expect(body.skipped_anonymous).toBe(TOTAL - IDENTIFIED);
 
     const count = await prisma.trackedUser.count();
-    expect(count).toBe(COUNT);
-  }, 30000);
+    expect(count).toBe(IDENTIFIED);
+  });
 });
