@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
 import { requireAdmin } from "@/lib/auth";
 
-const VALID_CONTENT_TYPES = new Set(["a-title", "b-title", "verse-text"]);
+const VALID_CONTENT_TYPES = new Set(["a-title", "b-title", "verse-text", "reference"]);
 
 export async function GET(req: NextRequest): Promise<NextResponse> {
   const { searchParams } = new URL(req.url);
@@ -48,7 +48,7 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
   }
   if (typeof contentType !== "string" || !VALID_CONTENT_TYPES.has(contentType)) {
     return NextResponse.json(
-      { error: "contentType must be a-title, b-title, or verse-text" },
+      { error: "contentType must be a-title, b-title, verse-text, or reference" },
       { status: 400 }
     );
   }
@@ -59,12 +59,12 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
     return NextResponse.json({ error: "usfmReference is required" }, { status: 400 });
   }
 
-  const isTitle = contentType !== "verse-text";
+  const isTitle = contentType === "a-title" || contentType === "b-title";
   if (isTitle && (typeof title !== "string" || !title.trim())) {
     return NextResponse.json({ error: "title is required for a-title and b-title" }, { status: 400 });
   }
   if (!isTitle && (typeof msgBody !== "string" || !(msgBody as string).trim())) {
-    return NextResponse.json({ error: "body is required for verse-text" }, { status: 400 });
+    return NextResponse.json({ error: "body is required for verse-text and reference" }, { status: 400 });
   }
 
   try {
