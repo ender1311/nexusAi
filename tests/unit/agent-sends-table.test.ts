@@ -1,78 +1,7 @@
 import { describe, it, expect } from "bun:test";
-
-// ─── Types (mirror component) ───────────────────────────────────────────────
-
-type SendRow = {
-  id: string;
-  userId: string;
-  channel: string;
-  sentAt: string;
-  scheduledFor: string | null;
-  brazeScheduleId: string | null;
-  variantId: string | null;
-  variantName: string | null;
-  variantTitle: string | null;
-  variantBody: string;
-  variantDeeplink: string | null;
-  brazeSendId: string | null;
-  personaName: string | null;
-  personaColor: string | null;
-  conversionAt: string | null;
-  reward: number | null;
-  decisionContext: unknown | null;
-  failed: boolean;
-};
-
-type SortField = "sentAt" | "channel" | "persona" | "variant";
-type SortDir = "asc" | "desc";
-
-type Filters = {
-  status: "all" | "success" | "failed" | "converted" | "pending";
-  channel: string;
-  persona: string;
-};
-
-type GroupedRows = { dateKey: string; label: string; rows: SendRow[] }[];
-
-// ─── Pure functions extracted from agent-sends-table.tsx ────────────────────
-// Copied verbatim so tests remain independent of the module boundary.
-
-function formatShortTime(isoStr: string): string {
-  const h = new Date(isoStr).getUTCHours();
-  const m = new Date(isoStr).getUTCMinutes();
-  const suffix = h >= 12 ? "pm" : "am";
-  const hour12 = h % 12 === 0 ? 12 : h % 12;
-  return m === 0 ? `${hour12}${suffix}` : `${hour12}:${String(m).padStart(2, "0")}${suffix}`;
-}
-
-function applyFilters(rows: SendRow[], filters: Filters, nowMs: number): SendRow[] {
-  return rows.filter((r) => {
-    if (filters.status === "success" && r.failed) return false;
-    if (filters.status === "failed" && !r.failed) return false;
-    if (filters.status === "converted" && !r.conversionAt) return false;
-    if (filters.status === "pending" && !(r.scheduledFor && r.scheduledFor > new Date(nowMs).toISOString())) return false;
-    if (filters.channel !== "all" && r.channel !== filters.channel) return false;
-    if (filters.persona !== "all" && (r.personaName ?? "none") !== filters.persona) return false;
-    return true;
-  });
-}
-
-function applySortToGroups(groups: GroupedRows, field: SortField, dir: SortDir): GroupedRows {
-  if (field === "sentAt") {
-    return dir === "asc" ? [...groups].reverse() : groups;
-  }
-  return groups.map((g) => ({
-    ...g,
-    rows: [...g.rows].sort((a, b) => {
-      let av = "";
-      let bv = "";
-      if (field === "channel") { av = a.channel; bv = b.channel; }
-      if (field === "persona") { av = a.personaName ?? ""; bv = b.personaName ?? ""; }
-      if (field === "variant") { av = a.variantName ?? ""; bv = b.variantName ?? ""; }
-      return dir === "asc" ? av.localeCompare(bv) : bv.localeCompare(av);
-    }),
-  }));
-}
+import { applyFilters, applySortToGroups, filtersActive } from "@/lib/agent-sends/grouping";
+import { formatShortTime } from "@/lib/agent-sends/format";
+import type { Filters, GroupedRows, SendRow } from "@/lib/agent-sends/types";
 
 // ─── Fixture helpers ─────────────────────────────────────────────────────────
 
@@ -206,7 +135,6 @@ describe("applyFilters", () => {
 
   it("persona filter matches exact persona name", () => {
     const result = applyFilters(rows, { ...allFilters, persona: "Seekers" }, nowMs);
-    // success, failed, converted, email all have personaName="Seekers"; noPersona does not
     expect(result.every((r) => r.personaName === "Seekers")).toBe(true);
     expect(result.find((r) => r.id === "np1")).toBeUndefined();
   });
@@ -315,12 +243,6 @@ describe("applySortToGroups", () => {
 
 // ─── filtersActive ───────────────────────────────────────────────────────────
 
-// Copied verbatim from agent-sends-table.tsx (line 402) so tests remain
-// independent of the module boundary.
-function filtersActive(f: Filters): boolean {
-  return f.status !== "all" || f.channel !== "all" || f.persona !== "all";
-}
-
 describe("filtersActive", () => {
   it("returns false when all filters are 'all' (default state)", () => {
     const filters: Filters = { status: "all", channel: "all", persona: "all" };
@@ -350,8 +272,6 @@ describe("filtersActive", () => {
   it("empty rows with active filter does not trigger empty-state guard", () => {
     const filters: Filters = { status: "failed", channel: "all", persona: "all" };
     const rows: SendRow[] = [];
-    // The guard at component line 525: if (rows.length === 0 && !filtersActive(filters))
-    // must be FALSE when a filter is active, to preserve filter UI
     expect(rows.length === 0 && !filtersActive(filters)).toBe(false);
   });
 });

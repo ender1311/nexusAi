@@ -1,26 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
-
-type SendRow = {
-  id: string;
-  userId: string;
-  channel: string;
-  sentAt: string;
-  scheduledFor: string | null;
-  brazeScheduleId: string | null;
-  variantId: string | null;
-  variantName: string | null;
-  variantTitle: string | null;
-  variantBody: string;
-  variantDeeplink: string | null;
-  brazeSendId: string | null;
-  personaName: string | null;
-  personaColor: string | null;
-  conversionAt: string | null;
-  reward: number | null;
-  decisionContext: unknown | null;
-  failed: boolean;
-};
+import type { SendRow, SendRowContext } from "@/lib/agent-sends/types";
 
 const DEFAULT_LIMIT = 50;
 const MAX_LIMIT = 100;
@@ -189,7 +169,7 @@ export async function GET(
         personaColor: persona?.color ?? null,
         conversionAt: d.conversionAt ? d.conversionAt.toISOString() : null,
         reward: d.reward ?? null,
-        decisionContext: d.decisionContext ?? null,
+        decisionContext: (d.decisionContext ?? null) as SendRowContext | null,
         failed,
       };
     });
