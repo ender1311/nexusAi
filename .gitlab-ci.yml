@@ -38,6 +38,7 @@ verify:test:quick:
     NODE_OPTIONS: --max-old-space-size=512
   script:
     - bun install --frozen-lockfile
+    - bunx prisma generate
     - bun run test:quick
 
 verify:test:int:
