@@ -55,6 +55,7 @@ export const ModelName = {
   Goal: 'Goal',
   Message: 'Message',
   MessageVariant: 'MessageVariant',
+  MessageVariantTranslation: 'MessageVariantTranslation',
   Deeplink: 'Deeplink',
   UserDecision: 'UserDecision',
   TrackedUser: 'TrackedUser',
@@ -75,7 +76,8 @@ export const ModelName = {
   IngestSyncLog: 'IngestSyncLog',
   CampaignContent: 'CampaignContent',
   DemoUserGroup: 'DemoUserGroup',
-  UserSegment: 'UserSegment'
+  UserSegment: 'UserSegment',
+  UserPreference: 'UserPreference'
 } as const
 
 export type ModelName = (typeof ModelName)[keyof typeof ModelName]
@@ -110,6 +112,7 @@ export const AgentScalarFieldEnum = {
   uniqueUsersCap: 'uniqueUsersCap',
   dailySendCap: 'dailySendCap',
   languageFilter: 'languageFilter',
+  localizePush: 'localizePush',
   staleFunnelStageDays: 'staleFunnelStageDays',
   color: 'color',
   sortOrder: 'sortOrder',
@@ -174,6 +177,23 @@ export const MessageVariantScalarFieldEnum = {
 } as const
 
 export type MessageVariantScalarFieldEnum = (typeof MessageVariantScalarFieldEnum)[keyof typeof MessageVariantScalarFieldEnum]
+
+
+export const MessageVariantTranslationScalarFieldEnum = {
+  id: 'id',
+  messageVariantId: 'messageVariantId',
+  language: 'language',
+  title: 'title',
+  body: 'body',
+  bodyPersonal: 'bodyPersonal',
+  status: 'status',
+  source: 'source',
+  sourceFile: 'sourceFile',
+  createdAt: 'createdAt',
+  updatedAt: 'updatedAt'
+} as const
+
+export type MessageVariantTranslationScalarFieldEnum = (typeof MessageVariantTranslationScalarFieldEnum)[keyof typeof MessageVariantTranslationScalarFieldEnum]
 
 
 export const DeeplinkScalarFieldEnum = {
@@ -468,6 +488,17 @@ export const UserSegmentScalarFieldEnum = {
 } as const
 
 export type UserSegmentScalarFieldEnum = (typeof UserSegmentScalarFieldEnum)[keyof typeof UserSegmentScalarFieldEnum]
+
+
+export const UserPreferenceScalarFieldEnum = {
+  id: 'id',
+  workosUserId: 'workosUserId',
+  hiddenStats: 'hiddenStats',
+  createdAt: 'createdAt',
+  updatedAt: 'updatedAt'
+} as const
+
+export type UserPreferenceScalarFieldEnum = (typeof UserPreferenceScalarFieldEnum)[keyof typeof UserPreferenceScalarFieldEnum]
 
 
 export const SortOrder = {

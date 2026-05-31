@@ -60,6 +60,7 @@ export type AgentMinAggregateOutputType = {
   uniqueUsersCap: number | null
   dailySendCap: number | null
   languageFilter: string | null
+  localizePush: boolean | null
   staleFunnelStageDays: number | null
   color: string | null
   sortOrder: number | null
@@ -81,6 +82,7 @@ export type AgentMaxAggregateOutputType = {
   uniqueUsersCap: number | null
   dailySendCap: number | null
   languageFilter: string | null
+  localizePush: boolean | null
   staleFunnelStageDays: number | null
   color: string | null
   sortOrder: number | null
@@ -104,6 +106,7 @@ export type AgentCountAggregateOutputType = {
   uniqueUsersCap: number
   dailySendCap: number
   languageFilter: number
+  localizePush: number
   staleFunnelStageDays: number
   color: number
   sortOrder: number
@@ -147,6 +150,7 @@ export type AgentMinAggregateInputType = {
   uniqueUsersCap?: true
   dailySendCap?: true
   languageFilter?: true
+  localizePush?: true
   staleFunnelStageDays?: true
   color?: true
   sortOrder?: true
@@ -168,6 +172,7 @@ export type AgentMaxAggregateInputType = {
   uniqueUsersCap?: true
   dailySendCap?: true
   languageFilter?: true
+  localizePush?: true
   staleFunnelStageDays?: true
   color?: true
   sortOrder?: true
@@ -191,6 +196,7 @@ export type AgentCountAggregateInputType = {
   uniqueUsersCap?: true
   dailySendCap?: true
   languageFilter?: true
+  localizePush?: true
   staleFunnelStageDays?: true
   color?: true
   sortOrder?: true
@@ -301,6 +307,7 @@ export type AgentGroupByOutputType = {
   uniqueUsersCap: number | null
   dailySendCap: number | null
   languageFilter: string
+  localizePush: boolean
   staleFunnelStageDays: number | null
   color: string
   sortOrder: number
@@ -347,6 +354,7 @@ export type AgentWhereInput = {
   uniqueUsersCap?: Prisma.IntNullableFilter<"Agent"> | number | null
   dailySendCap?: Prisma.IntNullableFilter<"Agent"> | number | null
   languageFilter?: Prisma.StringFilter<"Agent"> | string
+  localizePush?: Prisma.BoolFilter<"Agent"> | boolean
   staleFunnelStageDays?: Prisma.IntNullableFilter<"Agent"> | number | null
   color?: Prisma.StringFilter<"Agent"> | string
   sortOrder?: Prisma.IntFilter<"Agent"> | number
@@ -376,6 +384,7 @@ export type AgentOrderByWithRelationInput = {
   uniqueUsersCap?: Prisma.SortOrderInput | Prisma.SortOrder
   dailySendCap?: Prisma.SortOrderInput | Prisma.SortOrder
   languageFilter?: Prisma.SortOrder
+  localizePush?: Prisma.SortOrder
   staleFunnelStageDays?: Prisma.SortOrderInput | Prisma.SortOrder
   color?: Prisma.SortOrder
   sortOrder?: Prisma.SortOrder
@@ -408,6 +417,7 @@ export type AgentWhereUniqueInput = Prisma.AtLeast<{
   uniqueUsersCap?: Prisma.IntNullableFilter<"Agent"> | number | null
   dailySendCap?: Prisma.IntNullableFilter<"Agent"> | number | null
   languageFilter?: Prisma.StringFilter<"Agent"> | string
+  localizePush?: Prisma.BoolFilter<"Agent"> | boolean
   staleFunnelStageDays?: Prisma.IntNullableFilter<"Agent"> | number | null
   color?: Prisma.StringFilter<"Agent"> | string
   sortOrder?: Prisma.IntFilter<"Agent"> | number
@@ -437,6 +447,7 @@ export type AgentOrderByWithAggregationInput = {
   uniqueUsersCap?: Prisma.SortOrderInput | Prisma.SortOrder
   dailySendCap?: Prisma.SortOrderInput | Prisma.SortOrder
   languageFilter?: Prisma.SortOrder
+  localizePush?: Prisma.SortOrder
   staleFunnelStageDays?: Prisma.SortOrderInput | Prisma.SortOrder
   color?: Prisma.SortOrder
   sortOrder?: Prisma.SortOrder
@@ -468,6 +479,7 @@ export type AgentScalarWhereWithAggregatesInput = {
   uniqueUsersCap?: Prisma.IntNullableWithAggregatesFilter<"Agent"> | number | null
   dailySendCap?: Prisma.IntNullableWithAggregatesFilter<"Agent"> | number | null
   languageFilter?: Prisma.StringWithAggregatesFilter<"Agent"> | string
+  localizePush?: Prisma.BoolWithAggregatesFilter<"Agent"> | boolean
   staleFunnelStageDays?: Prisma.IntNullableWithAggregatesFilter<"Agent"> | number | null
   color?: Prisma.StringWithAggregatesFilter<"Agent"> | string
   sortOrder?: Prisma.IntWithAggregatesFilter<"Agent"> | number
@@ -491,6 +503,7 @@ export type AgentCreateInput = {
   uniqueUsersCap?: number | null
   dailySendCap?: number | null
   languageFilter?: string
+  localizePush?: boolean
   staleFunnelStageDays?: number | null
   color?: string
   sortOrder?: number
@@ -520,6 +533,7 @@ export type AgentUncheckedCreateInput = {
   uniqueUsersCap?: number | null
   dailySendCap?: number | null
   languageFilter?: string
+  localizePush?: boolean
   staleFunnelStageDays?: number | null
   color?: string
   sortOrder?: number
@@ -549,6 +563,7 @@ export type AgentUpdateInput = {
   uniqueUsersCap?: Prisma.NullableIntFieldUpdateOperationsInput | number | null
   dailySendCap?: Prisma.NullableIntFieldUpdateOperationsInput | number | null
   languageFilter?: Prisma.StringFieldUpdateOperationsInput | string
+  localizePush?: Prisma.BoolFieldUpdateOperationsInput | boolean
   staleFunnelStageDays?: Prisma.NullableIntFieldUpdateOperationsInput | number | null
   color?: Prisma.StringFieldUpdateOperationsInput | string
   sortOrder?: Prisma.IntFieldUpdateOperationsInput | number
@@ -578,6 +593,7 @@ export type AgentUncheckedUpdateInput = {
   uniqueUsersCap?: Prisma.NullableIntFieldUpdateOperationsInput | number | null
   dailySendCap?: Prisma.NullableIntFieldUpdateOperationsInput | number | null
   languageFilter?: Prisma.StringFieldUpdateOperationsInput | string
+  localizePush?: Prisma.BoolFieldUpdateOperationsInput | boolean
   staleFunnelStageDays?: Prisma.NullableIntFieldUpdateOperationsInput | number | null
   color?: Prisma.StringFieldUpdateOperationsInput | string
   sortOrder?: Prisma.IntFieldUpdateOperationsInput | number
@@ -607,6 +623,7 @@ export type AgentCreateManyInput = {
   uniqueUsersCap?: number | null
   dailySendCap?: number | null
   languageFilter?: string
+  localizePush?: boolean
   staleFunnelStageDays?: number | null
   color?: string
   sortOrder?: number
@@ -630,6 +647,7 @@ export type AgentUpdateManyMutationInput = {
   uniqueUsersCap?: Prisma.NullableIntFieldUpdateOperationsInput | number | null
   dailySendCap?: Prisma.NullableIntFieldUpdateOperationsInput | number | null
   languageFilter?: Prisma.StringFieldUpdateOperationsInput | string
+  localizePush?: Prisma.BoolFieldUpdateOperationsInput | boolean
   staleFunnelStageDays?: Prisma.NullableIntFieldUpdateOperationsInput | number | null
   color?: Prisma.StringFieldUpdateOperationsInput | string
   sortOrder?: Prisma.IntFieldUpdateOperationsInput | number
@@ -653,6 +671,7 @@ export type AgentUncheckedUpdateManyInput = {
   uniqueUsersCap?: Prisma.NullableIntFieldUpdateOperationsInput | number | null
   dailySendCap?: Prisma.NullableIntFieldUpdateOperationsInput | number | null
   languageFilter?: Prisma.StringFieldUpdateOperationsInput | string
+  localizePush?: Prisma.BoolFieldUpdateOperationsInput | boolean
   staleFunnelStageDays?: Prisma.NullableIntFieldUpdateOperationsInput | number | null
   color?: Prisma.StringFieldUpdateOperationsInput | string
   sortOrder?: Prisma.IntFieldUpdateOperationsInput | number
@@ -676,6 +695,7 @@ export type AgentCountOrderByAggregateInput = {
   uniqueUsersCap?: Prisma.SortOrder
   dailySendCap?: Prisma.SortOrder
   languageFilter?: Prisma.SortOrder
+  localizePush?: Prisma.SortOrder
   staleFunnelStageDays?: Prisma.SortOrder
   color?: Prisma.SortOrder
   sortOrder?: Prisma.SortOrder
@@ -707,6 +727,7 @@ export type AgentMaxOrderByAggregateInput = {
   uniqueUsersCap?: Prisma.SortOrder
   dailySendCap?: Prisma.SortOrder
   languageFilter?: Prisma.SortOrder
+  localizePush?: Prisma.SortOrder
   staleFunnelStageDays?: Prisma.SortOrder
   color?: Prisma.SortOrder
   sortOrder?: Prisma.SortOrder
@@ -728,6 +749,7 @@ export type AgentMinOrderByAggregateInput = {
   uniqueUsersCap?: Prisma.SortOrder
   dailySendCap?: Prisma.SortOrder
   languageFilter?: Prisma.SortOrder
+  localizePush?: Prisma.SortOrder
   staleFunnelStageDays?: Prisma.SortOrder
   color?: Prisma.SortOrder
   sortOrder?: Prisma.SortOrder
@@ -772,6 +794,10 @@ export type NullableIntFieldUpdateOperationsInput = {
   decrement?: number
   multiply?: number
   divide?: number
+}
+
+export type BoolFieldUpdateOperationsInput = {
+  set?: boolean
 }
 
 export type IntFieldUpdateOperationsInput = {
@@ -886,6 +912,7 @@ export type AgentCreateWithoutGoalsInput = {
   uniqueUsersCap?: number | null
   dailySendCap?: number | null
   languageFilter?: string
+  localizePush?: boolean
   staleFunnelStageDays?: number | null
   color?: string
   sortOrder?: number
@@ -914,6 +941,7 @@ export type AgentUncheckedCreateWithoutGoalsInput = {
   uniqueUsersCap?: number | null
   dailySendCap?: number | null
   languageFilter?: string
+  localizePush?: boolean
   staleFunnelStageDays?: number | null
   color?: string
   sortOrder?: number
@@ -958,6 +986,7 @@ export type AgentUpdateWithoutGoalsInput = {
   uniqueUsersCap?: Prisma.NullableIntFieldUpdateOperationsInput | number | null
   dailySendCap?: Prisma.NullableIntFieldUpdateOperationsInput | number | null
   languageFilter?: Prisma.StringFieldUpdateOperationsInput | string
+  localizePush?: Prisma.BoolFieldUpdateOperationsInput | boolean
   staleFunnelStageDays?: Prisma.NullableIntFieldUpdateOperationsInput | number | null
   color?: Prisma.StringFieldUpdateOperationsInput | string
   sortOrder?: Prisma.IntFieldUpdateOperationsInput | number
@@ -986,6 +1015,7 @@ export type AgentUncheckedUpdateWithoutGoalsInput = {
   uniqueUsersCap?: Prisma.NullableIntFieldUpdateOperationsInput | number | null
   dailySendCap?: Prisma.NullableIntFieldUpdateOperationsInput | number | null
   languageFilter?: Prisma.StringFieldUpdateOperationsInput | string
+  localizePush?: Prisma.BoolFieldUpdateOperationsInput | boolean
   staleFunnelStageDays?: Prisma.NullableIntFieldUpdateOperationsInput | number | null
   color?: Prisma.StringFieldUpdateOperationsInput | string
   sortOrder?: Prisma.IntFieldUpdateOperationsInput | number
@@ -1014,6 +1044,7 @@ export type AgentCreateWithoutMessagesInput = {
   uniqueUsersCap?: number | null
   dailySendCap?: number | null
   languageFilter?: string
+  localizePush?: boolean
   staleFunnelStageDays?: number | null
   color?: string
   sortOrder?: number
@@ -1042,6 +1073,7 @@ export type AgentUncheckedCreateWithoutMessagesInput = {
   uniqueUsersCap?: number | null
   dailySendCap?: number | null
   languageFilter?: string
+  localizePush?: boolean
   staleFunnelStageDays?: number | null
   color?: string
   sortOrder?: number
@@ -1086,6 +1118,7 @@ export type AgentUpdateWithoutMessagesInput = {
   uniqueUsersCap?: Prisma.NullableIntFieldUpdateOperationsInput | number | null
   dailySendCap?: Prisma.NullableIntFieldUpdateOperationsInput | number | null
   languageFilter?: Prisma.StringFieldUpdateOperationsInput | string
+  localizePush?: Prisma.BoolFieldUpdateOperationsInput | boolean
   staleFunnelStageDays?: Prisma.NullableIntFieldUpdateOperationsInput | number | null
   color?: Prisma.StringFieldUpdateOperationsInput | string
   sortOrder?: Prisma.IntFieldUpdateOperationsInput | number
@@ -1114,6 +1147,7 @@ export type AgentUncheckedUpdateWithoutMessagesInput = {
   uniqueUsersCap?: Prisma.NullableIntFieldUpdateOperationsInput | number | null
   dailySendCap?: Prisma.NullableIntFieldUpdateOperationsInput | number | null
   languageFilter?: Prisma.StringFieldUpdateOperationsInput | string
+  localizePush?: Prisma.BoolFieldUpdateOperationsInput | boolean
   staleFunnelStageDays?: Prisma.NullableIntFieldUpdateOperationsInput | number | null
   color?: Prisma.StringFieldUpdateOperationsInput | string
   sortOrder?: Prisma.IntFieldUpdateOperationsInput | number
@@ -1142,6 +1176,7 @@ export type AgentCreateWithoutDecisionsInput = {
   uniqueUsersCap?: number | null
   dailySendCap?: number | null
   languageFilter?: string
+  localizePush?: boolean
   staleFunnelStageDays?: number | null
   color?: string
   sortOrder?: number
@@ -1170,6 +1205,7 @@ export type AgentUncheckedCreateWithoutDecisionsInput = {
   uniqueUsersCap?: number | null
   dailySendCap?: number | null
   languageFilter?: string
+  localizePush?: boolean
   staleFunnelStageDays?: number | null
   color?: string
   sortOrder?: number
@@ -1214,6 +1250,7 @@ export type AgentUpdateWithoutDecisionsInput = {
   uniqueUsersCap?: Prisma.NullableIntFieldUpdateOperationsInput | number | null
   dailySendCap?: Prisma.NullableIntFieldUpdateOperationsInput | number | null
   languageFilter?: Prisma.StringFieldUpdateOperationsInput | string
+  localizePush?: Prisma.BoolFieldUpdateOperationsInput | boolean
   staleFunnelStageDays?: Prisma.NullableIntFieldUpdateOperationsInput | number | null
   color?: Prisma.StringFieldUpdateOperationsInput | string
   sortOrder?: Prisma.IntFieldUpdateOperationsInput | number
@@ -1242,6 +1279,7 @@ export type AgentUncheckedUpdateWithoutDecisionsInput = {
   uniqueUsersCap?: Prisma.NullableIntFieldUpdateOperationsInput | number | null
   dailySendCap?: Prisma.NullableIntFieldUpdateOperationsInput | number | null
   languageFilter?: Prisma.StringFieldUpdateOperationsInput | string
+  localizePush?: Prisma.BoolFieldUpdateOperationsInput | boolean
   staleFunnelStageDays?: Prisma.NullableIntFieldUpdateOperationsInput | number | null
   color?: Prisma.StringFieldUpdateOperationsInput | string
   sortOrder?: Prisma.IntFieldUpdateOperationsInput | number
@@ -1270,6 +1308,7 @@ export type AgentCreateWithoutPersonaTargetsInput = {
   uniqueUsersCap?: number | null
   dailySendCap?: number | null
   languageFilter?: string
+  localizePush?: boolean
   staleFunnelStageDays?: number | null
   color?: string
   sortOrder?: number
@@ -1298,6 +1337,7 @@ export type AgentUncheckedCreateWithoutPersonaTargetsInput = {
   uniqueUsersCap?: number | null
   dailySendCap?: number | null
   languageFilter?: string
+  localizePush?: boolean
   staleFunnelStageDays?: number | null
   color?: string
   sortOrder?: number
@@ -1342,6 +1382,7 @@ export type AgentUpdateWithoutPersonaTargetsInput = {
   uniqueUsersCap?: Prisma.NullableIntFieldUpdateOperationsInput | number | null
   dailySendCap?: Prisma.NullableIntFieldUpdateOperationsInput | number | null
   languageFilter?: Prisma.StringFieldUpdateOperationsInput | string
+  localizePush?: Prisma.BoolFieldUpdateOperationsInput | boolean
   staleFunnelStageDays?: Prisma.NullableIntFieldUpdateOperationsInput | number | null
   color?: Prisma.StringFieldUpdateOperationsInput | string
   sortOrder?: Prisma.IntFieldUpdateOperationsInput | number
@@ -1370,6 +1411,7 @@ export type AgentUncheckedUpdateWithoutPersonaTargetsInput = {
   uniqueUsersCap?: Prisma.NullableIntFieldUpdateOperationsInput | number | null
   dailySendCap?: Prisma.NullableIntFieldUpdateOperationsInput | number | null
   languageFilter?: Prisma.StringFieldUpdateOperationsInput | string
+  localizePush?: Prisma.BoolFieldUpdateOperationsInput | boolean
   staleFunnelStageDays?: Prisma.NullableIntFieldUpdateOperationsInput | number | null
   color?: Prisma.StringFieldUpdateOperationsInput | string
   sortOrder?: Prisma.IntFieldUpdateOperationsInput | number
@@ -1398,6 +1440,7 @@ export type AgentCreateWithoutSchedulingRuleInput = {
   uniqueUsersCap?: number | null
   dailySendCap?: number | null
   languageFilter?: string
+  localizePush?: boolean
   staleFunnelStageDays?: number | null
   color?: string
   sortOrder?: number
@@ -1426,6 +1469,7 @@ export type AgentUncheckedCreateWithoutSchedulingRuleInput = {
   uniqueUsersCap?: number | null
   dailySendCap?: number | null
   languageFilter?: string
+  localizePush?: boolean
   staleFunnelStageDays?: number | null
   color?: string
   sortOrder?: number
@@ -1470,6 +1514,7 @@ export type AgentUpdateWithoutSchedulingRuleInput = {
   uniqueUsersCap?: Prisma.NullableIntFieldUpdateOperationsInput | number | null
   dailySendCap?: Prisma.NullableIntFieldUpdateOperationsInput | number | null
   languageFilter?: Prisma.StringFieldUpdateOperationsInput | string
+  localizePush?: Prisma.BoolFieldUpdateOperationsInput | boolean
   staleFunnelStageDays?: Prisma.NullableIntFieldUpdateOperationsInput | number | null
   color?: Prisma.StringFieldUpdateOperationsInput | string
   sortOrder?: Prisma.IntFieldUpdateOperationsInput | number
@@ -1498,6 +1543,7 @@ export type AgentUncheckedUpdateWithoutSchedulingRuleInput = {
   uniqueUsersCap?: Prisma.NullableIntFieldUpdateOperationsInput | number | null
   dailySendCap?: Prisma.NullableIntFieldUpdateOperationsInput | number | null
   languageFilter?: Prisma.StringFieldUpdateOperationsInput | string
+  localizePush?: Prisma.BoolFieldUpdateOperationsInput | boolean
   staleFunnelStageDays?: Prisma.NullableIntFieldUpdateOperationsInput | number | null
   color?: Prisma.StringFieldUpdateOperationsInput | string
   sortOrder?: Prisma.IntFieldUpdateOperationsInput | number
@@ -1526,6 +1572,7 @@ export type AgentCreateWithoutMetricsInput = {
   uniqueUsersCap?: number | null
   dailySendCap?: number | null
   languageFilter?: string
+  localizePush?: boolean
   staleFunnelStageDays?: number | null
   color?: string
   sortOrder?: number
@@ -1554,6 +1601,7 @@ export type AgentUncheckedCreateWithoutMetricsInput = {
   uniqueUsersCap?: number | null
   dailySendCap?: number | null
   languageFilter?: string
+  localizePush?: boolean
   staleFunnelStageDays?: number | null
   color?: string
   sortOrder?: number
@@ -1598,6 +1646,7 @@ export type AgentUpdateWithoutMetricsInput = {
   uniqueUsersCap?: Prisma.NullableIntFieldUpdateOperationsInput | number | null
   dailySendCap?: Prisma.NullableIntFieldUpdateOperationsInput | number | null
   languageFilter?: Prisma.StringFieldUpdateOperationsInput | string
+  localizePush?: Prisma.BoolFieldUpdateOperationsInput | boolean
   staleFunnelStageDays?: Prisma.NullableIntFieldUpdateOperationsInput | number | null
   color?: Prisma.StringFieldUpdateOperationsInput | string
   sortOrder?: Prisma.IntFieldUpdateOperationsInput | number
@@ -1626,6 +1675,7 @@ export type AgentUncheckedUpdateWithoutMetricsInput = {
   uniqueUsersCap?: Prisma.NullableIntFieldUpdateOperationsInput | number | null
   dailySendCap?: Prisma.NullableIntFieldUpdateOperationsInput | number | null
   languageFilter?: Prisma.StringFieldUpdateOperationsInput | string
+  localizePush?: Prisma.BoolFieldUpdateOperationsInput | boolean
   staleFunnelStageDays?: Prisma.NullableIntFieldUpdateOperationsInput | number | null
   color?: Prisma.StringFieldUpdateOperationsInput | string
   sortOrder?: Prisma.IntFieldUpdateOperationsInput | number
@@ -1721,6 +1771,7 @@ export type AgentSelect<ExtArgs extends runtime.Types.Extensions.InternalArgs = 
   uniqueUsersCap?: boolean
   dailySendCap?: boolean
   languageFilter?: boolean
+  localizePush?: boolean
   staleFunnelStageDays?: boolean
   color?: boolean
   sortOrder?: boolean
@@ -1751,6 +1802,7 @@ export type AgentSelectCreateManyAndReturn<ExtArgs extends runtime.Types.Extensi
   uniqueUsersCap?: boolean
   dailySendCap?: boolean
   languageFilter?: boolean
+  localizePush?: boolean
   staleFunnelStageDays?: boolean
   color?: boolean
   sortOrder?: boolean
@@ -1774,6 +1826,7 @@ export type AgentSelectUpdateManyAndReturn<ExtArgs extends runtime.Types.Extensi
   uniqueUsersCap?: boolean
   dailySendCap?: boolean
   languageFilter?: boolean
+  localizePush?: boolean
   staleFunnelStageDays?: boolean
   color?: boolean
   sortOrder?: boolean
@@ -1797,6 +1850,7 @@ export type AgentSelectScalar = {
   uniqueUsersCap?: boolean
   dailySendCap?: boolean
   languageFilter?: boolean
+  localizePush?: boolean
   staleFunnelStageDays?: boolean
   color?: boolean
   sortOrder?: boolean
@@ -1804,7 +1858,7 @@ export type AgentSelectScalar = {
   updatedAt?: boolean
 }
 
-export type AgentOmit<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = runtime.Types.Extensions.GetOmit<"id" | "name" | "description" | "status" | "algorithm" | "epsilon" | "funnelStage" | "targetFilter" | "targetSegmentName" | "segmentTargeting" | "fallbackSendHour" | "audienceCap" | "uniqueUsersCap" | "dailySendCap" | "languageFilter" | "staleFunnelStageDays" | "color" | "sortOrder" | "createdAt" | "updatedAt", ExtArgs["result"]["agent"]>
+export type AgentOmit<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = runtime.Types.Extensions.GetOmit<"id" | "name" | "description" | "status" | "algorithm" | "epsilon" | "funnelStage" | "targetFilter" | "targetSegmentName" | "segmentTargeting" | "fallbackSendHour" | "audienceCap" | "uniqueUsersCap" | "dailySendCap" | "languageFilter" | "localizePush" | "staleFunnelStageDays" | "color" | "sortOrder" | "createdAt" | "updatedAt", ExtArgs["result"]["agent"]>
 export type AgentInclude<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
   goals?: boolean | Prisma.Agent$goalsArgs<ExtArgs>
   messages?: boolean | Prisma.Agent$messagesArgs<ExtArgs>
@@ -1843,6 +1897,7 @@ export type $AgentPayload<ExtArgs extends runtime.Types.Extensions.InternalArgs 
     uniqueUsersCap: number | null
     dailySendCap: number | null
     languageFilter: string
+    localizePush: boolean
     staleFunnelStageDays: number | null
     color: string
     sortOrder: number
@@ -2292,6 +2347,7 @@ export interface AgentFieldRefs {
   readonly uniqueUsersCap: Prisma.FieldRef<"Agent", 'Int'>
   readonly dailySendCap: Prisma.FieldRef<"Agent", 'Int'>
   readonly languageFilter: Prisma.FieldRef<"Agent", 'String'>
+  readonly localizePush: Prisma.FieldRef<"Agent", 'Boolean'>
   readonly staleFunnelStageDays: Prisma.FieldRef<"Agent", 'Int'>
   readonly color: Prisma.FieldRef<"Agent", 'String'>
   readonly sortOrder: Prisma.FieldRef<"Agent", 'Int'>

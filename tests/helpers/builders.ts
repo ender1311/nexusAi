@@ -11,6 +11,7 @@ export async function createAgent(overrides: {
   staleFunnelStageDays?: number | null;
   targetSegmentName?: string | null;
   segmentTargeting?: { includes: string[]; excludes: string[] } | null;
+  localizePush?: boolean;
 } = {}) {
   const { segmentTargeting, ...rest } = overrides;
   return prisma.agent.create({
@@ -278,6 +279,30 @@ export async function createUserAgentAssignment(params: {
       sendCount:         params.sendCount ?? 0,
       startedAt:         params.startedAt ?? new Date(),
       windowCompletedAt: params.windowCompletedAt ?? null,
+    },
+  });
+}
+
+export async function createVariantTranslation(
+  messageVariantId: string,
+  overrides: {
+    language?: string;
+    title?: string | null;
+    body?: string;
+    bodyPersonal?: string | null;
+    status?: string;
+    source?: string | null;
+    sourceFile?: string | null;
+  } = {}
+) {
+  return prisma.messageVariantTranslation.create({
+    data: {
+      messageVariantId,
+      language: "es",
+      body: "Cuerpo de prueba",
+      title: "Título de prueba",
+      status: "active",
+      ...overrides,
     },
   });
 }
