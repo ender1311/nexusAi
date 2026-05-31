@@ -32,6 +32,12 @@ function verifyAuth(req: NextRequest): boolean {
   return verifyIngestAuth(req.headers);
 }
 
+// Hightouch user-audience syncs ship large batches in a single POST. Identity
+// resolution and persona classification are batched (see below) so the whole
+// payload resolves within the function timeout. Note: Vercel caps the request
+// body at ~4.5MB, so very wide attribute rows may hit that ceiling before this.
+const MAX_USERS_PER_BATCH = 10000;
+
 // ── Types ─────────────────────────────────────────────────────────────────
 
 type UserRecord = {
@@ -598,9 +604,9 @@ export async function POST(req: NextRequest) {
     );
   }
 
-  if (users.length > 1000) {
+  if (users.length > MAX_USERS_PER_BATCH) {
     return NextResponse.json(
-      { error: "Batch too large: maximum 1000 users per request" },
+      { error: `Batch too large: maximum ${MAX_USERS_PER_BATCH} users per request` },
       { status: 400 },
     );
   }
@@ -680,6 +686,43 @@ export async function POST(req: NextRequest) {
       givingDecisionsByUser.set(row.userId, list);
     }
 
+    // Pre-resolve identity records for the whole chunk in two queries instead of
+    // a 3×findUnique fan-out per user. Only users that arrive with both a real
+    // external_user_id and a differing braze_id need identity reconciliation.
+    type IdRecord = { id: string; externalId: string };
+    const externalIdLookups = new Set<string>();
+    const brazeIdLookups = new Set<string>();
+    for (const u of chunk) {
+      const ext = u.external_user_id?.trim();
+      const bid = u.braze_id?.trim();
+      if (ext && bid && ext !== bid) {
+        externalIdLookups.add(ext);
+        externalIdLookups.add(bid); // brazeExternalRecord is keyed by externalId == brazeId
+        brazeIdLookups.add(bid);
+      }
+    }
+    const [byExternalIdRows, byBrazeIdRows] = await Promise.all([
+      externalIdLookups.size > 0
+        ? prisma.trackedUser.findMany({
+            where: { externalId: { in: [...externalIdLookups] } },
+            select: { id: true, externalId: true },
+          })
+        : Promise.resolve([] as IdRecord[]),
+      brazeIdLookups.size > 0
+        ? prisma.trackedUser.findMany({
+            where: { brazeId: { in: [...brazeIdLookups] } },
+            select: { id: true, externalId: true, brazeId: true },
+          })
+        : Promise.resolve([] as (IdRecord & { brazeId: string | null })[]),
+    ]);
+    const recordByExternalId = new Map<string, IdRecord>(
+      byExternalIdRows.map((r) => [r.externalId, r]),
+    );
+    const recordByBrazeId = new Map<string, IdRecord>();
+    for (const r of byBrazeIdRows) {
+      if (r.brazeId) recordByBrazeId.set(r.brazeId, { id: r.id, externalId: r.externalId });
+    }
+
     const results = await Promise.all(chunk.map(async (user) => {
       const externalUserId = user.external_user_id?.trim() || null;
       const brazeId = user.braze_id?.trim() || null;
@@ -691,11 +734,9 @@ export async function POST(req: NextRequest) {
       // and now arrives with a real external_user_id. Re-key the old record to avoid a
       // unique constraint violation on brazeId when creating the verified record.
       if (externalUserId && brazeId && externalUserId !== brazeId) {
-        const [realRecord, brazeExternalRecord, brazeOwner] = await Promise.all([
-          prisma.trackedUser.findUnique({ where: { externalId: externalUserId }, select: { id: true, externalId: true } }),
-          prisma.trackedUser.findUnique({ where: { externalId: brazeId }, select: { id: true, externalId: true } }),
-          prisma.trackedUser.findUnique({ where: { brazeId }, select: { id: true, externalId: true } }),
-        ]);
+        const realRecord = recordByExternalId.get(externalUserId) ?? null;
+        const brazeExternalRecord = recordByExternalId.get(brazeId) ?? null;
+        const brazeOwner = recordByBrazeId.get(brazeId) ?? null;
 
         if (brazeOwner && brazeOwner.externalId !== externalUserId && brazeOwner.externalId !== brazeId) {
           console.warn("[ingest/users] braze_id conflict; storing user without brazeId", {
