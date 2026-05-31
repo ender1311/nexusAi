@@ -23,6 +23,7 @@ import {
 } from "@/lib/cache";
 import { getCachedBrazeStats } from "@/lib/braze/analytics";
 import { formatNumber, formatDate } from "@/lib/utils";
+import { agentRowBadge } from "@/lib/dashboard-agent-row";
 import { getHiddenStatsForCurrentUser } from "@/lib/user-preferences";
 import { isStatHidden } from "@/lib/stat-visibility";
 import { TimeSeriesPoint, DecisionLog } from "@/types/metrics";
@@ -177,12 +178,12 @@ async function AgentsSidebar() {
                 <p className="text-xs font-medium truncate">{agent.name}</p>
                 <p className="text-xs text-muted-foreground capitalize">{agent.status}</p>
               </div>
-              {agent._count.decisions > 0 ? (
+              {agentRowBadge(agent.status, agent._count.decisions).kind === "draft" ? (
+                <Badge variant="outline" className="text-xs">Draft</Badge>
+              ) : (
                 <span className="text-xs font-bold text-primary ml-2">
                   {formatNumber(agent._count.decisions)} sends
                 </span>
-              ) : (
-                <Badge variant="outline" className="text-xs">Draft</Badge>
               )}
             </div>
           </Link>
