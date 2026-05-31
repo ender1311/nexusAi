@@ -19,6 +19,7 @@ export type TemplateVariant = {
   cta: string | null;
   category: string | null;
   subcategory: string | null;
+  languages: string[]; // canonical non-English translation codes present for this variant
 };
 
 export type TemplateGroup = {

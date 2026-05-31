@@ -344,6 +344,7 @@ export type MessageVariantWhereInput = {
   sourceTemplate?: Prisma.XOR<Prisma.MessageVariantNullableScalarRelationFilter, Prisma.MessageVariantWhereInput> | null
   clones?: Prisma.MessageVariantListRelationFilter
   decisions?: Prisma.UserDecisionListRelationFilter
+  translations?: Prisma.MessageVariantTranslationListRelationFilter
 }
 
 export type MessageVariantOrderByWithRelationInput = {
@@ -372,6 +373,7 @@ export type MessageVariantOrderByWithRelationInput = {
   sourceTemplate?: Prisma.MessageVariantOrderByWithRelationInput
   clones?: Prisma.MessageVariantOrderByRelationAggregateInput
   decisions?: Prisma.UserDecisionOrderByRelationAggregateInput
+  translations?: Prisma.MessageVariantTranslationOrderByRelationAggregateInput
 }
 
 export type MessageVariantWhereUniqueInput = Prisma.AtLeast<{
@@ -403,6 +405,7 @@ export type MessageVariantWhereUniqueInput = Prisma.AtLeast<{
   sourceTemplate?: Prisma.XOR<Prisma.MessageVariantNullableScalarRelationFilter, Prisma.MessageVariantWhereInput> | null
   clones?: Prisma.MessageVariantListRelationFilter
   decisions?: Prisma.UserDecisionListRelationFilter
+  translations?: Prisma.MessageVariantTranslationListRelationFilter
 }, "id">
 
 export type MessageVariantOrderByWithAggregationInput = {
@@ -485,6 +488,7 @@ export type MessageVariantCreateInput = {
   sourceTemplate?: Prisma.MessageVariantCreateNestedOneWithoutClonesInput
   clones?: Prisma.MessageVariantCreateNestedManyWithoutSourceTemplateInput
   decisions?: Prisma.UserDecisionCreateNestedManyWithoutVariantInput
+  translations?: Prisma.MessageVariantTranslationCreateNestedManyWithoutVariantInput
 }
 
 export type MessageVariantUncheckedCreateInput = {
@@ -511,6 +515,7 @@ export type MessageVariantUncheckedCreateInput = {
   createdAt?: Date | string
   clones?: Prisma.MessageVariantUncheckedCreateNestedManyWithoutSourceTemplateInput
   decisions?: Prisma.UserDecisionUncheckedCreateNestedManyWithoutVariantInput
+  translations?: Prisma.MessageVariantTranslationUncheckedCreateNestedManyWithoutVariantInput
 }
 
 export type MessageVariantUpdateInput = {
@@ -537,6 +542,7 @@ export type MessageVariantUpdateInput = {
   sourceTemplate?: Prisma.MessageVariantUpdateOneWithoutClonesNestedInput
   clones?: Prisma.MessageVariantUpdateManyWithoutSourceTemplateNestedInput
   decisions?: Prisma.UserDecisionUpdateManyWithoutVariantNestedInput
+  translations?: Prisma.MessageVariantTranslationUpdateManyWithoutVariantNestedInput
 }
 
 export type MessageVariantUncheckedUpdateInput = {
@@ -563,6 +569,7 @@ export type MessageVariantUncheckedUpdateInput = {
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   clones?: Prisma.MessageVariantUncheckedUpdateManyWithoutSourceTemplateNestedInput
   decisions?: Prisma.UserDecisionUncheckedUpdateManyWithoutVariantNestedInput
+  translations?: Prisma.MessageVariantTranslationUncheckedUpdateManyWithoutVariantNestedInput
 }
 
 export type MessageVariantCreateManyInput = {
@@ -728,6 +735,11 @@ export type MessageVariantSumOrderByAggregateInput = {
   preferredDayOfWeek?: Prisma.SortOrder
 }
 
+export type MessageVariantScalarRelationFilter = {
+  is?: Prisma.MessageVariantWhereInput
+  isNot?: Prisma.MessageVariantWhereInput
+}
+
 export type MessageVariantCreateNestedManyWithoutMessageInput = {
   create?: Prisma.XOR<Prisma.MessageVariantCreateWithoutMessageInput, Prisma.MessageVariantUncheckedCreateWithoutMessageInput> | Prisma.MessageVariantCreateWithoutMessageInput[] | Prisma.MessageVariantUncheckedCreateWithoutMessageInput[]
   connectOrCreate?: Prisma.MessageVariantCreateOrConnectWithoutMessageInput | Prisma.MessageVariantCreateOrConnectWithoutMessageInput[]
@@ -832,6 +844,20 @@ export type MessageVariantUncheckedUpdateManyWithoutSourceTemplateNestedInput = 
   deleteMany?: Prisma.MessageVariantScalarWhereInput | Prisma.MessageVariantScalarWhereInput[]
 }
 
+export type MessageVariantCreateNestedOneWithoutTranslationsInput = {
+  create?: Prisma.XOR<Prisma.MessageVariantCreateWithoutTranslationsInput, Prisma.MessageVariantUncheckedCreateWithoutTranslationsInput>
+  connectOrCreate?: Prisma.MessageVariantCreateOrConnectWithoutTranslationsInput
+  connect?: Prisma.MessageVariantWhereUniqueInput
+}
+
+export type MessageVariantUpdateOneRequiredWithoutTranslationsNestedInput = {
+  create?: Prisma.XOR<Prisma.MessageVariantCreateWithoutTranslationsInput, Prisma.MessageVariantUncheckedCreateWithoutTranslationsInput>
+  connectOrCreate?: Prisma.MessageVariantCreateOrConnectWithoutTranslationsInput
+  upsert?: Prisma.MessageVariantUpsertWithoutTranslationsInput
+  connect?: Prisma.MessageVariantWhereUniqueInput
+  update?: Prisma.XOR<Prisma.XOR<Prisma.MessageVariantUpdateToOneWithWhereWithoutTranslationsInput, Prisma.MessageVariantUpdateWithoutTranslationsInput>, Prisma.MessageVariantUncheckedUpdateWithoutTranslationsInput>
+}
+
 export type MessageVariantCreateNestedOneWithoutDecisionsInput = {
   create?: Prisma.XOR<Prisma.MessageVariantCreateWithoutDecisionsInput, Prisma.MessageVariantUncheckedCreateWithoutDecisionsInput>
   connectOrCreate?: Prisma.MessageVariantCreateOrConnectWithoutDecisionsInput
@@ -871,6 +897,7 @@ export type MessageVariantCreateWithoutMessageInput = {
   sourceTemplate?: Prisma.MessageVariantCreateNestedOneWithoutClonesInput
   clones?: Prisma.MessageVariantCreateNestedManyWithoutSourceTemplateInput
   decisions?: Prisma.UserDecisionCreateNestedManyWithoutVariantInput
+  translations?: Prisma.MessageVariantTranslationCreateNestedManyWithoutVariantInput
 }
 
 export type MessageVariantUncheckedCreateWithoutMessageInput = {
@@ -896,6 +923,7 @@ export type MessageVariantUncheckedCreateWithoutMessageInput = {
   createdAt?: Date | string
   clones?: Prisma.MessageVariantUncheckedCreateNestedManyWithoutSourceTemplateInput
   decisions?: Prisma.UserDecisionUncheckedCreateNestedManyWithoutVariantInput
+  translations?: Prisma.MessageVariantTranslationUncheckedCreateNestedManyWithoutVariantInput
 }
 
 export type MessageVariantCreateOrConnectWithoutMessageInput = {
@@ -974,6 +1002,7 @@ export type MessageVariantCreateWithoutClonesInput = {
   message: Prisma.MessageCreateNestedOneWithoutVariantsInput
   sourceTemplate?: Prisma.MessageVariantCreateNestedOneWithoutClonesInput
   decisions?: Prisma.UserDecisionCreateNestedManyWithoutVariantInput
+  translations?: Prisma.MessageVariantTranslationCreateNestedManyWithoutVariantInput
 }
 
 export type MessageVariantUncheckedCreateWithoutClonesInput = {
@@ -999,6 +1028,7 @@ export type MessageVariantUncheckedCreateWithoutClonesInput = {
   actionFeatures?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   createdAt?: Date | string
   decisions?: Prisma.UserDecisionUncheckedCreateNestedManyWithoutVariantInput
+  translations?: Prisma.MessageVariantTranslationUncheckedCreateNestedManyWithoutVariantInput
 }
 
 export type MessageVariantCreateOrConnectWithoutClonesInput = {
@@ -1029,6 +1059,7 @@ export type MessageVariantCreateWithoutSourceTemplateInput = {
   message: Prisma.MessageCreateNestedOneWithoutVariantsInput
   clones?: Prisma.MessageVariantCreateNestedManyWithoutSourceTemplateInput
   decisions?: Prisma.UserDecisionCreateNestedManyWithoutVariantInput
+  translations?: Prisma.MessageVariantTranslationCreateNestedManyWithoutVariantInput
 }
 
 export type MessageVariantUncheckedCreateWithoutSourceTemplateInput = {
@@ -1054,6 +1085,7 @@ export type MessageVariantUncheckedCreateWithoutSourceTemplateInput = {
   createdAt?: Date | string
   clones?: Prisma.MessageVariantUncheckedCreateNestedManyWithoutSourceTemplateInput
   decisions?: Prisma.UserDecisionUncheckedCreateNestedManyWithoutVariantInput
+  translations?: Prisma.MessageVariantTranslationUncheckedCreateNestedManyWithoutVariantInput
 }
 
 export type MessageVariantCreateOrConnectWithoutSourceTemplateInput = {
@@ -1100,6 +1132,7 @@ export type MessageVariantUpdateWithoutClonesInput = {
   message?: Prisma.MessageUpdateOneRequiredWithoutVariantsNestedInput
   sourceTemplate?: Prisma.MessageVariantUpdateOneWithoutClonesNestedInput
   decisions?: Prisma.UserDecisionUpdateManyWithoutVariantNestedInput
+  translations?: Prisma.MessageVariantTranslationUpdateManyWithoutVariantNestedInput
 }
 
 export type MessageVariantUncheckedUpdateWithoutClonesInput = {
@@ -1125,6 +1158,7 @@ export type MessageVariantUncheckedUpdateWithoutClonesInput = {
   actionFeatures?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   decisions?: Prisma.UserDecisionUncheckedUpdateManyWithoutVariantNestedInput
+  translations?: Prisma.MessageVariantTranslationUncheckedUpdateManyWithoutVariantNestedInput
 }
 
 export type MessageVariantUpsertWithWhereUniqueWithoutSourceTemplateInput = {
@@ -1141,6 +1175,126 @@ export type MessageVariantUpdateWithWhereUniqueWithoutSourceTemplateInput = {
 export type MessageVariantUpdateManyWithWhereWithoutSourceTemplateInput = {
   where: Prisma.MessageVariantScalarWhereInput
   data: Prisma.XOR<Prisma.MessageVariantUpdateManyMutationInput, Prisma.MessageVariantUncheckedUpdateManyWithoutSourceTemplateInput>
+}
+
+export type MessageVariantCreateWithoutTranslationsInput = {
+  id?: string
+  name: string
+  subject?: string | null
+  body: string
+  cta?: string | null
+  status?: string
+  brazeVariantId?: string | null
+  brazeCanvasStepId?: string | null
+  title?: string | null
+  iconImageUrl?: string | null
+  deeplink?: string | null
+  preferredHour?: number | null
+  preferredDayOfWeek?: number | null
+  frequencyCapOverride?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
+  warmupUntil?: Date | string | null
+  category?: string | null
+  subcategory?: string | null
+  actionFeatures?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
+  createdAt?: Date | string
+  message: Prisma.MessageCreateNestedOneWithoutVariantsInput
+  sourceTemplate?: Prisma.MessageVariantCreateNestedOneWithoutClonesInput
+  clones?: Prisma.MessageVariantCreateNestedManyWithoutSourceTemplateInput
+  decisions?: Prisma.UserDecisionCreateNestedManyWithoutVariantInput
+}
+
+export type MessageVariantUncheckedCreateWithoutTranslationsInput = {
+  id?: string
+  messageId: string
+  name: string
+  subject?: string | null
+  body: string
+  cta?: string | null
+  status?: string
+  brazeVariantId?: string | null
+  brazeCanvasStepId?: string | null
+  title?: string | null
+  iconImageUrl?: string | null
+  deeplink?: string | null
+  preferredHour?: number | null
+  preferredDayOfWeek?: number | null
+  frequencyCapOverride?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
+  warmupUntil?: Date | string | null
+  category?: string | null
+  subcategory?: string | null
+  sourceTemplateId?: string | null
+  actionFeatures?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
+  createdAt?: Date | string
+  clones?: Prisma.MessageVariantUncheckedCreateNestedManyWithoutSourceTemplateInput
+  decisions?: Prisma.UserDecisionUncheckedCreateNestedManyWithoutVariantInput
+}
+
+export type MessageVariantCreateOrConnectWithoutTranslationsInput = {
+  where: Prisma.MessageVariantWhereUniqueInput
+  create: Prisma.XOR<Prisma.MessageVariantCreateWithoutTranslationsInput, Prisma.MessageVariantUncheckedCreateWithoutTranslationsInput>
+}
+
+export type MessageVariantUpsertWithoutTranslationsInput = {
+  update: Prisma.XOR<Prisma.MessageVariantUpdateWithoutTranslationsInput, Prisma.MessageVariantUncheckedUpdateWithoutTranslationsInput>
+  create: Prisma.XOR<Prisma.MessageVariantCreateWithoutTranslationsInput, Prisma.MessageVariantUncheckedCreateWithoutTranslationsInput>
+  where?: Prisma.MessageVariantWhereInput
+}
+
+export type MessageVariantUpdateToOneWithWhereWithoutTranslationsInput = {
+  where?: Prisma.MessageVariantWhereInput
+  data: Prisma.XOR<Prisma.MessageVariantUpdateWithoutTranslationsInput, Prisma.MessageVariantUncheckedUpdateWithoutTranslationsInput>
+}
+
+export type MessageVariantUpdateWithoutTranslationsInput = {
+  id?: Prisma.StringFieldUpdateOperationsInput | string
+  name?: Prisma.StringFieldUpdateOperationsInput | string
+  subject?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  body?: Prisma.StringFieldUpdateOperationsInput | string
+  cta?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  status?: Prisma.StringFieldUpdateOperationsInput | string
+  brazeVariantId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  brazeCanvasStepId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  title?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  iconImageUrl?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  deeplink?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  preferredHour?: Prisma.NullableIntFieldUpdateOperationsInput | number | null
+  preferredDayOfWeek?: Prisma.NullableIntFieldUpdateOperationsInput | number | null
+  frequencyCapOverride?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
+  warmupUntil?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  category?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  subcategory?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  actionFeatures?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
+  createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
+  message?: Prisma.MessageUpdateOneRequiredWithoutVariantsNestedInput
+  sourceTemplate?: Prisma.MessageVariantUpdateOneWithoutClonesNestedInput
+  clones?: Prisma.MessageVariantUpdateManyWithoutSourceTemplateNestedInput
+  decisions?: Prisma.UserDecisionUpdateManyWithoutVariantNestedInput
+}
+
+export type MessageVariantUncheckedUpdateWithoutTranslationsInput = {
+  id?: Prisma.StringFieldUpdateOperationsInput | string
+  messageId?: Prisma.StringFieldUpdateOperationsInput | string
+  name?: Prisma.StringFieldUpdateOperationsInput | string
+  subject?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  body?: Prisma.StringFieldUpdateOperationsInput | string
+  cta?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  status?: Prisma.StringFieldUpdateOperationsInput | string
+  brazeVariantId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  brazeCanvasStepId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  title?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  iconImageUrl?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  deeplink?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  preferredHour?: Prisma.NullableIntFieldUpdateOperationsInput | number | null
+  preferredDayOfWeek?: Prisma.NullableIntFieldUpdateOperationsInput | number | null
+  frequencyCapOverride?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
+  warmupUntil?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  category?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  subcategory?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  sourceTemplateId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  actionFeatures?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
+  createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
+  clones?: Prisma.MessageVariantUncheckedUpdateManyWithoutSourceTemplateNestedInput
+  decisions?: Prisma.UserDecisionUncheckedUpdateManyWithoutVariantNestedInput
 }
 
 export type MessageVariantCreateWithoutDecisionsInput = {
@@ -1166,6 +1320,7 @@ export type MessageVariantCreateWithoutDecisionsInput = {
   message: Prisma.MessageCreateNestedOneWithoutVariantsInput
   sourceTemplate?: Prisma.MessageVariantCreateNestedOneWithoutClonesInput
   clones?: Prisma.MessageVariantCreateNestedManyWithoutSourceTemplateInput
+  translations?: Prisma.MessageVariantTranslationCreateNestedManyWithoutVariantInput
 }
 
 export type MessageVariantUncheckedCreateWithoutDecisionsInput = {
@@ -1191,6 +1346,7 @@ export type MessageVariantUncheckedCreateWithoutDecisionsInput = {
   actionFeatures?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   createdAt?: Date | string
   clones?: Prisma.MessageVariantUncheckedCreateNestedManyWithoutSourceTemplateInput
+  translations?: Prisma.MessageVariantTranslationUncheckedCreateNestedManyWithoutVariantInput
 }
 
 export type MessageVariantCreateOrConnectWithoutDecisionsInput = {
@@ -1232,6 +1388,7 @@ export type MessageVariantUpdateWithoutDecisionsInput = {
   message?: Prisma.MessageUpdateOneRequiredWithoutVariantsNestedInput
   sourceTemplate?: Prisma.MessageVariantUpdateOneWithoutClonesNestedInput
   clones?: Prisma.MessageVariantUpdateManyWithoutSourceTemplateNestedInput
+  translations?: Prisma.MessageVariantTranslationUpdateManyWithoutVariantNestedInput
 }
 
 export type MessageVariantUncheckedUpdateWithoutDecisionsInput = {
@@ -1257,6 +1414,7 @@ export type MessageVariantUncheckedUpdateWithoutDecisionsInput = {
   actionFeatures?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   clones?: Prisma.MessageVariantUncheckedUpdateManyWithoutSourceTemplateNestedInput
+  translations?: Prisma.MessageVariantTranslationUncheckedUpdateManyWithoutVariantNestedInput
 }
 
 export type MessageVariantCreateManyMessageInput = {
@@ -1305,6 +1463,7 @@ export type MessageVariantUpdateWithoutMessageInput = {
   sourceTemplate?: Prisma.MessageVariantUpdateOneWithoutClonesNestedInput
   clones?: Prisma.MessageVariantUpdateManyWithoutSourceTemplateNestedInput
   decisions?: Prisma.UserDecisionUpdateManyWithoutVariantNestedInput
+  translations?: Prisma.MessageVariantTranslationUpdateManyWithoutVariantNestedInput
 }
 
 export type MessageVariantUncheckedUpdateWithoutMessageInput = {
@@ -1330,6 +1489,7 @@ export type MessageVariantUncheckedUpdateWithoutMessageInput = {
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   clones?: Prisma.MessageVariantUncheckedUpdateManyWithoutSourceTemplateNestedInput
   decisions?: Prisma.UserDecisionUncheckedUpdateManyWithoutVariantNestedInput
+  translations?: Prisma.MessageVariantTranslationUncheckedUpdateManyWithoutVariantNestedInput
 }
 
 export type MessageVariantUncheckedUpdateManyWithoutMessageInput = {
@@ -1401,6 +1561,7 @@ export type MessageVariantUpdateWithoutSourceTemplateInput = {
   message?: Prisma.MessageUpdateOneRequiredWithoutVariantsNestedInput
   clones?: Prisma.MessageVariantUpdateManyWithoutSourceTemplateNestedInput
   decisions?: Prisma.UserDecisionUpdateManyWithoutVariantNestedInput
+  translations?: Prisma.MessageVariantTranslationUpdateManyWithoutVariantNestedInput
 }
 
 export type MessageVariantUncheckedUpdateWithoutSourceTemplateInput = {
@@ -1426,6 +1587,7 @@ export type MessageVariantUncheckedUpdateWithoutSourceTemplateInput = {
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   clones?: Prisma.MessageVariantUncheckedUpdateManyWithoutSourceTemplateNestedInput
   decisions?: Prisma.UserDecisionUncheckedUpdateManyWithoutVariantNestedInput
+  translations?: Prisma.MessageVariantTranslationUncheckedUpdateManyWithoutVariantNestedInput
 }
 
 export type MessageVariantUncheckedUpdateManyWithoutSourceTemplateInput = {
@@ -1459,11 +1621,13 @@ export type MessageVariantUncheckedUpdateManyWithoutSourceTemplateInput = {
 export type MessageVariantCountOutputType = {
   clones: number
   decisions: number
+  translations: number
 }
 
 export type MessageVariantCountOutputTypeSelect<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
   clones?: boolean | MessageVariantCountOutputTypeCountClonesArgs
   decisions?: boolean | MessageVariantCountOutputTypeCountDecisionsArgs
+  translations?: boolean | MessageVariantCountOutputTypeCountTranslationsArgs
 }
 
 /**
@@ -1488,6 +1652,13 @@ export type MessageVariantCountOutputTypeCountClonesArgs<ExtArgs extends runtime
  */
 export type MessageVariantCountOutputTypeCountDecisionsArgs<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
   where?: Prisma.UserDecisionWhereInput
+}
+
+/**
+ * MessageVariantCountOutputType without action
+ */
+export type MessageVariantCountOutputTypeCountTranslationsArgs<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
+  where?: Prisma.MessageVariantTranslationWhereInput
 }
 
 
@@ -1517,6 +1688,7 @@ export type MessageVariantSelect<ExtArgs extends runtime.Types.Extensions.Intern
   sourceTemplate?: boolean | Prisma.MessageVariant$sourceTemplateArgs<ExtArgs>
   clones?: boolean | Prisma.MessageVariant$clonesArgs<ExtArgs>
   decisions?: boolean | Prisma.MessageVariant$decisionsArgs<ExtArgs>
+  translations?: boolean | Prisma.MessageVariant$translationsArgs<ExtArgs>
   _count?: boolean | Prisma.MessageVariantCountOutputTypeDefaultArgs<ExtArgs>
 }, ExtArgs["result"]["messageVariant"]>
 
@@ -1602,6 +1774,7 @@ export type MessageVariantInclude<ExtArgs extends runtime.Types.Extensions.Inter
   sourceTemplate?: boolean | Prisma.MessageVariant$sourceTemplateArgs<ExtArgs>
   clones?: boolean | Prisma.MessageVariant$clonesArgs<ExtArgs>
   decisions?: boolean | Prisma.MessageVariant$decisionsArgs<ExtArgs>
+  translations?: boolean | Prisma.MessageVariant$translationsArgs<ExtArgs>
   _count?: boolean | Prisma.MessageVariantCountOutputTypeDefaultArgs<ExtArgs>
 }
 export type MessageVariantIncludeCreateManyAndReturn<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
@@ -1620,6 +1793,7 @@ export type $MessageVariantPayload<ExtArgs extends runtime.Types.Extensions.Inte
     sourceTemplate: Prisma.$MessageVariantPayload<ExtArgs> | null
     clones: Prisma.$MessageVariantPayload<ExtArgs>[]
     decisions: Prisma.$UserDecisionPayload<ExtArgs>[]
+    translations: Prisma.$MessageVariantTranslationPayload<ExtArgs>[]
   }
   scalars: runtime.Types.Extensions.GetPayloadResult<{
     id: string
@@ -2041,6 +2215,7 @@ export interface Prisma__MessageVariantClient<T, Null = never, ExtArgs extends r
   sourceTemplate<T extends Prisma.MessageVariant$sourceTemplateArgs<ExtArgs> = {}>(args?: Prisma.Subset<T, Prisma.MessageVariant$sourceTemplateArgs<ExtArgs>>): Prisma.Prisma__MessageVariantClient<runtime.Types.Result.GetResult<Prisma.$MessageVariantPayload<ExtArgs>, T, "findUniqueOrThrow", GlobalOmitOptions> | null, null, ExtArgs, GlobalOmitOptions>
   clones<T extends Prisma.MessageVariant$clonesArgs<ExtArgs> = {}>(args?: Prisma.Subset<T, Prisma.MessageVariant$clonesArgs<ExtArgs>>): Prisma.PrismaPromise<runtime.Types.Result.GetResult<Prisma.$MessageVariantPayload<ExtArgs>, T, "findMany", GlobalOmitOptions> | Null>
   decisions<T extends Prisma.MessageVariant$decisionsArgs<ExtArgs> = {}>(args?: Prisma.Subset<T, Prisma.MessageVariant$decisionsArgs<ExtArgs>>): Prisma.PrismaPromise<runtime.Types.Result.GetResult<Prisma.$UserDecisionPayload<ExtArgs>, T, "findMany", GlobalOmitOptions> | Null>
+  translations<T extends Prisma.MessageVariant$translationsArgs<ExtArgs> = {}>(args?: Prisma.Subset<T, Prisma.MessageVariant$translationsArgs<ExtArgs>>): Prisma.PrismaPromise<runtime.Types.Result.GetResult<Prisma.$MessageVariantTranslationPayload<ExtArgs>, T, "findMany", GlobalOmitOptions> | Null>
   /**
    * Attaches callbacks for the resolution and/or rejection of the Promise.
    * @param onfulfilled The callback to execute when the Promise is resolved.
@@ -2556,6 +2731,30 @@ export type MessageVariant$decisionsArgs<ExtArgs extends runtime.Types.Extension
   take?: number
   skip?: number
   distinct?: Prisma.UserDecisionScalarFieldEnum | Prisma.UserDecisionScalarFieldEnum[]
+}
+
+/**
+ * MessageVariant.translations
+ */
+export type MessageVariant$translationsArgs<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
+  /**
+   * Select specific fields to fetch from the MessageVariantTranslation
+   */
+  select?: Prisma.MessageVariantTranslationSelect<ExtArgs> | null
+  /**
+   * Omit specific fields from the MessageVariantTranslation
+   */
+  omit?: Prisma.MessageVariantTranslationOmit<ExtArgs> | null
+  /**
+   * Choose, which related nodes to fetch as well
+   */
+  include?: Prisma.MessageVariantTranslationInclude<ExtArgs> | null
+  where?: Prisma.MessageVariantTranslationWhereInput
+  orderBy?: Prisma.MessageVariantTranslationOrderByWithRelationInput | Prisma.MessageVariantTranslationOrderByWithRelationInput[]
+  cursor?: Prisma.MessageVariantTranslationWhereUniqueInput
+  take?: number
+  skip?: number
+  distinct?: Prisma.MessageVariantTranslationScalarFieldEnum | Prisma.MessageVariantTranslationScalarFieldEnum[]
 }
 
 /**

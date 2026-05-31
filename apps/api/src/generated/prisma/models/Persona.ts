@@ -619,10 +619,6 @@ export type PersonaUpdateOneWithoutTrackedUsersNestedInput = {
   update?: Prisma.XOR<Prisma.XOR<Prisma.PersonaUpdateToOneWithWhereWithoutTrackedUsersInput, Prisma.PersonaUpdateWithoutTrackedUsersInput>, Prisma.PersonaUncheckedUpdateWithoutTrackedUsersInput>
 }
 
-export type BoolFieldUpdateOperationsInput = {
-  set?: boolean
-}
-
 export type PersonaCreateNestedOneWithoutAgentTargetsInput = {
   create?: Prisma.XOR<Prisma.PersonaCreateWithoutAgentTargetsInput, Prisma.PersonaUncheckedCreateWithoutAgentTargetsInput>
   connectOrCreate?: Prisma.PersonaCreateOrConnectWithoutAgentTargetsInput

@@ -433,6 +433,22 @@ export async function POST(req: NextRequest) {
     // Pre-seed PersonaArmStats for all persona × variant combinations so
     // concurrent decideForUser calls don't race on the upsert — run in parallel.
     const allVariantIds = agent.messages.flatMap((m) => m.variants.map((v) => v.id));
+    // Push localization: load active translations for this agent's variants once
+    // per run (batch — avoids N+1). Built into variantId -> (canonical lang -> copy).
+    const localizeEnabled = agent.localizePush && agent.messages.some((m) => m.channel === "push");
+    const translationsByVariant = new Map<string, Map<string, import("@/lib/push-locale").LocalizedCopy>>();
+    if (localizeEnabled && allVariantIds.length > 0) {
+      const rows = await prisma.messageVariantTranslation.findMany({
+        where: { messageVariantId: { in: allVariantIds }, status: "active" },
+        select: { messageVariantId: true, language: true, title: true, body: true },
+      });
+      for (const r of rows) {
+        let m = translationsByVariant.get(r.messageVariantId);
+        if (!m) { m = new Map(); translationsByVariant.set(r.messageVariantId, m); }
+        m.set(r.language, { title: r.title, body: r.body });
+      }
+    }
+    const localization = { enabled: localizeEnabled, translationsByVariant };
     const initialAlpha = agent.algorithm !== "linucb" ? 1 : 0;
     const initialBeta  = agent.algorithm !== "linucb" ? 30 : 0;
     await Promise.all(
@@ -646,12 +662,13 @@ export async function POST(req: NextRequest) {
       });
       suppress.targetFilter += eligibleUsers.length - channelFiltered.length;
 
-      // Language filter for push agents: English-only sends by default.
-      // Checked in-memory for reliability (JSONB path filter is fragile with Neon HTTP adapter).
+      // Language filter for push agents: English-only sends by default. When the
+      // agent opts into push localization, do NOT force EN and do NOT exclude
+      // missing-language_tag users — every recipient gets copy (English fallback).
       const effectiveAgentLang =
         agent.languageFilter && agent.languageFilter !== "all"
           ? agent.languageFilter
-          : hasPushMessages ? "en" : null;
+          : (hasPushMessages && !localizeEnabled) ? "en" : null;
       const langFiltered = effectiveAgentLang
         ? channelFiltered.filter((u) => {
             const attrs = u.attributes as Record<string, unknown>;
@@ -859,7 +876,7 @@ export async function POST(req: NextRequest) {
           }
 
           // Group by variant + scheduled time for batch sending
-          byVariant = groupDecisionsByVariant(lotteryDecisionInputs, variantMeta, lotteryDecisionIdByUser);
+          byVariant = groupDecisionsByVariant(lotteryDecisionInputs, variantMeta, lotteryDecisionIdByUser, localization);
         }
       }
 
@@ -1207,7 +1224,7 @@ export async function POST(req: NextRequest) {
         }
 
         // Group by variant + scheduled time for batch sending
-        windowByVariant = groupDecisionsByVariant(decisionInputs, variantMeta, decisionIdByUser);
+        windowByVariant = groupDecisionsByVariant(decisionInputs, variantMeta, decisionIdByUser, localization);
       }
 
       // Send all window variant groups in parallel batches

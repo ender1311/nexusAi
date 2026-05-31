@@ -388,6 +388,7 @@ export const ModelName = {
   Goal: 'Goal',
   Message: 'Message',
   MessageVariant: 'MessageVariant',
+  MessageVariantTranslation: 'MessageVariantTranslation',
   Deeplink: 'Deeplink',
   UserDecision: 'UserDecision',
   TrackedUser: 'TrackedUser',
@@ -408,7 +409,8 @@ export const ModelName = {
   IngestSyncLog: 'IngestSyncLog',
   CampaignContent: 'CampaignContent',
   DemoUserGroup: 'DemoUserGroup',
-  UserSegment: 'UserSegment'
+  UserSegment: 'UserSegment',
+  UserPreference: 'UserPreference'
 } as const
 
 export type ModelName = (typeof ModelName)[keyof typeof ModelName]
@@ -424,7 +426,7 @@ export type TypeMap<ExtArgs extends runtime.Types.Extensions.InternalArgs = runt
     omit: GlobalOmitOptions
   }
   meta: {
-    modelProps: "agent" | "goal" | "message" | "messageVariant" | "deeplink" | "userDecision" | "trackedUser" | "persona" | "agentPersonaTarget" | "personaArmStats" | "userArmStats" | "linUCBArm" | "schedulingRule" | "modelMetric" | "planSet" | "planSetMember" | "appSetting" | "userAgentAssignment" | "cronRun" | "failedBrazeSend" | "processedEventId" | "ingestSyncLog" | "campaignContent" | "demoUserGroup" | "userSegment"
+    modelProps: "agent" | "goal" | "message" | "messageVariant" | "messageVariantTranslation" | "deeplink" | "userDecision" | "trackedUser" | "persona" | "agentPersonaTarget" | "personaArmStats" | "userArmStats" | "linUCBArm" | "schedulingRule" | "modelMetric" | "planSet" | "planSetMember" | "appSetting" | "userAgentAssignment" | "cronRun" | "failedBrazeSend" | "processedEventId" | "ingestSyncLog" | "campaignContent" | "demoUserGroup" | "userSegment" | "userPreference"
     txIsolationLevel: TransactionIsolationLevel
   }
   model: {
@@ -721,6 +723,80 @@ export type TypeMap<ExtArgs extends runtime.Types.Extensions.InternalArgs = runt
         count: {
           args: Prisma.MessageVariantCountArgs<ExtArgs>
           result: runtime.Types.Utils.Optional<Prisma.MessageVariantCountAggregateOutputType> | number
+        }
+      }
+    }
+    MessageVariantTranslation: {
+      payload: Prisma.$MessageVariantTranslationPayload<ExtArgs>
+      fields: Prisma.MessageVariantTranslationFieldRefs
+      operations: {
+        findUnique: {
+          args: Prisma.MessageVariantTranslationFindUniqueArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$MessageVariantTranslationPayload> | null
+        }
+        findUniqueOrThrow: {
+          args: Prisma.MessageVariantTranslationFindUniqueOrThrowArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$MessageVariantTranslationPayload>
+        }
+        findFirst: {
+          args: Prisma.MessageVariantTranslationFindFirstArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$MessageVariantTranslationPayload> | null
+        }
+        findFirstOrThrow: {
+          args: Prisma.MessageVariantTranslationFindFirstOrThrowArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$MessageVariantTranslationPayload>
+        }
+        findMany: {
+          args: Prisma.MessageVariantTranslationFindManyArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$MessageVariantTranslationPayload>[]
+        }
+        create: {
+          args: Prisma.MessageVariantTranslationCreateArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$MessageVariantTranslationPayload>
+        }
+        createMany: {
+          args: Prisma.MessageVariantTranslationCreateManyArgs<ExtArgs>
+          result: BatchPayload
+        }
+        createManyAndReturn: {
+          args: Prisma.MessageVariantTranslationCreateManyAndReturnArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$MessageVariantTranslationPayload>[]
+        }
+        delete: {
+          args: Prisma.MessageVariantTranslationDeleteArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$MessageVariantTranslationPayload>
+        }
+        update: {
+          args: Prisma.MessageVariantTranslationUpdateArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$MessageVariantTranslationPayload>
+        }
+        deleteMany: {
+          args: Prisma.MessageVariantTranslationDeleteManyArgs<ExtArgs>
+          result: BatchPayload
+        }
+        updateMany: {
+          args: Prisma.MessageVariantTranslationUpdateManyArgs<ExtArgs>
+          result: BatchPayload
+        }
+        updateManyAndReturn: {
+          args: Prisma.MessageVariantTranslationUpdateManyAndReturnArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$MessageVariantTranslationPayload>[]
+        }
+        upsert: {
+          args: Prisma.MessageVariantTranslationUpsertArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$MessageVariantTranslationPayload>
+        }
+        aggregate: {
+          args: Prisma.MessageVariantTranslationAggregateArgs<ExtArgs>
+          result: runtime.Types.Utils.Optional<Prisma.AggregateMessageVariantTranslation>
+        }
+        groupBy: {
+          args: Prisma.MessageVariantTranslationGroupByArgs<ExtArgs>
+          result: runtime.Types.Utils.Optional<Prisma.MessageVariantTranslationGroupByOutputType>[]
+        }
+        count: {
+          args: Prisma.MessageVariantTranslationCountArgs<ExtArgs>
+          result: runtime.Types.Utils.Optional<Prisma.MessageVariantTranslationCountAggregateOutputType> | number
         }
       }
     }
@@ -2278,6 +2354,80 @@ export type TypeMap<ExtArgs extends runtime.Types.Extensions.InternalArgs = runt
         }
       }
     }
+    UserPreference: {
+      payload: Prisma.$UserPreferencePayload<ExtArgs>
+      fields: Prisma.UserPreferenceFieldRefs
+      operations: {
+        findUnique: {
+          args: Prisma.UserPreferenceFindUniqueArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$UserPreferencePayload> | null
+        }
+        findUniqueOrThrow: {
+          args: Prisma.UserPreferenceFindUniqueOrThrowArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$UserPreferencePayload>
+        }
+        findFirst: {
+          args: Prisma.UserPreferenceFindFirstArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$UserPreferencePayload> | null
+        }
+        findFirstOrThrow: {
+          args: Prisma.UserPreferenceFindFirstOrThrowArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$UserPreferencePayload>
+        }
+        findMany: {
+          args: Prisma.UserPreferenceFindManyArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$UserPreferencePayload>[]
+        }
+        create: {
+          args: Prisma.UserPreferenceCreateArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$UserPreferencePayload>
+        }
+        createMany: {
+          args: Prisma.UserPreferenceCreateManyArgs<ExtArgs>
+          result: BatchPayload
+        }
+        createManyAndReturn: {
+          args: Prisma.UserPreferenceCreateManyAndReturnArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$UserPreferencePayload>[]
+        }
+        delete: {
+          args: Prisma.UserPreferenceDeleteArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$UserPreferencePayload>
+        }
+        update: {
+          args: Prisma.UserPreferenceUpdateArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$UserPreferencePayload>
+        }
+        deleteMany: {
+          args: Prisma.UserPreferenceDeleteManyArgs<ExtArgs>
+          result: BatchPayload
+        }
+        updateMany: {
+          args: Prisma.UserPreferenceUpdateManyArgs<ExtArgs>
+          result: BatchPayload
+        }
+        updateManyAndReturn: {
+          args: Prisma.UserPreferenceUpdateManyAndReturnArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$UserPreferencePayload>[]
+        }
+        upsert: {
+          args: Prisma.UserPreferenceUpsertArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$UserPreferencePayload>
+        }
+        aggregate: {
+          args: Prisma.UserPreferenceAggregateArgs<ExtArgs>
+          result: runtime.Types.Utils.Optional<Prisma.AggregateUserPreference>
+        }
+        groupBy: {
+          args: Prisma.UserPreferenceGroupByArgs<ExtArgs>
+          result: runtime.Types.Utils.Optional<Prisma.UserPreferenceGroupByOutputType>[]
+        }
+        count: {
+          args: Prisma.UserPreferenceCountArgs<ExtArgs>
+          result: runtime.Types.Utils.Optional<Prisma.UserPreferenceCountAggregateOutputType> | number
+        }
+      }
+    }
   }
 } & {
   other: {
@@ -2333,6 +2483,7 @@ export const AgentScalarFieldEnum = {
   uniqueUsersCap: 'uniqueUsersCap',
   dailySendCap: 'dailySendCap',
   languageFilter: 'languageFilter',
+  localizePush: 'localizePush',
   staleFunnelStageDays: 'staleFunnelStageDays',
   color: 'color',
   sortOrder: 'sortOrder',
@@ -2397,6 +2548,23 @@ export const MessageVariantScalarFieldEnum = {
 } as const
 
 export type MessageVariantScalarFieldEnum = (typeof MessageVariantScalarFieldEnum)[keyof typeof MessageVariantScalarFieldEnum]
+
+
+export const MessageVariantTranslationScalarFieldEnum = {
+  id: 'id',
+  messageVariantId: 'messageVariantId',
+  language: 'language',
+  title: 'title',
+  body: 'body',
+  bodyPersonal: 'bodyPersonal',
+  status: 'status',
+  source: 'source',
+  sourceFile: 'sourceFile',
+  createdAt: 'createdAt',
+  updatedAt: 'updatedAt'
+} as const
+
+export type MessageVariantTranslationScalarFieldEnum = (typeof MessageVariantTranslationScalarFieldEnum)[keyof typeof MessageVariantTranslationScalarFieldEnum]
 
 
 export const DeeplinkScalarFieldEnum = {
@@ -2693,6 +2861,17 @@ export const UserSegmentScalarFieldEnum = {
 export type UserSegmentScalarFieldEnum = (typeof UserSegmentScalarFieldEnum)[keyof typeof UserSegmentScalarFieldEnum]
 
 
+export const UserPreferenceScalarFieldEnum = {
+  id: 'id',
+  workosUserId: 'workosUserId',
+  hiddenStats: 'hiddenStats',
+  createdAt: 'createdAt',
+  updatedAt: 'updatedAt'
+} as const
+
+export type UserPreferenceScalarFieldEnum = (typeof UserPreferenceScalarFieldEnum)[keyof typeof UserPreferenceScalarFieldEnum]
+
+
 export const SortOrder = {
   asc: 'asc',
   desc: 'desc'
@@ -2804,6 +2983,13 @@ export type ListIntFieldRefInput<$PrismaModel> = FieldRefInputType<$PrismaModel,
 
 
 /**
+ * Reference to a field of type 'Boolean'
+ */
+export type BooleanFieldRefInput<$PrismaModel> = FieldRefInputType<$PrismaModel, 'Boolean'>
+    
+
+
+/**
  * Reference to a field of type 'DateTime'
  */
 export type DateTimeFieldRefInput<$PrismaModel> = FieldRefInputType<$PrismaModel, 'DateTime'>
@@ -2814,13 +3000,6 @@ export type DateTimeFieldRefInput<$PrismaModel> = FieldRefInputType<$PrismaModel
  * Reference to a field of type 'DateTime[]'
  */
 export type ListDateTimeFieldRefInput<$PrismaModel> = FieldRefInputType<$PrismaModel, 'DateTime[]'>
-    
-
-
-/**
- * Reference to a field of type 'Boolean'
- */
-export type BooleanFieldRefInput<$PrismaModel> = FieldRefInputType<$PrismaModel, 'Boolean'>
     
 
 /**
@@ -2937,6 +3116,7 @@ export type GlobalOmitConfig = {
   goal?: Prisma.GoalOmit
   message?: Prisma.MessageOmit
   messageVariant?: Prisma.MessageVariantOmit
+  messageVariantTranslation?: Prisma.MessageVariantTranslationOmit
   deeplink?: Prisma.DeeplinkOmit
   userDecision?: Prisma.UserDecisionOmit
   trackedUser?: Prisma.TrackedUserOmit
@@ -2958,6 +3138,7 @@ export type GlobalOmitConfig = {
   campaignContent?: Prisma.CampaignContentOmit
   demoUserGroup?: Prisma.DemoUserGroupOmit
   userSegment?: Prisma.UserSegmentOmit
+  userPreference?: Prisma.UserPreferenceOmit
 }
 
 /* Types for Logging */

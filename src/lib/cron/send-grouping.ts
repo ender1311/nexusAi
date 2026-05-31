@@ -3,6 +3,7 @@ import { createBrazeClient } from "@/lib/braze/client";
 import { PayloadFactory } from "@/lib/braze/payload-factory";
 import type { BrazeRecipient } from "@/lib/braze/payload-factory";
 import { GIVING_LINK_SENTINEL, buildGivingDeeplink } from "@/lib/engine/giving-link";
+import { resolvePushLocale, type LocalizedCopy } from "@/lib/push-locale";
 
 export type VariantSendGroup = {
   variantId: string;
@@ -46,6 +47,10 @@ export function groupDecisionsByVariant(
   inputs: Array<{ user: GroupUser; variantId: string; scheduledAt: Date; inLocalTime: boolean }>,
   variantMeta: Map<string, VariantMeta>,
   decisionIdByUser: Map<string, string>,
+  localization?: {
+    enabled: boolean;
+    translationsByVariant: Map<string, Map<string, LocalizedCopy>>;
+  },
 ): Record<string, VariantSendGroup> {
   const byVariant: Record<string, VariantSendGroup> = {};
 
@@ -59,8 +64,26 @@ export function groupDecisionsByVariant(
       ? buildGivingDeeplink((user.attributes as Record<string, unknown>) ?? {})
       : meta.deeplink;
 
+    // Localize copy when enabled and this is a push variant with translations.
+    let copy: LocalizedCopy = { title: meta.title, body: meta.body };
+    if (localization?.enabled && meta.channel === "push") {
+      const attrs = (user.attributes as Record<string, unknown>) ?? {};
+      const tag = attrs.language_tag as string | undefined;
+      copy = resolvePushLocale(
+        tag,
+        localization.translationsByVariant.get(variantId) ?? new Map(),
+        { title: meta.title, body: meta.body },
+      );
+    }
+
     const groupInLocalTime = isFallback;
-    const groupKey = `${variantId}:${scheduledAt.toISOString()}:${groupInLocalTime}:${resolvedDeeplink ?? ""}`;
+    const baseKey = `${variantId}:${scheduledAt.toISOString()}:${groupInLocalTime}:${resolvedDeeplink ?? ""}`;
+    // When localizing, users sharing the same resolved copy must batch together;
+    // the copy fully determines the payload, so key by it. \u0000 is a NUL field
+    // separator (cannot appear in title/body) preventing title|body ambiguity.
+    const groupKey = localization?.enabled && meta.channel === "push"
+      ? `${baseKey}:${copy.title ?? ""}\u0000${copy.body}`
+      : baseKey;
 
     if (!byVariant[groupKey]) {
       byVariant[groupKey] = {
@@ -68,8 +91,8 @@ export function groupDecisionsByVariant(
         brazeVariantId:  meta.brazeVariantId,
         brazeCampaignId: meta.brazeCampaignId,
         channel:         meta.channel,
-        body:            meta.body,
-        title:           meta.title,
+        body:            copy.body,
+        title:           copy.title,
         deeplink:        resolvedDeeplink,
         inLocalTime:     groupInLocalTime,
         scheduledAt,

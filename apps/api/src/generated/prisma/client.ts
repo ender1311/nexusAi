@@ -60,6 +60,11 @@ export type Message = Prisma.MessageModel
  */
 export type MessageVariant = Prisma.MessageVariantModel
 /**
+ * Model MessageVariantTranslation
+ * 
+ */
+export type MessageVariantTranslation = Prisma.MessageVariantTranslationModel
+/**
  * Model Deeplink
  * 
  */
@@ -164,3 +169,8 @@ export type DemoUserGroup = Prisma.DemoUserGroupModel
  * 
  */
 export type UserSegment = Prisma.UserSegmentModel
+/**
+ * Model UserPreference
+ * 
+ */
+export type UserPreference = Prisma.UserPreferenceModel

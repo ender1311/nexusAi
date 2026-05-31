@@ -28,6 +28,7 @@ model Agent {
   uniqueUsersCap   Int?        // max lifetime unique users this agent will ever target; null = unlimited
   dailySendCap     Int?        // max total sends from this agent per calendar day (UTC); null = unlimited
   languageFilter   String      @default("all") // "all" | "en" | ISO language prefix; filters by User.attributes.language_tag
+  localizePush     Boolean     @default(false) // opt-in; OFF = today's EN-only push behavior
   // How many days after a user falls out of the Hightouch audience we keep targeting them.
   // null = no staleness gate (backward compat). Lapsed agents typically use 14; others use 2.
   staleFunnelStageDays Int?
@@ -108,9 +109,29 @@ model MessageVariant {
   sourceTemplate MessageVariant? @relation("TemplateClones", fields: [sourceTemplateId], references: [id], onDelete: SetNull)
   clones         MessageVariant[] @relation("TemplateClones")
   decisions      UserDecision[]
+  translations   MessageVariantTranslation[]
 
   @@index([status, category, subcategory]) // variant picker API (WHERE status='active' AND category=X AND subcategory=Y)
   @@index([brazeCanvasStepId])             // canvas attribution: canvas_step_id → variant lookup
+}
+
+model MessageVariantTranslation {
+  id                String   @id @default(cuid())
+  messageVariantId  String
+  language          String   // canonical code: es, pt, fr, zh_CN, zh_TW, ... (never "en")
+  title             String?
+  body              String
+  bodyPersonal      String?  // push_message_personal — stored for future personalization wiring
+  status            String   @default("active")
+  source            String?  // "import:dropbox" | "upload" | "manual"
+  sourceFile        String?  // provenance for audit / re-import
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+
+  variant MessageVariant @relation(fields: [messageVariantId], references: [id], onDelete: Cascade)
+
+  @@unique([messageVariantId, language])
+  @@index([messageVariantId, status])
 }
 
 model Deeplink {
