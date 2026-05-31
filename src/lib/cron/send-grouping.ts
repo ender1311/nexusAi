@@ -4,6 +4,7 @@ import { PayloadFactory } from "@/lib/braze/payload-factory";
 import type { BrazeRecipient } from "@/lib/braze/payload-factory";
 import { GIVING_LINK_SENTINEL, buildGivingDeeplink } from "@/lib/engine/giving-link";
 import { resolvePushLocale, type LocalizedCopy } from "@/lib/push-locale";
+import { VERSE_PUSH_SENTINEL, pickVerse, resolveVerseCopy, type VersePool, type VerseStrategy } from "@/lib/verse-content";
 
 export type VariantSendGroup = {
   variantId: string;
@@ -50,6 +51,8 @@ export function groupDecisionsByVariant(
   localization?: {
     enabled: boolean;
     translationsByVariant: Map<string, Map<string, LocalizedCopy>>;
+    versePool?: VersePool;
+    strategyByVariant?: Map<string, VerseStrategy>;
   },
 ): Record<string, VariantSendGroup> {
   const byVariant: Record<string, VariantSendGroup> = {};
@@ -64,11 +67,19 @@ export function groupDecisionsByVariant(
       ? buildGivingDeeplink((user.attributes as Record<string, unknown>) ?? {})
       : meta.deeplink;
 
-    // Localize copy when enabled and this is a push variant with translations.
+    // Verse-push arms (body sentinel) resolve a rotated, localized verse at send
+    // time; otherwise fall back to the standard translation path.
+    const verseStrategy = localization?.strategyByVariant?.get(variantId);
+    const isVerse =
+      meta.body === VERSE_PUSH_SENTINEL && verseStrategy != null && localization?.versePool != null;
     let copy: LocalizedCopy = { title: meta.title, body: meta.body };
-    if (localization?.enabled && meta.channel === "push") {
-      const attrs = (user.attributes as Record<string, unknown>) ?? {};
-      const tag = attrs.language_tag as string | undefined;
+    const attrs = (user.attributes as Record<string, unknown>) ?? {};
+    const tag = attrs.language_tag as string | undefined;
+    if (isVerse) {
+      const dateBucket = scheduledAt.toISOString().slice(0, 10);
+      const verse = pickVerse(localization!.versePool!, user.externalId, dateBucket);
+      if (verse) copy = resolveVerseCopy(verse, tag, verseStrategy!);
+    } else if (localization?.enabled && meta.channel === "push") {
       copy = resolvePushLocale(
         tag,
         localization.translationsByVariant.get(variantId) ?? new Map(),
@@ -78,10 +89,12 @@ export function groupDecisionsByVariant(
 
     const groupInLocalTime = isFallback;
     const baseKey = `${variantId}:${scheduledAt.toISOString()}:${groupInLocalTime}:${resolvedDeeplink ?? ""}`;
-    // When localizing, users sharing the same resolved copy must batch together;
-    // the copy fully determines the payload, so key by it. \u0000 is a NUL field
-    // separator (cannot appear in title/body) preventing title|body ambiguity.
-    const groupKey = localization?.enabled && meta.channel === "push"
+    // When copy is resolved per-user (localized push or a verse arm), users sharing
+    // the same resolved copy must batch together; the copy fully determines the
+    // payload, so key by it. \u0000 is a NUL field separator (cannot appear in
+    // title/body) preventing title|body ambiguity.
+    const copyKeyed = meta.channel === "push" && (isVerse || (localization?.enabled ?? false));
+    const groupKey = copyKeyed
       ? `${baseKey}:${copy.title ?? ""}\u0000${copy.body}`
       : baseKey;
 
