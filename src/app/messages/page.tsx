@@ -10,6 +10,7 @@ import { LIBRARY_AGENT_NAME } from "@/lib/engine/template-sync";
 import { TemplateFormSheet } from "@/components/push-library/template-form-sheet";
 import { PushLibraryClient } from "@/components/push-library/push-library-client";
 import type { TemplateGroup, TemplateVariant } from "@/components/push-library/push-library-client";
+import { PushTranslationUpload } from "@/components/messages/push-translation-upload";
 
 const getGroups = unstable_cache(
   async (): Promise<TemplateGroup[]> => {
@@ -72,6 +73,11 @@ export default async function MessagesPage() {
         ) : null}
       </Header>
       <div className="p-4 sm:p-6">
+        {isAdmin && (
+          <div className="mb-6">
+            <PushTranslationUpload />
+          </div>
+        )}
         {groups.length === 0 ? (
           <div className="flex flex-col items-center justify-center py-16 text-center border-2 border-dashed rounded-xl text-muted-foreground">
             <BookOpen className="h-10 w-10 mx-auto mb-3 opacity-40" />
