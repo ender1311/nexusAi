@@ -30,7 +30,6 @@ describe("buildImportPlan", () => {
         pt: { title: "PT", body: "pt body" },    // new → create
       })],
       variants,
-      { refreshEnglish: false },
     );
     expect(plan.matched).toHaveLength(1);
     const m = plan.matched[0];
@@ -45,7 +44,6 @@ describe("buildImportPlan", () => {
     const plan = buildImportPlan(
       [group("2026-01-daily-remind-PUSH-1", { en: { body: "NEW english copy" }, es: { body: "es" } })],
       variants,
-      { refreshEnglish: false },
     );
     expect(plan.matched[0].englishDivergence).toEqual({ incoming: "NEW english copy", current: "take a moment in God's Word today." });
   });
@@ -54,7 +52,6 @@ describe("buildImportPlan", () => {
     const plan = buildImportPlan(
       [group("unknown-stem-PUSH-9", { en: { body: "x" }, es: { body: "y" } })],
       variants,
-      { refreshEnglish: false },
     );
     expect(plan.matched).toHaveLength(0);
     expect(plan.unmatched).toHaveLength(1);

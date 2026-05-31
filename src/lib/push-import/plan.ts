@@ -10,7 +10,6 @@ export function stripLangSuffix(sourceFile: string): string {
 export function buildImportPlan(
   groups: GroupedPush[],
   variants: VariantSnapshot[],
-  opts: { refreshEnglish: boolean },
 ): ImportPlan {
   // Index variants by their stem (derived from sourceFile). First writer wins on
   // collision; collisions are unexpected for distinct pushes.
@@ -24,7 +23,6 @@ export function buildImportPlan(
   const matched: Extract<StemPlan, { matched: true }>[] = [];
   const unmatched: Extract<StemPlan, { matched: false }>[] = [];
   let creates = 0, updates = 0;
-  const noops = 0;
 
   for (const group of groups) {
     const variant = byStem.get(group.stem);
@@ -65,7 +63,9 @@ export function buildImportPlan(
       stems: groups.length,
       matchedStems: matched.length,
       unmatchedStems: unmatched.length,
-      creates, updates, noops,
+      creates,
+      updates,
+      noops: 0, // plan never produces noops; noops are a commit-stage concept
     },
   };
 }
