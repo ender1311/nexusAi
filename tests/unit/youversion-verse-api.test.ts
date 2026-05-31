@@ -3,6 +3,8 @@ import {
   buildVerseUrl,
   parseVerseText,
   fetchVerseText,
+  parseVerseRef,
+  fetchVerse,
   LANGUAGE_VERSION_MAP,
 } from "@/lib/youversion/verse-api";
 
@@ -55,6 +57,37 @@ describe("fetchVerseText", () => {
   it("returns null when the fetch throws (timeout/network)", async () => {
     const stub = (() => Promise.reject(new Error("timeout"))) as unknown as typeof fetch;
     expect(await fetchVerseText("JHN.11.35", 111, stub)).toBeNull();
+  });
+});
+
+describe("parseVerseRef", () => {
+  it("reads top-level data.reference.human", () => {
+    const json = { response: { data: { reference: { human: "Juan 3:16" }, verses: [{ content: "x" }] } } };
+    expect(parseVerseRef(json)).toBe("Juan 3:16");
+  });
+  it("falls back to the first verse's reference.human", () => {
+    const json = { response: { data: { verses: [{ content: "x", reference: { human: "ヨハネ 3:16" } }] } } };
+    expect(parseVerseRef(json)).toBe("ヨハネ 3:16");
+  });
+  it("returns null when no human reference is present", () => {
+    expect(parseVerseRef({ response: { data: { verses: [{ content: "x" }] } } })).toBeNull();
+    expect(parseVerseRef({})).toBeNull();
+    expect(parseVerseRef(null)).toBeNull();
+  });
+});
+
+describe("fetchVerse", () => {
+  const okJson = (text: string, human: string) =>
+    Promise.resolve(new Response(JSON.stringify({
+      response: { data: { reference: { human }, verses: [{ content: text }] } },
+    }), { status: 200 }));
+  it("returns text + reference on 200", async () => {
+    const stub = (() => okJson("Jesus wept.", "John 11:35")) as unknown as typeof fetch;
+    expect(await fetchVerse("JHN.11.35", 111, stub)).toEqual({ text: "Jesus wept.", reference: "John 11:35" });
+  });
+  it("returns nulls on non-OK", async () => {
+    const stub = (() => Promise.resolve(new Response("nope", { status: 404 }))) as unknown as typeof fetch;
+    expect(await fetchVerse("JHN.11.35", 111, stub)).toEqual({ text: null, reference: null });
   });
 });
 

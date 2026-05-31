@@ -39,7 +39,8 @@ export function buildVerseUrl(usfm: string, versionId: number): string {
 type VerseApiResponse = {
   response?: {
     data?: {
-      verses?: Array<{ content?: unknown }>;
+      reference?: { human?: unknown };
+      verses?: Array<{ content?: unknown; reference?: { human?: unknown } }>;
     };
   };
 };
@@ -56,6 +57,40 @@ export function parseVerseText(json: unknown): string | null {
     .join(" ")
     .trim();
   return text || null;
+}
+
+export type VerseResult = { text: string | null; reference: string | null };
+
+/** Localized human reference ("Juan 3:16"). Prefers the range-level
+ *  data.reference.human; falls back to the first verse's reference.human. */
+export function parseVerseRef(json: unknown): string | null {
+  const data = (json as VerseApiResponse)?.response?.data;
+  const top = data?.reference?.human;
+  if (typeof top === "string" && top.trim()) return top.trim();
+  const first = data?.verses?.[0]?.reference?.human;
+  if (typeof first === "string" && first.trim()) return first.trim();
+  return null;
+}
+
+/** Fetch verse text + localized reference in one request. */
+export async function fetchVerse(
+  usfm: string,
+  versionId: number,
+  fetchImpl: typeof fetch = fetch,
+): Promise<VerseResult> {
+  let res: Response;
+  try {
+    res = await fetchImpl(buildVerseUrl(usfm, versionId), {
+      headers: YV_HEADERS,
+      signal: AbortSignal.timeout(10000),
+    });
+  } catch {
+    return { text: null, reference: null };
+  }
+  if (!res.ok) return { text: null, reference: null };
+  let json: unknown;
+  try { json = await res.json(); } catch { return { text: null, reference: null }; }
+  return { text: parseVerseText(json), reference: parseVerseRef(json) };
 }
 
 /** Fetch localized verse text for a USFM reference in a given Bible version.
