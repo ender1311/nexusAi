@@ -32,9 +32,17 @@ verify:lint:
     - bun install --frozen-lockfile
     - bun run lint
 
-verify:test:
+verify:test:quick:
   stage: verify
-  timeout: 15 minutes
+  variables:
+    NODE_OPTIONS: --max-old-space-size=512
+  script:
+    - bun install --frozen-lockfile
+    - bun run test:quick
+
+verify:test:int:
+  stage: verify
+  timeout: 25 minutes
   variables:
     DATABASE_URL: $TEST_DATABASE_URL
     TEST_DB: "true"
@@ -46,11 +54,11 @@ verify:test:
     - bun install --frozen-lockfile
     - bunx prisma generate
     - bunx prisma migrate deploy
-    - bun run test
+    - bun run test:int-reg
 
 build:
   stage: build
-  needs: [verify:typecheck, verify:lint, verify:test]
+  needs: [verify:typecheck, verify:lint, verify:test:quick, verify:test:int]
   only:
     - main
   variables:
