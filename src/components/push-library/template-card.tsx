@@ -6,6 +6,7 @@ import { Card, CardContent, CardFooter } from "@/components/ui/card";
 import { PushNotificationPreview } from "@/components/agents/push-notification-preview";
 import { TemplateFormSheet } from "@/components/push-library/template-form-sheet";
 import { DeleteConfirmDialog } from "@/components/push-library/delete-confirm-dialog";
+import { LanguageCoverageBadge } from "@/components/push-library/language-coverage-badge";
 
 type TemplateVariant = {
   id: string;
@@ -16,6 +17,7 @@ type TemplateVariant = {
   cta: string | null;
   category: string | null;
   subcategory: string | null;
+  languages: string[];
 };
 
 interface TemplateCardProps {
@@ -34,11 +36,14 @@ export function TemplateCard({ variant, isAdmin }: TemplateCardProps) {
       <CardContent className="flex-1 p-4 space-y-3">
         <div className="flex items-start justify-between gap-2">
           <p className="text-sm font-medium leading-tight">{variant.name}</p>
-          {variant.subcategory && (
-            <Badge variant="outline" className="shrink-0 text-xs">
-              {variant.subcategory}
-            </Badge>
-          )}
+          <div className="flex shrink-0 items-center gap-1">
+            <LanguageCoverageBadge languages={variant.languages} />
+            {variant.subcategory && (
+              <Badge variant="outline" className="shrink-0 text-xs">
+                {variant.subcategory}
+              </Badge>
+            )}
+          </div>
         </div>
         <PushNotificationPreview
           title={variant.title}

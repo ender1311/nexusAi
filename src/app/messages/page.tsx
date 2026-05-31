@@ -30,6 +30,7 @@ const getGroups = unstable_cache(
         cta: true,
         category: true,
         subcategory: true,
+        translations: { select: { language: true } },
       },
       orderBy: [{ category: "asc" }, { subcategory: "asc" }, { createdAt: "asc" }],
     });
@@ -41,7 +42,8 @@ const getGroups = unstable_cache(
       const subMap = grouped.get(cat)!;
       const sub = v.subcategory ?? null;
       if (!subMap.has(sub)) subMap.set(sub, []);
-      subMap.get(sub)!.push(v);
+      const { translations, ...rest } = v;
+      subMap.get(sub)!.push({ ...rest, languages: translations.map((t) => t.language) });
     }
 
     return Array.from(grouped.entries()).flatMap(([category, subMap]) =>
