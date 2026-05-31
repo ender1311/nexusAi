@@ -78,7 +78,9 @@ export function groupDecisionsByVariant(
     if (isVerse) {
       const dateBucket = scheduledAt.toISOString().slice(0, 10);
       const verse = pickVerse(localization!.versePool!, user.externalId, dateBucket);
-      if (verse) copy = resolveVerseCopy(verse, tag, verseStrategy!);
+      // Empty pool → skip rather than deliver the raw sentinel as a push body.
+      if (!verse) continue;
+      copy = resolveVerseCopy(verse, tag, verseStrategy!);
     } else if (localization?.enabled && meta.channel === "push") {
       copy = resolvePushLocale(
         tag,

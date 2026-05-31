@@ -47,4 +47,11 @@ describe("verse-push send grouping", () => {
     const groups = groupDecisionsByVariant([input("u-es1", "es"), input("u-es2", "es")], meta, decById, localization);
     expect(Object.values(groups).filter((g) => g.body === "Porque...").length).toBe(1);
   });
+  it("skips verse-arm users when the pool is empty (never sends the raw sentinel)", () => {
+    const emptyPoolLoc = { ...localization, versePool: [] as VersePool };
+    const decById = new Map([["u-en", "d-en"]]);
+    const groups = groupDecisionsByVariant([input("u-en", "en")], meta, decById, emptyPoolLoc);
+    expect(Object.keys(groups)).toHaveLength(0);
+    expect(Object.values(groups).some((g) => g.body === VERSE_PUSH_SENTINEL)).toBe(false);
+  });
 });

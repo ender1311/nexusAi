@@ -33,6 +33,8 @@ export function shapeVersePool(rows: CampaignContentRow[]): VersePool {
     if (!en.reference) en.reference = usfmToHuman(e.usfm);
     e.byLang.set("en", en);
   }
+  // EN must render every arm. `reference` is omitted here because it was just
+  // backfilled above (usfmToHuman), so every entry already has it.
   const pool = [...byUsfm.values()].filter((e) => {
     const en = e.byLang.get("en");
     return !!(en && en["verse-text"] && en["a-title"] && en["b-title"]);

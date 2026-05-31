@@ -107,7 +107,7 @@ async function main() {
     );
   }
 
-  console.log(`\nTotal verse-text rows to write: ${toWrite.length}`);
+  console.log(`\nTotal rows to write (verse-text + reference): ${toWrite.length}`);
 
   if (!doCommit) {
     console.log("\nDRY RUN — nothing written. Re-run with --commit to apply.");
