@@ -14,7 +14,7 @@ import {
   buildDefaultConfig,
   type PredictionResult,
   type OptimizationConfig,
-} from "@/lib/mock/control-tower";
+} from "@/lib/control-tower/projection";
 
 type SimState = "configure" | "scanning" | "results";
 

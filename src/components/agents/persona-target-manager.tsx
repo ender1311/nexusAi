@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { Plus, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { PERSONA_COLORS, PERSONA_ICON_MAP } from "@/lib/mock/personas";
+import { PERSONA_COLORS, PERSONA_ICON_MAP } from "@/lib/persona-display";
 import { cn } from "@/lib/utils";
 
 type LinkedPersona = {

@@ -6,7 +6,7 @@ import { Header } from "@/components/layout/header";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { PERSONA_COLORS, PERSONA_ICON_MAP } from "@/lib/mock/personas";
+import { PERSONA_COLORS, PERSONA_ICON_MAP } from "@/lib/persona-display";
 import { Persona } from "@/types/persona";
 import { formatNumber } from "@/lib/utils";
 import { cn } from "@/lib/utils";

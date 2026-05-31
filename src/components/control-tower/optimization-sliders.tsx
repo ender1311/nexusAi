@@ -4,7 +4,7 @@ import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
 import { Slider } from "@/components/ui/slider";
 import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
-import { optimizationParams } from "@/lib/mock/control-tower";
+import { optimizationParams } from "@/lib/control-tower/projection";
 
 function clamp01to100(v: number, fallback: number): number {
   const base = Number.isFinite(v) ? v : fallback;

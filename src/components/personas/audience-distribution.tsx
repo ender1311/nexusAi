@@ -1,5 +1,5 @@
 import { Persona } from "@/types/persona";
-import { PERSONA_COLORS } from "@/lib/mock/personas";
+import { PERSONA_COLORS } from "@/lib/persona-display";
 import { cn, formatNumber } from "@/lib/utils";
 
 interface AudienceDistributionProps {

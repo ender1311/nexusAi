@@ -2,7 +2,7 @@ import Link from "next/link";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent } from "@/components/ui/card";
 import { Persona } from "@/types/persona";
-import { PERSONA_COLORS, PERSONA_ICON_MAP } from "@/lib/mock/personas";
+import { PERSONA_COLORS, PERSONA_ICON_MAP } from "@/lib/persona-display";
 import { cn } from "@/lib/utils";
 import { formatNumber } from "@/lib/utils";
 import { Sparkles } from "lucide-react";
