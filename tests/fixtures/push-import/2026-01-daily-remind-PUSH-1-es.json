@@ -1,0 +1,6 @@
+{
+  "push_title": "¡Crea tu hábito bíblico!",
+  "push_message_personal": "${NAME}, tómate un momento para pasar tiempo en la Palabra de Dios hoy.",
+  "push_message_non_personal": "tómate un momento para pasar tiempo en la Palabra de Dios hoy.",
+  "push_deeplink": "https://www.bible.com/today"
+}
