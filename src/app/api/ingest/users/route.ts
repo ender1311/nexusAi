@@ -308,6 +308,18 @@ async function attributeEvents(
     return { canonical, matchIds };
   };
 
+  // ── Batch idempotency: one query for the whole batch instead of N findUniques.
+  // Newly-handled event IDs are collected and written once via createMany below,
+  // so a per-event write failure can't leave an event credited-but-unmarked
+  // (which would double-credit arm stats on a Hightouch retry).
+  const alreadyProcessed = new Set(
+    (await prisma.processedEventId.findMany({
+      where: { eventId: { in: events.map((e) => e.event_id) } },
+      select: { eventId: true },
+    })).map((r) => r.eventId),
+  );
+  const newlyProcessed: string[] = [];
+
   for (const event of events) {
     const occurredAt = new Date(event.occurred_at);
     if (isNaN(occurredAt.getTime())) { unmatched++; continue; }
@@ -316,10 +328,7 @@ async function attributeEvents(
     const { canonical: canonicalUserId, matchIds } = resolveEventIds(event);
 
     // ── Idempotency: skip if already processed in a previous batch ────────
-    const alreadyProcessed = await prisma.processedEventId.findUnique({
-      where: { eventId: event.event_id },
-    });
-    if (alreadyProcessed) { unmatched++; continue; }
+    if (alreadyProcessed.has(event.event_id)) { unmatched++; continue; }
 
     // ── Canvas exact attribution (push opens only) ─────────────────────────
     if (isPushOpen) {
@@ -329,7 +338,7 @@ async function attributeEvents(
       if (canvasStepId) {
         const handled = await attributeCanvasOpen(event, canvasStepId, occurredAt, canonicalUserId, matchIds);
         if (handled) {
-          await prisma.processedEventId.create({ data: { eventId: event.event_id } }).catch(() => {});
+          newlyProcessed.push(event.event_id);
           matched++;
           continue;
         }
@@ -361,7 +370,7 @@ async function attributeEvents(
 
     if (!decision) {
       // Mark as processed so Hightouch retries don't re-attempt (unmatched is usually permanent)
-      await prisma.processedEventId.create({ data: { eventId: event.event_id } }).catch(() => {});
+      newlyProcessed.push(event.event_id);
       unmatched++;
       continue;
     }
@@ -454,8 +463,19 @@ async function attributeEvents(
     }
 
     // Mark as processed after successful handling
-    await prisma.processedEventId.create({ data: { eventId: event.event_id } }).catch(() => {});
+    newlyProcessed.push(event.event_id);
     matched++;
+  }
+
+  // Single batched idempotency write for the whole batch. skipDuplicates guards
+  // against a race where a concurrent batch marked the same event.
+  if (newlyProcessed.length > 0) {
+    await prisma.processedEventId.createMany({
+      data: newlyProcessed.map((eventId) => ({ eventId })),
+      skipDuplicates: true,
+    }).catch((err) => {
+      console.error("[ingest/users] Failed to batch-write processedEventId:", err);
+    });
   }
 
   return { matched, unmatched };
@@ -635,6 +655,31 @@ export async function POST(req: NextRequest) {
 
   for (let i = 0; i < deduped.length; i += CHUNK) {
     const chunk = deduped.slice(i, i + CHUNK);
+
+    // Pre-load candidate giving-attribution decisions for the whole chunk in one
+    // query, replacing the per-user findFirst inside the parallel map below.
+    // Grouped by userId, most-recent first; the in-memory window filter mirrors
+    // the original per-user sentAt window.
+    const chunkGivingIds = [...new Set(
+      chunk
+        .filter((u) => (u.attributes as Record<string, unknown> | undefined)?.["gift_amount_most_recent_timestamp"])
+        .map((u) => u.external_user_id?.trim() || u.braze_id?.trim())
+        .filter((id): id is string => Boolean(id)),
+    )];
+    const givingRows = chunkGivingIds.length > 0
+      ? await prisma.userDecision.findMany({
+          where: { userId: { in: chunkGivingIds }, conversionAt: null, brazeSendId: { not: null } },
+          orderBy: { sentAt: "desc" },
+          include: { agent: { include: { goals: true } } },
+        })
+      : [];
+    const givingDecisionsByUser = new Map<string, typeof givingRows>();
+    for (const row of givingRows) {
+      const list = givingDecisionsByUser.get(row.userId) ?? [];
+      list.push(row);
+      givingDecisionsByUser.set(row.userId, list);
+    }
+
     const results = await Promise.all(chunk.map(async (user) => {
       const externalUserId = user.external_user_id?.trim() || null;
       const brazeId = user.braze_id?.trim() || null;
@@ -751,16 +796,10 @@ export async function POST(req: NextRequest) {
           const GIVING_ATTRIBUTION_WINDOW_MS = 30 * 24 * 60 * 60 * 1000;
           const windowStart = new Date(giftDate.getTime() - GIVING_ATTRIBUTION_WINDOW_MS);
 
-          const decision = await prisma.userDecision.findFirst({
-            where: {
-              userId: externalId,
-              conversionAt: null,
-              brazeSendId: { not: null },
-              sentAt: { gte: windowStart, lte: giftDate },
-            },
-            orderBy: { sentAt: "desc" },
-            include: { agent: { include: { goals: true } } },
-          });
+          // Most-recent unattributed decision within the window, from the chunk
+          // pre-load (candidates are already sorted sentAt desc).
+          const decision = (givingDecisionsByUser.get(externalId) ?? [])
+            .find((d) => d.sentAt >= windowStart && d.sentAt <= giftDate) ?? null;
 
           if (decision) {
             const giftAmount =
