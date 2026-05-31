@@ -13,7 +13,7 @@ import {
 import { Card, CardContent } from "@/components/ui/card";
 import { Switch } from "@/components/ui/switch";
 import { cn } from "@/lib/utils";
-import type { ControlAgent } from "@/lib/mock/control-tower";
+import type { ControlAgent } from "@/lib/control-tower/projection";
 
 const ICON_MAP: Record<string, LucideIcon> = {
   Sparkles,

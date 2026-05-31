@@ -1,3 +1,7 @@
+// Control Tower projection model. The impact weights and `computePredictions`
+// output are an ILLUSTRATIVE simulation (constant per-agent weights), not measured
+// analytics — the UI labels it as such. Kept separate from real metrics on purpose.
+
 export interface ControlAgent {
   id: string;
   name: string;

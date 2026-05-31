@@ -1,7 +1,7 @@
 "use client";
 
 import { Persona } from "@/types/persona";
-import { PERSONA_COLORS, PERSONA_ICON_MAP } from "@/lib/mock/personas";
+import { PERSONA_COLORS, PERSONA_ICON_MAP } from "@/lib/persona-display";
 import { cn } from "@/lib/utils";
 
 interface PersonaSelectorProps {

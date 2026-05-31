@@ -9,7 +9,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { cn } from "@/lib/utils";
-import { optimizationParams, type OptimizationConfig } from "@/lib/mock/control-tower";
+import { optimizationParams, type OptimizationConfig } from "@/lib/control-tower/projection";
 import { ShieldCheck } from "lucide-react";
 import { InfoTip } from "@/components/ui/info-tip";
 

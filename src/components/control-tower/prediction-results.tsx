@@ -4,7 +4,7 @@ import { useEffect, useRef, useState } from "react";
 import { TrendingUp, TrendingDown, Target, ShieldCheck, ShieldAlert } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
 import { cn } from "@/lib/utils";
-import type { PredictionResult } from "@/lib/mock/control-tower";
+import type { PredictionResult } from "@/lib/control-tower/projection";
 
 function useAnimatedCounter(target: number, duration = 1000) {
   const [value, setValue] = useState(0);
@@ -163,10 +163,18 @@ interface PredictionResultsProps {
 export function PredictionResults({ results }: PredictionResultsProps) {
   return (
     <div className="space-y-4">
-      <div className="flex items-center justify-between">
-        <h3 className="text-base font-semibold">Predicted Impact</h3>
-        <span className="text-xs font-mono text-muted-foreground">
-          Based on enabled agents + objective
+      <div className="flex items-center justify-between gap-2">
+        <div className="flex items-center gap-2 min-w-0">
+          <h3 className="text-base font-semibold">Predicted Impact</h3>
+          <span
+            className="inline-flex items-center rounded-full bg-amber-500/10 px-2 py-0.5 text-[10px] font-medium uppercase tracking-wide text-amber-600 dark:text-amber-400 shrink-0"
+            title="Illustrative projection from a simulated impact model — not measured analytics."
+          >
+            Illustrative
+          </span>
+        </div>
+        <span className="text-xs font-mono text-muted-foreground shrink-0">
+          Simulated projection
         </span>
       </div>
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">

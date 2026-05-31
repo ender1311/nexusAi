@@ -19,7 +19,7 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
-import { controlAgents, type ControlAgent } from "@/lib/mock/control-tower";
+import { controlAgents, type ControlAgent } from "@/lib/control-tower/projection";
 import type { StatsData } from "@/app/api/stats/route";
 
 /** Minimal serializable shape of an Agent row passed from the Server Component. */
