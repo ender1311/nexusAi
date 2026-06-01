@@ -78,6 +78,10 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
       }
     }
 
+    if (body.localizePush !== undefined && typeof body.localizePush !== "boolean") {
+      return fail("localizePush must be a boolean", 400);
+    }
+
     if (body.color !== undefined) {
       if (typeof body.color !== "string" || !/^#[0-9a-fA-F]{6}$/.test(body.color)) {
         return fail("color must be a 6-digit hex value", 400);
@@ -139,6 +143,7 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
         ...(body.audienceCap !== undefined ? { audienceCap: body.audienceCap } : {}),
         ...(body.dailySendCap !== undefined ? { dailySendCap: body.dailySendCap } : {}),
         ...(body.languageFilter !== undefined ? { languageFilter: body.languageFilter } : {}),
+        ...(body.localizePush !== undefined ? { localizePush: body.localizePush } : {}),
         ...(body.color !== undefined ? { color: body.color } : {}),
         ...(body.targetSegmentName !== undefined ? { targetSegmentName: typeof body.targetSegmentName === "string" ? body.targetSegmentName.trim() : null } : {}),
         ...(body.segmentTargeting !== undefined ? {
