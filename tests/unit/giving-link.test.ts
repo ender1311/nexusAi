@@ -6,6 +6,7 @@ import {
   buildGivingDeeplink,
   USD_AMOUNT_LADDER,
   CURRENCY_RATES,
+  usdAmount,
 } from "@/lib/engine/giving-link";
 
 describe("snapToLadder", () => {
@@ -241,5 +242,37 @@ describe("buildGivingDeeplink", () => {
     expect(match).not.toBeNull();
     const amount = parseInt(match![1], 10);
     expect(amount).toBeGreaterThan(0);
+  });
+});
+
+describe("usdAmount", () => {
+  it("returns the amount unchanged for USD", () => {
+    expect(usdAmount(50, "USD")).toBe(50);
+  });
+
+  it("defaults null/blank/unknown currency to USD (rate 1)", () => {
+    expect(usdAmount(50, null)).toBe(50);
+    expect(usdAmount(50, "")).toBe(50);
+    expect(usdAmount(50, "ZZZ")).toBe(50);
+  });
+
+  it("normalizes a known foreign currency to USD using CURRENCY_RATES", () => {
+    // GBP rate = 0.744 units per USD → 74.4 GBP / 0.744 = 100 USD
+    expect(usdAmount(74.4, "GBP")).toBeCloseTo(100, 2);
+  });
+
+  it("is case-insensitive on the currency code", () => {
+    expect(usdAmount(74.4, "gbp")).toBeCloseTo(100, 2);
+  });
+
+  it("rounds to cents", () => {
+    // JPY rate = 159.24 → 1000 JPY / 159.24 = 6.2798... → 6.28
+    expect(usdAmount(1000, "JPY")).toBe(6.28);
+  });
+
+  it("returns 0 for a non-finite or non-positive amount", () => {
+    expect(usdAmount(0, "USD")).toBe(0);
+    expect(usdAmount(NaN, "USD")).toBe(0);
+    expect(usdAmount(-10, "USD")).toBe(0);
   });
 });

@@ -15,6 +15,8 @@ const TIER_BASE_REWARDS: Record<string, number> = {
 const RECOVERY_RANK_TIER: Record<number, string> = { 1: "good", 2: "very_good", 3: "best" };
 const RECOVERY_WEIGHT = 5; // tunable
 
+const GIFT_REWARD_CAP_USD = 1000; // tunable: gift amount that maps to reward 1.0
+
 /**
  * Calculate normalized reward for a conversion event given the agent's goals.
  * Returns a reward in [-1, 1] range after normalization.
@@ -42,6 +44,15 @@ export function calculateReward(
   }
 
   const baseReward = TIER_BASE_REWARDS[matchingGoal.tier] ?? 0;
+
+  // Gift conversions are amount-weighted on a log scale so gift size is visible
+  // to the bandit without saturating. frac = log10(1+usd)/log10(1+CAP).
+  if (conversionEvent === "gift_given") {
+    const usd = Number(eventProperties?.gift_amount_usd) || 0;
+    if (usd <= 0) return 0;
+    const frac = Math.log10(1 + usd) / Math.log10(1 + GIFT_REWARD_CAP_USD);
+    return Math.max(0, Math.min(1, (baseReward / 10) * frac));
+  }
 
   let weight: number;
   if (matchingGoal.weightMode === "property" && matchingGoal.weightProperty && eventProperties) {

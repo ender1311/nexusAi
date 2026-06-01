@@ -37,6 +37,22 @@ export const CURRENCY_RATES: Record<string, number> = {
   LKR: 328.46,
 };
 
+/**
+ * Convert a gift amount in `currency` to USD, rounded to cents.
+ * Unknown/blank/null currency defaults to USD (rate 1).
+ * Non-finite or non-positive amounts return 0.
+ * CURRENCY_RATES holds units of foreign currency per 1 USD, so usd = amount / rate.
+ */
+export function usdAmount(amount: number, currency: string | null): number {
+  if (!isFinite(amount) || amount <= 0) return 0;
+  const code =
+    typeof currency === "string" && currency.trim().length > 0
+      ? currency.trim().toUpperCase()
+      : "USD";
+  const rate = CURRENCY_RATES[code] ?? 1;
+  return Math.round((amount / rate) * 100) / 100;
+}
+
 export const USD_AMOUNT_LADDER = [5, 10, 15, 20, 25, 30, 50, 75, 100, 150, 200, 250, 500, 1000];
 
 /**

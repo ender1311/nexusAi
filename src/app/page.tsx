@@ -21,6 +21,7 @@ import {
   getCachedAllVariantNames,
   getCachedFunnelStageBreakdown,
   getCachedFleetRecoveryStats,
+  getCachedFleetGiftStats,
 } from "@/lib/cache";
 import { getCachedBrazeStats } from "@/lib/braze/analytics";
 import { formatNumber, formatDate } from "@/lib/utils";
@@ -93,8 +94,8 @@ function ListCardSkeleton() {
 // ---------------------------------------------------------------------------
 
 async function MetricCardsSection() {
-  const [{ sentLast24h, totalConversions, totalDecisions, totalPushSends }, agents, trackedUsers, hiddenStats, recovery] =
-    await Promise.all([getCachedDashboardCounts(), getCachedAgentList(), getCachedTrackedUserCount(), getHiddenStatsForCurrentUser(), getCachedFleetRecoveryStats()]);
+  const [{ sentLast24h, totalConversions, totalDecisions, totalPushSends }, agents, trackedUsers, hiddenStats, recovery, giftStats] =
+    await Promise.all([getCachedDashboardCounts(), getCachedAgentList(), getCachedTrackedUserCount(), getHiddenStatsForCurrentUser(), getCachedFleetRecoveryStats(), getCachedFleetGiftStats()]);
   const avgConvRate = totalDecisions > 0 ? (totalConversions / totalDecisions) * 100 : 0;
   const activeAgents = agents.filter((a) => a.status === "active").length;
 
@@ -110,6 +111,14 @@ async function MetricCardsSection() {
           title="Lapsed Recovered (30d)"
           value={formatNumber(recovery.recoveries30d)}
           description={`${recovery.fleetRecoveryRate.toFixed(1)}% fleet recovery rate`}
+          icon={TrendingUp}
+        />
+      )}
+      {giftStats.giftCount > 0 && !isStatHidden(hiddenStats, "dashboard.gifts") && (
+        <MetricCard
+          title="Gifts Driven (30d)"
+          value={formatNumber(giftStats.giftCount)}
+          description={`$${formatNumber(Math.round(giftStats.giftRevenue))} attributed revenue`}
           icon={TrendingUp}
         />
       )}

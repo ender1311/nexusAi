@@ -51,6 +51,16 @@ interface UserData {
   };
   recentDecisions: Decision[];
   armStats: ArmStat[];
+  gifts: {
+    count: number;
+    totalUsd: number;
+    mostRecent: {
+      usd: number;
+      agentName: string | null;
+      timeToGiftHours: number;
+      conversionAt: string;
+    } | null;
+  };
 }
 
 export function BetaBar({ alpha, beta }: { alpha: number; beta: number }) {
@@ -177,6 +187,23 @@ export function UserInspector() {
               </div>
             </CardContent>
           </Card>
+
+          {result.gifts.count > 0 && (
+            <div className="rounded-lg border p-3">
+              <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-1">Gifts via Nexus</p>
+              <div className="flex items-baseline gap-3">
+                <span className="text-2xl font-bold">{result.gifts.count}</span>
+                <span className="text-sm text-muted-foreground">${Math.round(result.gifts.totalUsd)} attributed</span>
+              </div>
+              {result.gifts.mostRecent && (
+                <p className="text-xs text-muted-foreground mt-1">
+                  Most recent: ${Math.round(result.gifts.mostRecent.usd)}
+                  {result.gifts.mostRecent.agentName ? ` via ${result.gifts.mostRecent.agentName}` : ""}
+                  {` · ${result.gifts.mostRecent.timeToGiftHours.toFixed(1)}h to gift`}
+                </p>
+              )}
+            </div>
+          )}
 
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
             {/* Recent decisions */}

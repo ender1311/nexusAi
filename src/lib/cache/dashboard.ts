@@ -260,3 +260,54 @@ export const getCachedControlTowerStats = unstable_cache(
   ["control-tower-stats"],
   { tags: ["dashboard-stats", "agents", "personas"], revalidate: TTL.STANDARD }
 );
+
+/**
+ * Fleet gift insight: attributed gift count + USD revenue (SUM of conversionValue)
+ * for gift_given decisions in the 30-day window, plus an agent revenue leaderboard.
+ * Tagged "dashboard-stats" so the hourly cron refreshes it.
+ */
+export const getCachedFleetGiftStats = cache(
+  unstable_cache(
+    async () => {
+      const thirtyDaysAgo = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000);
+      const [totals, leaderboardRows] = await Promise.all([
+        prisma.$queryRaw<[{ gift_count: bigint; gift_revenue: number | null }]>`
+          SELECT COUNT(*)::bigint                         AS gift_count,
+                 COALESCE(SUM("conversionValue"), 0)::float AS gift_revenue
+          FROM "UserDecision"
+          WHERE "conversionEvent" = 'gift_given'
+            AND "conversionAt" >= ${thirtyDaysAgo}
+        `,
+        prisma.$queryRaw<Array<{ agent_id: string; revenue: number | null; gifts: bigint }>>`
+          SELECT "agentId"                                  AS agent_id,
+                 COALESCE(SUM("conversionValue"), 0)::float AS revenue,
+                 COUNT(*)::bigint                           AS gifts
+          FROM "UserDecision"
+          WHERE "conversionEvent" = 'gift_given'
+            AND "conversionAt" >= ${thirtyDaysAgo}
+          GROUP BY "agentId"
+          ORDER BY revenue DESC
+          LIMIT 5
+        `,
+      ]);
+      const agentIds = leaderboardRows.map((r) => r.agent_id);
+      const agents = agentIds.length > 0
+        ? await prisma.agent.findMany({ where: { id: { in: agentIds } }, select: { id: true, name: true, color: true } })
+        : [];
+      const byId = new Map(agents.map((a) => [a.id, a]));
+      return {
+        giftCount: Number(totals[0]?.gift_count ?? 0),
+        giftRevenue: Number(totals[0]?.gift_revenue ?? 0),
+        leaderboard: leaderboardRows.map((r) => ({
+          agentId: r.agent_id,
+          name: byId.get(r.agent_id)?.name ?? r.agent_id,
+          color: byId.get(r.agent_id)?.color ?? "#888888",
+          revenue: Number(r.revenue ?? 0),
+          gifts: Number(r.gifts),
+        })),
+      };
+    },
+    ["fleet-gift-stats"],
+    { tags: ["dashboard-stats", "agents"], revalidate: TTL.STANDARD }
+  )
+);

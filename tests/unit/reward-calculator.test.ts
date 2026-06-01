@@ -118,3 +118,42 @@ describe("calculateCumulativeReward", () => {
     expect(calculateCumulativeReward(["plan_started", "unknown"], goals)).toBeCloseTo(0.1, 5);
   });
 });
+
+describe("gift_given amount-weighted reward", () => {
+  const giftGoals: Goal[] = [
+    { id: "gg", agentId: "a1", eventName: "gift_given", tier: "best", valueWeight: 10, weightMode: "fixed", weightDefault: 1.0 },
+  ];
+
+  // reward = clamp((tierBase/10) * log10(1+usd)/log10(1+1000), 0, 1); tierBase(best)=10
+  it("$5 ≈ 0.26", () => {
+    expect(calculateReward("gift_given", giftGoals, { gift_amount_usd: 5 })).toBeCloseTo(0.26, 2);
+  });
+  it("$50 ≈ 0.57", () => {
+    expect(calculateReward("gift_given", giftGoals, { gift_amount_usd: 50 })).toBeCloseTo(0.57, 2);
+  });
+  it("$500 ≈ 0.90", () => {
+    expect(calculateReward("gift_given", giftGoals, { gift_amount_usd: 500 })).toBeCloseTo(0.90, 2);
+  });
+  it("$1000 caps at 1.0", () => {
+    expect(calculateReward("gift_given", giftGoals, { gift_amount_usd: 1000 })).toBeCloseTo(1.0, 5);
+  });
+  it("above the cap still clamps to 1.0", () => {
+    expect(calculateReward("gift_given", giftGoals, { gift_amount_usd: 5000 })).toBe(1);
+  });
+  it("$0 or missing amount → 0", () => {
+    expect(calculateReward("gift_given", giftGoals, { gift_amount_usd: 0 })).toBe(0);
+    expect(calculateReward("gift_given", giftGoals, {})).toBe(0);
+  });
+
+  it("a non-best tier scales the reward down proportionally", () => {
+    const goodGiftGoals: Goal[] = [
+      { id: "gg2", agentId: "a1", eventName: "gift_given", tier: "good", valueWeight: 10, weightMode: "fixed", weightDefault: 1.0 },
+    ];
+    // tierBase(good)=5 → half of the best-tier reward for the same amount
+    expect(calculateReward("gift_given", goodGiftGoals, { gift_amount_usd: 1000 })).toBeCloseTo(0.5, 5);
+  });
+
+  it("returns 0 when the agent has no gift_given goal", () => {
+    expect(calculateReward("gift_given", [], { gift_amount_usd: 100 })).toBe(0);
+  });
+});

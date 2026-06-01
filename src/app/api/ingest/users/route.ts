@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
 import { classifyPersona, BrazeAttributes } from "@/lib/engine/plan-persona-classifier";
 import { calculateReward } from "@/lib/engine/reward-calculator";
+import { usdAmount } from "@/lib/engine/giving-link";
 import { accumulateUserStats } from "@/lib/services/user-stats-service";
 import { upsertArmStats, upsertUserArmStats, updateLinUCBArm } from "@/lib/arm-stats";
 import { verifyIngestAuth } from "@/lib/ingest-auth";
@@ -688,6 +689,22 @@ export async function POST(req: NextRequest) {
       givingDecisionsByUser.set(row.userId, list);
     }
 
+    // Pre-load already-attributed gift_given conversion timestamps per user so we
+    // can skip re-attributing the same gift on a later sync (dedup by giftDate).
+    const attributedGiftRows = chunkGivingIds.length > 0
+      ? await prisma.userDecision.findMany({
+          where: { userId: { in: chunkGivingIds }, conversionEvent: "gift_given", conversionAt: { not: null } },
+          select: { userId: true, conversionAt: true },
+        })
+      : [];
+    const attributedGiftDatesByUser = new Map<string, Set<number>>();
+    for (const row of attributedGiftRows) {
+      if (!row.conversionAt) continue;
+      const set = attributedGiftDatesByUser.get(row.userId) ?? new Set<number>();
+      set.add(row.conversionAt.getTime());
+      attributedGiftDatesByUser.set(row.userId, set);
+    }
+
     // Pre-load stored funnelStage for the whole chunk so recovery detection can
     // compare stored→incoming BEFORE the upsert overwrites it. One query per chunk.
     const chunkRecoveryIds = [...new Set(
@@ -906,19 +923,31 @@ export async function POST(req: NextRequest) {
 
           // Most-recent unattributed decision within the window, from the chunk
           // pre-load (candidates are already sorted sentAt desc).
-          const decision = (givingDecisionsByUser.get(externalId) ?? [])
-            .find((d) => d.sentAt >= windowStart && d.sentAt <= giftDate) ?? null;
+          // Dedup: if this exact gift (by timestamp) was already attributed for
+          // this user on a prior sync, skip — never attribute one gift twice.
+          const alreadyAttributed =
+            attributedGiftDatesByUser.get(externalId)?.has(giftDate.getTime()) ?? false;
+
+          const decision = alreadyAttributed
+            ? null
+            : (givingDecisionsByUser.get(externalId) ?? [])
+                .find((d) => d.sentAt >= windowStart && d.sentAt <= giftDate) ?? null;
 
           if (decision) {
             const giftAmount =
               typeof raw["gift_amount_most_recent"] === "number"
                 ? raw["gift_amount_most_recent"]
                 : null;
+            const giftCurrency =
+              typeof raw["gift_currency_most_recent"] === "string"
+                ? raw["gift_currency_most_recent"]
+                : null;
+            const usd = giftAmount !== null ? usdAmount(giftAmount, giftCurrency) : 0;
 
             const reward = calculateReward(
               "gift_given",
               decision.agent.goals as Parameters<typeof calculateReward>[1],
-              giftAmount !== null ? { gift_amount_most_recent: giftAmount } : {},
+              { gift_amount_usd: usd, gift_amount_most_recent: giftAmount },
             );
 
             await prisma.userDecision.update({
@@ -926,6 +955,7 @@ export async function POST(req: NextRequest) {
               data: {
                 conversionEvent: "gift_given",
                 conversionAt: giftDate,
+                conversionValue: usd > 0 ? usd : null,
                 reward: reward !== 0 ? reward : null,
               },
             }).catch((err) => {

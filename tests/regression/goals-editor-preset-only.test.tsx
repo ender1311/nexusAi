@@ -51,7 +51,7 @@ describe("GoalsEditor (preset-only)", () => {
     });
 
     expect(container.textContent).toContain("Goals (1)");
-    expect(container.textContent).toContain("gift_completed");
+    expect(container.textContent).toContain("gift_given");
 
     // The chip is now selected/disabled, so a second click is a no-op (dedupe).
     const giftAgain = chipByLabel("Give a gift");
