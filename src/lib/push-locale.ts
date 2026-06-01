@@ -57,3 +57,34 @@ export function resolvePushLocale(
   }
   return english;
 }
+
+/**
+ * Strict variant of resolvePushLocale: returns null instead of falling back to
+ * English when no translation matches a non-English recipient. Used when an agent
+ * opts into "localize push" with no English fallback — recipients we cannot serve
+ * in their own language are skipped entirely rather than sent the English copy.
+ *
+ *   1. blank / unparseable tag           -> null (skip; language unknown)
+ *   2. English recipient (primary "en")  -> English copy (always available)
+ *   3. exact full-tag match (es_ES)      -> translation
+ *   4. base-subtag match (es_ES -> es)   -> translation (skipped for zh)
+ *   5. non-English, no match             -> null (skip)
+ */
+export function resolvePushLocaleStrict(
+  tag: string | null | undefined,
+  translationsByLang: Map<string, LocalizedCopy>,
+  englishVariant: { title: string | null; body: string },
+): LocalizedCopy | null {
+  const norm = tag ? normalizePushLocaleTag(tag) : null;
+  if (!norm) return null;
+  if (norm.primary === "en") return { title: englishVariant.title, body: englishVariant.body };
+
+  const exact = translationsByLang.get(norm.full);
+  if (exact) return exact;
+
+  if (norm.primary !== "zh") {
+    const base = translationsByLang.get(norm.primary);
+    if (base) return base;
+  }
+  return null;
+}

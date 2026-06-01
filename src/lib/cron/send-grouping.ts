@@ -3,7 +3,7 @@ import { createBrazeClient } from "@/lib/braze/client";
 import { PayloadFactory } from "@/lib/braze/payload-factory";
 import type { BrazeRecipient } from "@/lib/braze/payload-factory";
 import { GIVING_LINK_SENTINEL, buildGivingDeeplink } from "@/lib/engine/giving-link";
-import { resolvePushLocale, type LocalizedCopy } from "@/lib/push-locale";
+import { resolvePushLocaleStrict, type LocalizedCopy } from "@/lib/push-locale";
 import { VERSE_PUSH_SENTINEL, pickVerse, resolveVerseCopy, type VersePool, type VerseStrategy } from "@/lib/verse-content";
 
 export type VariantSendGroup = {
@@ -82,11 +82,15 @@ export function groupDecisionsByVariant(
       if (!verse) continue;
       copy = resolveVerseCopy(verse, tag, verseStrategy!);
     } else if (localization?.enabled && meta.channel === "push") {
-      copy = resolvePushLocale(
+      // Strict localization: skip recipients we cannot serve in their own language
+      // rather than falling back to the English copy.
+      const localized = resolvePushLocaleStrict(
         tag,
         localization.translationsByVariant.get(variantId) ?? new Map(),
         { title: meta.title, body: meta.body },
       );
+      if (!localized) continue;
+      copy = localized;
     }
 
     const groupInLocalTime = isFallback;

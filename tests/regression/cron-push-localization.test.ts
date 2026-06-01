@@ -1,6 +1,9 @@
 // Regression: push localization send-path. Guards two invariants:
 //  1. localizePush=false -> behavior unchanged (single EN group, EN copy).
-//  2. localizePush=true  -> per-language groups, English fallback for missing langs.
+//  2. localizePush=true  -> per-language groups; NO English fallback. Recipients
+//     whose language has no translation (and non-English) are skipped entirely,
+//     as are recipients with an unknown/blank language. English recipients still
+//     receive the English copy.
 // See docs/superpowers/specs/2026-05-30-push-localization-design.md
 import { describe, it, expect } from "bun:test";
 import { groupDecisionsByVariant, type VariantMeta } from "@/lib/cron/send-grouping";
@@ -21,14 +24,17 @@ describe("cron push localization regression", () => {
     expect(g[0].externalUserIds.sort()).toEqual(["a", "b"]);
   });
 
-  it("localizePush=true localizes pt and falls back to EN for missing langs", () => {
+  it("localizePush=true localizes pt, sends EN to en recipients, skips missing/unknown langs", () => {
     const g = Object.values(groupDecisionsByVariant(
-      [u("a", "pt"), u("b", "de"), u("c")], vm, dm(["a", "b", "c"]),
+      [u("a", "pt"), u("b", "de"), u("c"), u("d", "en")], vm, dm(["a", "b", "c", "d"]),
       { enabled: true, translationsByVariant: tx },
     ));
     const pt = g.find((x) => x.body === "PT")!;
-    const en = g.find((x) => x.body === "EN")!;
+    const en = g.find((x) => x.body === "EN");
     expect(pt.externalUserIds).toEqual(["a"]);
-    expect(en.externalUserIds.sort()).toEqual(["b", "c"]); // de + missing -> English
+    expect(en!.externalUserIds).toEqual(["d"]); // only the en recipient
+    // de ("b") has no translation and unknown-language ("c") are both dropped.
+    const allSent = g.flatMap((x) => x.externalUserIds).sort();
+    expect(allSent).toEqual(["a", "d"]);
   });
 });
