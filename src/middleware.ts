@@ -1,5 +1,10 @@
-import { NextRequest, NextResponse, type NextFetchEvent } from "next/server";
-import { authkitProxy } from "@workos-inc/authkit-nextjs";
+import { NextRequest, NextResponse } from "next/server";
+import {
+  authkit,
+  handleAuthkitProxy,
+  applyResponseHeaders,
+  partitionAuthkitHeaders,
+} from "@workos-inc/authkit-nextjs";
 
 const PUBLIC_PREFIXES = [
   "/login",
@@ -26,31 +31,48 @@ function isServiceRoute(pathname: string): boolean {
   return SERVICE_PREFIXES.some((p) => pathname.startsWith(p));
 }
 
-const authProxy = authkitProxy();
-
-export async function middleware(request: NextRequest, event: NextFetchEvent) {
+export async function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl;
 
   if (isServiceRoute(pathname)) {
     return NextResponse.next();
   }
 
-  // Redirect unauthenticated users away from protected routes before handing off
-  // to WorkOS proxy. Public routes still go through authProxy so withAuth() works
-  // in the root layout (which renders on every page including /login).
   const cookieName = process.env.WORKOS_COOKIE_NAME ?? "wos-session";
-  // Bearer-token requests (cron, ingest, machine-to-machine) carry their own auth — let them through
+  // Bearer-token requests (cron, ingest, machine-to-machine) carry their own auth — let them through.
   const hasBearerToken = request.headers.get("authorization")?.startsWith("Bearer ");
-  if (!isPublic(pathname) && !request.cookies.has(cookieName) && !hasBearerToken) {
-    // API routes return 401 JSON; page routes redirect to login
+  const hasSessionCookie = request.cookies.has(cookieName);
+
+  // No session cookie at all on a protected route → straight to login.
+  if (!isPublic(pathname) && !hasSessionCookie && !hasBearerToken) {
     if (pathname.startsWith("/api/")) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
     return NextResponse.redirect(new URL("/login", request.url));
   }
 
-  // Always delegate to WorkOS authkit proxy — required for withAuth() to work
-  return authProxy(request, event);
+  // A cookie exists (or this is a public/bearer route): validate the ACTUAL session.
+  // authkit() verifies the access token and attempts a refresh. Cookie *presence*
+  // is not proof of a valid session — an expired/stale cookie that can no longer be
+  // refreshed previously slipped past the presence check, leaving logged-out users
+  // on a chrome-less, non-interactive "cached" view until they manually signed out.
+  // When the session can't be validated, session.user is null and the returned
+  // headers clear the stale cookie, so we redirect to /login instead.
+  const { session, headers } = await authkit(request);
+
+  if (!session.user && !isPublic(pathname) && !hasBearerToken) {
+    if (pathname.startsWith("/api/")) {
+      return applyResponseHeaders(
+        NextResponse.json({ error: "Unauthorized" }, { status: 401 }),
+        partitionAuthkitHeaders(request, headers).responseHeaders,
+      );
+    }
+    return handleAuthkitProxy(request, headers, { redirect: "/login" });
+  }
+
+  // Authenticated, or a public path — pass through with the (possibly refreshed)
+  // session headers so withAuth() resolves the user in server components.
+  return handleAuthkitProxy(request, headers);
 }
 
 export const config = {

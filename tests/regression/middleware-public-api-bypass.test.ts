@@ -1,28 +1,32 @@
 import { describe, expect, it, mock } from "bun:test";
-import { NextRequest, NextResponse, type NextFetchEvent } from "next/server";
+import { NextResponse } from "next/server";
 
-let authProxyCalls = 0;
+let authkitCalls = 0;
 
 mock.module("@workos-inc/authkit-nextjs", () => ({
-  authkitProxy: () => () => {
-    authProxyCalls++;
-    return NextResponse.json({ proxied: true }, { status: 418 });
+  authkit: async () => {
+    authkitCalls++;
+    return { session: { user: null }, headers: new Headers() };
   },
+  handleAuthkitProxy: () => NextResponse.next(),
+  applyResponseHeaders: (res: NextResponse) => res,
+  partitionAuthkitHeaders: () => ({ requestHeaders: new Headers(), responseHeaders: new Headers() }),
 }));
 
+const { NextRequest } = await import("next/server");
 const { middleware } = await import("../../src/middleware");
 
 describe("middleware public service routes", () => {
-  it("does not pass ingest bearer requests through WorkOS proxy", async () => {
-    authProxyCalls = 0;
+  it("does not pass ingest bearer requests through WorkOS auth", async () => {
+    authkitCalls = 0;
 
     const req = new NextRequest("https://nexus.youversion.com/api/ingest/users", {
       headers: { Authorization: "Bearer test_ingest_key" },
     });
 
-    const res = await middleware(req, {} as NextFetchEvent);
+    const res = await middleware(req);
 
-    expect(authProxyCalls).toBe(0);
+    expect(authkitCalls).toBe(0);
     expect(res).toBeDefined();
     if (!res) throw new Error("Expected middleware response");
     expect(res.status).toBe(200);
