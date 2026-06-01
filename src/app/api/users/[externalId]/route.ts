@@ -18,7 +18,7 @@ export async function GET(
       return fail("User not found", 404);
     }
 
-    const [recentDecisions, totalDecisions, totalConversions, rewardAgg, armStats] = await Promise.all([
+    const [recentDecisions, totalDecisions, totalConversions, rewardAgg, armStats, giftAgg, mostRecentGift] = await Promise.all([
       prisma.userDecision.findMany({
         where: { userId: externalId },
         orderBy: { sentAt: "desc" },
@@ -45,6 +45,21 @@ export async function GET(
             take: 20,
           })
         : Promise.resolve([]),
+      prisma.userDecision.aggregate({
+        where: { userId: externalId, conversionEvent: "gift_given" },
+        _count: { _all: true },
+        _sum: { conversionValue: true },
+      }),
+      prisma.userDecision.findFirst({
+        where: { userId: externalId, conversionEvent: "gift_given", conversionAt: { not: null } },
+        orderBy: { conversionAt: "desc" },
+        select: {
+          sentAt: true,
+          conversionAt: true,
+          conversionValue: true,
+          agent: { select: { name: true } },
+        },
+      }),
     ]);
 
     // Enrich arm stats with variant + agent names
@@ -70,6 +85,15 @@ export async function GET(
       expectedReward: s.alpha / Math.max(1, s.alpha + s.beta),
     }));
 
+    const mostRecent = mostRecentGift && mostRecentGift.conversionAt
+      ? {
+          usd: mostRecentGift.conversionValue ?? 0,
+          agentName: mostRecentGift.agent?.name ?? null,
+          timeToGiftHours: (mostRecentGift.conversionAt.getTime() - mostRecentGift.sentAt.getTime()) / 3_600_000,
+          conversionAt: mostRecentGift.conversionAt.toISOString(),
+        }
+      : null;
+
     return ok({
       user: {
         externalId: user.externalId,
@@ -82,6 +106,11 @@ export async function GET(
       },
       recentDecisions,
       armStats: enrichedArmStats,
+      gifts: {
+        count: giftAgg._count._all,
+        totalUsd: giftAgg._sum.conversionValue ?? 0,
+        mostRecent,
+      },
     });
   } catch (err) {
     return handleRouteError(`GET /api/users/${externalId}`, err);
