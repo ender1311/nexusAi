@@ -1,5 +1,5 @@
 import { describe, it, expect } from "bun:test";
-import { resolvePushLocale, normalizePushLocaleTag } from "@/lib/push-locale";
+import { resolvePushLocale, resolvePushLocaleStrict, normalizePushLocaleTag } from "@/lib/push-locale";
 
 const en = { title: "Build your Bible habit!", body: "take a moment in God's Word today." };
 const es = { title: "Construye tu hábito", body: "tómate un momento hoy." };
@@ -51,5 +51,29 @@ describe("resolvePushLocale", () => {
   });
   it("English recipients get English (no en row stored)", () => {
     expect(resolvePushLocale("en_US", map({ es }), en)).toEqual(en);
+  });
+});
+
+describe("resolvePushLocaleStrict", () => {
+  it("exact and base-subtag matches resolve like the lenient resolver", () => {
+    expect(resolvePushLocaleStrict("pt_BR", map({ pt_BR: ptBR }), en)).toEqual(ptBR);
+    expect(resolvePushLocaleStrict("es_ES", map({ es }), en)).toEqual(es);
+    expect(resolvePushLocaleStrict("es", map({ es }), en)).toEqual(es);
+  });
+  it("keeps zh scripts distinct", () => {
+    expect(resolvePushLocaleStrict("zh_TW", map({ zh_TW: zhTW, zh_CN: zhCN }), en)).toEqual(zhTW);
+  });
+  it("English recipients always get English copy", () => {
+    expect(resolvePushLocaleStrict("en", map({ es }), en)).toEqual(en);
+    expect(resolvePushLocaleStrict("en_US", map({ es }), en)).toEqual(en);
+  });
+  it("non-English recipient with no translation is skipped (null)", () => {
+    expect(resolvePushLocaleStrict("fr", map({ es }), en)).toBeNull();
+    expect(resolvePushLocaleStrict("zh", map({ zh_TW: zhTW }), en)).toBeNull();
+  });
+  it("unknown/blank language is skipped (null)", () => {
+    expect(resolvePushLocaleStrict(null, map({ es }), en)).toBeNull();
+    expect(resolvePushLocaleStrict(undefined, map({ es }), en)).toBeNull();
+    expect(resolvePushLocaleStrict("  ", map({ es }), en)).toBeNull();
   });
 });

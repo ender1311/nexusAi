@@ -103,8 +103,9 @@ export function AgentLocalizationTab({
             <div className="pr-4">
               <p className="text-sm font-medium">Localize push copy</p>
               <p className="text-xs text-muted-foreground mt-0.5">
-                Send each recipient the translated copy for their language when a translation exists, falling back to
-                English otherwise. When off, everyone receives the English copy.
+                Send each recipient the translated copy for their language. Recipients whose language has no
+                translation are skipped (no English fallback); English-speaking recipients still receive the English
+                copy. When off, everyone receives the English copy.
               </p>
             </div>
             <Switch checked={localizePush} onCheckedChange={handleLocalizePush} disabled={saving || englishOnly} />

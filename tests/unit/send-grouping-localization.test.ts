@@ -31,10 +31,10 @@ describe("groupDecisionsByVariant localization", () => {
     expect(list[0].externalUserIds.sort()).toEqual(["a", "b"]);
   });
 
-  it("enabled: separate groups per resolved language with localized copy", () => {
+  it("enabled: localized groups, English-only for en recipients, missing langs skipped", () => {
     const groups = groupDecisionsByVariant(
-      [user("a", "es"), user("b", "es_ES"), user("c", "zh_TW"), user("d", "en"), user("e", "fr")],
-      variantMeta, decisionMap(["a", "b", "c", "d", "e"]),
+      [user("a", "es"), user("b", "es_ES"), user("c", "zh_TW"), user("d", "en"), user("e", "fr"), user("f", undefined)],
+      variantMeta, decisionMap(["a", "b", "c", "d", "e", "f"]),
       { enabled: true, translationsByVariant },
     );
     const list = Object.values(groups);
@@ -44,6 +44,9 @@ describe("groupDecisionsByVariant localization", () => {
     expect(es.externalUserIds.sort()).toEqual(["a", "b"]); // es + es_ES merge
     expect(es.title).toBe("ES title");
     expect(zh.externalUserIds).toEqual(["c"]);
-    expect(en.externalUserIds.sort()).toEqual(["d", "e"]); // en + fr-fallback merge
+    expect(en.externalUserIds).toEqual(["d"]); // only the en recipient; fr + unknown skipped
+    // fr ("e") and unknown-language ("f") are dropped entirely.
+    const allSent = list.flatMap((g) => g.externalUserIds).sort();
+    expect(allSent).toEqual(["a", "b", "c", "d"]);
   });
 });
