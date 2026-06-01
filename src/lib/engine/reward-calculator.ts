@@ -9,6 +9,12 @@ const TIER_BASE_REWARDS: Record<string, number> = {
   worst: -10,
 };
 
+// Synthetic "funnel_recovery" event: reward scaled by how high the user climbed.
+// rank 1=mau, 2=wau, 3=dau4 → tier good/very_good/best → 0.25 / 0.35 / 0.50.
+// Only used when no explicit agent Goal for "funnel_recovery" exists.
+const RECOVERY_RANK_TIER: Record<number, string> = { 1: "good", 2: "very_good", 3: "best" };
+const RECOVERY_WEIGHT = 5; // tunable
+
 /**
  * Calculate normalized reward for a conversion event given the agent's goals.
  * Returns a reward in [-1, 1] range after normalization.
@@ -23,7 +29,17 @@ export function calculateReward(
   eventProperties?: Record<string, unknown>
 ): number {
   const matchingGoal = goals.find((g) => g.eventName === conversionEvent);
-  if (!matchingGoal) return 0;
+  if (!matchingGoal) {
+    // Built-in funnel_recovery reward when the agent has no explicit Goal for it.
+    if (conversionEvent === "funnel_recovery") {
+      const rank = Number(eventProperties?.recovery_rank);
+      const tier = RECOVERY_RANK_TIER[rank];
+      if (!tier) return 0;
+      const base = TIER_BASE_REWARDS[tier] ?? 0;
+      return Math.max(-1, Math.min(1, (base * RECOVERY_WEIGHT) / 100));
+    }
+    return 0;
+  }
 
   const baseReward = TIER_BASE_REWARDS[matchingGoal.tier] ?? 0;
 
