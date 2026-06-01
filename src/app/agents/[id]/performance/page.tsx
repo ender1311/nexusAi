@@ -15,6 +15,7 @@ import { TimingHeatmap } from "@/components/charts/timing-heatmap";
 import { formatNumber } from "@/lib/utils";
 import type { VariantMetric, TimeSeriesPoint, TimingHeatmapCell } from "@/types/metrics";
 import { liftSignificance } from "@/lib/engine/lift-significance";
+import { agentGiftMetrics } from "@/lib/cache/agent-gift-metrics";
 
 /** Wilson score 95% CI for a binomial proportion. Returns [low, high] as percentages. */
 function wilsonCI(sends: number, conversions: number): { low: number; high: number } {
@@ -143,6 +144,8 @@ async function PerformanceContent({ id }: { id: string }) {
     }),
     prisma.userAgentAssignment.count({ where: { agentId: id, startedAt: { gte: thirtyDaysAgo } } }),
   ]);
+
+  const giftMetrics = await agentGiftMetrics(id);
 
   const recoveries30d = recoveryTransitions.length;
   const recoveryReward = recoveryRewardAgg._sum.reward ?? 0;
@@ -480,6 +483,33 @@ async function PerformanceContent({ id }: { id: string }) {
                 </CardContent>
               </Card>
             )}
+          </div>
+        </div>
+      )}
+
+      {giftMetrics.giftCount > 0 && (
+        <div className="space-y-4">
+          <h2 className="text-sm font-semibold text-muted-foreground">Gifts driven</h2>
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-3 sm:gap-4">
+            <Card><CardContent className="p-4">
+              <p className="text-xs text-muted-foreground">Gifts</p>
+              <p className="text-2xl font-bold mt-1">{formatNumber(giftMetrics.giftCount)}</p>
+              <p className="text-xs text-muted-foreground mt-0.5">last 30 days</p>
+            </CardContent></Card>
+            <Card><CardContent className="p-4">
+              <p className="text-xs text-muted-foreground">Gift Revenue</p>
+              <p className="text-2xl font-bold mt-1 text-primary">${formatNumber(Math.round(giftMetrics.giftRevenue))}</p>
+              <p className="text-xs text-muted-foreground mt-0.5">USD attributed</p>
+            </CardContent></Card>
+            <Card><CardContent className="p-4">
+              <p className="text-xs text-muted-foreground">Gift Conversion Rate</p>
+              <p className="text-2xl font-bold mt-1">{giftMetrics.giftConversionRate.toFixed(2)}%</p>
+              <p className="text-xs text-muted-foreground mt-0.5">gifts ÷ sends</p>
+            </CardContent></Card>
+            <Card><CardContent className="p-4">
+              <p className="text-xs text-muted-foreground">Avg Time to Gift</p>
+              <p className="text-2xl font-bold mt-1">{giftMetrics.avgTimeToGiftHours.toFixed(1)}h</p>
+            </CardContent></Card>
           </div>
         </div>
       )}
