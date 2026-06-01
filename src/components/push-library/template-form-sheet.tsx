@@ -37,6 +37,7 @@ const CATEGORIES = [
   "votd",
   "guided-scripture",
   "guided-prayer",
+  "giving",
 ] as const;
 
 const SUBCATEGORIES: Record<string, string[]> = {
@@ -45,6 +46,17 @@ const SUBCATEGORIES: Record<string, string[]> = {
   votd: ["votd-page", "todays-story"],
   "guided-scripture": [],
   "guided-prayer": ["guided-prayer", "prayer-list"],
+  giving: [
+    "monthly-appeal",
+    "giving-tuesday",
+    "eoy",
+    "matching-gift",
+    "recurring-gift",
+    "sower-generosity",
+    "impact-story",
+    "prayer",
+    "thank-you-followup",
+  ],
 };
 
 type TemplateVariant = {

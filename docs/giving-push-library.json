@@ -1,0 +1,854 @@
+[
+  {
+    "name": "2024-12 EOY Giving (push1) — 2024 is almost over",
+    "category": "giving",
+    "subcategory": "eoy",
+    "title": "2024 is almost over…",
+    "body": "There’s still time to make an impact. Give a special gift before the year ends and share the hope you have with the world.",
+    "deeplink": "https://www.bible.com/give?fund=YouVersion&frequency=onetime&utm_medium=push&utm_source=Push&utm_campaign=2024-12-end-of-year-givng1",
+    "cta": null,
+    "_source": {
+      "campaign": "2024-12 EOY Giving",
+      "segment": "push1",
+      "file": "2024-12-eoy-giving-PUSH1-en.json",
+      "also_used_in": []
+    }
+  },
+  {
+    "name": "2024-12 EOY Giving (push2) — Give a special endofyear gift",
+    "category": "giving",
+    "subcategory": "eoy",
+    "title": "Give a special end-of-year gift!",
+    "body": "Imagine all the lives that could be changed when you give today ➡️",
+    "deeplink": "https://www.bible.com/give?fund=YouVersion&frequency=onetime&utm_medium=push&utm_source=Push&utm_campaign=2024-12-end-of-year-givng2",
+    "cta": null,
+    "_source": {
+      "campaign": "2024-12 EOY Giving",
+      "segment": "push2",
+      "file": "2024-12-eoy-giving-PUSH2-en.json",
+      "also_used_in": [
+        "2025-12 EOY Giving/push2"
+      ]
+    }
+  },
+  {
+    "name": "2024-12 EOY Giving (push3) — Will you join us",
+    "category": "giving",
+    "subcategory": "eoy",
+    "title": "{% if ${first_name} == blank  %}Will you join us?{% else %}{{${first_name} | default: '' }}, will you join us?{% endif %}",
+    "body": "Give a special gift before the end of the year and help us continue to share God’s Word with the world.",
+    "deeplink": "https://www.bible.com/give?fund=YouVersion&frequency=onetime&utm_medium=push&utm_source=Push&utm_campaign=2024-12-end-of-year-givng3",
+    "cta": null,
+    "_source": {
+      "campaign": "2024-12 EOY Giving",
+      "segment": "push3",
+      "file": "2024-12-eoy-giving-PUSH3-en.json",
+      "also_used_in": []
+    }
+  },
+  {
+    "name": "2025-12 EOY Giving (push1) — 2025 is almost over",
+    "category": "giving",
+    "subcategory": "eoy",
+    "title": "2025 is almost over…",
+    "body": "There’s still time to make an impact. Give a special year-end gift and share the hope you have with the world.",
+    "deeplink": "https://www.bible.com/give?fund=YouVersion&frequency=onetime&utm_medium=push&utm_source=Push&utm_campaign=2025-12-eoy-giving-1",
+    "cta": null,
+    "_source": {
+      "campaign": "2025-12 EOY Giving",
+      "segment": "push1",
+      "file": "2025-12-eoy-giving-PUSH-1-en.json",
+      "also_used_in": []
+    }
+  },
+  {
+    "name": "2025-12 EOY Giving (push3) — Give a special yearend gift and",
+    "category": "giving",
+    "subcategory": "eoy",
+    "title": "",
+    "body": "Give a special year-end gift and help us continue to share God’s Word with the world.",
+    "deeplink": "https://www.bible.com/give?fund=YouVersion&frequency=onetime&utm_medium=push&utm_source=Push&utm_campaign=2025-12-eoy-giving-3",
+    "cta": null,
+    "_source": {
+      "campaign": "2025-12 EOY Giving",
+      "segment": "push3",
+      "file": "2025-12-eoy-giving-PUSH-3-en.json",
+      "also_used_in": []
+    }
+  },
+  {
+    "name": "2023-11 Giving Tuesday - Week Before — A Prayer for a Heart of",
+    "category": "giving",
+    "subcategory": "giving-tuesday",
+    "title": "🙏 A Prayer for a Heart of Generosity",
+    "body": "Discover how you can have a generous heart that reflects God’s generosity ➡️",
+    "deeplink": null,
+    "cta": null,
+    "_source": {
+      "campaign": "2023-11 Giving Tuesday - Week Before",
+      "segment": "",
+      "file": "2024-11-giving-tuesday-week-before-push1.json",
+      "also_used_in": []
+    }
+  },
+  {
+    "name": "2023-11 Giving Tuesday - Week Before — Lets pray together",
+    "category": "giving",
+    "subcategory": "giving-tuesday",
+    "title": "🙏 Let’s pray together",
+    "body": "In this season, let’s pray together for our entire YouVersion Community to live generously.",
+    "deeplink": null,
+    "cta": null,
+    "_source": {
+      "campaign": "2023-11 Giving Tuesday - Week Before",
+      "segment": "",
+      "file": "2024-11-giving-tuesday-week-before-push2.json",
+      "also_used_in": [
+        "2023-11 Giving Tuesday - Week Before"
+      ]
+    }
+  },
+  {
+    "name": "2024-11 Giving Tuesday - Week Before — A Prayer for a Generous Heart",
+    "category": "giving",
+    "subcategory": "giving-tuesday",
+    "title": "🙏 A Prayer for a Generous Heart",
+    "body": "In this season, join us as we pray and ask God how He’s inviting each of us to live generously.",
+    "deeplink": "https://bible.com/blog/?p=251036&utm_medium=push&utm_source=Push&utm_campaign=2024-11-giving-tuesday-week-before",
+    "cta": null,
+    "_source": {
+      "campaign": "2024-11 Giving Tuesday - Week Before",
+      "segment": "",
+      "file": "2024-11-giving-tuesday-week-before-en.json",
+      "also_used_in": []
+    }
+  },
+  {
+    "name": "2024-12 Giving Tuesday - Day Before (push1) — Giving Tuesday isnt just about money",
+    "category": "giving",
+    "subcategory": "giving-tuesday",
+    "title": "Giving Tuesday isn’t just about money.",
+    "body": "It’s about changing lives. When you give to YouVersion, you help change lives like Tanisa’s ➡️",
+    "deeplink": "https://bible.com/blog/?p=251040&utm_medium=push&utm_source=Push&utm_campaign=2024-12-giving-tuesday-day-before-1",
+    "cta": null,
+    "_source": {
+      "campaign": "2024-12 Giving Tuesday - Day Before",
+      "segment": "push1",
+      "file": "2024-12-giving-tuesday-day-before-PUSH-1-en.json",
+      "also_used_in": []
+    }
+  },
+  {
+    "name": "2024-12 Giving Tuesday - Day Before (push2) — How can you inspire generosity",
+    "category": "giving",
+    "subcategory": "giving-tuesday",
+    "title": "How can you inspire generosity?",
+    "body": "As you prepare for Giving Tuesday, share Tanisa’s story and invite others to join this mission ➡️",
+    "deeplink": "https://bible.com/blog/?p=251044&utm_medium=push&utm_source=Push&utm_campaign=2024-12-giving-tuesday-day-before-2",
+    "cta": null,
+    "_source": {
+      "campaign": "2024-12 Giving Tuesday - Day Before",
+      "segment": "push2",
+      "file": "2024-12-giving-tuesday-day-before-PUSH-2-en.json",
+      "also_used_in": []
+    }
+  },
+  {
+    "name": "2024-12 Giving Tuesday - Day Of (/zDid NOT Send) — Were almost there",
+    "category": "giving",
+    "subcategory": "giving-tuesday",
+    "title": "We’re almost there!",
+    "body": "This Giving Tuesday, every dollar you give will be matched up to $3 million USD. Will you join us?",
+    "deeplink": "https://www.bible.com/give?fund=YouVersion&frequency=onetime&utm_medium=push&utm_source=Push&utm_campaign=2024-12-giving-tuesday-day-of-3",
+    "cta": null,
+    "_source": {
+      "campaign": "2024-12 Giving Tuesday - Day Of",
+      "segment": "push3/zDid NOT Send",
+      "file": "2024-12-giving-tuesday-day-of-PUSH-3-en.json",
+      "also_used_in": []
+    }
+  },
+  {
+    "name": "2024-12 Giving Tuesday - Day Of (push1) — Its Giving Tuesday",
+    "category": "giving",
+    "subcategory": "giving-tuesday",
+    "title": "{% if ${first_name} == blank  %}It’s Giving Tuesday!{% else %}{{${first_name} | default: '' }}, it’s Giving Tuesday!{% endif %}",
+    "body": "Every dollar given this Giving Tuesday will be matched up to $3 million USD. Double your impact today ➡️",
+    "deeplink": "https://www.bible.com/give?fund=YouVersion&frequency=onetime&utm_medium=push&utm_source=Push&utm_campaign=2024-12-giving-tuesday-day-of-1",
+    "cta": null,
+    "_source": {
+      "campaign": "2024-12 Giving Tuesday - Day Of",
+      "segment": "push1",
+      "file": "2024-12-giving-tuesday-day-of-PUSH-1-en.json",
+      "also_used_in": []
+    }
+  },
+  {
+    "name": "2024-12 Giving Tuesday - Day Of (push2) — Today your impact can double",
+    "category": "giving",
+    "subcategory": "giving-tuesday",
+    "title": "Today, your impact can double!",
+    "body": "This Giving Tuesday, every dollar will be matched up to $3 million USD. Give a special gift today ➡️",
+    "deeplink": "https://www.bible.com/give?fund=YouVersion&frequency=onetime&utm_medium=push&utm_source=Push&utm_campaign=2024-12-giving-tuesday-day-of-2",
+    "cta": null,
+    "_source": {
+      "campaign": "2024-12 Giving Tuesday - Day Of",
+      "segment": "push2",
+      "file": "2024-12-giving-tuesday-day-of-PUSH-2-en.json",
+      "also_used_in": []
+    }
+  },
+  {
+    "name": "2024-12 Giving Tuesday - Day Of (push3) — Theres still time",
+    "category": "giving",
+    "subcategory": "giving-tuesday",
+    "title": "There’s still time!",
+    "body": "This Giving Tuesday, you can help get God’s Word to even more people. And the day’s not over yet. Will you join us?",
+    "deeplink": "https://www.bible.com/give?fund=YouVersion&frequency=onetime&utm_medium=push&utm_source=Push&utm_campaign=2024-12-giving-tuesday-day-of-3",
+    "cta": null,
+    "_source": {
+      "campaign": "2024-12 Giving Tuesday - Day Of",
+      "segment": "push3",
+      "file": "2024-12-giving-tuesday-day-of-PUSH-3-UPDATED-en copy.json",
+      "also_used_in": []
+    }
+  },
+  {
+    "name": "2025-12 Giving Tuesday Day Before — This is why your giving matters",
+    "category": "giving",
+    "subcategory": "giving-tuesday",
+    "title": "This is why your giving matters ➡️",
+    "body": "Here’s how you can be part of stories like Mario’s this Giving Tuesday…",
+    "deeplink": "https://bible.com/blog/?p=267428&utm_medium=push&utm_source=Push&utm_campaign=2025-11-giving-tuesday-day-before",
+    "cta": null,
+    "_source": {
+      "campaign": "2025-12 Giving Tuesday Day Before",
+      "segment": "",
+      "file": "2025-12-giving-tuesday-day-before-PUSH-en.json",
+      "also_used_in": []
+    }
+  },
+  {
+    "name": "2025-12 Giving Tuesday Pre-Tgiving — What are you grateful for",
+    "category": "giving",
+    "subcategory": "giving-tuesday",
+    "title": "What are you grateful for?",
+    "body": "Reflect on what the Bible says about living with a thankful and generous heart with this verse ➡️",
+    "deeplink": "https://www.bible.com/bible/111/1TH.5.16-18?utm_medium=push&utm_source=Push&utm_campaign=2025-11-giving-tuesday-pre",
+    "cta": null,
+    "_source": {
+      "campaign": "2025-12 Giving Tuesday Pre-Tgiving",
+      "segment": "",
+      "file": "2025-12-giving-tuesday-pre-tgiving-PUSH-en.json",
+      "also_used_in": []
+    }
+  },
+  {
+    "name": "2024-06 Giving (non-givers) — God can use one verse to",
+    "category": "giving",
+    "subcategory": "impact-story",
+    "title": "God can use one verse to do this ➡️",
+    "body": "Rich discovered hope when he had none. Here’s his story and how you can be part of stories like his…",
+    "deeplink": "https://bible.com/blog/?p=250350&utm_medium=push&utm_source=Push&utm_campaign=2024-06-giving",
+    "cta": null,
+    "_source": {
+      "campaign": "2024-06 Giving",
+      "segment": "non-givers",
+      "file": "2024-06-giving-PUSH-en.json",
+      "also_used_in": []
+    }
+  },
+  {
+    "name": "2024-10 Giving — I had so many doubts",
+    "category": "giving",
+    "subcategory": "impact-story",
+    "title": "“I had so many doubts…”",
+    "body": "“… Then I found hope.” Discover how God is using the Bible App to spread hope. Here’s Taylor’s story ➡️",
+    "deeplink": "https://bible.com/blog/?p=250842&utm_medium=push&utm_source=Push&utm_campaign=2024-10-giving-mid-month",
+    "cta": null,
+    "_source": {
+      "campaign": "2024-10 Giving",
+      "segment": "",
+      "file": "2024-10-giving-mid-month-PUSH-en.json",
+      "also_used_in": []
+    }
+  },
+  {
+    "name": "2024-11 Giving — How has Gods Word changed you",
+    "category": "giving",
+    "subcategory": "impact-story",
+    "title": "How has God’s Word changed you?",
+    "body": "God is using His Word to impact millions of lives just like Cynthia, Ogar, and Nel ➡️",
+    "deeplink": "https://bible.com/blog/?p=250933&utm_medium=push&utm_source=Push&utm_campaign=2024-11-giving",
+    "cta": null,
+    "_source": {
+      "campaign": "2024-11 Giving",
+      "segment": "",
+      "file": "2024-11-giving-PUSH-en.json",
+      "also_used_in": []
+    }
+  },
+  {
+    "name": "2025-02 Giving — Can I really make a difference",
+    "category": "giving",
+    "subcategory": "impact-story",
+    "title": "“Can I really make a difference?”",
+    "body": "Yes, you can! Here’s how you can help someone like Leo experience the life-changing power of God’s Word.",
+    "deeplink": "https://bible.com/blog/?p=263268&utm_medium=push&utm_source=Push&utm_campaign=2025-02-giving",
+    "cta": null,
+    "_source": {
+      "campaign": "2025-02 Giving",
+      "segment": "",
+      "file": "BRAZE-2025-02-giving-PUSH-en.json",
+      "also_used_in": []
+    }
+  },
+  {
+    "name": "2025-05 Giving — How has this changed your life",
+    "category": "giving",
+    "subcategory": "impact-story",
+    "title": "How has this changed your life?",
+    "body": "Discover how you can share the transformational power of God’s Word with billions around the world.",
+    "deeplink": null,
+    "cta": null,
+    "_source": {
+      "campaign": "2025-05 Giving",
+      "segment": "",
+      "file": "2025-05-giving-PUSH-en.json",
+      "also_used_in": []
+    }
+  },
+  {
+    "name": "2025-07 Giving (push1) — How has Gods Word changed you",
+    "category": "giving",
+    "subcategory": "impact-story",
+    "title": "How has God’s Word changed you?",
+    "body": "God is using His Word to impact millions of lives just like Millo, Santina, and Ariane ➡️",
+    "deeplink": "https://bible.com/blog/?p=266730&utm_medium=push&utm_source=Push&utm_campaign=2025-07-giving-1",
+    "cta": null,
+    "_source": {
+      "campaign": "2025-07 Giving",
+      "segment": "push1",
+      "file": "2025-07-giving-PUSH-1-en.json",
+      "also_used_in": []
+    }
+  },
+  {
+    "name": "2026-05 Giving — Dont miss the match this month",
+    "category": "giving",
+    "subcategory": "matching-gift",
+    "title": "Don’t miss the match this month!",
+    "body": "Thanks to a generous donor, all new recurring gifts this month will be matched up to $250,000 USD.",
+    "deeplink": "https://youversion.com/sowers?utm_medium=push&utm_source=Push&utm_campaign=2026-05-giving",
+    "cta": null,
+    "_source": {
+      "campaign": "2026-05 Giving",
+      "segment": "",
+      "file": "2026-05-giving-PUSH-en.json",
+      "also_used_in": []
+    }
+  },
+  {
+    "name": "2023-03 Giving — What you give matters",
+    "category": "giving",
+    "subcategory": "monthly-appeal",
+    "title": "{% if ${first_name} == blank  %}What you give matters{% else %}{{${first_name} | default: '' }}, what you give matters{% endif %}",
+    "body": "Your generosity helps us reach millions with limited access to Scripture. Give now to help spread the Word. ➡️",
+    "deeplink": null,
+    "cta": null,
+    "_source": {
+      "campaign": "2023-03 Giving",
+      "segment": "",
+      "file": "2023-03-giving-PUSH-en.json",
+      "also_used_in": []
+    }
+  },
+  {
+    "name": "2023-07 Giving — How can you change the world",
+    "category": "giving",
+    "subcategory": "monthly-appeal",
+    "title": "🌏 How can you change the world?",
+    "body": "When you give US$40, you help 200 people connect with God and His Word through the Bible App.",
+    "deeplink": "https://www.bible.com/give?utm_medium=push&utm_source=Push&utm_campaign=2023-07-giving",
+    "cta": null,
+    "_source": {
+      "campaign": "2023-07 Giving",
+      "segment": "",
+      "file": "2023-07-giving-PUSH-en.json",
+      "also_used_in": []
+    }
+  },
+  {
+    "name": "2023-08 Giving (push1) — Help 200 people get the Bible",
+    "category": "giving",
+    "subcategory": "monthly-appeal",
+    "title": "Help 200 people get the Bible App!",
+    "body": "When you give US$40, you’re making it possible for 200 people to have unlimited access to God’s Word.",
+    "deeplink": "https://www.bible.com/give?utm_medium=push&utm_source=Push&utm_campaign=2023-08-giving",
+    "cta": null,
+    "_source": {
+      "campaign": "2023-08 Giving",
+      "segment": "push1",
+      "file": "2023-08-giving-PUSH1-en.json",
+      "also_used_in": []
+    }
+  },
+  {
+    "name": "2023-08 Giving (push2) — I thought the Bible was boring",
+    "category": "giving",
+    "subcategory": "monthly-appeal",
+    "title": "“I thought the Bible was boring.”",
+    "body": "Marsha struggled reading God’s Word until this happened →",
+    "deeplink": "{% if custom_attribute.${language_tag} contains 'en' or custom_attribute.${language_tag} == blank and ${language} == 'en' %}\n{% abort_message() %}\n{% elsif custom_attribute.${language_tag} contains 'af' or custom_attribute.${language_tag} == blank and ${language} == 'af' %}\nhttps://bible.com/blog/af_ZA/?p=230439&utm_medium=push&utm_source=Push&utm_campaign=2023-08-giving\n{% elsif custom_attribute.${language_tag} contains 'de' or custom_attribute.${language_tag} == blank and ${language} == 'de' %}\nhttps://bible.com/blog/de/?p=230441&utm_medium=push&utm_source=Push&utm_campaign=2023-08-giving\n{% elsif custom_attribute.${language_tag} contains 'es' or custom_attribute.${language_tag} == blank and ${language} == 'es' %}\n{% abort_message() %}\n{% elsif custom_attribute.${language_tag} contains 'fr' or custom_attribute.${language_tag} == blank and ${language} == 'fr' %}\nhttps://bible.com/blog/fr/?p=230445&utm_medium=push&utm_source=Push&utm_campaign=2023-08-giving\n{% elsif custom_attribute.${language_tag} contains 'id' or custom_attribute.${language_tag} == blank and ${language} == 'id' %}\nhttps://bible.com/blog/id/?p=230447&utm_medium=push&utm_source=Push&utm_campaign=2023-08-giving\n{% elsif custom_attribute.${language_tag} contains 'it' or custom_attribute.${language_tag} == blank and ${language} == 'it' %}\nhttps://bible.com/blog/it/?p=230449&utm_medium=push&utm_source=Push&utm_campaign=2023-08-giving\n{% elsif custom_attribute.${language_tag} contains 'ja' or custom_attribute.${language_tag} == blank and ${language} == 'ja' %}\nhttps://bible.com/blog/ja/?p=230451&utm_medium=push&utm_source=Push&utm_campaign=2023-08-giving\n{% elsif custom_attribute.${language_tag} contains 'ko' or custom_attribute.${language_tag} == blank and ${language} == 'ko' %}\nhttps://bible.com/blog/ko/?p=230453&utm_medium=push&utm_source=Push&utm_campaign=2023-08-giving\n{% elsif custom_attribute.${language_tag} contains 'nl' or custom_attribute.${language_tag} == blank and ${language} == 'nl' %}\nhttps://bible.com/blog/nl/?p=230455&utm_medium=push&utm_source=Push&utm_campaign=2023-08-giving\n{% elsif custom_attribute.${language_tag} contains 'pl' or custom_attribute.${language_tag} == blank and ${language} == 'pl' %}\nhttps://bible.com/blog/pl/?p=230457&utm_medium=push&utm_source=Push&utm_campaign=2023-08-giving\n{% elsif custom_attribute.${language_tag} contains 'pt' or custom_attribute.${language_tag} == blank and ${language} == 'pt' %}\n{% abort_message() %}\n{% elsif custom_attribute.${language_tag} contains 'ro' or custom_attribute.${language_tag} == blank and ${language} == 'ro' %}\nhttps://bible.com/blog/ro/?p=230461&utm_medium=push&utm_source=Push&utm_campaign=2023-08-giving\n{% elsif custom_attribute.${language_tag} contains 'ru' or custom_attribute.${language_tag} == blank and ${language} == 'ru' %}\nhttps://bible.com/blog/ru/?p=230463&utm_medium=push&utm_source=Push&utm_campaign=2023-08-giving\n{% elsif custom_attribute.${language_tag} contains 'th' or custom_attribute.${language_tag} == blank and ${language} == 'th' %}\nhttps://bible.com/blog/th/?p=230465&utm_medium=push&utm_source=Push&utm_campaign=2023-08-giving\n{% elsif custom_attribute.${language_tag} contains 'tl' or custom_attribute.${language_tag} == blank and ${language} == 'tl' %}\nhttps://bible.com/blog/tl/?p=230467&utm_medium=push&utm_source=Push&utm_campaign=2023-08-giving\n{% elsif custom_attribute.${language_tag} contains 'uk' or custom_attribute.${language_tag} == blank and ${language} == 'uk' %}\nhttps://bible.com/blog/uk/?p=230469&utm_medium=push&utm_source=Push&utm_campaign=2023-08-giving\n{% elsif custom_attribute.${language_tag} contains 'vi' or custom_attribute.${language_tag} == blank and ${language} == 'vi' %}\nhttps://bible.com/blog/vi/?p=230471&utm_medium=push&utm_source=Push&utm_campaign=2023-08-giving\n{% elsif custom_attribute.${language_tag} contains 'zh' or custom_attribute.${language_tag} == blank and ${language} == 'zh' %}\n    {% if custom_attribute.${language_tag} == 'zh_TW' or custom_attribute.${language_tag} contains 'zh_Hant' %}\nhttps://bible.com/blog/zh-hant/?p=230475&utm_medium=push&utm_source=Push&utm_campaign=2023-08-giving\n    {% else %}\nhttps://bible.com/blog/zh-hans/?p=230473&utm_medium=push&utm_source=Push&utm_campaign=2023-08-giving\n    {% endif %}\n{% else %}\nhttps://bible.com/blog/?p=230296&utm_medium=push&utm_source=Push&utm_campaign=2023-08-giving\n{% endif %}",
+    "cta": null,
+    "_source": {
+      "campaign": "2023-08 Giving",
+      "segment": "push2",
+      "file": "2023-08-giving-PUSH2-en.json",
+      "also_used_in": []
+    }
+  },
+  {
+    "name": "2023-12 Mid-Month Giving — The most meaningful gift to give",
+    "category": "giving",
+    "subcategory": "monthly-appeal",
+    "title": "The most meaningful gift to give is—",
+    "body": "—God’s Word! Give a gift before the end of the year to help get the Bible to even more people.",
+    "deeplink": null,
+    "cta": null,
+    "_source": {
+      "campaign": "2023-12 Mid-Month Giving",
+      "segment": "",
+      "file": "2023-12-mid-month-giving-PUSH.json",
+      "also_used_in": []
+    }
+  },
+  {
+    "name": "2024-05 Giving (inconsistent giver) — Did you know about this",
+    "category": "giving",
+    "subcategory": "monthly-appeal",
+    "title": "{% if ${first_name} == blank  %}Did you know about this?{% else %}{{${first_name} | default: '' }}, did you know about this?{% endif %}",
+    "body": "Your past generosity is helping people with limited access to God’s Word. Continue making an impact ➡️",
+    "deeplink": "https://bible.com/blog/?p=250157&utm_medium=push&utm_source=Push&utm_campaign=2024-05-giving",
+    "cta": null,
+    "_source": {
+      "campaign": "2024-05 Giving",
+      "segment": "push2 - inconsistent giver",
+      "file": "2024-05-giving-PUSH-2-en.json",
+      "also_used_in": []
+    }
+  },
+  {
+    "name": "2024-05 Giving (non giver) — Did you know about this",
+    "category": "giving",
+    "subcategory": "monthly-appeal",
+    "title": "{% if ${first_name} == blank  %}Did you know about this?{% else %}{{${first_name} | default: '' }}, did you know about this?{% endif %}",
+    "body": "Learn how YouVersion is helping people with limited access to God’s Word and how you can be part of it.",
+    "deeplink": "https://bible.com/blog/?p=250157&utm_medium=push&utm_source=Push&utm_campaign=2024-05-giving",
+    "cta": null,
+    "_source": {
+      "campaign": "2024-05 Giving",
+      "segment": "push1 - non giver",
+      "file": "2024-05-giving-PUSH-1-en.json",
+      "also_used_in": []
+    }
+  },
+  {
+    "name": "2024-06 Giving (inconsistent givers) — God can use one verse to",
+    "category": "giving",
+    "subcategory": "monthly-appeal",
+    "title": "God can use one verse to do this ➡️",
+    "body": "Your past generosity helps people encounter God’s Word. Here’s how you can continue making an impact.",
+    "deeplink": "https://bible.com/blog/?p=250350&utm_medium=push&utm_source=Push&utm_campaign=2024-06-giving",
+    "cta": null,
+    "_source": {
+      "campaign": "2024-06 Giving",
+      "segment": "inconsistent givers",
+      "file": "2024-06-giving-PUSH-en.json",
+      "also_used_in": []
+    }
+  },
+  {
+    "name": "2024-07 Giving — The Bible App is turning 16",
+    "category": "giving",
+    "subcategory": "monthly-appeal",
+    "title": "🥳 The Bible App is turning 16!",
+    "body": "Discover how you can help us bring God’s Word to even more people in the next 16 years and beyond.",
+    "deeplink": "{% if custom_attribute.${language_tag} contains 'en' or custom_attribute.${language_tag} == blank and ${language} == 'en' %}\nhttps://bible.com/blog/?p=250439&utm_medium=push&utm_source=Push&utm_campaign=2024-07-giving\n{% elsif custom_attribute.${language_tag} contains 'es' or custom_attribute.${language_tag} == blank and ${language} == 'es' %}\nhttps://bible.com/blog/es/?p=250441&utm_medium=push&utm_source=Push&utm_campaign=2024-07-giving\n{% elsif custom_attribute.${language_tag} contains 'pt' or custom_attribute.${language_tag} == blank and ${language} == 'pt' %}\nhttps://bible.com/blog/pt-br/?p=250443&utm_medium=push&utm_source=Push&utm_campaign=2024-07-giving\n{% else %}\nhttps://bible.com/blog/?p=250439&utm_medium=push&utm_source=Push&utm_campaign=2024-07-giving\n{% endif %}",
+    "cta": null,
+    "_source": {
+      "campaign": "2024-07 Giving",
+      "segment": "",
+      "file": "2024-07-giving-PUSH-en.json",
+      "also_used_in": []
+    }
+  },
+  {
+    "name": "2025-01 Giving — Add this to your goals in",
+    "category": "giving",
+    "subcategory": "monthly-appeal",
+    "title": "📝 Add this to your goals in 2025.",
+    "body": "We have the opportunity to share God’s Word with even more people this year. Will you join us?",
+    "deeplink": "https://bible.com/blog/?p=251297&utm_medium=push&utm_source=Push&utm_campaign=2025-01-giving",
+    "cta": null,
+    "_source": {
+      "campaign": "2025-01 Giving",
+      "segment": "",
+      "file": "2025-01-giving-PUSH-en.json",
+      "also_used_in": []
+    }
+  },
+  {
+    "name": "2025-04 Giving (push2) — Because of your generosity we think",
+    "category": "giving",
+    "subcategory": "monthly-appeal",
+    "title": "",
+    "body": "Because of your generosity, we think you’ll like this. ➡️",
+    "deeplink": "https://bible.com/blog/?p=266566&utm_medium=push&utm_source=Push&utm_campaign=2025-04-giving-2",
+    "cta": null,
+    "_source": {
+      "campaign": "2025-04 Giving",
+      "segment": "push2",
+      "file": "2025-04-giving-PUSH-2-en.json",
+      "also_used_in": []
+    }
+  },
+  {
+    "name": "2025-06 Giving (push1) — Lets reach the world",
+    "category": "giving",
+    "subcategory": "monthly-appeal",
+    "title": "🌏 Let’s reach the world!",
+    "body": "Give a monthly gift of $21 to distribute over 500 Bible apps and help millions engage with God’s Word daily.",
+    "deeplink": "https://www.bible.com/give?fund=YouVersion&frequency=monthly&utm_medium=push&utm_source=Push&utm_campaign=2025-06-giving-1",
+    "cta": null,
+    "_source": {
+      "campaign": "2025-06 Giving",
+      "segment": "push1",
+      "file": "2025-06-giving-PUSH-1-en.json",
+      "also_used_in": []
+    }
+  },
+  {
+    "name": "2025-06 Giving (push2) — Lets keep reaching the world",
+    "category": "giving",
+    "subcategory": "monthly-appeal",
+    "title": "🌏 Let’s keep reaching the world!",
+    "body": "Give a monthly gift of $21 to distribute over 500 Bible apps and help millions engage with God’s Word daily.",
+    "deeplink": "https://www.bible.com/give?fund=YouVersion&frequency=monthly&utm_medium=push&utm_source=Push&utm_campaign=2025-06-giving-2",
+    "cta": null,
+    "_source": {
+      "campaign": "2025-06 Giving",
+      "segment": "push2",
+      "file": "2025-06-giving-PUSH-2-en.json",
+      "also_used_in": []
+    }
+  },
+  {
+    "name": "2025-07 Giving (push2) — Global Impact Update",
+    "category": "giving",
+    "subcategory": "monthly-appeal",
+    "title": "Global Impact Update",
+    "body": "Here’s how God is using our Community’s generosity to change millions more lives this year…",
+    "deeplink": "https://bible.com/blog/?p=266734&utm_medium=push&utm_source=Push&utm_campaign=2025-07-giving-2",
+    "cta": null,
+    "_source": {
+      "campaign": "2025-07 Giving",
+      "segment": "push2",
+      "file": "2025-07-giving-PUSH-2-en.json",
+      "also_used_in": []
+    }
+  },
+  {
+    "name": "2026-02 Giving — Your love in action",
+    "category": "giving",
+    "subcategory": "monthly-appeal",
+    "title": "Your love in action 💓",
+    "body": "Discover how $25 a month can help share God’s Word with others.",
+    "deeplink": "https://www.bible.com/give?fund=YouVersion&frequency=monthly&utm_medium=push&utm_source=Push&utm_campaign=2026-02-giving",
+    "cta": null,
+    "_source": {
+      "campaign": "2026-02 Giving",
+      "segment": "",
+      "file": "2026-02-giving-PUSH-en.json",
+      "also_used_in": []
+    }
+  },
+  {
+    "name": "2026-03 Giving (push1) — You can share hope this Easter",
+    "category": "giving",
+    "subcategory": "monthly-appeal",
+    "title": "You can share hope this Easter!",
+    "body": "Your generosity can help others experience the Good News of Jesus. Here’s how ➡️",
+    "deeplink": "https://www.youversion.com/sowers?utm_medium=push&utm_source=Push&utm_campaign=2026-03-giving-1",
+    "cta": null,
+    "_source": {
+      "campaign": "2026-03 Giving",
+      "segment": "push1",
+      "file": "2026-03-giving-PUSH-1-en.json",
+      "also_used_in": []
+    }
+  },
+  {
+    "name": "2026-03 Giving (push2) — The Bible changed Diyas life",
+    "category": "giving",
+    "subcategory": "monthly-appeal",
+    "title": "The Bible changed Diya’s life…",
+    "body": "Discover how your generosity can bring hope to people like Diya ➡️",
+    "deeplink": "https://www.youversion.com/sowers?utm_medium=push&utm_source=Push&utm_campaign=2026-03-giving-2",
+    "cta": null,
+    "_source": {
+      "campaign": "2026-03 Giving",
+      "segment": "push2",
+      "file": "2026-03-giving-PUSH-2-en.json",
+      "also_used_in": []
+    }
+  },
+  {
+    "name": "2024-07 Giving — God is doing big things",
+    "category": "giving",
+    "subcategory": "prayer",
+    "title": "God is doing big things!",
+    "body": "As we celebrate 16 years of the Bible App, let’s reflect on God’s faithfulness by praying together.",
+    "deeplink": "{% if custom_attribute.${language_tag} contains 'en' or custom_attribute.${language_tag} == blank and ${language} == 'en' %}\nhttps://bible.com/blog/?p=250439&utm_medium=push&utm_source=Push&utm_campaign=2024-07-giving\n{% elsif custom_attribute.${language_tag} contains 'es' or custom_attribute.${language_tag} == blank and ${language} == 'es' %}\nhttps://bible.com/blog/es/?p=250441&utm_medium=push&utm_source=Push&utm_campaign=2024-07-giving\n{% elsif custom_attribute.${language_tag} contains 'pt' or custom_attribute.${language_tag} == blank and ${language} == 'pt' %}\nhttps://bible.com/blog/pt-br/?p=250443&utm_medium=push&utm_source=Push&utm_campaign=2024-07-giving\n{% else %}\nhttps://bible.com/blog/?p=250439&utm_medium=push&utm_source=Push&utm_campaign=2024-07-giving\n{% endif %}",
+    "cta": null,
+    "_source": {
+      "campaign": "2024-07 Giving",
+      "segment": "",
+      "file": "2024-07-giving-PUSH2-en.json",
+      "also_used_in": []
+    }
+  },
+  {
+    "name": "2023-05 Giving — Give everyone access to Gods Word",
+    "category": "giving",
+    "subcategory": "recurring-gift",
+    "title": "Give everyone access to God’s Word",
+    "body": "Help more people in more places get access to God’s Word by setting up a recurring gift today!",
+    "deeplink": "https://www.bible.com/give?utm_medium=push&utm_source=Push&utm_campaign=2023-05-giving",
+    "cta": null,
+    "_source": {
+      "campaign": "2023-05 Giving",
+      "segment": "",
+      "file": "2023-05-giving-PUSH-en.json",
+      "also_used_in": []
+    }
+  },
+  {
+    "name": "2023-10 Giving — Can you help",
+    "category": "giving",
+    "subcategory": "recurring-gift",
+    "title": "{% if ${first_name} == blank %}Can you help?{% else %}{{${first_name} | default: '' }}, can you help?{% endif %}",
+    "body": "A recurring gift of US$20 helps us get the Bible App to people all over the world!",
+    "deeplink": "https://www.bible.com/give?fund=YouVersion&frequency=monthly&amount=20&utm_medium=push&utm_source=Push&utm_campaign=2023-10-giving",
+    "cta": null,
+    "_source": {
+      "campaign": "2023-10 Giving",
+      "segment": "",
+      "file": "2023-10-giving-PUSH-int.json",
+      "also_used_in": []
+    }
+  },
+  {
+    "name": "2024-01 Giving (non-recurring) — Imagine what God can do in",
+    "category": "giving",
+    "subcategory": "recurring-gift",
+    "title": "Imagine what God can do in 2024…",
+    "body": "When you set up a recurring gift, you can help us get God’s Word to even more people this year.",
+    "deeplink": "https://www.bible.com/give?fund=YouVersion&frequency=monthly&utm_medium=push&utm_source=Push&utm_campaign=2024-01-giving",
+    "cta": null,
+    "_source": {
+      "campaign": "2024-01 Giving",
+      "segment": "non-recurring",
+      "file": "2024-01-giving-non-recurring-en.json",
+      "also_used_in": []
+    }
+  },
+  {
+    "name": "2024-01 Giving (recurring) — Your generosity is changing lives",
+    "category": "giving",
+    "subcategory": "recurring-gift",
+    "title": "Your generosity is changing lives.",
+    "body": "It’s more than giving to a cause—you’re making an eternal impact. Consider increasing your recurring gift.",
+    "deeplink": "https://www.bible.com/give/scheduled?utm_medium=push&utm_source=Push&utm_campaign=2024-01-giving",
+    "cta": null,
+    "_source": {
+      "campaign": "2024-01 Giving",
+      "segment": "recurring",
+      "file": "2024-01-giving-recurring-en.json",
+      "also_used_in": []
+    }
+  },
+  {
+    "name": "2024-02 Giving — We wont stop until this happens",
+    "category": "giving",
+    "subcategory": "recurring-gift",
+    "title": "We won’t stop until this happens ➡️",
+    "body": "Together we can get God’s Word to the world. Set up a recurring gift to reach even more people.",
+    "deeplink": null,
+    "cta": null,
+    "_source": {
+      "campaign": "2024-02 Giving",
+      "segment": "",
+      "file": "2024-02-giving-never-given-PUSH-en.json",
+      "also_used_in": []
+    }
+  },
+  {
+    "name": "2024-02 Giving — Were not done yet",
+    "category": "giving",
+    "subcategory": "recurring-gift",
+    "title": "We’re not done yet.",
+    "body": "There are still more people who need to experience God’s Word. Join us by setting up a recurring gift today.",
+    "deeplink": null,
+    "cta": null,
+    "_source": {
+      "campaign": "2024-02 Giving",
+      "segment": "",
+      "file": "2024-02-giving-given-PUSH-en.json",
+      "also_used_in": []
+    }
+  },
+  {
+    "name": "2024-08 Giving (inconsistent_giver) — Lets keep reaching the world",
+    "category": "giving",
+    "subcategory": "recurring-gift",
+    "title": "🌏 Let’s keep reaching the world!",
+    "body": "Help us continue to get the Bible to all 195 countries. Set up a recurring gift of US$36 to reach 90 people every month.",
+    "deeplink": "{% if {{${country}}} == 'US' %}\nhttps://www.bible.com/give?fund=YouVersion&frequency=monthly&amount=36&utm_medium=push&utm_source=Push&utm_campaign=2024-08-giving\n{% else %}\nhttps://www.bible.com/give?fund=YouVersion&frequency=monthly&utm_medium=push&utm_source=Push&utm_campaign=2024-08-giving\n{% endif %}",
+    "cta": null,
+    "_source": {
+      "campaign": "2024-08 Giving",
+      "segment": "inconsistent_giver",
+      "file": "2024-08-giving-PUSH-2-en.json",
+      "also_used_in": []
+    }
+  },
+  {
+    "name": "2024-08 Giving (non_giver) — Lets reach the world",
+    "category": "giving",
+    "subcategory": "recurring-gift",
+    "title": "🌏 Let’s reach the world!",
+    "body": "Help us continue to get the Bible to all 195 countries. Set up a recurring gift of US$36 to reach 90 people every month.",
+    "deeplink": "{% if {{${country}}} == 'US' %}\nhttps://www.bible.com/give?fund=YouVersion&frequency=monthly&amount=36&utm_medium=push&utm_source=Push&utm_campaign=2024-08-giving\n{% else %}\nhttps://www.bible.com/give?fund=YouVersion&frequency=monthly&utm_medium=push&utm_source=Push&utm_campaign=2024-08-giving\n{% endif %}",
+    "cta": null,
+    "_source": {
+      "campaign": "2024-08 Giving",
+      "segment": "non_giver",
+      "file": "2024-08-giving-PUSH-1-en.json",
+      "also_used_in": []
+    }
+  },
+  {
+    "name": "2024-04 Giving (inconsistent giver) — Youre invited",
+    "category": "giving",
+    "subcategory": "sower-generosity",
+    "title": "{% if ${first_name} == blank  %}🌱 You’re invited!{% else %}🌱 {{${first_name} | default: '' }}, you’re invited!{% endif %}",
+    "body": "Because of your generosity, we think you’ll like this. Learn how you can join the Sowers Community ➡️",
+    "deeplink": "https://bible.com/blog/?p=234911&utm_medium=push&utm_source=Push&utm_campaign=2024-04-giving",
+    "cta": null,
+    "_source": {
+      "campaign": "2024-04 Giving",
+      "segment": "push2 - inconsistent giver",
+      "file": "2024-04-giving-PUSH-2-en.json",
+      "also_used_in": []
+    }
+  },
+  {
+    "name": "2024-04 Giving (non giver) — Youre invited",
+    "category": "giving",
+    "subcategory": "sower-generosity",
+    "title": "{% if ${first_name} == blank %}🌱 You’re invited!{% else %}🌱 {{${first_name} | default: '' }}, you’re invited!{% endif %}",
+    "body": "Discover what it means to be a Sower of God’s Word and how you can join the Sowers Community…",
+    "deeplink": "https://bible.com/blog/?p=234911&utm_medium=push&utm_source=Push&utm_campaign=2024-04-giving",
+    "cta": null,
+    "_source": {
+      "campaign": "2024-04 Giving",
+      "segment": "push1 - non giver",
+      "file": "2024-04-giving-PUSH-1-en.json",
+      "also_used_in": []
+    }
+  },
+  {
+    "name": "2025-04 Giving (push1) — Discover what it means to be",
+    "category": "giving",
+    "subcategory": "sower-generosity",
+    "title": "",
+    "body": "Discover what it means to be a Sower of God’s Word and how you can join the Sowers Community.",
+    "deeplink": "https://bible.com/blog/?p=266562&utm_medium=push&utm_source=Push&utm_campaign=2025-04-giving-1",
+    "cta": null,
+    "_source": {
+      "campaign": "2025-04 Giving",
+      "segment": "push1",
+      "file": "2025-04-giving-PUSH-1-en.json",
+      "also_used_in": [
+        "2025-08 Giving",
+        "2025-09 Giving",
+        "2025-10 Giving/push2",
+        "2025-10 Giving/push1",
+        "2025-12 Giving"
+      ]
+    }
+  },
+  {
+    "name": "2025-12 Giving (push2) — Youre invited",
+    "category": "giving",
+    "subcategory": "sower-generosity",
+    "title": "{% if ${first_name} == blank %}🌱 You’re invited!{% else %}🌱 {{${first_name} | default: '' }}, you’re invited!{% endif %}",
+    "body": "Discover what it means to be a Sower of God’s Word and how you can join the Sowers Community.",
+    "deeplink": "https://bible.com/blog/?p=267540&utm_medium=push&utm_source=Push&utm_campaign=2025-12-giving",
+    "cta": null,
+    "_source": {
+      "campaign": "2025-12 Giving",
+      "segment": "push2",
+      "file": "liquid_*.html",
+      "also_used_in": [
+        "2025-12 Giving/push1"
+      ]
+    }
+  },
+  {
+    "name": "2026-01 Giving — When you make generosity a habit",
+    "category": "giving",
+    "subcategory": "sower-generosity",
+    "title": "When you make generosity a habit…",
+    "body": "It changes lives. Discover what it means to be a Sower of God’s Word ➡️",
+    "deeplink": "https://bible.com/blog/?p=267608&utm_medium=push&utm_source=Push&utm_campaign=2026-01-giving",
+    "cta": null,
+    "_source": {
+      "campaign": "2026-01 Giving",
+      "segment": "",
+      "file": "2026-01-giving-en.json",
+      "also_used_in": []
+    }
+  },
+  {
+    "name": "2026-04 Giving — People need Gods Word",
+    "category": "giving",
+    "subcategory": "sower-generosity",
+    "title": "People need God’s Word…",
+    "body": "And your generosity will give them access. Here’s what it means to be a Sower of God’s Word.",
+    "deeplink": "https://youversion.com/sowers?utm_medium=push&utm_source=Push&utm_campaign=2026-04-giving",
+    "cta": null,
+    "_source": {
+      "campaign": "2026-04 Giving",
+      "segment": "",
+      "file": "2026-04-giving-PUSH-en.json",
+      "also_used_in": []
+    }
+  },
+  {
+    "name": "2024-05 Giving Followup — Exciting News",
+    "category": "giving",
+    "subcategory": "thank-you-followup",
+    "title": "🎉 Exciting News 🎉",
+    "body": "Your generosity made this happen…",
+    "deeplink": "https://web-assets.youversion.com/html-email/2024-05-giving-followup/2024-05-giving-followup-landing-en.html?utm_medium=push&utm_source=Push&utm_campaign=2024-05-giving-followup",
+    "cta": null,
+    "_source": {
+      "campaign": "2024-05 Giving Followup",
+      "segment": "",
+      "file": "2024-05-giving-followup-PUSH-en.json",
+      "also_used_in": []
+    }
+  }
+]
