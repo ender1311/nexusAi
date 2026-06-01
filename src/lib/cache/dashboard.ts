@@ -136,6 +136,106 @@ export const getCachedFunnelStageBreakdown = cache(
   )
 );
 
+/**
+ * Fleet re-engagement KPIs (spec C2). Recoveries = all FunnelTransition rows in the
+ * window; attributed = those credited to an agent; rate = attributed ÷ users owned in
+ * the window. Tagged "funnel-breakdown" (slow-moving; not busted by the hourly cron).
+ */
+export const getCachedFleetRecoveryStats = cache(
+  unstable_cache(
+    async () => {
+      const thirtyDaysAgo = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000);
+      const [recoveries30d, attributedRecoveries30d, ownedInWindow] = await Promise.all([
+        prisma.funnelTransition.count({ where: { detectedAt: { gte: thirtyDaysAgo } } }),
+        prisma.funnelTransition.count({ where: { detectedAt: { gte: thirtyDaysAgo }, attributedAgentId: { not: null } } }),
+        prisma.userAgentAssignment.count({ where: { startedAt: { gte: thirtyDaysAgo } } }),
+      ]);
+      return {
+        recoveries30d,
+        attributedRecoveries30d,
+        fleetRecoveryRate: ownedInWindow > 0 ? (attributedRecoveries30d / ownedInWindow) * 100 : 0,
+      };
+    },
+    ["fleet-recovery-stats"],
+    { tags: ["funnel-breakdown"], revalidate: TTL.LONG }
+  )
+);
+
+/** Per-agent recovery leaderboard (spec C2). One groupBy + a name lookup. */
+export const getCachedRecoveryLeaderboard = cache(
+  unstable_cache(
+    async () => {
+      const thirtyDaysAgo = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000);
+      const grouped = await prisma.funnelTransition.groupBy({
+        by: ["attributedAgentId"],
+        where: { detectedAt: { gte: thirtyDaysAgo }, attributedAgentId: { not: null } },
+        _count: { _all: true },
+      });
+      const agentIds = grouped.map((g) => g.attributedAgentId!).filter(Boolean);
+      const [agents, rewardRows] = await Promise.all([
+        prisma.agent.findMany({ where: { id: { in: agentIds } }, select: { id: true, name: true, color: true } }),
+        prisma.userDecision.groupBy({
+          by: ["agentId"],
+          where: { agentId: { in: agentIds }, conversionEvent: "funnel_recovery", conversionAt: { gte: thirtyDaysAgo } },
+          _sum: { reward: true },
+        }),
+      ]);
+      const nameById = new Map(agents.map((a) => [a.id, a]));
+      const rewardById = new Map(rewardRows.map((r) => [r.agentId, r._sum.reward ?? 0]));
+      return grouped
+        .map((g) => ({
+          agentId: g.attributedAgentId!,
+          name: nameById.get(g.attributedAgentId!)?.name ?? g.attributedAgentId!,
+          color: nameById.get(g.attributedAgentId!)?.color ?? "#888888",
+          recoveries: g._count._all,
+          reward: rewardById.get(g.attributedAgentId!) ?? 0,
+        }))
+        .sort((a, b) => b.recoveries - a.recoveries);
+    },
+    ["recovery-leaderboard"],
+    { tags: ["funnel-breakdown", "agents"], revalidate: TTL.LONG }
+  )
+);
+
+/** Fleet from→to recovery breakdown (spec C2). */
+export const getCachedFleetTransitionBreakdown = cache(
+  unstable_cache(
+    async () => {
+      const thirtyDaysAgo = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000);
+      const rows = await prisma.funnelTransition.groupBy({
+        by: ["fromStage", "toStage"],
+        where: { detectedAt: { gte: thirtyDaysAgo } },
+        _count: { _all: true },
+      });
+      return rows
+        .map((r) => ({ label: `${r.fromStage}→${r.toStage}`, count: r._count._all }))
+        .sort((a, b) => b.count - a.count);
+    },
+    ["fleet-transition-breakdown"],
+    { tags: ["funnel-breakdown"], revalidate: TTL.LONG }
+  )
+);
+
+/** Fleet recovery trend, recoveries/day for 7 days (spec C2). DB-side GROUP BY. */
+export const getCachedFleetRecoveryTrend = cache(
+  unstable_cache(
+    async () => {
+      const sevenDaysAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000);
+      const rows = await prisma.$queryRaw<Array<{ date: string; recoveries: bigint }>>`
+        SELECT TO_CHAR("detectedAt" AT TIME ZONE 'UTC', 'YYYY-MM-DD') AS date,
+               COUNT(*)::bigint                                        AS recoveries
+        FROM "FunnelTransition"
+        WHERE "detectedAt" >= ${sevenDaysAgo}
+        GROUP BY 1
+        ORDER BY 1 ASC
+      `;
+      return rows.map((r) => ({ date: r.date, recoveries: Number(r.recoveries) }));
+    },
+    ["fleet-recovery-trend"],
+    { tags: ["funnel-breakdown"], revalidate: TTL.LONG }
+  )
+);
+
 export const getCachedControlTowerStats = unstable_cache(
   async () => {
     const [trackedUsers, personas, agents, decisionRows] = await Promise.all([

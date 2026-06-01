@@ -19,7 +19,11 @@ import {
   getCachedAllVariantNames,
   getCachedChartDecisions,
   getCachedPersonaVariantMatrix,
+  getCachedRecoveryLeaderboard,
+  getCachedFleetTransitionBreakdown,
+  getCachedFleetRecoveryTrend,
 } from "@/lib/cache";
+import { TimeSeriesChart } from "@/components/charts/time-series-chart";
 import { getCachedBrazeStats } from "@/lib/braze/analytics";
 import { baselineLiftSignificance, liftSignificance } from "@/lib/engine/lift-significance";
 import { cn, formatNumber, formatPercent } from "@/lib/utils";
@@ -656,6 +660,75 @@ async function PersonaMatrixSection() {
   );
 }
 
+async function ReengagementSection() {
+  const [leaderboard, breakdown, trend] = await Promise.all([
+    getCachedRecoveryLeaderboard().catch(() => []),
+    getCachedFleetTransitionBreakdown().catch(() => []),
+    getCachedFleetRecoveryTrend().catch(() => []),
+  ]);
+  if (leaderboard.length === 0 && breakdown.length === 0) return null;
+
+  const trendSeries = trend.map((t) => ({ date: t.date, sends: t.recoveries, conversions: 0, conversionRate: 0 }));
+
+  return (
+    <div className="space-y-4">
+      <h2 className="text-sm font-semibold text-muted-foreground">Re-engagement (fleet)</h2>
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        <Card>
+          <CardHeader><CardTitle className="text-sm font-semibold">Recovery Leaderboard</CardTitle></CardHeader>
+          <CardContent className="p-0">
+            <table className="w-full text-sm">
+              <thead>
+                <tr className="border-b text-xs text-muted-foreground">
+                  <th className="text-left px-4 py-2 font-medium">Agent</th>
+                  <th className="text-right px-4 py-2 font-medium">Recoveries</th>
+                  <th className="text-right px-4 py-2 font-medium">Reward</th>
+                </tr>
+              </thead>
+              <tbody>
+                {leaderboard.map((row) => (
+                  <tr key={row.agentId} className="border-b last:border-0 hover:bg-muted/30">
+                    <td className="px-4 py-2.5 font-medium">{row.name}</td>
+                    <td className="px-4 py-2.5 text-right tabular-nums">{formatNumber(row.recoveries)}</td>
+                    <td className="px-4 py-2.5 text-right tabular-nums text-muted-foreground">{row.reward.toFixed(2)}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardHeader><CardTitle className="text-sm font-semibold">Fleet Recovery Trend</CardTitle></CardHeader>
+          <CardContent><TimeSeriesChart data={trendSeries} height={240} showSends /></CardContent>
+        </Card>
+      </div>
+      {breakdown.length > 0 && (
+        <Card>
+          <CardHeader><CardTitle className="text-sm font-semibold">Fleet Recoveries by Transition</CardTitle></CardHeader>
+          <CardContent className="p-0">
+            <table className="w-full text-sm">
+              <thead>
+                <tr className="border-b text-xs text-muted-foreground">
+                  <th className="text-left px-4 py-2 font-medium">From → To</th>
+                  <th className="text-right px-4 py-2 font-medium">Count</th>
+                </tr>
+              </thead>
+              <tbody>
+                {breakdown.map((r) => (
+                  <tr key={r.label} className="border-b last:border-0 hover:bg-muted/30">
+                    <td className="px-4 py-2.5 font-medium">{r.label}</td>
+                    <td className="px-4 py-2.5 text-right tabular-nums text-muted-foreground">{formatNumber(r.count)}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </CardContent>
+        </Card>
+      )}
+    </div>
+  );
+}
+
 // ── Page shell — synchronous, header paints at ~0ms ──────────────────────────
 
 export default function PerformancePage() {
@@ -703,6 +776,10 @@ export default function PerformancePage() {
 
         <Suspense fallback={<TableSkeleton />}>
           <AgentTableSection />
+        </Suspense>
+
+        <Suspense fallback={<TableSkeleton />}>
+          <ReengagementSection />
         </Suspense>
 
         <Suspense fallback={<TableSkeleton />}>

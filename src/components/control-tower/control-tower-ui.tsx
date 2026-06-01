@@ -54,9 +54,10 @@ interface ControlTowerUIProps {
   stats: StatsData | null;
   brazeSends: number | null;
   funnelBreakdown: Array<{ stage: string; count: number }>;
+  recovery: { recoveries30d: number; attributedRecoveries30d: number; fleetRecoveryRate: number };
 }
 
-export function ControlTowerUI({ agents, stats, brazeSends, funnelBreakdown }: ControlTowerUIProps) {
+export function ControlTowerUI({ agents, stats, brazeSends, funnelBreakdown, recovery }: ControlTowerUIProps) {
   // Use real DB agents if available, fall back to sample agents for an empty instance.
   const initialPool = agents.length > 0 ? mapDbAgents(agents) : controlAgents;
 
@@ -155,6 +156,17 @@ export function ControlTowerUI({ agents, stats, brazeSends, funnelBreakdown }: C
                 {((stats.totalConversions / stats.totalDecisions) * 100).toFixed(1)}%
               </span>
               {" "}conversion rate
+            </span>
+          </>
+        )}
+        {recovery.recoveries30d > 0 && (
+          <>
+            <span className="text-muted-foreground/40">·</span>
+            <span className="text-muted-foreground">
+              <span className="font-medium text-foreground">
+                {formatNumber(recovery.recoveries30d)}
+              </span>
+              {" "}lapsed recovered (30d)
             </span>
           </>
         )}
