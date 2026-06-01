@@ -96,7 +96,7 @@ export default async function AgentDetailPage({ params }: { params: Promise<{ id
               <SentCountBadges agentId={agent.id} />
             </Suspense>
           </div>
-          <div className="flex gap-2">
+          <div className="flex flex-wrap gap-2">
             {isAdmin && (
               <AgentEditSheet
                 agentId={agent.id}

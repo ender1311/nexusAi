@@ -30,7 +30,7 @@ export function ReleaseAllButton({ agentId }: { agentId: string }) {
 
   return (
     <Button variant="outline" size="sm" onClick={handleClick} disabled={pending}>
-      {pending ? "Releasing…" : released !== null ? `Released ${released}` : "Release all owned users"}
+      {pending ? "Releasing…" : released !== null ? `Released ${released}` : "Release users"}
     </Button>
   );
 }
