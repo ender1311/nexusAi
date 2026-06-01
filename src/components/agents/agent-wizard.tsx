@@ -243,7 +243,6 @@ export function AgentWizard({ personas }: { personas: Persona[] }) {
   const [step, setStep] = useState(1);
   const [form, setForm] = useState<FormData>(defaultForm);
   const templatePickerRef = useRef<TemplatePickerHandle>(null);
-  const [newGoal, setNewGoal] = useState<GoalDraft>({ eventName: "", tier: "best", valueWeight: 10, weightMode: "fixed", weightProperty: null, weightDefault: 1.0 });
   const [editingGoalIdx, setEditingGoalIdx] = useState<number | null>(null);
   const emptyVariant = () => ({
     name: `V${1}`,
@@ -278,12 +277,6 @@ export function AgentWizard({ personas }: { personas: Persona[] }) {
   }, []);
 
   const update = (key: keyof FormData, value: unknown) => setForm((f) => ({ ...f, [key]: value }));
-
-  const addGoal = () => {
-    if (!newGoal.eventName.trim()) return;
-    update("goals", [...form.goals, { ...newGoal }]);
-    setNewGoal({ eventName: "", tier: "best", valueWeight: 10, weightMode: "fixed", weightProperty: null, weightDefault: 1.0 });
-  };
 
   const removeGoal = (i: number) => update("goals", form.goals.filter((_, idx) => idx !== i));
 
@@ -607,92 +600,6 @@ export function AgentWizard({ personas }: { personas: Persona[] }) {
                 }
               }}
             />
-          </div>
-
-          <div className="border rounded-lg p-4 space-y-3 bg-muted/30">
-            <h3 className="text-sm font-medium">Add Custom Goal</h3>
-            <div className="flex gap-2">
-              <Input
-                placeholder="Event name (e.g. plan_started)"
-                value={newGoal.eventName}
-                onChange={(e) => setNewGoal((g) => ({ ...g, eventName: e.target.value }))}
-                className="flex-1"
-              />
-              <Select value={newGoal.tier} onValueChange={(v) => {
-                const tier = v as GoalTier;
-                const defaultWeight = GOAL_TIERS.find((t) => t.value === tier)?.weight ?? 5;
-                setNewGoal((g) => ({ ...g, tier, valueWeight: defaultWeight }));
-              }}>
-                <SelectTrigger className="w-32">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  {GOAL_TIERS.map((t) => (
-                    <SelectItem key={t.value} value={t.value}>
-                      <div className="flex items-center gap-2">
-                        <div className={cn("h-2 w-2 rounded-full", t.color)} />
-                        {t.label}
-                      </div>
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-              <Button size="sm" onClick={addGoal} disabled={!newGoal.eventName.trim()}>Add</Button>
-            </div>
-            {/* Weight mode toggle */}
-            <div>
-              <label className="text-xs font-medium text-muted-foreground">Weight Mode</label>
-              <div className="flex gap-2 mt-1.5">
-                {(["fixed", "property"] as const).map((mode) => (
-                  <button
-                    key={mode}
-                    type="button"
-                    onClick={() => setNewGoal((g) => ({ ...g, weightMode: mode }))}
-                    className={cn(
-                      "px-3 py-1.5 text-xs rounded-md border font-medium transition-colors",
-                      newGoal.weightMode === mode
-                        ? "bg-primary text-primary-foreground border-primary"
-                        : "bg-background border-input text-muted-foreground hover:text-foreground"
-                    )}
-                  >
-                    {mode === "fixed" ? "Fixed Value" : "Event Property"}
-                  </button>
-                ))}
-              </div>
-            </div>
-
-            {newGoal.weightMode === "fixed" ? (
-              <div>
-                <label className="text-xs text-muted-foreground">Value weight: {newGoal.valueWeight}</label>
-                <Slider
-                  min={-10} max={10} step={0.5}
-                  value={[newGoal.valueWeight]}
-                  onValueChange={(v) => setNewGoal((g) => ({ ...g, valueWeight: Array.isArray(v) ? v[0] : v }))}
-                  className="mt-1"
-                />
-              </div>
-            ) : (
-              <div className="space-y-2">
-                <div>
-                  <label className="text-xs text-muted-foreground">Property key (e.g. order_value)</label>
-                  <Input
-                    placeholder="event property name"
-                    value={newGoal.weightProperty ?? ""}
-                    onChange={(e) => setNewGoal((g) => ({ ...g, weightProperty: e.target.value || null }))}
-                    className="mt-1"
-                  />
-                </div>
-                <div>
-                  <label className="text-xs text-muted-foreground">Default (when property missing): {newGoal.weightDefault}</label>
-                  <Slider
-                    min={0.1} max={10} step={0.1}
-                    value={[newGoal.weightDefault]}
-                    onValueChange={(v) => setNewGoal((g) => ({ ...g, weightDefault: Array.isArray(v) ? v[0] : v }))}
-                    className="mt-1"
-                  />
-                </div>
-              </div>
-            )}
           </div>
 
           {form.goals.length > 0 && (
