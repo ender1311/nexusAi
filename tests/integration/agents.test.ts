@@ -144,6 +144,45 @@ describe("PATCH /api/agents/[id]", () => {
   });
 });
 
+describe("PATCH /api/agents/[id] — localizePush", () => {
+  it("updates localizePush to true", async () => {
+    const agent = await prisma.agent.create({ data: { name: "Loc Agent", algorithm: "thompson", epsilon: 0.1 } });
+    const req = buildRequest("PATCH", { localizePush: true });
+    const res = await patchAgent(req as NextRequest, { params: Promise.resolve({ id: agent.id }) });
+    const body = await res.json();
+    expect(res.status).toBe(200);
+    expect(body.localizePush).toBe(true);
+  });
+
+  it("updates localizePush back to false", async () => {
+    const agent = await prisma.agent.create({ data: { name: "Loc Agent", algorithm: "thompson", epsilon: 0.1, localizePush: true } });
+    const req = buildRequest("PATCH", { localizePush: false });
+    const res = await patchAgent(req as NextRequest, { params: Promise.resolve({ id: agent.id }) });
+    const body = await res.json();
+    expect(res.status).toBe(200);
+    expect(body.localizePush).toBe(false);
+  });
+
+  it("returns 400 when localizePush is not a boolean", async () => {
+    const agent = await prisma.agent.create({ data: { name: "Loc Agent", algorithm: "thompson", epsilon: 0.1 } });
+    const req = buildRequest("PATCH", { localizePush: "yes" });
+    const res = await patchAgent(req as NextRequest, { params: Promise.resolve({ id: agent.id }) });
+    const body = await res.json();
+    expect(res.status).toBe(400);
+    expect(body.error).toBe("localizePush must be a boolean");
+  });
+
+  it("leaves localizePush unchanged when omitted from the patch", async () => {
+    const agent = await prisma.agent.create({ data: { name: "Loc Agent", algorithm: "thompson", epsilon: 0.1, localizePush: true } });
+    const req = buildRequest("PATCH", { languageFilter: "en" });
+    const res = await patchAgent(req as NextRequest, { params: Promise.resolve({ id: agent.id }) });
+    const body = await res.json();
+    expect(res.status).toBe(200);
+    expect(body.localizePush).toBe(true);
+    expect(body.languageFilter).toBe("en");
+  });
+});
+
 describe("POST /api/agents — funnelStage + targetFilter", () => {
   it("creates agent with valid funnelStage and targetFilter, round-trips both fields", async () => {
     const filter = { attribute: "country", op: "eq", value: "US" };

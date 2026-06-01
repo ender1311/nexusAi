@@ -6,7 +6,6 @@ import { Settings } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Slider } from "@/components/ui/slider";
-import { Switch } from "@/components/ui/switch";
 import { Textarea } from "@/components/ui/textarea";
 import {
   Select,
@@ -116,7 +115,6 @@ type Props = {
   initialAlgorithm: string;
   initialEpsilon: number;
   initialFunnelStage: FunnelStage;
-  initialLanguageFilter: string;
   initialColor: string;
   usedColors: string[];
   initialTargetSegmentName: string | null;
@@ -131,7 +129,6 @@ export function AgentEditSheet({
   initialAlgorithm,
   initialEpsilon,
   initialFunnelStage,
-  initialLanguageFilter,
   initialColor,
   usedColors,
   initialTargetSegmentName,
@@ -145,7 +142,6 @@ export function AgentEditSheet({
   const [algorithm, setAlgorithm] = useState(initialAlgorithm);
   const [epsilon, setEpsilon] = useState(initialEpsilon);
   const [funnelStage, setFunnelStage] = useState<FunnelStage>(initialFunnelStage);
-  const [englishOnly, setEnglishOnly] = useState(initialLanguageFilter === "en");
   const [saving, setSaving] = useState(false);
 
   // Compute initial includes/excludes for segment targeting
@@ -184,7 +180,6 @@ export function AgentEditSheet({
       setAlgorithm(initialAlgorithm);
       setEpsilon(initialEpsilon);
       setFunnelStage(initialFunnelStage);
-      setEnglishOnly(initialLanguageFilter === "en");
       const recomputedHasSegmentMode = (initialSegmentTargeting?.includes?.length ?? 0) > 0 || initialTargetSegmentName !== null;
       setSegmentMode(recomputedHasSegmentMode);
       setSegmentIncludes(computeInitialIncludes());
@@ -195,7 +190,7 @@ export function AgentEditSheet({
     prevOpen.current = open;
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open, initialName, initialDescription, initialAlgorithm, initialEpsilon, initialFunnelStage,
-      initialLanguageFilter, initialTargetSegmentName, initialSegmentTargeting, initialDailySendCap, initialCapPreset]);
+      initialTargetSegmentName, initialSegmentTargeting, initialDailySendCap, initialCapPreset]);
 
   // Fetch segments when sheet opens
   useEffect(() => {
@@ -229,7 +224,6 @@ export function AgentEditSheet({
           algorithm,
           epsilon,
           funnelStage,
-          languageFilter: englishOnly ? "en" : "all",
           targetSegmentName: null,  // always clear legacy field when using new UI
           segmentTargeting: resolvedSegmentTargeting,
           dailySendCap: resolvedDailySendCap(),
@@ -328,13 +322,6 @@ export function AgentEditSheet({
               </div>
             )}
 
-            <div className="flex items-center justify-between rounded-lg border bg-muted/20 px-3 py-3">
-              <div>
-                <p className="text-sm font-medium">English only</p>
-                <p className="text-xs text-muted-foreground mt-0.5">Restrict to users with language starting with &quot;en&quot;</p>
-              </div>
-              <Switch checked={englishOnly} onCheckedChange={setEnglishOnly} />
-            </div>
           </section>
 
           <div className="border-t" />

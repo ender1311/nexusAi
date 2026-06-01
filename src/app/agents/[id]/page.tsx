@@ -9,13 +9,13 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Target, MessageSquare, Calendar, BarChart3, Settings, Users2, GitCompare, Send, LayoutDashboard } from "lucide-react";
+import { Target, MessageSquare, Calendar, BarChart3, Settings, Users2, GitCompare, Send, LayoutDashboard, Languages } from "lucide-react";
 import { cn, formatNumber } from "@/lib/utils";
 import { TestedVariablesBadges } from "@/components/agents/tested-variables-badges";
 import { VariantDiffTable } from "@/components/agents/variant-diff-table";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { TestedVariable, MessageVariant, AgentStatus, FunnelStage } from "@/types/agent";
-import { getCachedAgent, getCachedActivePersonas, getCachedAgentAudienceData, getCachedAgentDecisionSplit } from "@/lib/cache";
+import { getCachedAgent, getCachedActivePersonas, getCachedAgentAudienceData, getCachedAgentDecisionSplit, getCachedAgentLanguageCoverage } from "@/lib/cache";
 import { prisma } from "@/lib/db";
 import { getAuth } from "@/lib/auth";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -31,6 +31,7 @@ import { AgentStatusToggle } from "@/components/agents/agent-status-toggle";
 import { AgentEditSheet } from "@/components/agents/agent-edit-sheet";
 import { AgentDeleteButton } from "@/components/agents/agent-delete-button";
 import { ReleaseAllButton } from "@/components/agents/release-all-button";
+import { AgentLocalizationTab } from "@/components/agents/agent-localization-tab";
 
 const TIER_COLORS: Record<string, string> = {
   best:      "bg-green-100 text-green-700 border-green-200 dark:bg-green-900/30 dark:text-green-400 dark:border-green-800",
@@ -104,7 +105,6 @@ export default async function AgentDetailPage({ params }: { params: Promise<{ id
                 initialAlgorithm={agent.algorithm}
                 initialEpsilon={agent.epsilon}
                 initialFunnelStage={agent.funnelStage as FunnelStage}
-                initialLanguageFilter={agent.languageFilter ?? "all"}
                 initialColor={agent.color ?? "#6366f1"}
                 usedColors={usedColors}
                 initialTargetSegmentName={agent.targetSegmentName ?? null}
@@ -139,6 +139,10 @@ export default async function AgentDetailPage({ params }: { params: Promise<{ id
             <TabsTrigger value="scheduling">
               <Calendar className="h-3.5 w-3.5 sm:mr-1.5" />
               <span className="hidden sm:inline">Scheduling</span>
+            </TabsTrigger>
+            <TabsTrigger value="localization">
+              <Languages className="h-3.5 w-3.5 sm:mr-1.5" />
+              <span className="hidden sm:inline">Localization</span>
             </TabsTrigger>
             <TabsTrigger value="performance">
               <BarChart3 className="h-3.5 w-3.5 sm:mr-1.5" />
@@ -451,6 +455,21 @@ export default async function AgentDetailPage({ params }: { params: Promise<{ id
             </Card>
           </TabsContent>
 
+          <TabsContent value="localization" className="mt-4">
+            <Suspense fallback={
+              <div className="space-y-4">
+                <Skeleton className="h-48 rounded-xl" />
+                <Skeleton className="h-32 rounded-xl" />
+              </div>
+            }>
+              <LocalizationTabContent
+                agentId={agent.id}
+                languageFilter={agent.languageFilter ?? "all"}
+                localizePush={agent.localizePush}
+              />
+            </Suspense>
+          </TabsContent>
+
           <TabsContent value="performance" className="mt-4 space-y-4">
             <Suspense fallback={<Skeleton className="h-40 rounded-xl" />}>
               <ArmHealthSection agentId={id} activeVariants={activeVariants} />
@@ -523,6 +542,26 @@ async function MessagesSentValue({ agentId }: { agentId: string }) {
         </p>
       )}
     </>
+  );
+}
+
+async function LocalizationTabContent({
+  agentId,
+  languageFilter,
+  localizePush,
+}: {
+  agentId: string;
+  languageFilter: string;
+  localizePush: boolean;
+}) {
+  const coverageLanguages = await getCachedAgentLanguageCoverage(agentId);
+  return (
+    <AgentLocalizationTab
+      agentId={agentId}
+      initialLanguageFilter={languageFilter}
+      initialLocalizePush={localizePush}
+      coverageLanguages={coverageLanguages}
+    />
   );
 }
 
