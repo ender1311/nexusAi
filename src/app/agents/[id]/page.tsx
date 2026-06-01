@@ -15,7 +15,7 @@ import { TestedVariablesBadges } from "@/components/agents/tested-variables-badg
 import { VariantDiffTable } from "@/components/agents/variant-diff-table";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { TestedVariable, MessageVariant, AgentStatus, FunnelStage } from "@/types/agent";
-import { getCachedAgent, getCachedActivePersonas, getCachedAgentAudienceData, getCachedAgentDecisionSplit, getCachedAgentLanguageCoverage } from "@/lib/cache";
+import { getCachedAgent, getCachedActivePersonas, getCachedAgentAudienceData, getCachedAgentDecisionSplit } from "@/lib/cache";
 import { prisma } from "@/lib/db";
 import { getAuth } from "@/lib/auth";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -456,18 +456,7 @@ export default async function AgentDetailPage({ params }: { params: Promise<{ id
           </TabsContent>
 
           <TabsContent value="localization" className="mt-4">
-            <Suspense fallback={
-              <div className="space-y-4">
-                <Skeleton className="h-48 rounded-xl" />
-                <Skeleton className="h-32 rounded-xl" />
-              </div>
-            }>
-              <LocalizationTabContent
-                agentId={agent.id}
-                languageFilter={agent.languageFilter ?? "all"}
-                localizePush={agent.localizePush}
-              />
-            </Suspense>
+            <AgentLocalizationTab agentId={agent.id} initialLocalizePush={agent.localizePush} />
           </TabsContent>
 
           <TabsContent value="performance" className="mt-4 space-y-4">
@@ -542,26 +531,6 @@ async function MessagesSentValue({ agentId }: { agentId: string }) {
         </p>
       )}
     </>
-  );
-}
-
-async function LocalizationTabContent({
-  agentId,
-  languageFilter,
-  localizePush,
-}: {
-  agentId: string;
-  languageFilter: string;
-  localizePush: boolean;
-}) {
-  const coverageLanguages = await getCachedAgentLanguageCoverage(agentId);
-  return (
-    <AgentLocalizationTab
-      agentId={agentId}
-      initialLanguageFilter={languageFilter}
-      initialLocalizePush={localizePush}
-      coverageLanguages={coverageLanguages}
-    />
   );
 }
 
