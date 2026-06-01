@@ -6,6 +6,8 @@ import { accumulateUserStats } from "@/lib/services/user-stats-service";
 import { upsertArmStats, upsertUserArmStats, updateLinUCBArm } from "@/lib/arm-stats";
 import { verifyIngestAuth } from "@/lib/ingest-auth";
 import { FEATURE_DIM } from "@/lib/engine/feature-vector";
+import { isRecovery, recoveryRank } from "@/lib/engine/funnel-recovery";
+import { applyConversion } from "@/lib/services/attribution-service";
 
 /**
  * POST /api/ingest/users
@@ -686,6 +688,19 @@ export async function POST(req: NextRequest) {
       givingDecisionsByUser.set(row.userId, list);
     }
 
+    // Pre-load stored funnelStage for the whole chunk so recovery detection can
+    // compare stored→incoming BEFORE the upsert overwrites it. One query per chunk.
+    const chunkRecoveryIds = [...new Set(
+      chunk.map((u) => u.external_user_id?.trim() || u.braze_id?.trim()).filter((id): id is string => Boolean(id)),
+    )];
+    const storedStageRows = chunkRecoveryIds.length > 0
+      ? await prisma.trackedUser.findMany({
+          where: { externalId: { in: chunkRecoveryIds } },
+          select: { externalId: true, funnelStage: true },
+        })
+      : [];
+    const storedStageByUser = new Map(storedStageRows.map((r) => [r.externalId, r.funnelStage]));
+
     // Pre-resolve identity records for the whole chunk in two queries instead of
     // a 3×findUnique fan-out per user. Only users that arrive with both a real
     // external_user_id and a differing braze_id need identity reconciliation.
@@ -822,6 +837,58 @@ export async function POST(req: NextRequest) {
           ...personaData,
         },
       });
+
+      // ── Funnel-recovery detection ──────────────────────────────────────────
+      // Compare the stored funnelStage (preloaded before this upsert overwrote it)
+      // to the incoming normalized stage. Fault-isolated: a failure logs and never
+      // breaks the non-destructive user sync.
+      try {
+        const incomingStage = "funnelStage" in funnelStageData ? funnelStageData.funnelStage : undefined;
+        const storedStage = storedStageByUser.get(externalId) ?? null;
+        if (incomingStage && storedStage && storedStage !== incomingStage && isRecovery(storedStage, incomingStage)) {
+          const rank = recoveryRank(incomingStage);
+          const assignment = await prisma.userAgentAssignment.findFirst({
+            where: { externalUserId: externalId, releasedAt: null },
+            select: { agentId: true },
+          });
+
+          let attributedAgentId: string | null = null;
+          let attributedDecisionId: string | null = null;
+
+          if (assignment) {
+            // Owned: find the owning agent's most-recent unconverted decision for this user.
+            const decision = await prisma.userDecision.findFirst({
+              where: { userId: externalId, agentId: assignment.agentId, conversionAt: null },
+              orderBy: { sentAt: "desc" },
+              include: { agent: { include: { goals: true } } },
+            });
+            if (decision) {
+              await applyConversion({
+                decision,
+                conversionEvent: "funnel_recovery",
+                occurredAt: new Date(),
+                properties: { from_stage: storedStage, to_stage: incomingStage, recovery_rank: rank },
+              });
+              attributedAgentId = assignment.agentId;
+              attributedDecisionId = decision.id;
+            }
+            // Owned-but-no-decision falls through as organic (null attribution).
+          }
+
+          await prisma.funnelTransition.create({
+            data: {
+              externalUserId: externalId,
+              fromStage: storedStage,
+              toStage: incomingStage,
+              recoveryRank: rank,
+              attributedAgentId,
+              attributedDecisionId,
+            },
+          });
+        }
+      } catch (err) {
+        console.error("[ingest/users] recovery detection failed:", err);
+      }
 
       // ── Giving conversion attribution ──────────────────────────────────────
       // When Hightouch syncs gift_amount_most_recent_timestamp and it's a new
