@@ -34,6 +34,8 @@ export type AgentAvgAggregateOutputType = {
   dailySendCap: number | null
   staleFunnelStageDays: number | null
   sortOrder: number | null
+  holdMaxDays: number | null
+  holdMaxSends: number | null
 }
 
 export type AgentSumAggregateOutputType = {
@@ -44,6 +46,8 @@ export type AgentSumAggregateOutputType = {
   dailySendCap: number | null
   staleFunnelStageDays: number | null
   sortOrder: number | null
+  holdMaxDays: number | null
+  holdMaxSends: number | null
 }
 
 export type AgentMinAggregateOutputType = {
@@ -64,6 +68,8 @@ export type AgentMinAggregateOutputType = {
   staleFunnelStageDays: number | null
   color: string | null
   sortOrder: number | null
+  holdMaxDays: number | null
+  holdMaxSends: number | null
   createdAt: Date | null
   updatedAt: Date | null
 }
@@ -86,6 +92,8 @@ export type AgentMaxAggregateOutputType = {
   staleFunnelStageDays: number | null
   color: string | null
   sortOrder: number | null
+  holdMaxDays: number | null
+  holdMaxSends: number | null
   createdAt: Date | null
   updatedAt: Date | null
 }
@@ -110,6 +118,8 @@ export type AgentCountAggregateOutputType = {
   staleFunnelStageDays: number
   color: number
   sortOrder: number
+  holdMaxDays: number
+  holdMaxSends: number
   createdAt: number
   updatedAt: number
   _all: number
@@ -124,6 +134,8 @@ export type AgentAvgAggregateInputType = {
   dailySendCap?: true
   staleFunnelStageDays?: true
   sortOrder?: true
+  holdMaxDays?: true
+  holdMaxSends?: true
 }
 
 export type AgentSumAggregateInputType = {
@@ -134,6 +146,8 @@ export type AgentSumAggregateInputType = {
   dailySendCap?: true
   staleFunnelStageDays?: true
   sortOrder?: true
+  holdMaxDays?: true
+  holdMaxSends?: true
 }
 
 export type AgentMinAggregateInputType = {
@@ -154,6 +168,8 @@ export type AgentMinAggregateInputType = {
   staleFunnelStageDays?: true
   color?: true
   sortOrder?: true
+  holdMaxDays?: true
+  holdMaxSends?: true
   createdAt?: true
   updatedAt?: true
 }
@@ -176,6 +192,8 @@ export type AgentMaxAggregateInputType = {
   staleFunnelStageDays?: true
   color?: true
   sortOrder?: true
+  holdMaxDays?: true
+  holdMaxSends?: true
   createdAt?: true
   updatedAt?: true
 }
@@ -200,6 +218,8 @@ export type AgentCountAggregateInputType = {
   staleFunnelStageDays?: true
   color?: true
   sortOrder?: true
+  holdMaxDays?: true
+  holdMaxSends?: true
   createdAt?: true
   updatedAt?: true
   _all?: true
@@ -311,6 +331,8 @@ export type AgentGroupByOutputType = {
   staleFunnelStageDays: number | null
   color: string
   sortOrder: number
+  holdMaxDays: number
+  holdMaxSends: number
   createdAt: Date
   updatedAt: Date
   _count: AgentCountAggregateOutputType | null
@@ -358,6 +380,8 @@ export type AgentWhereInput = {
   staleFunnelStageDays?: Prisma.IntNullableFilter<"Agent"> | number | null
   color?: Prisma.StringFilter<"Agent"> | string
   sortOrder?: Prisma.IntFilter<"Agent"> | number
+  holdMaxDays?: Prisma.IntFilter<"Agent"> | number
+  holdMaxSends?: Prisma.IntFilter<"Agent"> | number
   createdAt?: Prisma.DateTimeFilter<"Agent"> | Date | string
   updatedAt?: Prisma.DateTimeFilter<"Agent"> | Date | string
   goals?: Prisma.GoalListRelationFilter
@@ -388,6 +412,8 @@ export type AgentOrderByWithRelationInput = {
   staleFunnelStageDays?: Prisma.SortOrderInput | Prisma.SortOrder
   color?: Prisma.SortOrder
   sortOrder?: Prisma.SortOrder
+  holdMaxDays?: Prisma.SortOrder
+  holdMaxSends?: Prisma.SortOrder
   createdAt?: Prisma.SortOrder
   updatedAt?: Prisma.SortOrder
   goals?: Prisma.GoalOrderByRelationAggregateInput
@@ -421,6 +447,8 @@ export type AgentWhereUniqueInput = Prisma.AtLeast<{
   staleFunnelStageDays?: Prisma.IntNullableFilter<"Agent"> | number | null
   color?: Prisma.StringFilter<"Agent"> | string
   sortOrder?: Prisma.IntFilter<"Agent"> | number
+  holdMaxDays?: Prisma.IntFilter<"Agent"> | number
+  holdMaxSends?: Prisma.IntFilter<"Agent"> | number
   createdAt?: Prisma.DateTimeFilter<"Agent"> | Date | string
   updatedAt?: Prisma.DateTimeFilter<"Agent"> | Date | string
   goals?: Prisma.GoalListRelationFilter
@@ -451,6 +479,8 @@ export type AgentOrderByWithAggregationInput = {
   staleFunnelStageDays?: Prisma.SortOrderInput | Prisma.SortOrder
   color?: Prisma.SortOrder
   sortOrder?: Prisma.SortOrder
+  holdMaxDays?: Prisma.SortOrder
+  holdMaxSends?: Prisma.SortOrder
   createdAt?: Prisma.SortOrder
   updatedAt?: Prisma.SortOrder
   _count?: Prisma.AgentCountOrderByAggregateInput
@@ -483,6 +513,8 @@ export type AgentScalarWhereWithAggregatesInput = {
   staleFunnelStageDays?: Prisma.IntNullableWithAggregatesFilter<"Agent"> | number | null
   color?: Prisma.StringWithAggregatesFilter<"Agent"> | string
   sortOrder?: Prisma.IntWithAggregatesFilter<"Agent"> | number
+  holdMaxDays?: Prisma.IntWithAggregatesFilter<"Agent"> | number
+  holdMaxSends?: Prisma.IntWithAggregatesFilter<"Agent"> | number
   createdAt?: Prisma.DateTimeWithAggregatesFilter<"Agent"> | Date | string
   updatedAt?: Prisma.DateTimeWithAggregatesFilter<"Agent"> | Date | string
 }
@@ -507,6 +539,8 @@ export type AgentCreateInput = {
   staleFunnelStageDays?: number | null
   color?: string
   sortOrder?: number
+  holdMaxDays?: number
+  holdMaxSends?: number
   createdAt?: Date | string
   updatedAt?: Date | string
   goals?: Prisma.GoalCreateNestedManyWithoutAgentInput
@@ -537,6 +571,8 @@ export type AgentUncheckedCreateInput = {
   staleFunnelStageDays?: number | null
   color?: string
   sortOrder?: number
+  holdMaxDays?: number
+  holdMaxSends?: number
   createdAt?: Date | string
   updatedAt?: Date | string
   goals?: Prisma.GoalUncheckedCreateNestedManyWithoutAgentInput
@@ -567,6 +603,8 @@ export type AgentUpdateInput = {
   staleFunnelStageDays?: Prisma.NullableIntFieldUpdateOperationsInput | number | null
   color?: Prisma.StringFieldUpdateOperationsInput | string
   sortOrder?: Prisma.IntFieldUpdateOperationsInput | number
+  holdMaxDays?: Prisma.IntFieldUpdateOperationsInput | number
+  holdMaxSends?: Prisma.IntFieldUpdateOperationsInput | number
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   goals?: Prisma.GoalUpdateManyWithoutAgentNestedInput
@@ -597,6 +635,8 @@ export type AgentUncheckedUpdateInput = {
   staleFunnelStageDays?: Prisma.NullableIntFieldUpdateOperationsInput | number | null
   color?: Prisma.StringFieldUpdateOperationsInput | string
   sortOrder?: Prisma.IntFieldUpdateOperationsInput | number
+  holdMaxDays?: Prisma.IntFieldUpdateOperationsInput | number
+  holdMaxSends?: Prisma.IntFieldUpdateOperationsInput | number
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   goals?: Prisma.GoalUncheckedUpdateManyWithoutAgentNestedInput
@@ -627,6 +667,8 @@ export type AgentCreateManyInput = {
   staleFunnelStageDays?: number | null
   color?: string
   sortOrder?: number
+  holdMaxDays?: number
+  holdMaxSends?: number
   createdAt?: Date | string
   updatedAt?: Date | string
 }
@@ -651,6 +693,8 @@ export type AgentUpdateManyMutationInput = {
   staleFunnelStageDays?: Prisma.NullableIntFieldUpdateOperationsInput | number | null
   color?: Prisma.StringFieldUpdateOperationsInput | string
   sortOrder?: Prisma.IntFieldUpdateOperationsInput | number
+  holdMaxDays?: Prisma.IntFieldUpdateOperationsInput | number
+  holdMaxSends?: Prisma.IntFieldUpdateOperationsInput | number
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
 }
@@ -675,6 +719,8 @@ export type AgentUncheckedUpdateManyInput = {
   staleFunnelStageDays?: Prisma.NullableIntFieldUpdateOperationsInput | number | null
   color?: Prisma.StringFieldUpdateOperationsInput | string
   sortOrder?: Prisma.IntFieldUpdateOperationsInput | number
+  holdMaxDays?: Prisma.IntFieldUpdateOperationsInput | number
+  holdMaxSends?: Prisma.IntFieldUpdateOperationsInput | number
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
 }
@@ -699,6 +745,8 @@ export type AgentCountOrderByAggregateInput = {
   staleFunnelStageDays?: Prisma.SortOrder
   color?: Prisma.SortOrder
   sortOrder?: Prisma.SortOrder
+  holdMaxDays?: Prisma.SortOrder
+  holdMaxSends?: Prisma.SortOrder
   createdAt?: Prisma.SortOrder
   updatedAt?: Prisma.SortOrder
 }
@@ -711,6 +759,8 @@ export type AgentAvgOrderByAggregateInput = {
   dailySendCap?: Prisma.SortOrder
   staleFunnelStageDays?: Prisma.SortOrder
   sortOrder?: Prisma.SortOrder
+  holdMaxDays?: Prisma.SortOrder
+  holdMaxSends?: Prisma.SortOrder
 }
 
 export type AgentMaxOrderByAggregateInput = {
@@ -731,6 +781,8 @@ export type AgentMaxOrderByAggregateInput = {
   staleFunnelStageDays?: Prisma.SortOrder
   color?: Prisma.SortOrder
   sortOrder?: Prisma.SortOrder
+  holdMaxDays?: Prisma.SortOrder
+  holdMaxSends?: Prisma.SortOrder
   createdAt?: Prisma.SortOrder
   updatedAt?: Prisma.SortOrder
 }
@@ -753,6 +805,8 @@ export type AgentMinOrderByAggregateInput = {
   staleFunnelStageDays?: Prisma.SortOrder
   color?: Prisma.SortOrder
   sortOrder?: Prisma.SortOrder
+  holdMaxDays?: Prisma.SortOrder
+  holdMaxSends?: Prisma.SortOrder
   createdAt?: Prisma.SortOrder
   updatedAt?: Prisma.SortOrder
 }
@@ -765,6 +819,8 @@ export type AgentSumOrderByAggregateInput = {
   dailySendCap?: Prisma.SortOrder
   staleFunnelStageDays?: Prisma.SortOrder
   sortOrder?: Prisma.SortOrder
+  holdMaxDays?: Prisma.SortOrder
+  holdMaxSends?: Prisma.SortOrder
 }
 
 export type AgentScalarRelationFilter = {
@@ -916,6 +972,8 @@ export type AgentCreateWithoutGoalsInput = {
   staleFunnelStageDays?: number | null
   color?: string
   sortOrder?: number
+  holdMaxDays?: number
+  holdMaxSends?: number
   createdAt?: Date | string
   updatedAt?: Date | string
   messages?: Prisma.MessageCreateNestedManyWithoutAgentInput
@@ -945,6 +1003,8 @@ export type AgentUncheckedCreateWithoutGoalsInput = {
   staleFunnelStageDays?: number | null
   color?: string
   sortOrder?: number
+  holdMaxDays?: number
+  holdMaxSends?: number
   createdAt?: Date | string
   updatedAt?: Date | string
   messages?: Prisma.MessageUncheckedCreateNestedManyWithoutAgentInput
@@ -990,6 +1050,8 @@ export type AgentUpdateWithoutGoalsInput = {
   staleFunnelStageDays?: Prisma.NullableIntFieldUpdateOperationsInput | number | null
   color?: Prisma.StringFieldUpdateOperationsInput | string
   sortOrder?: Prisma.IntFieldUpdateOperationsInput | number
+  holdMaxDays?: Prisma.IntFieldUpdateOperationsInput | number
+  holdMaxSends?: Prisma.IntFieldUpdateOperationsInput | number
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   messages?: Prisma.MessageUpdateManyWithoutAgentNestedInput
@@ -1019,6 +1081,8 @@ export type AgentUncheckedUpdateWithoutGoalsInput = {
   staleFunnelStageDays?: Prisma.NullableIntFieldUpdateOperationsInput | number | null
   color?: Prisma.StringFieldUpdateOperationsInput | string
   sortOrder?: Prisma.IntFieldUpdateOperationsInput | number
+  holdMaxDays?: Prisma.IntFieldUpdateOperationsInput | number
+  holdMaxSends?: Prisma.IntFieldUpdateOperationsInput | number
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   messages?: Prisma.MessageUncheckedUpdateManyWithoutAgentNestedInput
@@ -1048,6 +1112,8 @@ export type AgentCreateWithoutMessagesInput = {
   staleFunnelStageDays?: number | null
   color?: string
   sortOrder?: number
+  holdMaxDays?: number
+  holdMaxSends?: number
   createdAt?: Date | string
   updatedAt?: Date | string
   goals?: Prisma.GoalCreateNestedManyWithoutAgentInput
@@ -1077,6 +1143,8 @@ export type AgentUncheckedCreateWithoutMessagesInput = {
   staleFunnelStageDays?: number | null
   color?: string
   sortOrder?: number
+  holdMaxDays?: number
+  holdMaxSends?: number
   createdAt?: Date | string
   updatedAt?: Date | string
   goals?: Prisma.GoalUncheckedCreateNestedManyWithoutAgentInput
@@ -1122,6 +1190,8 @@ export type AgentUpdateWithoutMessagesInput = {
   staleFunnelStageDays?: Prisma.NullableIntFieldUpdateOperationsInput | number | null
   color?: Prisma.StringFieldUpdateOperationsInput | string
   sortOrder?: Prisma.IntFieldUpdateOperationsInput | number
+  holdMaxDays?: Prisma.IntFieldUpdateOperationsInput | number
+  holdMaxSends?: Prisma.IntFieldUpdateOperationsInput | number
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   goals?: Prisma.GoalUpdateManyWithoutAgentNestedInput
@@ -1151,6 +1221,8 @@ export type AgentUncheckedUpdateWithoutMessagesInput = {
   staleFunnelStageDays?: Prisma.NullableIntFieldUpdateOperationsInput | number | null
   color?: Prisma.StringFieldUpdateOperationsInput | string
   sortOrder?: Prisma.IntFieldUpdateOperationsInput | number
+  holdMaxDays?: Prisma.IntFieldUpdateOperationsInput | number
+  holdMaxSends?: Prisma.IntFieldUpdateOperationsInput | number
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   goals?: Prisma.GoalUncheckedUpdateManyWithoutAgentNestedInput
@@ -1180,6 +1252,8 @@ export type AgentCreateWithoutDecisionsInput = {
   staleFunnelStageDays?: number | null
   color?: string
   sortOrder?: number
+  holdMaxDays?: number
+  holdMaxSends?: number
   createdAt?: Date | string
   updatedAt?: Date | string
   goals?: Prisma.GoalCreateNestedManyWithoutAgentInput
@@ -1209,6 +1283,8 @@ export type AgentUncheckedCreateWithoutDecisionsInput = {
   staleFunnelStageDays?: number | null
   color?: string
   sortOrder?: number
+  holdMaxDays?: number
+  holdMaxSends?: number
   createdAt?: Date | string
   updatedAt?: Date | string
   goals?: Prisma.GoalUncheckedCreateNestedManyWithoutAgentInput
@@ -1254,6 +1330,8 @@ export type AgentUpdateWithoutDecisionsInput = {
   staleFunnelStageDays?: Prisma.NullableIntFieldUpdateOperationsInput | number | null
   color?: Prisma.StringFieldUpdateOperationsInput | string
   sortOrder?: Prisma.IntFieldUpdateOperationsInput | number
+  holdMaxDays?: Prisma.IntFieldUpdateOperationsInput | number
+  holdMaxSends?: Prisma.IntFieldUpdateOperationsInput | number
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   goals?: Prisma.GoalUpdateManyWithoutAgentNestedInput
@@ -1283,6 +1361,8 @@ export type AgentUncheckedUpdateWithoutDecisionsInput = {
   staleFunnelStageDays?: Prisma.NullableIntFieldUpdateOperationsInput | number | null
   color?: Prisma.StringFieldUpdateOperationsInput | string
   sortOrder?: Prisma.IntFieldUpdateOperationsInput | number
+  holdMaxDays?: Prisma.IntFieldUpdateOperationsInput | number
+  holdMaxSends?: Prisma.IntFieldUpdateOperationsInput | number
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   goals?: Prisma.GoalUncheckedUpdateManyWithoutAgentNestedInput
@@ -1312,6 +1392,8 @@ export type AgentCreateWithoutPersonaTargetsInput = {
   staleFunnelStageDays?: number | null
   color?: string
   sortOrder?: number
+  holdMaxDays?: number
+  holdMaxSends?: number
   createdAt?: Date | string
   updatedAt?: Date | string
   goals?: Prisma.GoalCreateNestedManyWithoutAgentInput
@@ -1341,6 +1423,8 @@ export type AgentUncheckedCreateWithoutPersonaTargetsInput = {
   staleFunnelStageDays?: number | null
   color?: string
   sortOrder?: number
+  holdMaxDays?: number
+  holdMaxSends?: number
   createdAt?: Date | string
   updatedAt?: Date | string
   goals?: Prisma.GoalUncheckedCreateNestedManyWithoutAgentInput
@@ -1386,6 +1470,8 @@ export type AgentUpdateWithoutPersonaTargetsInput = {
   staleFunnelStageDays?: Prisma.NullableIntFieldUpdateOperationsInput | number | null
   color?: Prisma.StringFieldUpdateOperationsInput | string
   sortOrder?: Prisma.IntFieldUpdateOperationsInput | number
+  holdMaxDays?: Prisma.IntFieldUpdateOperationsInput | number
+  holdMaxSends?: Prisma.IntFieldUpdateOperationsInput | number
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   goals?: Prisma.GoalUpdateManyWithoutAgentNestedInput
@@ -1415,6 +1501,8 @@ export type AgentUncheckedUpdateWithoutPersonaTargetsInput = {
   staleFunnelStageDays?: Prisma.NullableIntFieldUpdateOperationsInput | number | null
   color?: Prisma.StringFieldUpdateOperationsInput | string
   sortOrder?: Prisma.IntFieldUpdateOperationsInput | number
+  holdMaxDays?: Prisma.IntFieldUpdateOperationsInput | number
+  holdMaxSends?: Prisma.IntFieldUpdateOperationsInput | number
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   goals?: Prisma.GoalUncheckedUpdateManyWithoutAgentNestedInput
@@ -1444,6 +1532,8 @@ export type AgentCreateWithoutSchedulingRuleInput = {
   staleFunnelStageDays?: number | null
   color?: string
   sortOrder?: number
+  holdMaxDays?: number
+  holdMaxSends?: number
   createdAt?: Date | string
   updatedAt?: Date | string
   goals?: Prisma.GoalCreateNestedManyWithoutAgentInput
@@ -1473,6 +1563,8 @@ export type AgentUncheckedCreateWithoutSchedulingRuleInput = {
   staleFunnelStageDays?: number | null
   color?: string
   sortOrder?: number
+  holdMaxDays?: number
+  holdMaxSends?: number
   createdAt?: Date | string
   updatedAt?: Date | string
   goals?: Prisma.GoalUncheckedCreateNestedManyWithoutAgentInput
@@ -1518,6 +1610,8 @@ export type AgentUpdateWithoutSchedulingRuleInput = {
   staleFunnelStageDays?: Prisma.NullableIntFieldUpdateOperationsInput | number | null
   color?: Prisma.StringFieldUpdateOperationsInput | string
   sortOrder?: Prisma.IntFieldUpdateOperationsInput | number
+  holdMaxDays?: Prisma.IntFieldUpdateOperationsInput | number
+  holdMaxSends?: Prisma.IntFieldUpdateOperationsInput | number
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   goals?: Prisma.GoalUpdateManyWithoutAgentNestedInput
@@ -1547,6 +1641,8 @@ export type AgentUncheckedUpdateWithoutSchedulingRuleInput = {
   staleFunnelStageDays?: Prisma.NullableIntFieldUpdateOperationsInput | number | null
   color?: Prisma.StringFieldUpdateOperationsInput | string
   sortOrder?: Prisma.IntFieldUpdateOperationsInput | number
+  holdMaxDays?: Prisma.IntFieldUpdateOperationsInput | number
+  holdMaxSends?: Prisma.IntFieldUpdateOperationsInput | number
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   goals?: Prisma.GoalUncheckedUpdateManyWithoutAgentNestedInput
@@ -1576,6 +1672,8 @@ export type AgentCreateWithoutMetricsInput = {
   staleFunnelStageDays?: number | null
   color?: string
   sortOrder?: number
+  holdMaxDays?: number
+  holdMaxSends?: number
   createdAt?: Date | string
   updatedAt?: Date | string
   goals?: Prisma.GoalCreateNestedManyWithoutAgentInput
@@ -1605,6 +1703,8 @@ export type AgentUncheckedCreateWithoutMetricsInput = {
   staleFunnelStageDays?: number | null
   color?: string
   sortOrder?: number
+  holdMaxDays?: number
+  holdMaxSends?: number
   createdAt?: Date | string
   updatedAt?: Date | string
   goals?: Prisma.GoalUncheckedCreateNestedManyWithoutAgentInput
@@ -1650,6 +1750,8 @@ export type AgentUpdateWithoutMetricsInput = {
   staleFunnelStageDays?: Prisma.NullableIntFieldUpdateOperationsInput | number | null
   color?: Prisma.StringFieldUpdateOperationsInput | string
   sortOrder?: Prisma.IntFieldUpdateOperationsInput | number
+  holdMaxDays?: Prisma.IntFieldUpdateOperationsInput | number
+  holdMaxSends?: Prisma.IntFieldUpdateOperationsInput | number
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   goals?: Prisma.GoalUpdateManyWithoutAgentNestedInput
@@ -1679,6 +1781,8 @@ export type AgentUncheckedUpdateWithoutMetricsInput = {
   staleFunnelStageDays?: Prisma.NullableIntFieldUpdateOperationsInput | number | null
   color?: Prisma.StringFieldUpdateOperationsInput | string
   sortOrder?: Prisma.IntFieldUpdateOperationsInput | number
+  holdMaxDays?: Prisma.IntFieldUpdateOperationsInput | number
+  holdMaxSends?: Prisma.IntFieldUpdateOperationsInput | number
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   goals?: Prisma.GoalUncheckedUpdateManyWithoutAgentNestedInput
@@ -1775,6 +1879,8 @@ export type AgentSelect<ExtArgs extends runtime.Types.Extensions.InternalArgs = 
   staleFunnelStageDays?: boolean
   color?: boolean
   sortOrder?: boolean
+  holdMaxDays?: boolean
+  holdMaxSends?: boolean
   createdAt?: boolean
   updatedAt?: boolean
   goals?: boolean | Prisma.Agent$goalsArgs<ExtArgs>
@@ -1806,6 +1912,8 @@ export type AgentSelectCreateManyAndReturn<ExtArgs extends runtime.Types.Extensi
   staleFunnelStageDays?: boolean
   color?: boolean
   sortOrder?: boolean
+  holdMaxDays?: boolean
+  holdMaxSends?: boolean
   createdAt?: boolean
   updatedAt?: boolean
 }, ExtArgs["result"]["agent"]>
@@ -1830,6 +1938,8 @@ export type AgentSelectUpdateManyAndReturn<ExtArgs extends runtime.Types.Extensi
   staleFunnelStageDays?: boolean
   color?: boolean
   sortOrder?: boolean
+  holdMaxDays?: boolean
+  holdMaxSends?: boolean
   createdAt?: boolean
   updatedAt?: boolean
 }, ExtArgs["result"]["agent"]>
@@ -1854,11 +1964,13 @@ export type AgentSelectScalar = {
   staleFunnelStageDays?: boolean
   color?: boolean
   sortOrder?: boolean
+  holdMaxDays?: boolean
+  holdMaxSends?: boolean
   createdAt?: boolean
   updatedAt?: boolean
 }
 
-export type AgentOmit<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = runtime.Types.Extensions.GetOmit<"id" | "name" | "description" | "status" | "algorithm" | "epsilon" | "funnelStage" | "targetFilter" | "targetSegmentName" | "segmentTargeting" | "fallbackSendHour" | "audienceCap" | "uniqueUsersCap" | "dailySendCap" | "languageFilter" | "localizePush" | "staleFunnelStageDays" | "color" | "sortOrder" | "createdAt" | "updatedAt", ExtArgs["result"]["agent"]>
+export type AgentOmit<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = runtime.Types.Extensions.GetOmit<"id" | "name" | "description" | "status" | "algorithm" | "epsilon" | "funnelStage" | "targetFilter" | "targetSegmentName" | "segmentTargeting" | "fallbackSendHour" | "audienceCap" | "uniqueUsersCap" | "dailySendCap" | "languageFilter" | "localizePush" | "staleFunnelStageDays" | "color" | "sortOrder" | "holdMaxDays" | "holdMaxSends" | "createdAt" | "updatedAt", ExtArgs["result"]["agent"]>
 export type AgentInclude<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
   goals?: boolean | Prisma.Agent$goalsArgs<ExtArgs>
   messages?: boolean | Prisma.Agent$messagesArgs<ExtArgs>
@@ -1901,6 +2013,8 @@ export type $AgentPayload<ExtArgs extends runtime.Types.Extensions.InternalArgs 
     staleFunnelStageDays: number | null
     color: string
     sortOrder: number
+    holdMaxDays: number
+    holdMaxSends: number
     createdAt: Date
     updatedAt: Date
   }, ExtArgs["result"]["agent"]>
@@ -2351,6 +2465,8 @@ export interface AgentFieldRefs {
   readonly staleFunnelStageDays: Prisma.FieldRef<"Agent", 'Int'>
   readonly color: Prisma.FieldRef<"Agent", 'String'>
   readonly sortOrder: Prisma.FieldRef<"Agent", 'Int'>
+  readonly holdMaxDays: Prisma.FieldRef<"Agent", 'Int'>
+  readonly holdMaxSends: Prisma.FieldRef<"Agent", 'Int'>
   readonly createdAt: Prisma.FieldRef<"Agent", 'DateTime'>
   readonly updatedAt: Prisma.FieldRef<"Agent", 'DateTime'>
 }

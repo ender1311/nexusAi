@@ -403,6 +403,7 @@ export const ModelName = {
   PlanSetMember: 'PlanSetMember',
   AppSetting: 'AppSetting',
   UserAgentAssignment: 'UserAgentAssignment',
+  FunnelTransition: 'FunnelTransition',
   CronRun: 'CronRun',
   FailedBrazeSend: 'FailedBrazeSend',
   ProcessedEventId: 'ProcessedEventId',
@@ -426,7 +427,7 @@ export type TypeMap<ExtArgs extends runtime.Types.Extensions.InternalArgs = runt
     omit: GlobalOmitOptions
   }
   meta: {
-    modelProps: "agent" | "goal" | "message" | "messageVariant" | "messageVariantTranslation" | "deeplink" | "userDecision" | "trackedUser" | "persona" | "agentPersonaTarget" | "personaArmStats" | "userArmStats" | "linUCBArm" | "schedulingRule" | "modelMetric" | "planSet" | "planSetMember" | "appSetting" | "userAgentAssignment" | "cronRun" | "failedBrazeSend" | "processedEventId" | "ingestSyncLog" | "campaignContent" | "demoUserGroup" | "userSegment" | "userPreference"
+    modelProps: "agent" | "goal" | "message" | "messageVariant" | "messageVariantTranslation" | "deeplink" | "userDecision" | "trackedUser" | "persona" | "agentPersonaTarget" | "personaArmStats" | "userArmStats" | "linUCBArm" | "schedulingRule" | "modelMetric" | "planSet" | "planSetMember" | "appSetting" | "userAgentAssignment" | "funnelTransition" | "cronRun" | "failedBrazeSend" | "processedEventId" | "ingestSyncLog" | "campaignContent" | "demoUserGroup" | "userSegment" | "userPreference"
     txIsolationLevel: TransactionIsolationLevel
   }
   model: {
@@ -1836,6 +1837,80 @@ export type TypeMap<ExtArgs extends runtime.Types.Extensions.InternalArgs = runt
         }
       }
     }
+    FunnelTransition: {
+      payload: Prisma.$FunnelTransitionPayload<ExtArgs>
+      fields: Prisma.FunnelTransitionFieldRefs
+      operations: {
+        findUnique: {
+          args: Prisma.FunnelTransitionFindUniqueArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$FunnelTransitionPayload> | null
+        }
+        findUniqueOrThrow: {
+          args: Prisma.FunnelTransitionFindUniqueOrThrowArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$FunnelTransitionPayload>
+        }
+        findFirst: {
+          args: Prisma.FunnelTransitionFindFirstArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$FunnelTransitionPayload> | null
+        }
+        findFirstOrThrow: {
+          args: Prisma.FunnelTransitionFindFirstOrThrowArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$FunnelTransitionPayload>
+        }
+        findMany: {
+          args: Prisma.FunnelTransitionFindManyArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$FunnelTransitionPayload>[]
+        }
+        create: {
+          args: Prisma.FunnelTransitionCreateArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$FunnelTransitionPayload>
+        }
+        createMany: {
+          args: Prisma.FunnelTransitionCreateManyArgs<ExtArgs>
+          result: BatchPayload
+        }
+        createManyAndReturn: {
+          args: Prisma.FunnelTransitionCreateManyAndReturnArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$FunnelTransitionPayload>[]
+        }
+        delete: {
+          args: Prisma.FunnelTransitionDeleteArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$FunnelTransitionPayload>
+        }
+        update: {
+          args: Prisma.FunnelTransitionUpdateArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$FunnelTransitionPayload>
+        }
+        deleteMany: {
+          args: Prisma.FunnelTransitionDeleteManyArgs<ExtArgs>
+          result: BatchPayload
+        }
+        updateMany: {
+          args: Prisma.FunnelTransitionUpdateManyArgs<ExtArgs>
+          result: BatchPayload
+        }
+        updateManyAndReturn: {
+          args: Prisma.FunnelTransitionUpdateManyAndReturnArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$FunnelTransitionPayload>[]
+        }
+        upsert: {
+          args: Prisma.FunnelTransitionUpsertArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$FunnelTransitionPayload>
+        }
+        aggregate: {
+          args: Prisma.FunnelTransitionAggregateArgs<ExtArgs>
+          result: runtime.Types.Utils.Optional<Prisma.AggregateFunnelTransition>
+        }
+        groupBy: {
+          args: Prisma.FunnelTransitionGroupByArgs<ExtArgs>
+          result: runtime.Types.Utils.Optional<Prisma.FunnelTransitionGroupByOutputType>[]
+        }
+        count: {
+          args: Prisma.FunnelTransitionCountArgs<ExtArgs>
+          result: runtime.Types.Utils.Optional<Prisma.FunnelTransitionCountAggregateOutputType> | number
+        }
+      }
+    }
     CronRun: {
       payload: Prisma.$CronRunPayload<ExtArgs>
       fields: Prisma.CronRunFieldRefs
@@ -2487,6 +2562,8 @@ export const AgentScalarFieldEnum = {
   staleFunnelStageDays: 'staleFunnelStageDays',
   color: 'color',
   sortOrder: 'sortOrder',
+  holdMaxDays: 'holdMaxDays',
+  holdMaxSends: 'holdMaxSends',
   createdAt: 'createdAt',
   updatedAt: 'updatedAt'
 } as const
@@ -2764,10 +2841,27 @@ export const UserAgentAssignmentScalarFieldEnum = {
   agentId: 'agentId',
   startedAt: 'startedAt',
   sendCount: 'sendCount',
-  windowCompletedAt: 'windowCompletedAt'
+  lastSentAt: 'lastSentAt',
+  windowCompletedAt: 'windowCompletedAt',
+  releasedAt: 'releasedAt',
+  releaseReason: 'releaseReason'
 } as const
 
 export type UserAgentAssignmentScalarFieldEnum = (typeof UserAgentAssignmentScalarFieldEnum)[keyof typeof UserAgentAssignmentScalarFieldEnum]
+
+
+export const FunnelTransitionScalarFieldEnum = {
+  id: 'id',
+  externalUserId: 'externalUserId',
+  fromStage: 'fromStage',
+  toStage: 'toStage',
+  recoveryRank: 'recoveryRank',
+  detectedAt: 'detectedAt',
+  attributedAgentId: 'attributedAgentId',
+  attributedDecisionId: 'attributedDecisionId'
+} as const
+
+export type FunnelTransitionScalarFieldEnum = (typeof FunnelTransitionScalarFieldEnum)[keyof typeof FunnelTransitionScalarFieldEnum]
 
 
 export const CronRunScalarFieldEnum = {
@@ -3131,6 +3225,7 @@ export type GlobalOmitConfig = {
   planSetMember?: Prisma.PlanSetMemberOmit
   appSetting?: Prisma.AppSettingOmit
   userAgentAssignment?: Prisma.UserAgentAssignmentOmit
+  funnelTransition?: Prisma.FunnelTransitionOmit
   cronRun?: Prisma.CronRunOmit
   failedBrazeSend?: Prisma.FailedBrazeSendOmit
   processedEventId?: Prisma.ProcessedEventIdOmit

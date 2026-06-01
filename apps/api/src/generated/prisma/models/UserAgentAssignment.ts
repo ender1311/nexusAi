@@ -40,7 +40,10 @@ export type UserAgentAssignmentMinAggregateOutputType = {
   agentId: string | null
   startedAt: Date | null
   sendCount: number | null
+  lastSentAt: Date | null
   windowCompletedAt: Date | null
+  releasedAt: Date | null
+  releaseReason: string | null
 }
 
 export type UserAgentAssignmentMaxAggregateOutputType = {
@@ -49,7 +52,10 @@ export type UserAgentAssignmentMaxAggregateOutputType = {
   agentId: string | null
   startedAt: Date | null
   sendCount: number | null
+  lastSentAt: Date | null
   windowCompletedAt: Date | null
+  releasedAt: Date | null
+  releaseReason: string | null
 }
 
 export type UserAgentAssignmentCountAggregateOutputType = {
@@ -58,7 +64,10 @@ export type UserAgentAssignmentCountAggregateOutputType = {
   agentId: number
   startedAt: number
   sendCount: number
+  lastSentAt: number
   windowCompletedAt: number
+  releasedAt: number
+  releaseReason: number
   _all: number
 }
 
@@ -77,7 +86,10 @@ export type UserAgentAssignmentMinAggregateInputType = {
   agentId?: true
   startedAt?: true
   sendCount?: true
+  lastSentAt?: true
   windowCompletedAt?: true
+  releasedAt?: true
+  releaseReason?: true
 }
 
 export type UserAgentAssignmentMaxAggregateInputType = {
@@ -86,7 +98,10 @@ export type UserAgentAssignmentMaxAggregateInputType = {
   agentId?: true
   startedAt?: true
   sendCount?: true
+  lastSentAt?: true
   windowCompletedAt?: true
+  releasedAt?: true
+  releaseReason?: true
 }
 
 export type UserAgentAssignmentCountAggregateInputType = {
@@ -95,7 +110,10 @@ export type UserAgentAssignmentCountAggregateInputType = {
   agentId?: true
   startedAt?: true
   sendCount?: true
+  lastSentAt?: true
   windowCompletedAt?: true
+  releasedAt?: true
+  releaseReason?: true
   _all?: true
 }
 
@@ -191,7 +209,10 @@ export type UserAgentAssignmentGroupByOutputType = {
   agentId: string
   startedAt: Date
   sendCount: number
+  lastSentAt: Date | null
   windowCompletedAt: Date | null
+  releasedAt: Date | null
+  releaseReason: string | null
   _count: UserAgentAssignmentCountAggregateOutputType | null
   _avg: UserAgentAssignmentAvgAggregateOutputType | null
   _sum: UserAgentAssignmentSumAggregateOutputType | null
@@ -223,7 +244,10 @@ export type UserAgentAssignmentWhereInput = {
   agentId?: Prisma.StringFilter<"UserAgentAssignment"> | string
   startedAt?: Prisma.DateTimeFilter<"UserAgentAssignment"> | Date | string
   sendCount?: Prisma.IntFilter<"UserAgentAssignment"> | number
+  lastSentAt?: Prisma.DateTimeNullableFilter<"UserAgentAssignment"> | Date | string | null
   windowCompletedAt?: Prisma.DateTimeNullableFilter<"UserAgentAssignment"> | Date | string | null
+  releasedAt?: Prisma.DateTimeNullableFilter<"UserAgentAssignment"> | Date | string | null
+  releaseReason?: Prisma.StringNullableFilter<"UserAgentAssignment"> | string | null
 }
 
 export type UserAgentAssignmentOrderByWithRelationInput = {
@@ -232,7 +256,10 @@ export type UserAgentAssignmentOrderByWithRelationInput = {
   agentId?: Prisma.SortOrder
   startedAt?: Prisma.SortOrder
   sendCount?: Prisma.SortOrder
+  lastSentAt?: Prisma.SortOrderInput | Prisma.SortOrder
   windowCompletedAt?: Prisma.SortOrderInput | Prisma.SortOrder
+  releasedAt?: Prisma.SortOrderInput | Prisma.SortOrder
+  releaseReason?: Prisma.SortOrderInput | Prisma.SortOrder
 }
 
 export type UserAgentAssignmentWhereUniqueInput = Prisma.AtLeast<{
@@ -244,7 +271,10 @@ export type UserAgentAssignmentWhereUniqueInput = Prisma.AtLeast<{
   agentId?: Prisma.StringFilter<"UserAgentAssignment"> | string
   startedAt?: Prisma.DateTimeFilter<"UserAgentAssignment"> | Date | string
   sendCount?: Prisma.IntFilter<"UserAgentAssignment"> | number
+  lastSentAt?: Prisma.DateTimeNullableFilter<"UserAgentAssignment"> | Date | string | null
   windowCompletedAt?: Prisma.DateTimeNullableFilter<"UserAgentAssignment"> | Date | string | null
+  releasedAt?: Prisma.DateTimeNullableFilter<"UserAgentAssignment"> | Date | string | null
+  releaseReason?: Prisma.StringNullableFilter<"UserAgentAssignment"> | string | null
 }, "id" | "externalUserId">
 
 export type UserAgentAssignmentOrderByWithAggregationInput = {
@@ -253,7 +283,10 @@ export type UserAgentAssignmentOrderByWithAggregationInput = {
   agentId?: Prisma.SortOrder
   startedAt?: Prisma.SortOrder
   sendCount?: Prisma.SortOrder
+  lastSentAt?: Prisma.SortOrderInput | Prisma.SortOrder
   windowCompletedAt?: Prisma.SortOrderInput | Prisma.SortOrder
+  releasedAt?: Prisma.SortOrderInput | Prisma.SortOrder
+  releaseReason?: Prisma.SortOrderInput | Prisma.SortOrder
   _count?: Prisma.UserAgentAssignmentCountOrderByAggregateInput
   _avg?: Prisma.UserAgentAssignmentAvgOrderByAggregateInput
   _max?: Prisma.UserAgentAssignmentMaxOrderByAggregateInput
@@ -270,7 +303,10 @@ export type UserAgentAssignmentScalarWhereWithAggregatesInput = {
   agentId?: Prisma.StringWithAggregatesFilter<"UserAgentAssignment"> | string
   startedAt?: Prisma.DateTimeWithAggregatesFilter<"UserAgentAssignment"> | Date | string
   sendCount?: Prisma.IntWithAggregatesFilter<"UserAgentAssignment"> | number
+  lastSentAt?: Prisma.DateTimeNullableWithAggregatesFilter<"UserAgentAssignment"> | Date | string | null
   windowCompletedAt?: Prisma.DateTimeNullableWithAggregatesFilter<"UserAgentAssignment"> | Date | string | null
+  releasedAt?: Prisma.DateTimeNullableWithAggregatesFilter<"UserAgentAssignment"> | Date | string | null
+  releaseReason?: Prisma.StringNullableWithAggregatesFilter<"UserAgentAssignment"> | string | null
 }
 
 export type UserAgentAssignmentCreateInput = {
@@ -279,7 +315,10 @@ export type UserAgentAssignmentCreateInput = {
   agentId: string
   startedAt?: Date | string
   sendCount?: number
+  lastSentAt?: Date | string | null
   windowCompletedAt?: Date | string | null
+  releasedAt?: Date | string | null
+  releaseReason?: string | null
 }
 
 export type UserAgentAssignmentUncheckedCreateInput = {
@@ -288,7 +327,10 @@ export type UserAgentAssignmentUncheckedCreateInput = {
   agentId: string
   startedAt?: Date | string
   sendCount?: number
+  lastSentAt?: Date | string | null
   windowCompletedAt?: Date | string | null
+  releasedAt?: Date | string | null
+  releaseReason?: string | null
 }
 
 export type UserAgentAssignmentUpdateInput = {
@@ -297,7 +339,10 @@ export type UserAgentAssignmentUpdateInput = {
   agentId?: Prisma.StringFieldUpdateOperationsInput | string
   startedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   sendCount?: Prisma.IntFieldUpdateOperationsInput | number
+  lastSentAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   windowCompletedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  releasedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  releaseReason?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
 }
 
 export type UserAgentAssignmentUncheckedUpdateInput = {
@@ -306,7 +351,10 @@ export type UserAgentAssignmentUncheckedUpdateInput = {
   agentId?: Prisma.StringFieldUpdateOperationsInput | string
   startedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   sendCount?: Prisma.IntFieldUpdateOperationsInput | number
+  lastSentAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   windowCompletedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  releasedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  releaseReason?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
 }
 
 export type UserAgentAssignmentCreateManyInput = {
@@ -315,7 +363,10 @@ export type UserAgentAssignmentCreateManyInput = {
   agentId: string
   startedAt?: Date | string
   sendCount?: number
+  lastSentAt?: Date | string | null
   windowCompletedAt?: Date | string | null
+  releasedAt?: Date | string | null
+  releaseReason?: string | null
 }
 
 export type UserAgentAssignmentUpdateManyMutationInput = {
@@ -324,7 +375,10 @@ export type UserAgentAssignmentUpdateManyMutationInput = {
   agentId?: Prisma.StringFieldUpdateOperationsInput | string
   startedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   sendCount?: Prisma.IntFieldUpdateOperationsInput | number
+  lastSentAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   windowCompletedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  releasedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  releaseReason?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
 }
 
 export type UserAgentAssignmentUncheckedUpdateManyInput = {
@@ -333,7 +387,10 @@ export type UserAgentAssignmentUncheckedUpdateManyInput = {
   agentId?: Prisma.StringFieldUpdateOperationsInput | string
   startedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   sendCount?: Prisma.IntFieldUpdateOperationsInput | number
+  lastSentAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   windowCompletedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  releasedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  releaseReason?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
 }
 
 export type UserAgentAssignmentCountOrderByAggregateInput = {
@@ -342,7 +399,10 @@ export type UserAgentAssignmentCountOrderByAggregateInput = {
   agentId?: Prisma.SortOrder
   startedAt?: Prisma.SortOrder
   sendCount?: Prisma.SortOrder
+  lastSentAt?: Prisma.SortOrder
   windowCompletedAt?: Prisma.SortOrder
+  releasedAt?: Prisma.SortOrder
+  releaseReason?: Prisma.SortOrder
 }
 
 export type UserAgentAssignmentAvgOrderByAggregateInput = {
@@ -355,7 +415,10 @@ export type UserAgentAssignmentMaxOrderByAggregateInput = {
   agentId?: Prisma.SortOrder
   startedAt?: Prisma.SortOrder
   sendCount?: Prisma.SortOrder
+  lastSentAt?: Prisma.SortOrder
   windowCompletedAt?: Prisma.SortOrder
+  releasedAt?: Prisma.SortOrder
+  releaseReason?: Prisma.SortOrder
 }
 
 export type UserAgentAssignmentMinOrderByAggregateInput = {
@@ -364,7 +427,10 @@ export type UserAgentAssignmentMinOrderByAggregateInput = {
   agentId?: Prisma.SortOrder
   startedAt?: Prisma.SortOrder
   sendCount?: Prisma.SortOrder
+  lastSentAt?: Prisma.SortOrder
   windowCompletedAt?: Prisma.SortOrder
+  releasedAt?: Prisma.SortOrder
+  releaseReason?: Prisma.SortOrder
 }
 
 export type UserAgentAssignmentSumOrderByAggregateInput = {
@@ -379,7 +445,10 @@ export type UserAgentAssignmentSelect<ExtArgs extends runtime.Types.Extensions.I
   agentId?: boolean
   startedAt?: boolean
   sendCount?: boolean
+  lastSentAt?: boolean
   windowCompletedAt?: boolean
+  releasedAt?: boolean
+  releaseReason?: boolean
 }, ExtArgs["result"]["userAgentAssignment"]>
 
 export type UserAgentAssignmentSelectCreateManyAndReturn<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = runtime.Types.Extensions.GetSelect<{
@@ -388,7 +457,10 @@ export type UserAgentAssignmentSelectCreateManyAndReturn<ExtArgs extends runtime
   agentId?: boolean
   startedAt?: boolean
   sendCount?: boolean
+  lastSentAt?: boolean
   windowCompletedAt?: boolean
+  releasedAt?: boolean
+  releaseReason?: boolean
 }, ExtArgs["result"]["userAgentAssignment"]>
 
 export type UserAgentAssignmentSelectUpdateManyAndReturn<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = runtime.Types.Extensions.GetSelect<{
@@ -397,7 +469,10 @@ export type UserAgentAssignmentSelectUpdateManyAndReturn<ExtArgs extends runtime
   agentId?: boolean
   startedAt?: boolean
   sendCount?: boolean
+  lastSentAt?: boolean
   windowCompletedAt?: boolean
+  releasedAt?: boolean
+  releaseReason?: boolean
 }, ExtArgs["result"]["userAgentAssignment"]>
 
 export type UserAgentAssignmentSelectScalar = {
@@ -406,10 +481,13 @@ export type UserAgentAssignmentSelectScalar = {
   agentId?: boolean
   startedAt?: boolean
   sendCount?: boolean
+  lastSentAt?: boolean
   windowCompletedAt?: boolean
+  releasedAt?: boolean
+  releaseReason?: boolean
 }
 
-export type UserAgentAssignmentOmit<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = runtime.Types.Extensions.GetOmit<"id" | "externalUserId" | "agentId" | "startedAt" | "sendCount" | "windowCompletedAt", ExtArgs["result"]["userAgentAssignment"]>
+export type UserAgentAssignmentOmit<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = runtime.Types.Extensions.GetOmit<"id" | "externalUserId" | "agentId" | "startedAt" | "sendCount" | "lastSentAt" | "windowCompletedAt" | "releasedAt" | "releaseReason", ExtArgs["result"]["userAgentAssignment"]>
 
 export type $UserAgentAssignmentPayload<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
   name: "UserAgentAssignment"
@@ -420,7 +498,10 @@ export type $UserAgentAssignmentPayload<ExtArgs extends runtime.Types.Extensions
     agentId: string
     startedAt: Date
     sendCount: number
+    lastSentAt: Date | null
     windowCompletedAt: Date | null
+    releasedAt: Date | null
+    releaseReason: string | null
   }, ExtArgs["result"]["userAgentAssignment"]>
   composites: {}
 }
@@ -849,7 +930,10 @@ export interface UserAgentAssignmentFieldRefs {
   readonly agentId: Prisma.FieldRef<"UserAgentAssignment", 'String'>
   readonly startedAt: Prisma.FieldRef<"UserAgentAssignment", 'DateTime'>
   readonly sendCount: Prisma.FieldRef<"UserAgentAssignment", 'Int'>
+  readonly lastSentAt: Prisma.FieldRef<"UserAgentAssignment", 'DateTime'>
   readonly windowCompletedAt: Prisma.FieldRef<"UserAgentAssignment", 'DateTime'>
+  readonly releasedAt: Prisma.FieldRef<"UserAgentAssignment", 'DateTime'>
+  readonly releaseReason: Prisma.FieldRef<"UserAgentAssignment", 'String'>
 }
     
 

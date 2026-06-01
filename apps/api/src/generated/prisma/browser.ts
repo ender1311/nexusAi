@@ -113,6 +113,11 @@ export type AppSetting = Prisma.AppSettingModel
  */
 export type UserAgentAssignment = Prisma.UserAgentAssignmentModel
 /**
+ * Model FunnelTransition
+ * 
+ */
+export type FunnelTransition = Prisma.FunnelTransitionModel
+/**
  * Model CronRun
  * 
  */

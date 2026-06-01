@@ -43,6 +43,7 @@ export async function truncateAll(): Promise<void> {
   await prisma.ingestSyncLog.deleteMany();
   await prisma.userDecision.deleteMany();
   await prisma.userAgentAssignment.deleteMany();
+  await prisma.funnelTransition.deleteMany();
   await prisma.userArmStats.deleteMany();
   await prisma.personaArmStats.deleteMany();
   await prisma.linUCBArm.deleteMany();
