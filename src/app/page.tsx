@@ -28,7 +28,7 @@ import { agentRowBadge } from "@/lib/dashboard-agent-row";
 import { getHiddenStatsForCurrentUser } from "@/lib/user-preferences";
 import { isStatHidden } from "@/lib/stat-visibility";
 import { TimeSeriesPoint, DecisionLog } from "@/types/metrics";
-import { Bot, Send, TrendingUp, Users, Plus, CheckCircle2, XCircle } from "lucide-react";
+import { Bot, Send, TrendingUp, Users, Plus, CheckCircle2, XCircle, ChevronRight } from "lucide-react";
 import { PushOpenRateCard } from "@/components/metrics/push-open-rate-card";
 import Link from "next/link";
 
@@ -171,7 +171,13 @@ async function AgentsSidebar() {
   return (
     <Card>
       <CardHeader className="flex flex-row items-center justify-between">
-        <CardTitle className="text-sm font-semibold">Agents</CardTitle>
+        <Link
+          href="/agents"
+          className="group flex items-center gap-1 -m-1 p-1 rounded-md hover:text-primary transition-colors"
+        >
+          <CardTitle className="text-sm font-semibold group-hover:text-primary transition-colors">Agents</CardTitle>
+          <ChevronRight className="h-4 w-4 text-muted-foreground group-hover:text-primary transition-colors" />
+        </Link>
         <Link href="/agents/new">
           <Button size="sm" variant="outline" className="h-7 text-xs">
             <Plus className="h-3 w-3 mr-1" />
@@ -179,21 +185,24 @@ async function AgentsSidebar() {
           </Button>
         </Link>
       </CardHeader>
-      <CardContent className="space-y-1">
+      <CardContent className="space-y-1.5">
         {agents.map((agent) => (
           <Link key={agent.id} href={`/agents/${agent.id}`}>
-            <div className="flex items-center justify-between p-2 rounded-lg hover:bg-muted transition-colors cursor-pointer">
+            <div className="flex items-center justify-between gap-2 p-2 rounded-lg border bg-card hover:bg-muted hover:border-primary/40 active:bg-muted transition-colors cursor-pointer">
               <div className="flex-1 min-w-0">
                 <p className="text-xs font-medium truncate">{agent.name}</p>
                 <p className="text-xs text-muted-foreground capitalize">{agent.status}</p>
               </div>
-              {agentRowBadge(agent.status, agent._count.decisions).kind === "draft" ? (
-                <Badge variant="outline" className="text-xs">Draft</Badge>
-              ) : (
-                <span className="text-xs font-bold text-primary ml-2">
-                  {formatNumber(agent._count.decisions)} sends
-                </span>
-              )}
+              <div className="flex items-center gap-1.5 shrink-0">
+                {agentRowBadge(agent.status, agent._count.decisions).kind === "draft" ? (
+                  <Badge variant="outline" className="text-xs">Draft</Badge>
+                ) : (
+                  <span className="text-xs font-bold text-primary">
+                    {formatNumber(agent._count.decisions)} sends
+                  </span>
+                )}
+                <ChevronRight className="h-3.5 w-3.5 text-muted-foreground" />
+              </div>
             </div>
           </Link>
         ))}
