@@ -5,15 +5,11 @@ import { useRouter } from "next/navigation";
 import { Loader2, Check } from "lucide-react";
 import { Switch } from "@/components/ui/switch";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
-import { formatLanguageCoverage } from "@/lib/push-coverage";
 
 type Props = {
   agentId: string;
-  initialLanguageFilter: string;
   initialLocalizePush: boolean;
-  coverageLanguages: string[];
 };
 
 function SaveStatus({ saving, savedAt }: { saving: boolean; savedAt: number | null }) {
@@ -31,14 +27,8 @@ function SaveStatus({ saving, savedAt }: { saving: boolean; savedAt: number | nu
   );
 }
 
-export function AgentLocalizationTab({
-  agentId,
-  initialLanguageFilter,
-  initialLocalizePush,
-  coverageLanguages,
-}: Props) {
+export function AgentLocalizationTab({ agentId, initialLocalizePush }: Props) {
   const router = useRouter();
-  const [englishOnly, setEnglishOnly] = useState(initialLanguageFilter === "en");
   const [localizePush, setLocalizePush] = useState(initialLocalizePush);
   const [saving, setSaving] = useState(false);
   const [savedAt, setSavedAt] = useState<number | null>(null);
@@ -50,97 +40,45 @@ export function AgentLocalizationTab({
     };
   }, []);
 
-  async function save(patch: Record<string, unknown>) {
+  function handleLocalizePush(next: boolean) {
+    setLocalizePush(next);
     setSaving(true);
     if (savedTimerRef.current !== null) {
       clearTimeout(savedTimerRef.current);
       setSavedAt(null);
     }
-    try {
-      await fetch(`/api/agents/${agentId}`, {
-        method: "PATCH",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(patch),
-      });
-      setSavedAt(Date.now());
-      savedTimerRef.current = setTimeout(() => setSavedAt(null), 2000);
-      router.refresh();
-    } finally {
-      setSaving(false);
-    }
-  }
-
-  function handleEnglishOnly(next: boolean) {
-    setEnglishOnly(next);
-    save({ languageFilter: next ? "en" : "all" });
-  }
-
-  function handleLocalizePush(next: boolean) {
-    setLocalizePush(next);
-    save({ localizePush: next });
+    fetch(`/api/agents/${agentId}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ localizePush: next }),
+    })
+      .then(() => {
+        setSavedAt(Date.now());
+        savedTimerRef.current = setTimeout(() => setSavedAt(null), 2000);
+        router.refresh();
+      })
+      .finally(() => setSaving(false));
   }
 
   return (
-    <div className="space-y-4">
-      <Card>
-        <CardHeader className="flex flex-row items-center justify-between">
-          <CardTitle className="text-sm font-semibold">Language Settings</CardTitle>
-          <SaveStatus saving={saving} savedAt={savedAt} />
-        </CardHeader>
-        <CardContent className="space-y-4">
-          <div className="flex items-center justify-between rounded-lg border bg-muted/20 px-3 py-3">
-            <div className="pr-4">
-              <p className="text-sm font-medium">English-only audience</p>
-              <p className="text-xs text-muted-foreground mt-0.5">
-                Restrict sends to users whose language starts with &quot;en&quot;. When off, the agent sends to all
-                languages.
-              </p>
-            </div>
-            <Switch checked={englishOnly} onCheckedChange={handleEnglishOnly} disabled={saving} />
-          </div>
-
-          <div className="flex items-center justify-between rounded-lg border bg-muted/20 px-3 py-3">
-            <div className="pr-4">
-              <p className="text-sm font-medium">Localize push copy</p>
-              <p className="text-xs text-muted-foreground mt-0.5">
-                Send each recipient the translated copy for their language. Recipients whose language has no
-                translation are skipped (no English fallback); English-speaking recipients still receive the English
-                copy. When off, everyone receives the English copy.
-              </p>
-            </div>
-            <Switch checked={localizePush} onCheckedChange={handleLocalizePush} disabled={saving || englishOnly} />
-          </div>
-
-          {englishOnly && localizePush && (
-            <p className="text-xs text-muted-foreground">
-              Localized copy has no effect while the audience is restricted to English.
+    <Card>
+      <CardHeader className="flex flex-row items-center justify-between">
+        <CardTitle className="text-sm font-semibold">Language Settings</CardTitle>
+        <SaveStatus saving={saving} savedAt={savedAt} />
+      </CardHeader>
+      <CardContent>
+        <div className="flex items-center justify-between rounded-lg border bg-muted/20 px-3 py-3">
+          <div className="pr-4">
+            <p className="text-sm font-medium">Localize push copy</p>
+            <p className="text-xs text-muted-foreground mt-0.5">
+              Send each recipient the translated copy for their language. Recipients whose language has no
+              translation are skipped (no English fallback); English-speaking recipients still receive the English
+              copy. When off, everyone receives the English copy.
             </p>
-          )}
-        </CardContent>
-      </Card>
-
-      <Card>
-        <CardHeader>
-          <CardTitle className="text-sm font-semibold">Translation Coverage</CardTitle>
-        </CardHeader>
-        <CardContent className="space-y-3">
-          <div className="flex items-center justify-between">
-            <span className="text-sm text-muted-foreground">Languages covered</span>
-            <Badge variant="outline" className="text-xs">{formatLanguageCoverage(coverageLanguages)}</Badge>
           </div>
-          {coverageLanguages.length > 0 && (
-            <div className="flex flex-wrap gap-1.5">
-              {coverageLanguages.map((lang) => (
-                <Badge key={lang} variant="secondary" className="text-xs font-mono">{lang}</Badge>
-              ))}
-            </div>
-          )}
-          <p className="text-xs text-muted-foreground">
-            Coverage reflects active translations across this agent&apos;s push variants. Manage translations from the
-            message library.
-          </p>
-        </CardContent>
-      </Card>
-    </div>
+          <Switch checked={localizePush} onCheckedChange={handleLocalizePush} disabled={saving} />
+        </div>
+      </CardContent>
+    </Card>
   );
 }

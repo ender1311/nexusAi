@@ -73,27 +73,6 @@ export function getCachedAgentDecisionSplit(id: string) {
   )();
 }
 
-/**
- * Distinct non-English translation languages across all of an agent's push
- * variants. Drives the read-only coverage readout on the Localization tab
- * (formatLanguageCoverage). English always lives on the variant itself, so it
- * never appears as a translation row.
- */
-export function getCachedAgentLanguageCoverage(agentId: string) {
-  return unstable_cache(
-    async () => {
-      const rows = await prisma.messageVariantTranslation.findMany({
-        where: { variant: { message: { agentId } }, status: "active" },
-        select: { language: true },
-        distinct: ["language"],
-      });
-      return rows.map((r) => r.language);
-    },
-    ["agent-language-coverage", agentId],
-    { tags: [`agent-${agentId}`, "agents"], revalidate: TTL.STANDARD }
-  )();
-}
-
 /** User count by persona + preview users for an agent's audience tab. */
 export function getCachedAgentAudienceData(agentId: string, personaIds: string[]) {
   const key = personaIds.slice().sort().join(",");
