@@ -11,7 +11,7 @@ export interface YouVersionGoalPreset {
 export const YOUVERSION_GOALS: YouVersionGoalPreset[] = [
   // Positive goals
   { eventName: "session_start", label: "Have a session", tier: "best", weight: 3, description: "User starts a session in the app" },
-  { eventName: "gift_completed", label: "Give a gift", tier: "best", weight: 10, description: "User completes a gift/donation" },
+  { eventName: "gift_given", label: "Give a gift", tier: "best", weight: 10, description: "User completes a gift/donation" },
   { eventName: "sower_subscribed", label: "Become a sower", tier: "best", weight: 10, description: "User subscribes to sower program" },
   { eventName: "plan_started", label: "Start a bible plan", tier: "very_good", weight: 7, description: "User starts a Bible reading plan" },
   { eventName: "guided_scripture_start", label: "Start guided scripture", tier: "very_good", weight: 7, description: "User starts guided scripture session" },
@@ -63,7 +63,7 @@ export type GoalColorGroup = "green" | "red" | "blue";
 
 // Giving outcomes (gift + sower) are the headline conversions, so they read green;
 // every other positive goal is blue and any negative outcome is red.
-const GREEN_GOAL_EVENTS = new Set(["gift_completed", "sower_subscribed"]);
+const GREEN_GOAL_EVENTS = new Set(["gift_given", "sower_subscribed"]);
 
 export function goalColorGroup(goal: { eventName: string; weight: number }): GoalColorGroup {
   if (goal.weight < 0) return "red";

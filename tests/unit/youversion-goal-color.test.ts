@@ -3,7 +3,7 @@ import { goalColorGroup, YOUVERSION_GOALS } from "@/lib/constants/youversion";
 
 describe("goalColorGroup", () => {
   it("colors gift + sower green", () => {
-    expect(goalColorGroup({ eventName: "gift_completed", weight: 10 })).toBe("green");
+    expect(goalColorGroup({ eventName: "gift_given", weight: 10 })).toBe("green");
     expect(goalColorGroup({ eventName: "sower_subscribed", weight: 10 })).toBe("green");
   });
 
@@ -11,7 +11,7 @@ describe("goalColorGroup", () => {
     expect(goalColorGroup({ eventName: "push_unsubscribe", weight: -10 })).toBe("red");
     expect(goalColorGroup({ eventName: "app_uninstall", weight: -10 })).toBe("red");
     // Negative weight wins even for an otherwise-green event name.
-    expect(goalColorGroup({ eventName: "gift_completed", weight: -1 })).toBe("red");
+    expect(goalColorGroup({ eventName: "gift_given", weight: -1 })).toBe("red");
   });
 
   it("colors every other positive goal blue", () => {
