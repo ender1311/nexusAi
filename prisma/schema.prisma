@@ -34,6 +34,8 @@ model Agent {
   staleFunnelStageDays Int?
   color            String      @default("#6366f1") // hex accent color shown on agent card and avatar
   sortOrder        Int         @default(0)         // custom drag-and-drop display order
+  holdMaxDays      Int         @default(90) // auto-release after this many days owned without conversion
+  holdMaxSends     Int         @default(24) // auto-release after this many sends without conversion
   createdAt        DateTime    @default(now())
   updatedAt        DateTime    @updatedAt
 
@@ -365,10 +367,29 @@ model UserAgentAssignment {
   agentId           String              // Agent.id (no FK — assignment survives agent soft-delete)
   startedAt         DateTime  @default(now())
   sendCount         Int       @default(0)
+  lastSentAt        DateTime?           // last send under this assignment
   windowCompletedAt DateTime?           // null = in exploration; non-null = window done
+  releasedAt        DateTime?           // null = actively owned; non-null = released, claimable
+  releaseReason     String?             // conversion | cohort_exit | hold_cap_days | hold_cap_sends | manual
 
   @@index([agentId])
+  @@index([releasedAt])
   @@index([windowCompletedAt])
+}
+
+model FunnelTransition {
+  id                   String   @id @default(cuid())
+  externalUserId       String
+  fromStage            String
+  toStage              String
+  recoveryRank         Int
+  detectedAt           DateTime @default(now())
+  attributedAgentId    String?            // null = organic (no active owner)
+  attributedDecisionId String?
+
+  @@index([attributedAgentId, detectedAt])
+  @@index([detectedAt])
+  @@index([externalUserId])
 }
 
 model CronRun {

@@ -30,6 +30,7 @@ import { AgentNameEditor } from "@/components/agents/agent-name-editor";
 import { AgentStatusToggle } from "@/components/agents/agent-status-toggle";
 import { AgentEditSheet } from "@/components/agents/agent-edit-sheet";
 import { AgentDeleteButton } from "@/components/agents/agent-delete-button";
+import { ReleaseAllButton } from "@/components/agents/release-all-button";
 
 const TIER_COLORS: Record<string, string> = {
   best:      "bg-green-100 text-green-700 border-green-200 dark:bg-green-900/30 dark:text-green-400 dark:border-green-800",
@@ -115,6 +116,7 @@ export default async function AgentDetailPage({ params }: { params: Promise<{ id
             )}
             {isAdmin && <AgentStatusToggle agentId={agent.id} status={agent.status} />}
             {isAdmin && <AgentDeleteButton agentId={agent.id} agentName={agent.name} />}
+            {isAdmin && <ReleaseAllButton agentId={agent.id} />}
           </div>
         </div>
 

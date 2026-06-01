@@ -1,9 +1,9 @@
 import { NextRequest, NextResponse } from "next/server";
 import { revalidateTag } from "next/cache";
 import { prisma } from "@/lib/db";
-import { calculateReward } from "@/lib/engine/reward-calculator";
 import { accumulateUserStats } from "@/lib/services/user-stats-service";
 import { upsertArmStats, upsertUserArmStats } from "@/lib/arm-stats";
+import { applyConversion } from "@/lib/services/attribution-service";
 import { verifyIngestAuth } from "@/lib/ingest-auth";
 
 /**
@@ -207,74 +207,13 @@ export async function POST(req: NextRequest) {
       continue;
     }
 
-    // Use shared reward calculator (supports dynamic property-based weights)
-    const reward = calculateReward(
-      event.event_name,
-      decision.agent.goals as Parameters<typeof calculateReward>[1],
-      event.properties
-    );
-
-    await prisma.userDecision.update({
-      where: { id: decision.id },
-      data: {
-        conversionEvent: event.event_name,
-        conversionAt: occurredAt,
-        reward: reward !== 0 ? reward : null,
-      },
+    const { reward } = await applyConversion({
+      decision,
+      conversionEvent: event.event_name,
+      occurredAt,
+      properties: event.properties,
     });
-
-    // Accumulate per-user behavioral stats
-    if (reward !== 0) {
-      await accumulateUserStats({
-        externalId: event.external_user_id,
-        channel: decision.channel,
-        reward,
-        occurredAt,
-      }).catch((err) => {
-        console.error("[ingest/events] Failed to accumulate user stats:", err);
-      });
-    }
-
-    // Update arm stats to close the learning loop: both persona-level (shared prior) and
-    // user-level (individual posterior). Both use the same decay formula (~0.99/update).
-    if (decision.messageVariantId) {
-      const user = await prisma.trackedUser.findFirst({
-        where: { externalId: event.external_user_id },
-        select: { personaId: true },
-      });
-      // Beta parameter safety invariant: deltaAlpha and deltaBeta are always >= 0 by
-      // construction, so they can never push alpha or beta below 1.
-      // deltaAlpha = reward when reward > 0, else 0 — non-negative.
-      // deltaBeta  = 1 when reward <= 0, else 0 — non-negative.
-      // If this logic ever changes to allow negative deltas, add Math.max(0, delta)
-      // guards here; otherwise alpha_new or beta_new could drop below 1, invalidating
-      // the Beta distribution parameterisation (alpha, beta must be >= 1).
-      const deltaAlpha = reward > 0 ? reward : 0;
-      const deltaBeta  = reward <= 0 ? 1 : 0;
-      const deltaWins  = reward > 0 ? 1 : 0;
-      await Promise.all([
-        // Persona-level prior: shared across all users in the same persona
-        user?.personaId
-          ? upsertArmStats({
-              personaId: user.personaId,
-              agentId: decision.agentId,
-              variantId: decision.messageVariantId,
-              deltaAlpha, deltaBeta, deltaWins,
-            }).catch((err) => {
-              console.error("[ingest/events] Failed to update PersonaArmStats:", err);
-            })
-          : Promise.resolve(),
-        // User-level posterior: individual learning blended with persona prior at decision time
-        upsertUserArmStats({
-          userId: event.external_user_id,
-          agentId: decision.agentId,
-          variantId: decision.messageVariantId,
-          deltaAlpha, deltaBeta, deltaWins,
-        }).catch((err) => {
-          console.error("[ingest/events] Failed to update UserArmStats:", err);
-        }),
-      ]);
-    }
+    void reward; // reward already persisted by applyConversion
 
     // Mark as processed after successful handling
     await prisma.processedEventId.create({ data: { eventId: event.event_id } }).catch((err: unknown) => {

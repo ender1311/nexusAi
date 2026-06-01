@@ -12,6 +12,8 @@ export async function createAgent(overrides: {
   targetSegmentName?: string | null;
   segmentTargeting?: { includes: string[]; excludes: string[] } | null;
   localizePush?: boolean;
+  holdMaxDays?: number;
+  holdMaxSends?: number;
 } = {}) {
   const { segmentTargeting, ...rest } = overrides;
   return prisma.agent.create({
@@ -264,21 +266,44 @@ export async function createUserAgentAssignment(params: {
   sendCount?: number;
   startedAt?: Date;
   windowCompletedAt?: Date | null;
+  lastSentAt?: Date | null;
+  releasedAt?: Date | null;
+  releaseReason?: string | null;
 }) {
+  const data = {
+    agentId:           params.agentId,
+    sendCount:         params.sendCount ?? 0,
+    startedAt:         params.startedAt ?? new Date(),
+    windowCompletedAt: params.windowCompletedAt ?? null,
+    lastSentAt:        params.lastSentAt ?? null,
+    releasedAt:        params.releasedAt ?? null,
+    releaseReason:     params.releaseReason ?? null,
+  };
   return prisma.userAgentAssignment.upsert({
     where: { externalUserId: params.externalUserId },
-    create: {
-      externalUserId:    params.externalUserId,
-      agentId:           params.agentId,
-      sendCount:         params.sendCount ?? 0,
-      startedAt:         params.startedAt ?? new Date(),
-      windowCompletedAt: params.windowCompletedAt ?? null,
-    },
-    update: {
-      agentId:           params.agentId,
-      sendCount:         params.sendCount ?? 0,
-      startedAt:         params.startedAt ?? new Date(),
-      windowCompletedAt: params.windowCompletedAt ?? null,
+    create: { externalUserId: params.externalUserId, ...data },
+    update: data,
+  });
+}
+
+export async function createFunnelTransition(params: {
+  externalUserId: string;
+  fromStage: string;
+  toStage: string;
+  recoveryRank: number;
+  detectedAt?: Date;
+  attributedAgentId?: string | null;
+  attributedDecisionId?: string | null;
+}) {
+  return prisma.funnelTransition.create({
+    data: {
+      externalUserId:       params.externalUserId,
+      fromStage:            params.fromStage,
+      toStage:              params.toStage,
+      recoveryRank:         params.recoveryRank,
+      ...(params.detectedAt && { detectedAt: params.detectedAt }),
+      attributedAgentId:    params.attributedAgentId ?? null,
+      attributedDecisionId: params.attributedDecisionId ?? null,
     },
   });
 }

@@ -70,6 +70,7 @@ export const ModelName = {
   PlanSetMember: 'PlanSetMember',
   AppSetting: 'AppSetting',
   UserAgentAssignment: 'UserAgentAssignment',
+  FunnelTransition: 'FunnelTransition',
   CronRun: 'CronRun',
   FailedBrazeSend: 'FailedBrazeSend',
   ProcessedEventId: 'ProcessedEventId',
@@ -116,6 +117,8 @@ export const AgentScalarFieldEnum = {
   staleFunnelStageDays: 'staleFunnelStageDays',
   color: 'color',
   sortOrder: 'sortOrder',
+  holdMaxDays: 'holdMaxDays',
+  holdMaxSends: 'holdMaxSends',
   createdAt: 'createdAt',
   updatedAt: 'updatedAt'
 } as const
@@ -393,10 +396,27 @@ export const UserAgentAssignmentScalarFieldEnum = {
   agentId: 'agentId',
   startedAt: 'startedAt',
   sendCount: 'sendCount',
-  windowCompletedAt: 'windowCompletedAt'
+  lastSentAt: 'lastSentAt',
+  windowCompletedAt: 'windowCompletedAt',
+  releasedAt: 'releasedAt',
+  releaseReason: 'releaseReason'
 } as const
 
 export type UserAgentAssignmentScalarFieldEnum = (typeof UserAgentAssignmentScalarFieldEnum)[keyof typeof UserAgentAssignmentScalarFieldEnum]
+
+
+export const FunnelTransitionScalarFieldEnum = {
+  id: 'id',
+  externalUserId: 'externalUserId',
+  fromStage: 'fromStage',
+  toStage: 'toStage',
+  recoveryRank: 'recoveryRank',
+  detectedAt: 'detectedAt',
+  attributedAgentId: 'attributedAgentId',
+  attributedDecisionId: 'attributedDecisionId'
+} as const
+
+export type FunnelTransitionScalarFieldEnum = (typeof FunnelTransitionScalarFieldEnum)[keyof typeof FunnelTransitionScalarFieldEnum]
 
 
 export const CronRunScalarFieldEnum = {

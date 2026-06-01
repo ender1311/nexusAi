@@ -20,6 +20,7 @@ import {
   getCachedRecentDecisions,
   getCachedAllVariantNames,
   getCachedFunnelStageBreakdown,
+  getCachedFleetRecoveryStats,
 } from "@/lib/cache";
 import { getCachedBrazeStats } from "@/lib/braze/analytics";
 import { formatNumber, formatDate } from "@/lib/utils";
@@ -92,8 +93,8 @@ function ListCardSkeleton() {
 // ---------------------------------------------------------------------------
 
 async function MetricCardsSection() {
-  const [{ sentLast24h, totalConversions, totalDecisions, totalPushSends }, agents, trackedUsers, hiddenStats] =
-    await Promise.all([getCachedDashboardCounts(), getCachedAgentList(), getCachedTrackedUserCount(), getHiddenStatsForCurrentUser()]);
+  const [{ sentLast24h, totalConversions, totalDecisions, totalPushSends }, agents, trackedUsers, hiddenStats, recovery] =
+    await Promise.all([getCachedDashboardCounts(), getCachedAgentList(), getCachedTrackedUserCount(), getHiddenStatsForCurrentUser(), getCachedFleetRecoveryStats()]);
   const avgConvRate = totalDecisions > 0 ? (totalConversions / totalDecisions) * 100 : 0;
   const activeAgents = agents.filter((a) => a.status === "active").length;
 
@@ -104,6 +105,14 @@ async function MetricCardsSection() {
       {!isStatHidden(hiddenStats, "dashboard.messagesSent24h") && <MetricCard title="Messages Sent (24h)" value={formatNumber(sentLast24h)} description="across all channels" icon={Send} />}
       {avgConvRate > 0 && !isStatHidden(hiddenStats, "dashboard.avgConversionRate") && <MetricCard title="Avg Conversion Rate" value={`${avgConvRate.toFixed(2)}%`} description="last 30 days" icon={TrendingUp} />}
       {!isStatHidden(hiddenStats, "dashboard.totalSends") && <MetricCard title="Total Sends" value={formatNumber(totalPushSends)} description="push, last 30 days" icon={Send} />}
+      {recovery.recoveries30d > 0 && !isStatHidden(hiddenStats, "dashboard.recoveries") && (
+        <MetricCard
+          title="Lapsed Recovered (30d)"
+          value={formatNumber(recovery.recoveries30d)}
+          description={`${recovery.fleetRecoveryRate.toFixed(1)}% fleet recovery rate`}
+          icon={TrendingUp}
+        />
+      )}
     </>
   );
 }
@@ -337,6 +346,7 @@ export default function DashboardPage() {
   void getCachedAllVariantNames();
   void getCachedPersonaDistribution();
   void getCachedFunnelStageBreakdown();
+  void getCachedFleetRecoveryStats();
 
   return (
     <>

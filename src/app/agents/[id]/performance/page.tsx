@@ -128,6 +128,53 @@ async function PerformanceContent({ id }: { id: string }) {
     `,
   ]);
 
+  // ── Re-engagement (spec C1) ──
+  const [recoveryTransitions, ownedCount, recoveryRewardAgg, lapsedOwnedInWindow] = await Promise.all([
+    prisma.funnelTransition.findMany({
+      where: { attributedAgentId: id, detectedAt: { gte: thirtyDaysAgo } },
+      select: { fromStage: true, toStage: true, detectedAt: true },
+      orderBy: { detectedAt: "asc" },
+      take: 5000,
+    }),
+    prisma.userAgentAssignment.count({ where: { agentId: id, releasedAt: null } }),
+    prisma.userDecision.aggregate({
+      where: { agentId: id, conversionEvent: "funnel_recovery", conversionAt: { gte: thirtyDaysAgo } },
+      _sum: { reward: true },
+    }),
+    prisma.userAgentAssignment.count({ where: { agentId: id, startedAt: { gte: thirtyDaysAgo } } }),
+  ]);
+
+  const recoveries30d = recoveryTransitions.length;
+  const recoveryReward = recoveryRewardAgg._sum.reward ?? 0;
+  const recoveryRate = lapsedOwnedInWindow > 0 ? (recoveries30d / lapsedOwnedInWindow) * 100 : 0;
+
+  const transitionMap = new Map<string, number>();
+  for (const t of recoveryTransitions) {
+    const key = `${t.fromStage}→${t.toStage}`;
+    transitionMap.set(key, (transitionMap.get(key) ?? 0) + 1);
+  }
+  const transitionRows = [...transitionMap.entries()]
+    .map(([label, count]) => ({ label, count }))
+    .sort((a, b) => b.count - a.count);
+
+  const recoveryByDate = new Map<string, number>();
+  for (const t of recoveryTransitions) {
+    const key = t.detectedAt.toISOString().slice(0, 10);
+    recoveryByDate.set(key, (recoveryByDate.get(key) ?? 0) + 1);
+  }
+  const recoveryTrend: TimeSeriesPoint[] = [];
+  for (let i = 29; i >= 0; i--) {
+    const d = new Date(now);
+    d.setDate(d.getDate() - i);
+    const key = d.toISOString().slice(0, 10);
+    recoveryTrend.push({
+      date: key,
+      sends: recoveryByDate.get(key) ?? 0,
+      conversions: 0,
+      conversionRate: 0,
+    });
+  }
+
   const fleetSends = Number(fleetAgg[0]?.fleet_sends ?? 0);
   const fleetConversions = Number(fleetAgg[0]?.fleet_conversions ?? 0);
 
@@ -381,6 +428,61 @@ async function PerformanceContent({ id }: { id: string }) {
           <TimingHeatmap data={timingHeatmap} />
         </CardContent>
       </Card>
+
+      {(recoveries30d > 0 || ownedCount > 0) && (
+        <div className="space-y-4">
+          <h2 className="text-sm font-semibold text-muted-foreground">Re-engagement (lapsed → active)</h2>
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-3 sm:gap-4">
+            <Card><CardContent className="p-4">
+              <p className="text-xs text-muted-foreground">Recoveries</p>
+              <p className="text-2xl font-bold mt-1">{formatNumber(recoveries30d)}</p>
+              <p className="text-xs text-muted-foreground mt-0.5">last 30 days</p>
+            </CardContent></Card>
+            <Card><CardContent className="p-4">
+              <p className="text-xs text-muted-foreground">Recovery Rate</p>
+              <p className="text-2xl font-bold mt-1 text-primary">{recoveryRate.toFixed(1)}%</p>
+              <p className="text-xs text-muted-foreground mt-0.5">of users owned (30d)</p>
+            </CardContent></Card>
+            <Card><CardContent className="p-4">
+              <p className="text-xs text-muted-foreground">Reward from Recoveries</p>
+              <p className="text-2xl font-bold mt-1">{recoveryReward.toFixed(2)}</p>
+            </CardContent></Card>
+            <Card><CardContent className="p-4">
+              <p className="text-xs text-muted-foreground">Currently Owned</p>
+              <p className="text-2xl font-bold mt-1">{formatNumber(ownedCount)}</p>
+            </CardContent></Card>
+          </div>
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            <Card>
+              <CardHeader><CardTitle className="text-sm font-semibold">Recovery Trend</CardTitle></CardHeader>
+              <CardContent><TimeSeriesChart data={recoveryTrend} height={240} showSends /></CardContent>
+            </Card>
+            {transitionRows.length > 0 && (
+              <Card>
+                <CardHeader><CardTitle className="text-sm font-semibold">Recoveries by Transition</CardTitle></CardHeader>
+                <CardContent className="p-0">
+                  <table className="w-full text-sm">
+                    <thead>
+                      <tr className="border-b text-xs text-muted-foreground">
+                        <th className="text-left px-4 py-2 font-medium">From → To</th>
+                        <th className="text-right px-4 py-2 font-medium">Count</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {transitionRows.map((r) => (
+                        <tr key={r.label} className="border-b last:border-0 hover:bg-muted/30">
+                          <td className="px-4 py-2.5 font-medium">{r.label}</td>
+                          <td className="px-4 py-2.5 text-right tabular-nums text-muted-foreground">{formatNumber(r.count)}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </CardContent>
+              </Card>
+            )}
+          </div>
+        </div>
+      )}
 
       {personaBreakdown.length > 0 && (
         <Card>
