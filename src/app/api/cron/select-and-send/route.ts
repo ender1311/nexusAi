@@ -156,6 +156,17 @@ export async function POST(req: NextRequest) {
   }
   // ─── End Phase −1 ─────────────────────────────────────────────────────────
 
+  // Fleet-wide exclusivity (spec A4): a user actively owned by another agent is
+  // ineligible for everyone except its current owner. One query, held in memory.
+  const activeOwnerByUser = new Map<string, string>(); // externalUserId → owning agentId
+  {
+    const owned = await prisma.userAgentAssignment.findMany({
+      where: { releasedAt: null },
+      select: { externalUserId: true, agentId: true },
+    });
+    for (const a of owned) activeOwnerByUser.set(a.externalUserId, a.agentId);
+  }
+
   // ── Pre-assignment phase: build lottery map once for the entire cron run ──
   // Fetch eligible user IDs for all agents in parallel (one query per agent),
   // and also fetch the cooldown setting for Phase 0 in the same round trip.
@@ -248,10 +259,14 @@ export async function POST(req: NextRequest) {
             },
             select: { externalId: true, preferredSendHour: true },
           });
-          eligibleUsersByAgent.set(agent.id, rows.map((r) => r.externalId));
+          const ownEligible = rows.filter((r) => {
+            const owner = activeOwnerByUser.get(r.externalId);
+            return owner === undefined || owner === agent.id; // unowned, released, or owned by us
+          });
+          eligibleUsersByAgent.set(agent.id, ownEligible.map((r) => r.externalId));
           preferredHourByAgent.set(
             agent.id,
-            new Map(rows.map((r) => [r.externalId, r.preferredSendHour])),
+            new Map(ownEligible.map((r) => [r.externalId, r.preferredSendHour])),
           );
         } else {
           // Funnel-stage path (existing logic + exclude support)
@@ -281,10 +296,14 @@ export async function POST(req: NextRequest) {
             const excludedIds = await fetchExcludedIds();
             rows = rows.filter((r) => !excludedIds.has(r.externalId));
           }
-          eligibleUsersByAgent.set(agent.id, rows.map((r) => r.externalId));
+          const ownEligible = rows.filter((r) => {
+            const owner = activeOwnerByUser.get(r.externalId);
+            return owner === undefined || owner === agent.id; // unowned, released, or owned by us
+          });
+          eligibleUsersByAgent.set(agent.id, ownEligible.map((r) => r.externalId));
           preferredHourByAgent.set(
             agent.id,
-            new Map(rows.map((r) => [r.externalId, r.preferredSendHour])),
+            new Map(ownEligible.map((r) => [r.externalId, r.preferredSendHour])),
           );
         }
       })
@@ -946,12 +965,51 @@ export async function POST(req: NextRequest) {
 
       // Send all variant groups in parallel batches
       {
-        const { sent, errors } = await dispatchSendGroups(
+        const { sent, errors, sentUserIds } = await dispatchSendGroups(
           Object.values(byVariant),
           { brazeClient, factory, agentId: agent.id, prisma },
         );
         totalSent += sent;
         totalErrors += errors;
+
+        // Persist the lottery winner as the durable owner (spec A4) + bump send accounting.
+        // These users passed the ownership filter, so any existing row is absent, released,
+        // or already owned by this agent. Partition into claims vs. continuations.
+        if (sentUserIds.length > 0) {
+          const existing = await prisma.userAgentAssignment.findMany({
+            where: { externalUserId: { in: sentUserIds } },
+            select: { externalUserId: true, agentId: true, releasedAt: true },
+          });
+          const existingByUser = new Map(existing.map((e) => [e.externalUserId, e]));
+          const continueIds: string[] = []; // active row already owned by this agent → increment
+          const claimIds: string[] = [];    // no row / released / other-agent-released → (re)claim
+          for (const uid of sentUserIds) {
+            const row = existingByUser.get(uid);
+            if (row && row.releasedAt === null && row.agentId === agent.id) continueIds.push(uid);
+            else claimIds.push(uid);
+          }
+          await Promise.all([
+            continueIds.length > 0
+              ? prisma.userAgentAssignment.updateMany({
+                  where: { externalUserId: { in: continueIds } },
+                  data: { sendCount: { increment: 1 }, lastSentAt: now },
+                })
+              : Promise.resolve(),
+            // Claims overwrite the unique externalUserId row (spec A1: fresh ownership).
+            ...claimIds.map((uid) =>
+              prisma.userAgentAssignment
+                .upsert({
+                  where: { externalUserId: uid },
+                  create: { externalUserId: uid, agentId: agent.id, startedAt: now, sendCount: 1, lastSentAt: now },
+                  update: {
+                    agentId: agent.id, startedAt: now, sendCount: 1, lastSentAt: now,
+                    windowCompletedAt: null, releasedAt: null, releaseReason: null,
+                  },
+                })
+                .catch((err) => console.error(`[cron] lottery assignment upsert failed for ${uid}:`, err)),
+            ),
+          ]);
+        }
       }
 
       if (users.length < 500) break;
