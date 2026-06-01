@@ -46,4 +46,15 @@ describe("isInQuietHours", () => {
     const atEnd = new Date("2026-05-07T10:00:00Z"); // 06:00 ET
     expect(isInQuietHours("21:00", "06:00", "America/New_York", atEnd)).toBe(false);
   });
+
+  // Regression: a "00:00–23:59" window is NOT all-day — the exclusive end leaves
+  // the 23:59 minute uncovered. decide.test.ts used this as an "entire day" window
+  // and flaked whenever CI ran during the 23:59 UTC minute. Tests that want
+  // guaranteed suppression must center the window on "now", not use 00:00–23:59.
+  it("leaves the final minute uncovered for a 00:00–23:59 window (exclusive end)", () => {
+    const at2358 = new Date("2026-05-07T23:58:00Z");
+    expect(isInQuietHours("00:00", "23:59", "UTC", at2358)).toBe(true);
+    const at2359 = new Date("2026-05-07T23:59:30Z");
+    expect(isInQuietHours("00:00", "23:59", "UTC", at2359)).toBe(false); // the gap
+  });
 });

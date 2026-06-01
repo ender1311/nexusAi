@@ -114,9 +114,17 @@ describe("POST /api/decide", () => {
     const msg = await createMessage(agent.id);
     await createVariant(msg.id);
     await createUser("usr_quiet", { personaId: persona.id });
-    // Set quiet hours to cover the entire day in UTC
+    // Build a quiet-hours window centered on the current UTC time so this test is
+    // independent of wall-clock time. A fixed "all day" window cannot be expressed
+    // with isInQuietHours's exclusive end (tzTime < end), which leaves a 1-minute
+    // gap — e.g. 00:00–23:59 fails to suppress during the 23:59 UTC minute.
+    const pad = (n: number) => String(n).padStart(2, "0");
+    const hhmm = (d: Date) => `${pad(d.getUTCHours())}:${pad(d.getUTCMinutes())}`;
+    const nowMs = Date.now();
+    const start = hhmm(new Date(nowMs - 60 * 60 * 1000));
+    const end = hhmm(new Date(nowMs + 60 * 60 * 1000));
     await createSchedulingRule(agent.id, {
-      quietHours: { start: "00:00", end: "23:59", timezone: "UTC" },
+      quietHours: { start, end, timezone: "UTC" },
     });
 
     const req = buildRequest("POST", { agentId: agent.id, externalUserId: "usr_quiet" }, AUTH);
