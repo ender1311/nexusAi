@@ -58,3 +58,15 @@ export const TESTED_VARIABLE_LABELS: Record<TestedVariable, string> = {
 
 export const POSITIVE_GOALS = YOUVERSION_GOALS.filter((g) => g.weight > 0);
 export const NEGATIVE_OUTCOMES = YOUVERSION_GOALS.filter((g) => g.weight < 0);
+
+export type GoalColorGroup = "green" | "red" | "blue";
+
+// Giving outcomes (gift + sower) are the headline conversions, so they read green;
+// every other positive goal is blue and any negative outcome is red.
+const GREEN_GOAL_EVENTS = new Set(["gift_completed", "sower_subscribed"]);
+
+export function goalColorGroup(goal: { eventName: string; weight: number }): GoalColorGroup {
+  if (goal.weight < 0) return "red";
+  if (GREEN_GOAL_EVENTS.has(goal.eventName)) return "green";
+  return "blue";
+}
