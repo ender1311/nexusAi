@@ -33,14 +33,33 @@ export function getCachedAgent(id: string) {
  * sends in with delivered ones, making a freshly scheduled agent look like
  * thousands already went out. Cached + tagged so the detail page can stream it
  * in its own Suspense boundary instead of blocking the shell.
+ *
+ * The 12h INTERVAL mirrors LOCAL_TIME_DELIVERY_BUFFER_MS / effectiveDeliveryDeadlineMs
+ * (src/lib/agent-sends/pending-deadline.ts): an in_local_time send's scheduledFor is a
+ * UTC anchor, but recipients receive it up to 12h later in their own timezone, so it
+ * isn't "delivered" until that window closes.
  */
 export function getCachedAgentDecisionSplit(id: string) {
   return unstable_cache(
     async () => {
       const rows = await prisma.$queryRaw<Array<{ delivered: bigint; pending: bigint }>>`
         SELECT
-          COUNT(*) FILTER (WHERE "scheduledFor" IS NULL OR "scheduledFor" <= NOW()) AS delivered,
-          COUNT(*) FILTER (WHERE "scheduledFor" IS NOT NULL AND "scheduledFor" > NOW()) AS pending
+          COUNT(*) FILTER (
+            WHERE "scheduledFor" IS NULL
+              OR CASE
+                   WHEN ("decisionContext"->>'inLocalTime')::boolean IS TRUE
+                     THEN "scheduledFor" <= NOW() - INTERVAL '12 hours'
+                   ELSE "scheduledFor" <= NOW()
+                 END
+          ) AS delivered,
+          COUNT(*) FILTER (
+            WHERE "scheduledFor" IS NOT NULL
+              AND CASE
+                    WHEN ("decisionContext"->>'inLocalTime')::boolean IS TRUE
+                      THEN "scheduledFor" > NOW() - INTERVAL '12 hours'
+                    ELSE "scheduledFor" > NOW()
+                  END
+          ) AS pending
         FROM "UserDecision"
         WHERE "agentId" = ${id}
       `;
@@ -130,7 +149,14 @@ export const getCachedAgentCardStats = unstable_cache(
                COUNT(*) FILTER (
                  WHERE "channel" = 'push'
                    AND "brazeSendId" IS NOT NULL
-                   AND ("scheduledFor" IS NULL OR "scheduledFor" <= NOW())
+                   AND (
+                     "scheduledFor" IS NULL
+                     OR CASE
+                          WHEN ("decisionContext"->>'inLocalTime')::boolean IS TRUE
+                            THEN "scheduledFor" <= NOW() - INTERVAL '12 hours'
+                          ELSE "scheduledFor" <= NOW()
+                        END
+                   )
                ) AS sends,
                COUNT(*) FILTER (WHERE "channel" = 'push' AND "pushOpenAt" IS NOT NULL) AS opens
         FROM "UserDecision"
