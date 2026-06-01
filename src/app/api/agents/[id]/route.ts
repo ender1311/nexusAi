@@ -173,7 +173,17 @@ export async function DELETE(_req: NextRequest, { params }: { params: Promise<{ 
       where: { lockedByAgentId: id },
       data:  { lockedByAgentId: null },
     });
+    // Deleting the agent cascades goals, messages/variants, decisions, scheduling
+    // rule, metrics, and persona targets via FK ON DELETE CASCADE.
     await prisma.agent.delete({ where: { id } });
+    // Bandit arm state, the failed-send log, and per-user assignments key on agentId
+    // with NO foreign key, so they are not cascaded — clear them explicitly or they
+    // orphan in the DB and skew fleet-wide stats after the agent is gone.
+    await prisma.personaArmStats.deleteMany({ where: { agentId: id } });
+    await prisma.userArmStats.deleteMany({ where: { agentId: id } });
+    await prisma.linUCBArm.deleteMany({ where: { agentId: id } });
+    await prisma.failedBrazeSend.deleteMany({ where: { agentId: id } });
+    await prisma.userAgentAssignment.deleteMany({ where: { agentId: id } });
     revalidatePath("/agents");
     revalidateTag(`agent-${id}`, "max");
     revalidateTag("agents", "max");

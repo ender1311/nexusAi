@@ -2,6 +2,7 @@ import { afterEach, beforeEach, describe, expect, it } from "bun:test";
 import { NextRequest } from "next/server";
 import { truncateAll, prisma } from "../helpers/db";
 import { buildRequest } from "../helpers/request";
+import { createPersona } from "../helpers/builders";
 import { app } from "../../apps/api/src/app";
 
 // POST /api/agents now uses Prisma directly (no Fly.io proxy)
@@ -93,6 +94,30 @@ describe("DELETE /api/agents/[id]", () => {
 
     const goals = await prisma.goal.findMany({ where: { agentId: agent.id } });
     expect(goals).toHaveLength(0);
+  });
+
+  // Regression: deleting an agent left bandit arm state / failed-send log / assignments
+  // orphaned (no cascade FK on agentId). Prod accumulated 5k+ orphaned UserArmStats rows;
+  // the DELETE route now clears them explicitly. See Artemis delete/recreate incident 2026-06-01.
+  it("resets bandit stats, failed-send log, and assignments (non-cascading tables)", async () => {
+    const agent = await prisma.agent.create({ data: { name: "Reset Me", algorithm: "thompson", epsilon: 0.1 } });
+    const persona = await createPersona({ name: "Reset Persona" });
+    await prisma.personaArmStats.create({ data: { personaId: persona.id, agentId: agent.id, variantId: "v1", alpha: 2, beta: 3, tries: 1, wins: 1 } });
+    await prisma.userArmStats.create({ data: { userId: "u-reset", agentId: agent.id, variantId: "v1", alpha: 1, beta: 30, tries: 0, wins: 0 } });
+    await prisma.linUCBArm.create({ data: { agentId: agent.id, variantId: "v1", aInv: [], b: [], tries: 0 } });
+    await prisma.failedBrazeSend.create({ data: { agentId: agent.id, variantId: "v1", channel: "push", reason: "boom" } });
+    await prisma.userAgentAssignment.create({ data: { externalUserId: "u-reset", agentId: agent.id } });
+
+    const req = buildRequest("DELETE");
+    const res = await deleteAgent(req as NextRequest, { params: Promise.resolve({ id: agent.id }) });
+    expect(res.status).toBe(200);
+
+    expect(await prisma.personaArmStats.count({ where: { agentId: agent.id } })).toBe(0);
+    expect(await prisma.userArmStats.count({ where: { agentId: agent.id } })).toBe(0);
+    expect(await prisma.linUCBArm.count({ where: { agentId: agent.id } })).toBe(0);
+    expect(await prisma.failedBrazeSend.count({ where: { agentId: agent.id } })).toBe(0);
+    expect(await prisma.userAgentAssignment.count({ where: { agentId: agent.id } })).toBe(0);
+    expect(await prisma.agent.findUnique({ where: { id: agent.id } })).toBeNull();
   });
 });
 
