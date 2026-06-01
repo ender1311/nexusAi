@@ -6,7 +6,7 @@ import { LIBRARY_AGENT_NAME } from "@/lib/engine/template-sync";
 import { fail, handleRouteError } from "@/lib/api/respond";
 
 const VALID_CATEGORIES = new Set([
-  "reader", "plans", "votd", "guided-scripture", "guided-prayer",
+  "reader", "plans", "votd", "guided-scripture", "guided-prayer", "giving",
 ]);
 
 export async function GET() {

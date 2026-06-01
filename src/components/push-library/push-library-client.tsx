@@ -33,7 +33,7 @@ type Props = {
   isAdmin: boolean;
 };
 
-const CATEGORY_ORDER = ["reader", "votd", "plans", "guided-scripture", "guided-prayer"];
+const CATEGORY_ORDER = ["reader", "votd", "plans", "guided-scripture", "guided-prayer", "giving"];
 
 export function PushLibraryClient({ groups, isAdmin }: Props) {
   const [view, setView] = useState<"grid" | "table">("table");

@@ -158,6 +158,49 @@ describe("POST /api/push-library", () => {
     const body = await res.json();
     expect(body).toHaveProperty("error");
   });
+
+  it("creates a variant in the giving category", async () => {
+    mockAuth.roles = ["admin"];
+    await seedLibrary();
+
+    const req = buildRequest("POST", {
+      name: "2026-01 Giving — When you make generosity a habit",
+      category: "giving",
+      subcategory: "sower-generosity",
+      title: "When you make generosity a habit…",
+      body: "It changes lives. Discover what it means to be a Sower of God’s Word ➡️",
+      deeplink: "https://bible.com/blog/?p=267608",
+    }) as NextRequest;
+    const res = await POST(req);
+    const body = await res.json();
+
+    expect(res.status).toBe(201);
+    expect(body.data.category).toBe("giving");
+    expect(body.data.subcategory).toBe("sower-generosity");
+
+    const getRes = await GET();
+    const getBody = await getRes.json();
+    const givingGroup = getBody.data.find(
+      (g: { category: string }) => g.category === "giving"
+    );
+    expect(givingGroup).toBeDefined();
+  });
+
+  it("returns 400 for an unrecognized category", async () => {
+    mockAuth.roles = ["admin"];
+    await seedLibrary();
+
+    const req = buildRequest("POST", {
+      name: "Bad Category",
+      category: "not-a-real-category",
+      body: "Some body",
+    }) as NextRequest;
+    const res = await POST(req);
+
+    expect(res.status).toBe(400);
+    const body = await res.json();
+    expect(body).toHaveProperty("error");
+  });
 });
 
 describe("specific-verse deeplinks", () => {
