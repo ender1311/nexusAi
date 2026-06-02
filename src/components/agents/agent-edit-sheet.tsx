@@ -143,6 +143,7 @@ export function AgentEditSheet({
   const [epsilon, setEpsilon] = useState(initialEpsilon);
   const [funnelStage, setFunnelStage] = useState<FunnelStage>(initialFunnelStage);
   const [saving, setSaving] = useState(false);
+  const [saveError, setSaveError] = useState<string | null>(null);
 
   // Compute initial includes/excludes for segment targeting
   const computeInitialIncludes = () => {
@@ -175,6 +176,7 @@ export function AgentEditSheet({
   const prevOpen = useRef(false);
   useEffect(() => {
     if (open && !prevOpen.current) {
+      setSaveError(null);
       setName(initialName);
       setDescription(initialDescription ?? "");
       setAlgorithm(initialAlgorithm);
@@ -213,9 +215,10 @@ export function AgentEditSheet({
   async function save() {
     if (!name.trim()) return;
     setSaving(true);
+    setSaveError(null);
     try {
       const resolvedSegmentTargeting = resolveSegmentTargeting(segmentMode, segmentIncludes, segmentExcludes);
-      await fetch(`/api/agents/${agentId}`, {
+      const res = await fetch(`/api/agents/${agentId}`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -229,8 +232,17 @@ export function AgentEditSheet({
           dailySendCap: resolvedDailySendCap(),
         }),
       });
+      if (!res.ok) {
+        // Surface server-side validation/conflict errors (e.g. 409 segment
+        // already assigned to another agent) instead of silently "saving".
+        const body = await res.json().catch(() => null);
+        setSaveError(body?.error ?? "Failed to save changes. Please try again.");
+        return;
+      }
       setOpen(false);
       router.refresh();
+    } catch {
+      setSaveError("Network error — please try again.");
     } finally {
       setSaving(false);
     }
@@ -435,21 +447,26 @@ export function AgentEditSheet({
         </div>
 
         {/* Sticky footer */}
-        <div className="shrink-0 border-t px-6 py-4 bg-background flex gap-2">
-          <Button
-            className="flex-1"
-            onClick={save}
-            disabled={saving || !name.trim() || (segmentMode && segmentIncludes.length === 0)}
-          >
-            {saving ? "Saving…" : "Save Changes"}
-          </Button>
-          <Button
-            variant="outline"
-            onClick={() => setOpen(false)}
-            disabled={saving}
-          >
-            Cancel
-          </Button>
+        <div className="shrink-0 border-t px-6 py-4 bg-background space-y-2">
+          {saveError && (
+            <p className="text-sm text-destructive" role="alert">{saveError}</p>
+          )}
+          <div className="flex gap-2">
+            <Button
+              className="flex-1"
+              onClick={save}
+              disabled={saving || !name.trim() || (segmentMode && segmentIncludes.length === 0)}
+            >
+              {saving ? "Saving…" : "Save Changes"}
+            </Button>
+            <Button
+              variant="outline"
+              onClick={() => setOpen(false)}
+              disabled={saving}
+            >
+              Cancel
+            </Button>
+          </div>
         </div>
       </SheetContent>
     </Sheet>

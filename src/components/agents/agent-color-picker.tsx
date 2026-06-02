@@ -16,18 +16,27 @@ export function AgentColorPicker({ agentId, currentColor, usedColors }: AgentCol
   const router = useRouter();
   const [selected, setSelected] = useState(currentColor);
   const [saving, setSaving] = useState<string | null>(null);
+  const [error, setError] = useState<string | null>(null);
 
   async function pick(hex: string) {
     if (hex === selected || saving) return;
     setSaving(hex);
+    setError(null);
     try {
-      await fetch(`/api/agents/${agentId}`, {
+      const res = await fetch(`/api/agents/${agentId}`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ color: hex }),
       });
+      if (!res.ok) {
+        const body = await res.json().catch(() => null);
+        setError(body?.error ?? "Failed to save color. Please try again.");
+        return;
+      }
       setSelected(hex);
       router.refresh();
+    } catch {
+      setError("Network error — please try again.");
     } finally {
       setSaving(null);
     }
@@ -78,6 +87,7 @@ export function AgentColorPicker({ agentId, currentColor, usedColors }: AgentCol
       <p className="text-xs text-muted-foreground">
         Small dot = already used by another agent.
       </p>
+      {error && <p className="text-xs text-destructive" role="alert">{error}</p>}
     </div>
   );
 }

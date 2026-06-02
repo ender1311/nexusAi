@@ -40,6 +40,7 @@ export function AudienceCapEditor({ agentId, audienceCap }: Props) {
   );
   const [saving, setSaving] = useState(false);
   const [savedAt, setSavedAt] = useState<number | null>(null);
+  const [error, setError] = useState<string | null>(null);
   const savedTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   useEffect(() => {
@@ -50,18 +51,26 @@ export function AudienceCapEditor({ agentId, audienceCap }: Props) {
 
   async function save(cap: number | null) {
     setSaving(true);
+    setError(null);
     if (savedTimerRef.current !== null) {
       clearTimeout(savedTimerRef.current);
       setSavedAt(null);
     }
     try {
-      await fetch(`/api/agents/${agentId}`, {
+      const res = await fetch(`/api/agents/${agentId}`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ audienceCap: cap }),
       });
+      if (!res.ok) {
+        const body = await res.json().catch(() => null);
+        setError(body?.error ?? "Failed to save. Please try again.");
+        return;
+      }
       setSavedAt(Date.now());
       savedTimerRef.current = setTimeout(() => setSavedAt(null), 2000);
+    } catch {
+      setError("Network error — please try again.");
     } finally {
       setSaving(false);
     }
@@ -135,6 +144,8 @@ export function AudienceCapEditor({ agentId, audienceCap }: Props) {
           )}
         </div>
       </div>
+
+      {error && <p className="text-xs text-destructive" role="alert">{error}</p>}
 
       <p className="text-xs text-muted-foreground">
         Controls the rollout size per cron run. Increase gradually as you validate send quality.

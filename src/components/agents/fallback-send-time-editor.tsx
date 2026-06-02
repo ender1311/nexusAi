@@ -24,6 +24,7 @@ export function FallbackSendTimeEditor({ agentId, fallbackSendHour }: Props) {
   const [selectedHour, setSelectedHour] = useState<number>(effectiveHour);
   const [saving, setSaving] = useState(false);
   const [savedAt, setSavedAt] = useState<number | null>(null);
+  const [error, setError] = useState<string | null>(null);
   const savedTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   // Clear "Saved" indicator after 2 seconds
@@ -41,21 +42,29 @@ export function FallbackSendTimeEditor({ agentId, fallbackSendHour }: Props) {
     setSelectedHour(hour);
 
     setSaving(true);
+    setError(null);
     if (savedTimerRef.current !== null) {
       clearTimeout(savedTimerRef.current);
       setSavedAt(null);
     }
 
     try {
-      await fetch(`/api/agents/${agentId}`, {
+      const res = await fetch(`/api/agents/${agentId}`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ fallbackSendHour: hour }),
       });
+      if (!res.ok) {
+        const body = await res.json().catch(() => null);
+        setError(body?.error ?? "Failed to save. Please try again.");
+        return;
+      }
       setSavedAt(Date.now());
       savedTimerRef.current = setTimeout(() => {
         setSavedAt(null);
       }, 2000);
+    } catch {
+      setError("Network error — please try again.");
     } finally {
       setSaving(false);
     }
@@ -88,6 +97,8 @@ export function FallbackSendTimeEditor({ agentId, fallbackSendHour }: Props) {
           )}
         </div>
       </div>
+
+      {error && <p className="text-xs text-destructive" role="alert">{error}</p>}
 
       <p className="text-xs text-muted-foreground">
         Braze delivers at this hour in each user&apos;s local timezone. Users with app usage history receive pushes timed to their session window instead.
