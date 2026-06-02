@@ -80,40 +80,70 @@ type PushOpenRow = {
   app_id?: string;
 };
 
-/**
- * Flat Hightouch user sync row — raw column names when no Liquid template is applied.
- * Distinguishable from push open rows by the absence of last_updated_timestamp.
- * e.g. "Lapsed Habitual DAU4" sync sends: braze_user_id_latest, user_id,
- * language_tag, plan_locale_latest, newsletter_push_enabled, newsletter_email_enabled, "User Last Seen".
- */
-type HtFlatUserRow = {
-  user_id?: string | null;
-  braze_user_id_latest?: string;
-  last_seen_timestamp?: string;
-  "User Last Seen"?: string;
-  language_tag?: string;
-  plan_locale_latest?: string;
-  newsletter_push_enabled?: boolean;
-  newsletter_email_enabled?: boolean;
-  timezone?: string;
-  funnel_stage?: string;
-  [key: string]: unknown;
+// Top-level keys that carry identity/control semantics — never folded into
+// attributes. Includes the alias columns flat column-mapping syncs use for the
+// external_user_id / braze_id identity fields.
+const RESERVED_USER_KEYS = new Set<string>([
+  "external_user_id",
+  "braze_id",
+  "idempotency_key",
+  "funnel_stage",
+  "attributes",
+  "user_id",
+  "braze_user_id_latest",
+  "braze_user_id",
+]);
+
+// Flat Hightouch column names → the canonical attribute keys the route reads.
+const FLAT_ATTR_ALIASES: Record<string, string> = {
+  last_seen_timestamp: "last_seen_at",
+  "User Last Seen": "last_seen_at",
+  plan_locale_latest: "plan_locale",
 };
 
-function normalizeHtFlatUserRow(row: HtFlatUserRow): UserRecord {
+/**
+ * Fold every non-reserved top-level field of a flat column-mapping row into an
+ * attributes object, renaming Hightouch column aliases to the canonical keys.
+ * Identity (external_user_id/braze_id) and control keys are excluded.
+ */
+function foldFlatAttributes(row: Record<string, unknown>): Record<string, unknown> {
   const attrs: Record<string, unknown> = {};
-  const lastSeen = row.last_seen_timestamp ?? row["User Last Seen"];
-  if (lastSeen)                       attrs.last_seen_at    = lastSeen;
-  if (row.language_tag !== undefined) attrs.language_tag    = row.language_tag;
-  if (row.plan_locale_latest !== undefined) attrs.plan_locale = row.plan_locale_latest;
-  if (row.newsletter_push_enabled !== undefined)  attrs.newsletter_push_enabled  = row.newsletter_push_enabled;
-  if (row.newsletter_email_enabled !== undefined) attrs.newsletter_email_enabled = row.newsletter_email_enabled;
-  if (row.timezone !== undefined)      attrs.timezone        = row.timezone;
+  for (const [key, value] of Object.entries(row)) {
+    if (RESERVED_USER_KEYS.has(key) || value === undefined) continue;
+    const canonical = FLAT_ATTR_ALIASES[key] ?? key;
+    // A canonical alias never clobbers an explicit canonical field already present.
+    if (canonical in attrs) continue;
+    attrs[canonical] = value;
+  }
+  return attrs;
+}
+
+/**
+ * Normalise a single user-sync row into a UserRecord.
+ *
+ * Liquid-template rows already nest their data under `attributes` and pass
+ * through unchanged. Flat column-mapping rows (no nested `attributes` object —
+ * e.g. the "Lapsed Habitual MAU" audience) have their top-level attribute
+ * columns folded into `attributes` so none are silently dropped. funnel_stage
+ * is left raw here; the upsert below applies the lapsed_dau → lapsed_dau4
+ * canonicalisation for every path.
+ */
+function normalizeUserSyncRow(row: Record<string, unknown>): UserRecord {
+  const nested = row.attributes;
+  if (nested && typeof nested === "object" && !Array.isArray(nested)) {
+    return row as UserRecord;
+  }
+  const externalId = (row.external_user_id ?? row.user_id) as string | undefined;
+  const brazeId =
+    (row.braze_id ?? row.braze_user_id_latest ?? row.braze_user_id) as string | undefined;
   return {
-    external_user_id: row.user_id?.trim() || undefined,
-    braze_id: row.braze_user_id_latest?.trim() || undefined,
-    attributes: attrs,
-    ...(row.funnel_stage ? { funnel_stage: row.funnel_stage === "lapsed_dau" ? "lapsed_dau4" : row.funnel_stage } : {}),
+    external_user_id: externalId?.trim() || undefined,
+    braze_id: brazeId?.trim() || undefined,
+    attributes: foldFlatAttributes(row),
+    ...(typeof row.idempotency_key === "string"
+      ? { idempotency_key: row.idempotency_key }
+      : {}),
+    ...(typeof row.funnel_stage === "string" ? { funnel_stage: row.funnel_stage } : {}),
   };
 }
 
@@ -573,33 +603,19 @@ export async function POST(req: NextRequest) {
   type UserRecord_ = UserRecord;
   let users: UserRecord_[];
   if (Array.isArray(body)) {
-    // Array may be flat HtFlatUserRow objects or standard UserRecord objects
-    users = (body as HtFlatUserRow[]).map((row) =>
-      "braze_user_id_latest" in row && !("external_user_id" in row) && !("braze_id" in row)
-        ? normalizeHtFlatUserRow(row)
-        : (row as unknown as UserRecord_)
-    );
+    users = (body as Record<string, unknown>[]).map(normalizeUserSyncRow);
   } else if (
     typeof body === "object" && body !== null &&
     "users" in body && Array.isArray((body as Record<string, unknown>).users)
   ) {
     users = ((body as { users: unknown[] }).users).map((row) =>
-      typeof row === "object" && row !== null &&
-      "braze_user_id_latest" in row && !("external_user_id" in row) && !("braze_id" in row)
-        ? normalizeHtFlatUserRow(row as HtFlatUserRow)
-        : (row as UserRecord_)
+      normalizeUserSyncRow(row as Record<string, unknown>)
     );
   } else if (
     typeof body === "object" && body !== null &&
-    ("external_user_id" in body || "braze_id" in body)
+    ("external_user_id" in body || "braze_id" in body || "braze_user_id_latest" in body)
   ) {
-    users = [body as UserRecord_];
-  } else if (
-    typeof body === "object" && body !== null &&
-    "braze_user_id_latest" in body
-  ) {
-    // Flat Hightouch user sync row (e.g. Lapsed Habitual DAU4 audience)
-    users = [normalizeHtFlatUserRow(body as HtFlatUserRow)];
+    users = [normalizeUserSyncRow(body as Record<string, unknown>)];
   } else {
     return NextResponse.json(
       { error: "Invalid payload: expected { external_user_id, attributes }, { braze_id, attributes }, or { users: [...] }" },
