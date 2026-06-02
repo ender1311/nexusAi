@@ -16,6 +16,7 @@ type VariantInput = {
   preferredHour?: number;
   preferredDayOfWeek?: number;
   frequencyCapOverride?: Prisma.InputJsonValue | null;
+  sourceTemplateId?: string | null;
 };
 
 function sanitizeVariant(input: VariantInput) {
@@ -29,6 +30,7 @@ function sanitizeVariant(input: VariantInput) {
     deeplink: input.deeplink?.trim() || null,
     preferredHour: input.preferredHour ?? null,
     preferredDayOfWeek: input.preferredDayOfWeek ?? null,
+    sourceTemplateId: input.sourceTemplateId ?? null,
     frequencyCapOverride:
       input.frequencyCapOverride === null
         ? Prisma.JsonNull

@@ -66,6 +66,51 @@ describe("POST /api/agents/[id]/messages", () => {
     expect(body.variants).toHaveLength(2);
     expect(body.variants.some((v: { name: string }) => v.name === "V2")).toBe(true);
   });
+
+  it("persists sourceTemplateId when cloning a library template into a new message", async () => {
+    // Regression: sanitizeVariant once dropped sourceTemplateId, so template lineage
+    // was lost whenever a push was added to an agent via the picker (existing-agent path).
+    const libAgent = await createAgent({ name: "Push Copy Library", status: "draft" });
+    const libMsg = await createMessage(libAgent.id, { channel: "push" });
+    const template = await createVariant(libMsg.id, { name: "Tpl", body: "Template body" });
+
+    const agent = await createAgent();
+    const req = buildRequest("POST", {
+      name: "Cloned Message",
+      channel: "push",
+      variants: [{ name: "V1", body: "Cloned body", sourceTemplateId: template.id }],
+    });
+    const res = await postMessage(req as NextRequest, { params: Promise.resolve({ id: agent.id }) });
+    const body = await res.json();
+
+    expect(res.status).toBe(201);
+    expect(body.variants[0].sourceTemplateId).toBe(template.id);
+
+    const inDb = await prisma.messageVariant.findUnique({ where: { id: body.variants[0].id } });
+    expect(inDb!.sourceTemplateId).toBe(template.id);
+  });
+
+  it("persists sourceTemplateId when adding a cloned variant to an existing message", async () => {
+    const libAgent = await createAgent({ name: "Push Copy Library", status: "draft" });
+    const libMsg = await createMessage(libAgent.id, { channel: "push" });
+    const template = await createVariant(libMsg.id, { name: "Tpl", body: "Template body" });
+
+    const agent = await createAgent();
+    const message = await createMessage(agent.id, { channel: "push" });
+    await createVariant(message.id, { name: "V1", body: "Existing body" });
+
+    const req = buildRequest("POST", {
+      messageId: message.id,
+      variant: { name: "V2", body: "New body", sourceTemplateId: template.id },
+    });
+    const res = await postMessage(req as NextRequest, { params: Promise.resolve({ id: agent.id }) });
+    const body = await res.json();
+
+    expect(res.status).toBe(201);
+    const added = body.variants.find((v: { name: string }) => v.name === "V2");
+    const inDb = await prisma.messageVariant.findUnique({ where: { id: added.id } });
+    expect(inDb!.sourceTemplateId).toBe(template.id);
+  });
 });
 
 describe("PATCH/DELETE /api/variants/[id]", () => {
