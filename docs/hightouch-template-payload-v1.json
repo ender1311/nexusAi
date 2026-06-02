@@ -19,7 +19,7 @@
           "preferred_channel_90d": "{{ row['Preferred Channel Overall 90 Days'] }}",
           "preferred_channel_external_30d": "{{ row['Preferred Channel External 30 Days'] }}",
           "preferred_channel_external_90d": "{{ row['Preferred Channel External 90 Days'] }}",
-          "has_recurring_gift": {{ row['Has Active Recurring Gift to the YouVersion'] | default: false }},
+          "has_recurring_gift": {{ row['Has Active Recurring Gift to the YouVersion Fund'] | default: false }},
           "gifts_count_3_36mo": {{ row['Gifts Given within the past 3 to 36 Months'] | default: 0 }}
         }
       }{% unless forloop.last %},{% endunless %}

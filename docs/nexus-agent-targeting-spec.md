@@ -743,7 +743,7 @@ The following `TrackedUser.attributes` keys are referenced by the targetFilters 
 | Attribute key | Source column | Type | Notes |
 |---|---|---|---|
 | `last_seen_at` | `last_seen_timestamp` | ISO string | Already mapped ✅ |
-| `has_recurring_gift` | `Has Active Recurring Gift to the YouVersion` | boolean | Already mapped ✅ |
+| `has_recurring_gift` | `Has Active Recurring Gift to the YouVersion Fund` | boolean | Already mapped ✅ |
 | `gifts_count_3_36mo` | `Gifts Given within the past 3 to 36 Months` | number | Already mapped ✅ |
 | `preferred_channel_30d` | `Preferred Channel Overall 30 Days` | string | Already mapped ✅ |
 | `language_tag` | `language_tag` | string | Already mapped ✅ |
