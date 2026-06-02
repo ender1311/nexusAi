@@ -2,91 +2,173 @@
 
 ## 1. Overview
 
-Nexus sends push notifications through Braze using a daily midnight UTC cron. For each active agent, it selects a message variant per user (via Thompson Sampling or ε-Greedy), schedules the send through Braze's `/messages/schedule/create` API, and records a `UserDecision`. The timing of each send is derived from the user's historical session patterns.
+Nexus sends notifications through Braze via an **hourly** Vercel cron
+(`/api/cron/select-and-send`, schedule `0 * * * *`). Each run walks every active
+agent, selects eligible users, picks a message variant per user (LinUCB, Thompson
+Sampling, or ε-Greedy), schedules the send through Braze, and records a
+`UserDecision`. Per-user send time is derived from the user's historical session
+patterns, with a per-agent fallback hour delivered `in_local_time` for users with
+no session signal.
 
-## 2. Current timing strategy
+The hourly cadence is what makes global timezone coverage work: a user's
+`preferredSendHour` is a UTC hour, so the run that fires during that hour is the
+one that schedules their send. There is no need for a 24/7 worker — the cron
+itself is the clock.
 
-### How per-user send times are computed
+## 2. The send pipeline (per cron run)
 
-- Hightouch syncs `LAST_SEEN_TIMESTAMP` → `TrackedUser.preferredSendHour` (UTC hour) and `TrackedUser.preferredSendMinute` (UTC minute)
-- Because `LAST_SEEN_TIMESTAMP` is a UTC timestamp, storing the UTC hour/minute implicitly captures the user's local time without needing to know their timezone explicitly. A user in EST who last used the app at 8:10am EST has `preferredSendHour=13` (13:00 UTC = 8am EST).
-- The cron schedules a push 10 minutes before the preferred UTC time (e.g. preferredHour=13, preferredMinute=10 → scheduled at 13:00 UTC = 8:00am EST for that user). This uses total-minutes arithmetic to handle minute < 10 correctly.
-- Cross-timezone global coverage: since the cron runs at midnight UTC and schedules sends throughout the day using Braze's scheduled send API, no 24/7 cron is needed. A single daily cron schedules sends for all timezones.
+`POST/GET /api/cron/select-and-send` executes these phases in order. The route is
+authenticated with `Authorization: Bearer $CRON_SECRET`.
 
-### Fallback timing (no session history)
+```mermaid
+flowchart TD
+    START([Cron fires hourly · 0 * * * *]) --> RELEASE[Phase −1: Release sweep<br/>auto-release owned users past<br/>holdMaxDays / holdMaxSends → UserAgentAssignment.releasedAt]
+    RELEASE --> EXCL[Build fleet exclusivity map<br/>one agent owns a user at a time<br/>lockedByAgentId + active assignments]
+    EXCL --> PRE[Pre-assignment / eligibility<br/>per agent: funnelStage + segmentTargeting<br/>includes OR / excludes; staleness gate;<br/>language filter; channel consent]
+    PRE --> LOTTERY[Build lottery map<br/>eligible unowned users per agent,<br/>honoring audienceCap / uniqueUsersCap]
+    LOTTERY --> P0[Phase 0: Exploration windows<br/>open a fresh window for newly-assigned users;<br/>UserAgentAssignment.startedAt set]
+    P0 --> LOOP[Per-agent send loop]
 
-- Users without `last_seen_at` data get an agent-configurable fallback hour (default: 8, range: 0–23).
-- The fallback time is sent to Braze with `in_local_time: true` in the schedule object — Braze delivers at that hour in each user's own timezone.
-- The agent can override the fallback hour per-agent via the Scheduling tab UI.
-- If the fallback time has already passed when the cron runs (e.g. cron runs at 0:30 UTC and fallbackSendHour=0), the send is pushed to the same time the next day.
+    subgraph LOOP_BODY[For each agent → each candidate user]
+      CAPS[Check caps: dailySendCap,<br/>frequencyCap, uniqueUsersCap] --> QUIET[Quiet hours / quiet days /<br/>blackout dates check]
+      QUIET --> SUPPRESS[Smart-suppress gate<br/>if smartSuppress + score < suppressThresh]
+      SUPPRESS --> PICK[Variant choice:<br/>LinUCB · feature vector context<br/>or TS/EG · blendArm + recencyPenalties]
+      PICK --> SCHED[computeScheduledAt<br/>preferred −10min in_local_time=false,<br/>else fallbackSendHour in_local_time=true]
+    end
 
-### Cron schedule
+    LOOP --> GROUP[Group sends by<br/>variantId × scheduledAt × inLocalTime]
+    GROUP --> BRAZE[POST to Braze schedule API<br/>~50 concurrent]
+    BRAZE --> RECORD[Record UserDecision rows<br/>scheduledFor, brazeSendId, brazeScheduleId,<br/>decisionContext incl. inLocalTime]
+    RECORD --> OWN[Persist ownership<br/>UserAgentAssignment sendCount++,<br/>lastSentAt, lockedByAgentId]
+    OWN --> CRONRUN[Write CronRun row<br/>sent / suppressed / errors / agentCount]
+```
 
-`0 0 * * *` (midnight UTC) — runs once daily.
+### Phase −1 — Release sweep
 
-## 3. Segment-based agent configuration
+Before any sends, the run releases users whose ownership has expired:
+`UserAgentAssignment` rows past the agent's `holdMaxDays` (default 90) or
+`holdMaxSends` (default 24) get `releasedAt` set with a `releaseReason` of
+`hold_cap_days` / `hold_cap_sends`. Conversions and cohort exits release users
+elsewhere. Releasing first means freed users are eligible for re-assignment in the
+same run.
 
-Agents should be configured to target specific funnel stages. The system currently assumes all users in the database are non-habitual-DEU (using the app 3 days/week or less). Future Hightouch data will include explicit funnel stage per user.
+### Fleet exclusivity
 
-Recommended agent setup:
+A user is owned by at most one agent at a time. The run builds a map of currently
+owned users (`TrackedUser.lockedByAgentId` plus active `UserAgentAssignment` rows
+with `releasedAt = null`) so the pre-assignment phase only hands out unowned
+users.
 
-| Agent | funnelStage | frequencyCap | Target | Goal |
-|-------|------------|--------------|--------|------|
-| Lapsed Re-engagement | lapsed | 2x/week | Last seen 30+ days | First session → DAU |
-| MAU Nudge | connected | 3x/week | 1–3 sessions/month | Increase session frequency |
-| DAU Activation | activated | 5x/week | 3–5 sessions/week | → Habitual DEU habit |
+### Pre-assignment / eligibility
 
-Habitual DEU users (5-7 sessions/week) should not be targeted — they are already at the goal.
+Per agent, candidate users are filtered by:
 
-## 4. Session suppression (current limitation)
+- **Targeting** — `segmentTargeting` (`includes` OR-matched against `UserSegment`
+  rows, `excludes` removed) when set; otherwise the legacy
+  `targetSegmentName` / `funnelStage`. See `docs/nexus-agent-targeting-spec.md`.
+- **Staleness gate** — if `staleFunnelStageDays` is set, users whose
+  `funnelStageUpdatedAt` is older than the threshold are skipped.
+- **Language filter** — `languageFilter` (`all` | `en` | ISO prefix).
+- **Channel consent** — `newsletter_push_enabled` / `newsletter_email_enabled`
+  from the user's Hightouch attributes.
 
-Ideally, a user who has already had an app session on the send day should not receive a push. The current implementation does not perform same-day session suppression because:
+### Lottery map & exploration windows
 
-- Hightouch syncs `last_seen_at` on a batch schedule (not real-time)
-- At midnight UTC cron time, `last_seen_at` reflects yesterday's session data
-- The scheduled send goes out hours later with no way to cancel it per-user
+Eligible unowned users are collected per agent, honoring `audienceCap` (max users
+per run) and `uniqueUsersCap` (lifetime distinct users). Phase 0 opens a fresh
+exploration window for newly-assigned users by setting
+`UserAgentAssignment.startedAt`.
 
-**Workaround:** The 10-minute pre-session timing means the push arrives just before the user's typical session window, so many users receive the push before their next organic session anyway.
+### Per-agent send loop
 
-**Future fix:** When Hightouch syncs real-time events, add a pre-send suppression check: skip users where `last_seen_at >= today_start` at scheduling time.
+For each candidate the loop enforces, in order: `dailySendCap` (sends per UTC
+day), `frequencyCap` (`SchedulingRule`, default `{maxSends:3, period:week}`),
+quiet hours / quiet days / blackout dates, then the optional smart-suppress gate
+(`smartSuppress` + predicted score below `suppressThresh`).
 
-## 5. Quiet hours (current limitation)
+## 3. Per-user send-time computation
 
-Quiet hours (10pm–4am user local time) require knowing each user's timezone. Currently we do not store user timezone — the `last_seen_at` UTC timestamp is our only timing signal.
+### Preferred time (has session history)
 
-**Current workaround:** The preferred-time approach naturally avoids nighttime sends because users whose last session was at 2am will have sends scheduled around 1:50am UTC, which may be inappropriate for other timezone users. This is a known imprecision.
+- Hightouch syncs `LAST_SEEN_TIMESTAMP` → `TrackedUser.preferredSendHour` (UTC
+  hour) and `preferredSendMinute` (UTC minute). It also syncs the user's IANA
+  `timezone` from Braze.
+- Because `LAST_SEEN_TIMESTAMP` is UTC, storing the UTC hour implicitly captures
+  local time: a user in EST whose last session was 8:10am EST has
+  `preferredSendHour = 13` (13:00 UTC).
+- `computeScheduledAt` schedules the push **10 minutes before** the preferred UTC
+  time using total-minutes arithmetic (so `minute < 10` rolls back the hour
+  correctly), with `in_local_time = false` — it is an absolute UTC instant.
+- **Only if that instant is still in the future** relative to the current run.
+  Since the cron fires every hour, the run during the user's preferred hour is the
+  one that catches it.
 
-**Future fix:** When Hightouch provides `last_known_timezone` or a preferred-location attribute, use it to:
-1. Implement true quiet hours (skip sends between 10pm–4am user local time)
-2. Enable `quietHours.timezone = "user"` in scheduling rules
-3. Let Braze enforce quiet hours per recipient via the `in_local_time` + quiet hours API flags
+### Fallback time (no session history)
 
-## 6. Known limitations summary
+- Users without a usable preferred time get the agent's `fallbackSendHour`
+  (default 8, range 0–23, set per-agent on the Scheduling tab).
+- The fallback is scheduled with `in_local_time = true`, so Braze delivers at that
+  wall-clock hour in **each recipient's own timezone**.
+- If `fallbackSendHour` has already passed in UTC when the run fires,
+  `computeScheduledAt` rolls forward to the **same hour the next day**.
+
+### `inLocalTime` is persisted
+
+The `inLocalTime` flag returned by `computeScheduledAt` is written into
+`UserDecision.decisionContext`. Downstream pending-status checks read it to decide
+whether to apply the 12-hour timezone-spread buffer: an `in_local_time` send has
+no single UTC delivery instant (recipients span UTC−12…UTC+14), so a send is only
+treated as truly past once `scheduledFor + 12h < now`.
+
+## 4. Quiet hours, quiet days, blackouts
+
+`SchedulingRule` carries `quietHours` (default `{start:"22:00", end:"08:00",
+tz:"America/New_York"}`), `blackoutDates`, and the frequency cap. The scheduling
+helpers (`src/lib/engine/scheduling.ts`) evaluate these against the **computed
+`scheduledAt`**, not the cron execution time — so a send rolled forward to
+tomorrow is checked against tomorrow's date, correctly catching blackout days.
+
+## 5. Same-session suppression
+
+Same-day session suppression remains approximate: Hightouch syncs `last_seen_at`
+on a batch schedule, so it lags real organic sessions. The 10-minute pre-session
+timing partly mitigates this — the push tends to land just before the user's
+typical session window. Real-time event sync would enable a hard
+`last_seen_at >= today_start` suppression check at schedule time.
+
+## 6. Known limitations
 
 | Limitation | Impact | Future fix |
 |-----------|--------|-----------|
-| No same-day session suppression | Users who open the app before their send time still receive a push | Real-time Hightouch sync → suppress if `last_seen_at >= today_start` |
-| No user timezone stored | Quiet hours are approximate; fallback time is "best effort" local | Add `last_known_timezone` from Hightouch or Braze |
-| Hightouch funnel stage not yet synced | Cannot segment by DAU/MAU/lapsed dynamically | Hightouch to sync funnel_stage → `TrackedUser.attributes` → funnelStage targeting |
-| `preferredSendHour` derived from single last_seen_at | Noisy signal; first sync is always this user's session end | Accumulate hourly stats over time; use mode of last N sessions |
-| No scheduled send confirmation | `UserDecision.scheduledFor` shows when we called Braze, not delivery confirmation | Ingest Braze delivery webhooks |
+| Batch-lagged `last_seen_at` | No hard same-day session suppression | Real-time event sync → suppress if `last_seen_at >= today_start` |
+| `preferredSendHour` from a single `last_seen_at` | Noisy first signal | Accumulate `hourlyStats` over time; use mode of last N sessions |
+| No delivery confirmation | `scheduledFor` is when we called Braze, not confirmed delivery | Ingest Braze delivery webhooks (Currents) |
 
-## 7. Data flow diagram (ASCII)
+## 7. Data flow (ASCII)
 
 ```
-Hightouch (nightly sync)
-  └─ LAST_SEEN_TIMESTAMP → TrackedUser.preferredSendHour + preferredSendMinute
+Hightouch (batch sync)
+  └─ LAST_SEEN_TIMESTAMP → preferredSendHour + preferredSendMinute
+  └─ Braze timezone      → TrackedUser.timezone
 
-Daily cron (00:00 UTC)
-  └─ For each active agent:
-      ├─ Lottery/in-window user selection (Thompson Sampling / ε-Greedy)
-      ├─ computeScheduledAt(preferredHour, preferredMinute, agentFallbackHour)
-      │   ├─ Has preferred time + still future? → schedule at (UTC preferred - 10min), in_local_time=false
-      │   └─ Fallback → schedule at agentFallbackHour:00 today (tomorrow if past), in_local_time=true
-      ├─ Group users by (variantId × scheduledAt × inLocalTime)
-      ├─ POST /messages/schedule/create to Braze (50 concurrent)
-      └─ UserDecision created with scheduledFor = computed send time
+Hourly cron (0 * * * *)  →  /api/cron/select-and-send
+  ├─ Phase −1: release sweep (holdMaxDays / holdMaxSends)
+  ├─ fleet exclusivity map (one owner per user)
+  ├─ pre-assignment: targeting + staleness + language + consent
+  ├─ lottery map (audienceCap / uniqueUsersCap) + Phase 0 windows
+  ├─ per-agent loop:
+  │   ├─ caps (daily / frequency / unique)
+  │   ├─ quiet hours / quiet days / blackout
+  │   ├─ smart-suppress gate
+  │   ├─ variant choice (LinUCB | TS/EG via blendArm + recencyPenalties)
+  │   └─ computeScheduledAt
+  │        ├─ preferred future? → (UTC preferred − 10min), in_local_time=false
+  │        └─ else fallbackSendHour:00 (tomorrow if past), in_local_time=true
+  ├─ group by (variantId × scheduledAt × inLocalTime) → Braze (~50 concurrent)
+  ├─ record UserDecision (scheduledFor, brazeSendId, decisionContext.inLocalTime)
+  ├─ persist UserAgentAssignment (sendCount++, lastSentAt, lockedByAgentId)
+  └─ write CronRun (sent / suppressed / errors / agentCount)
 
 Braze
-  └─ Delivers push at scheduled time (in user's local time if in_local_time=true)
+  └─ Delivers at scheduledFor (in each user's local time when in_local_time=true)
 ```

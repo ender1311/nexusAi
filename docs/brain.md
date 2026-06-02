@@ -4,6 +4,12 @@ Living document. Synthesized learnings, architectural conclusions, open question
 
 **Last updated:** 2026-04-24
 
+> **Note:** This is a design-narrative / decision log, not a current-state spec. For
+> the authoritative current behavior see `docs/bandit-engine.md`,
+> `docs/persona-discovery.md`, and `docs/send-timing-architecture.md`. The
+> conclusions below remain accurate (Beta(1,30) prior, 0.99 temporal decay, LinUCB),
+> but discovery now defaults to HDBSCAN with k-means as the fallback.
+
 ---
 
 ## What We've Concluded

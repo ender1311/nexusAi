@@ -1,6 +1,16 @@
 # Braze Sending Capabilities Reference
 
-Source: `../beacon/src/lib/services/braze/`
+Source: `../beacon/src/lib/services/braze/` — this is a **capability reference**
+for the broader Braze REST API. Where Nexus's own implementation
+(`src/lib/braze/`) deviates, it is called out inline; see `docs/braze-integration.md`
+for the authoritative Nexus behavior.
+
+> **Nexus deviations at a glance:** Nexus does **not** register a `send_id` with
+> Braze (`/sends/id/create` / `createSendId` are unused). It stores a local
+> `randomUUID()` on `UserDecision.brazeSendId` as a daily-cap marker, and the
+> real per-user reward arrives via Braze Currents at
+> `POST /api/ingest/braze-events`. All Nexus sends are attributed to one campaign
+> (`BRAZE_NEXUS_CAMPAIGN_ID`) with per-channel message variations.
 
 ## Channels Supported
 
@@ -167,29 +177,23 @@ Check if scheduled message still exists: `GET /messages/scheduled_broadcasts`.
 
 Look up a Braze `external_id` by email: `GET /users/export/ids?email=...`
 
-## Creating a Send ID
+## Send ID handling (Nexus)
 
-Before sending, create a send ID with Braze to enable per-send analytics:
-
-```typescript
-const sendId = await brazeClient.createSendId(campaignId, "nexus");
-// Returns "nexus_abc12345" or null if campaign not found
-```
-
-Send ID is then passed to `pushCampaign(msg, sendId)` and stored in `UserDecision.brazeSendId` for later analytics retrieval.
+> Beacon registers a `send_id` with Braze before sending. **Nexus does not.**
+> The cron's send grouping (`src/lib/cron/send-grouping.ts`) generates a local
+> `randomUUID()`, posts the message (no `send_id` field), and stores that UUID on
+> `UserDecision.brazeSendId` purely as an "accepted by Braze" marker for the
+> analytics cron's daily-cap counter. Braze auto-assigns its own send_id and
+> returns it through Currents.
 
 ## How Nexus Uses This
 
-Nexus's `src/lib/braze/` mirrors beacon's client/payload-factory pattern.
+Nexus's `src/lib/braze/` mirrors beacon's client / payload-factory pattern but
+diverges on reward attribution:
 
-To retrieve open/click rates for a variant decision:
-```typescript
-// Nexus BrazeAnalytics.fetchSendAnalytics
-const metrics = await analytics.fetchSendAnalytics(
-  message.brazeCampaignId,
-  decision.brazeSendId
-);
-// Returns: { unique_opens, unique_clicks, sent, click_rate, open_rate, ... }
-```
-
-Use `click_rate` and `open_rate` as supplementary reward signals fed into `/api/ingest/events`.
+- **Primary reward:** Braze Currents (click events) → `POST /api/ingest/braze-events`,
+  matched to the originating `UserDecision` within the 48h attribution window.
+- **Backstop reward:** the `ingest-braze-analytics` cron polls
+  `GET /sends/data_series` / `GET /campaigns/data_series` and applies a decaying
+  reward to decisions still missing one. `click_rate` / `open_rate` feed this
+  backstop only — they are not posted to `/api/ingest/events`.

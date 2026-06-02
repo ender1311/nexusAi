@@ -58,6 +58,10 @@ Gamma sampling uses a Marsaglia-Tsang method with a Box-Muller normal sampler in
 ### 2) Pick best sample
 
 After sampling all arms once, the selected variant is the arm with the largest sample value.
+`select(arms, recencyPenalties?)` accepts an optional per-arm multiplier map: the cron route
+passes `recencyMultiplier(daysSinceSent)` (from `@/lib/engine/beta-pdf`, clamped to
+`[0.2, 1.0]`) so a variant just sent to this user is temporarily down-weighted to encourage
+rotation. The multiplier is applied to the Beta sample before the max is taken.
 
 ### 3) Exploration flag
 
@@ -67,26 +71,29 @@ After sampling all arms once, the selected variant is the arm with the largest s
 
 ## Update rule after reward
 
-When a reward is applied to an arm (`updateArm(stats, reward)`):
+Arm updates are **not** done in the pure engine. They run as atomic decay-aware upserts in
+`src/lib/arm-stats.ts` against both `PersonaArmStats` and `UserArmStats`:
 
-- `alpha += reward` when `reward > 0`
-- `beta += 1` when `reward <= 0`
-- `tries += 1` always
-- `wins += 1` when `reward > 0`
+```
+alpha_new = GREATEST(1, 1 + (alpha − 1) × 0.99 + Δalpha)   # Δalpha = reward when reward > 0
+beta_new  = GREATEST(1, 1 + (beta  − 1) × 0.99 + Δbeta)     # Δbeta  = 1 when reward ≤ 0
+```
 
 This means:
-- Positive outcomes increase posterior success mass
-- Zero/negative outcomes increase posterior failure evidence
+- Positive outcomes increase posterior success mass; zero/negative outcomes increase failure evidence
+- The ~0.99 multiplicative decay on the mass above the prior lets stale evidence fade so the model keeps adapting
 
 ## Runtime flow in Nexus
 
-In `decideForUser`:
+The two callers are `/api/decide` (`src/lib/decide.ts`) and the cron route
+(`src/app/api/cron/select-and-send/route.ts`). Both:
 
-1. Active variants are loaded for the target agent
-2. `PersonaArmStats` rows are read/seeded per variant for the resolved persona
-3. If `agent.algorithm === "thompson"` (default bandit path), `new ThompsonSampling().select(armStats)` is used
-4. The chosen variant is persisted to `UserDecision`
-5. Later conversion events update reward and arm stats
+1. Load active variants for the target agent
+2. Read/seed `PersonaArmStats` rows per variant for the resolved persona (cold-start seed `Beta(1,30)`)
+3. Blend in the user's `UserArmStats` posterior via `blendArm` (see `docs/bandit-engine.md`)
+4. If `agent.algorithm === "thompson"`, call `selectVariant({ algorithm: "thompson", arms, recencyPenalties })` (dispatches to `new ThompsonSampling().select(...)`)
+5. Persist the chosen variant to `UserDecision`
+6. Later conversion events apply the decay-aware reward update above
 
 ## Tests and behavioral guarantees
 

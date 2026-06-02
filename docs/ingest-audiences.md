@@ -54,7 +54,17 @@ Maximum 10,000 total IDs (user_ids + braze_user_ids combined) per request. Large
 
 ## Agent Targeting
 
-To target users in a cohort from an agent, set the agent's `targetSegmentName` property to the `cohort_id` string. The agent will only send to users enrolled in that segment.
+Cohorts land as `UserSegment` rows (`segmentName = cohort_id`). Two ways to target
+them from an agent:
+
+- **Multi-segment (current):** set `segmentTargeting = { includes: [...],
+  excludes: [...] }`. `includes` are OR-matched against the user's `UserSegment`
+  rows; `excludes` remove members. See `docs/nexus-agent-targeting-spec.md`.
+- **Legacy single-segment:** set `targetSegmentName` to the `cohort_id` string.
+  Used as the fallback when `segmentTargeting` is `null`.
+
+Distinct segment names available for the targeting UI are served by
+`GET /api/segments`.
 
 ## Example Request
 

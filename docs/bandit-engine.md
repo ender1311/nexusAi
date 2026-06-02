@@ -46,9 +46,12 @@ flowchart TD
 
 ```mermaid
 flowchart TD
-    EVENT([Conversion event arrives<br/>POST /api/ingest/events]) --> MATCH[Find UserDecision within<br/>48-hour window before event]
-    MATCH --> GOAL[Match event.name to<br/>Agent Goal by eventName]
-    GOAL --> TIER{Goal tier?}
+    EVENT([Conversion event arrives<br/>/api/ingest/events or /api/ingest/braze-events]) --> MATCH[Find UserDecision within<br/>48-hour window before event]
+    MATCH --> GOAL{Match event.name to<br/>Agent Goal by eventName}
+
+    GOAL -->|gift_given| GIFT[Log-scale branch:<br/>frac = log10 1+usd ÷ log10 1+1000<br/>reward = baseReward÷10 × frac, clamp 0..1]
+    GOAL -->|funnel_recovery, no Goal| REC[Recovery branch:<br/>rank 1/2/3 → good/very_good/best<br/>reward = base × 5 ÷ 100, clamp -1..1]
+    GOAL -->|matched Goal| TIER{Goal tier?}
 
     TIER -->|best| R1[baseReward = +10]
     TIER -->|very_good| R2[baseReward = +7]
@@ -64,10 +67,17 @@ flowchart TD
 
     W1 & W2 --> NORM[reward = clamp baseReward × weight ÷ 100<br/>range: -1.0 to +1.0]
 
-    NORM --> UPDATE_ARM[Update PersonaArmStats:<br/>reward > 0 → alpha += reward<br/>reward ≤ 0 → beta += 1]
-    NORM --> UPDATE_DEC[Update UserDecision:<br/>conversionEvent, conversionAt, reward]
-    NORM --> UPDATE_USER[Accumulate User stats:<br/>totalConversions++, totalReward += reward<br/>hourlyStats, dailyStats buckets]
+    GIFT & REC & NORM --> UPDATE_ARM[Apply temporal-decay update to both<br/>PersonaArmStats and UserArmStats<br/>see Arm Update + Temporal Decay below]
+    UPDATE_ARM --> UPDATE_DEC[Update UserDecision:<br/>conversionEvent, conversionAt, reward, conversionValue]
+    UPDATE_ARM --> UPDATE_USER[Accumulate TrackedUser stats:<br/>totalConversions++, totalReward += reward]
 ```
+
+`calculateReward` lives in `src/lib/engine/reward-calculator.ts` (pure). Two special-cased
+events bypass the tier×weight path: `gift_given` (amount-weighted on a log scale so larger
+gifts read higher without saturating, capped at `$1000` → reward 1.0) and `funnel_recovery`
+(a synthetic event emitted when a user climbs back out of a lapsed funnel stage — see
+`docs/data-flows.md`). The recovery branch only fires when the agent has **no** explicit
+`funnel_recovery` Goal; otherwise the normal tier×weight path applies.
 
 ## Beta Distribution Sampling (Johnk Method)
 
@@ -78,11 +88,13 @@ flowchart LR
     RATIO --> SELECT["Arm with highest sample wins"]
 ```
 
-**Initial state:** α=1, β=1 (uninformed prior — equal probability for all arms)
+**Initial state:** α=1, β=30 — a pessimistic `Beta(1,30)` prior tuned to low baseline push
+conversion rates, which damps noisy over-exploration during warm-up. Cold-start arms with no
+`PersonaArmStats` row yet are seeded with these same values at selection time.
 
 **Interpretation:**
 - High α, low β → arm is rewarded often → high sample → likely selected (exploit)
-- Equal α=β → uncertain → high variance in samples → natural exploration
+- Low α, high β (warm-up state) → low samples, but uncertainty still lets arms win occasionally → natural exploration
 
 ## PersonaArmStats Key
 
@@ -93,23 +105,50 @@ PersonaArmStats
 ├── personaId  → which user segment
 ├── agentId    → which optimization campaign
 ├── variantId  → which message variant (arm)
-├── alpha      → cumulative positive reward weight
-├── beta       → cumulative failure count
+├── alpha      → cumulative positive reward mass
+├── beta       → cumulative non-positive evidence
 ├── tries      → total selections
-└── wins       → total conversions
+└── wins       → total positive-reward outcomes
 ```
 
 This means: **each persona gets its own bandit model per agent**. A variant that works for
 Persona A may not be selected for Persona B if its arm stats differ.
 
-## Epsilon-Greedy Decay
+## Per-User Blending (blendArm)
 
-```mermaid
-flowchart LR
-    E0["epsilon₀ = 0.1"] -->|each decay call| E1["epsilon × 0.995"]
-    E1 --> E2["epsilon × 0.995 × 0.995 ..."]
-    E2 --> FLOOR["floor at 0.01 — always 1% exploration"]
+At selection time the persona-level prior is blended with that user's own posterior
+(`UserArmStats`, keyed by `(userId, agentId, variantId)`) via `blendArm` in
+`src/lib/engine/select-variant.ts`:
+
 ```
+alpha = personaArm.alpha + userStats.wins
+beta  = personaArm.beta  + (userStats.tries − userStats.wins)
+```
+
+A user with personal history pulls the estimate toward their own behavior; a user with no
+history (zero tries) gets the persona prior unchanged. LinUCB does not blend — its context
+vector already carries the per-user profile.
+
+## Arm Update + Temporal Decay
+
+Arm updates happen in the IO layer (`src/lib/arm-stats.ts`), not in the pure engine, because
+they run as atomic `$queryRaw` upserts. Every update applies a ~0.99 multiplicative decay to
+the accumulated mass above the prior so stale evidence fades and the bandit keeps adapting:
+
+```
+alpha_new = GREATEST(1,  1 + (alpha − 1) × 0.99 + Δalpha)
+beta_new  = GREATEST(1,  1 + (beta  − 1) × 0.99 + Δbeta)
+```
+
+where a positive reward contributes `Δalpha = reward`, and a non-positive reward contributes
+`Δbeta = 1`. The same decay is applied to both `PersonaArmStats` and `UserArmStats`.
+
+## Epsilon-Greedy
+
+`EpsilonGreedy` (`src/lib/engine/epsilon-greedy.ts`) takes a fixed `epsilon` (default `0.1`)
+and does **not** decay it: each call rolls `random() < epsilon` to explore (uniform random
+arm) vs. exploit (highest `wins/tries` rate). Decay, if desired, would be applied by the
+caller — the engine itself keeps epsilon constant.
 
 ## LinUCB — Contextual Bandit
 

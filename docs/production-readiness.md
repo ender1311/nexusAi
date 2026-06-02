@@ -23,7 +23,7 @@ Work through in order before turning on Hightouch sync and the send cron against
 | 7 | Hightouch or warehouse → `POST /api/ingest/events` for conversion events | Ops | ⏳ |
 | 8 | Agent(s) **active** in DB; messages have real `brazeCampaignId` / variant IDs where required | Eng / PM | ⏳ |
 | 9 | First `POST /api/cron/select-and-send` with `Authorization: Bearer <CRON_SECRET>` in dry window; confirm Braze sends + `UserDecision.brazeSendId` | Eng | ⏳ |
-| 10 | Vercel Cron enabled; watch logs at scheduled time ([`vercel.json`](../vercel.json) — `0 9 * * *` UTC) | Ops | ⏳ |
+| 10 | Vercel Cron enabled; watch logs at scheduled time ([`vercel.json`](../vercel.json) — `0 * * * *` hourly UTC) | Ops | ⏳ |
 | 11 | Post-launch: persona / winner attributes back to Braze via Hightouch (Step 7 below) | Ops | Post-launch |
 
 **Local / CI database:** `prisma.config.ts` loads `.env` then `.env.local` (override), matching Next.js. Run `npx prisma migrate deploy` against the same `DATABASE_URL` you use for `bun run test` so integration tests do not drift from the schema.
@@ -63,8 +63,8 @@ Hightouch (data warehouse)
 | `/api/personas/migrate` | ✅ Built: atomic deactivation/activation with user reassignment |
 | Beta initialization | ✅ Fixed: `Beta(1,30)` pessimistic prior (was `Beta(1,1)`) |
 | `POST /api/decide` | ✅ Built: wraps `decideForUser()` — scheduling + bandit + `UserDecision` |
-| `/api/cron/select-and-send` | ✅ Built: pages users (500), `decideForUser` + Braze `/messages/send`, batches of 50, `maxDuration` 300s |
-| Vercel cron config | ✅ [vercel.json](../vercel.json) — `0 9 * * *` → `/api/cron/select-and-send` |
+| `/api/cron/select-and-send` | ✅ Built: phase-ordered assign→select→schedule pipeline, Braze `/messages/schedule/create` (or `/messages/send`), batches of ~50, `maxDuration` 300s |
+| Vercel cron config | ✅ [vercel.json](../vercel.json) — `0 * * * *` (hourly) → `/api/cron/select-and-send` |
 | Test suite + CI pipeline | ✅ `.gitlab-ci.yml`, `tests/` (unit, contracts, integration, regression), Husky `pre-push` → `check:quick` |
 | Hightouch user sync | ✅ Configured — 1,995 users in DB |
 | Hightouch event streaming | ❌ Ops task — not configured |
@@ -178,20 +178,21 @@ In Hightouch:
 
 **Auth:** `Authorization: Bearer <CRON_SECRET>` (required in production — no fallback if unset)
 
-**Vercel:** `export const maxDuration = 300`; cron schedule in [vercel.json](../vercel.json): `0 9 * * *`
+**Vercel:** `export const maxDuration = 300`; cron schedule in [vercel.json](../vercel.json): `0 * * * *` (hourly)
 
-**Current implementation (single invocation):**
+**Current implementation (single invocation):** see `docs/send-timing-architecture.md`
+for the full phase-by-phase breakdown. In brief:
 
-1. Loads active agents with persona targets, scheduling rules, messages, and active variants
-2. Per agent: skip entirely if quiet hours apply (agent-level check)
-3. Pre-seeds `PersonaArmStats` for each target persona × variant (reduces races)
-4. Cursor-paginates users with `personaId IN (target personas)`, **500 per page**
-5. Bulk frequency-cap and smart-suppression filtering; then concurrent `decideForUser(..., preloadedAgent, skipSchedulingChecks: true)` (concurrency 10 within each page)
-6. Groups recipients by variant; calls Braze **`/messages/send`** via `BrazeClient` + `PayloadFactory` in batches of **50**
-7. On success, sets `UserDecision.brazeSendId` from `createSendId`
-8. Response: `{ ok, sent, suppressed, errors }`
+1. **Phase −1 release sweep** — auto-release owned users past `holdMaxDays` / `holdMaxSends`
+2. Build the **fleet exclusivity map** (one agent owns a user at a time)
+3. **Pre-assignment / eligibility** per agent — targeting (`segmentTargeting` / `funnelStage`), staleness gate, language filter, channel consent
+4. Build the **lottery map** (honoring `audienceCap` / `uniqueUsersCap`) and open **Phase 0** exploration windows
+5. **Per-agent send loop** — caps, frequency cap, quiet hours / blackout, smart-suppress, then variant choice (LinUCB or TS/EG via `blendArm` + recency penalties) and `computeScheduledAt`
+6. Group recipients by `(variantId × scheduledAt × inLocalTime)`; call Braze **`/messages/schedule/create`** (future) or **`/messages/send`** (immediate) via `BrazeClient` + `PayloadFactory` in batches of **~50**
+7. On success, set `UserDecision.brazeSendId` to a **local `randomUUID()`** marker (Nexus does not register a Braze send_id) and `brazeScheduleId` from the schedule response
+8. Persist `UserAgentAssignment` ownership and write a `CronRun` row (`{ sent, suppressed, errors, agentCount }`)
 
-**Production checklist:** Set `CRON_SECRET`, `BRAZE_API_KEY`, `BRAZE_REST_URL`, and campaign/variant IDs on messages so sends succeed. Watch Vercel logs and Braze dashboards for first runs.
+**Production checklist:** Set `CRON_SECRET`, `BRAZE_API_KEY`, `BRAZE_REST_ENDPOINT`, and `BRAZE_NEXUS_CAMPAIGN_ID` + per-channel variant IDs so sends succeed. Watch Vercel logs and Braze dashboards for first runs.
 
 ### Scale / future architecture
 
@@ -242,10 +243,15 @@ DATABASE_URL=postgresql://...
 
 # Braze
 BRAZE_API_KEY=...
-BRAZE_REST_URL=rest.iad-01.braze.com
-BRAZE_ANDROID_APP_ID=...
-BRAZE_IOS_APP_ID=...
-BRAZE_WEB_APP_ID=...
+BRAZE_REST_ENDPOINT=rest.iad-01.braze.com   # BRAZE_REST_URL accepted as legacy fallback
+BRAZE_NEXUS_CAMPAIGN_ID=...
+BRAZE_NEXUS_IOS_VARIANT_ID=...
+BRAZE_NEXUS_ANDROID_VARIANT_ID=...
+BRAZE_NEXUS_EMAIL_VARIANT_ID=...
+BRAZE_NEXUS_CONTENTCARD_VARIANT_ID=...
+BRAZE_ANDROID_APP_ID=...   # optional
+BRAZE_IOS_APP_ID=...       # optional
+BRAZE_WEB_APP_ID=...       # optional
 
 # Ingest security (Hightouch uses this as Bearer token)
 HIGHTOUCH_API_KEY=...
