@@ -104,8 +104,13 @@ function useArmStats(agentId: string | null) {
     }
     dispatch({ type: "fetch_start" });
     fetch(`/api/demo/arm-stats?agentId=${agentId}`)
-      .then((r) => r.json())
-      .then((json: ArmStatsResponse) => dispatch({ type: "fetch_done", payload: json }))
+      .then(async (r) => {
+        if (!r.ok) {
+          dispatch({ type: "fetch_error" });
+          return;
+        }
+        dispatch({ type: "fetch_done", payload: (await r.json()) as ArmStatsResponse });
+      })
       .catch(() => dispatch({ type: "fetch_error" }));
   }, [agentId]);
 
