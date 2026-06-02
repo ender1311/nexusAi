@@ -5,6 +5,15 @@
 > surface "is this agent learning / how confident is it" on the agent card.
 > This is a thinking document to work from — not a finalized spec.
 
+> **Shipped since (status as of 2026-06):** Several ideas from this vision are now live —
+> LinUCB contextual bandit (`src/lib/engine/linucb.ts`), ~0.99 temporal decay on arm updates
+> (`src/lib/arm-stats.ts`), per-user blending of the persona prior with `UserArmStats`
+> (`blendArm` in `src/lib/engine/select-variant.ts`), and amount-weighted gift +
+> funnel-recovery reward branches (`src/lib/engine/reward-calculator.ts`). The convergence
+> signal currently surfaced on the agent card is a **topShare heuristic** computed in
+> `src/lib/cache/performance.ts` (~line 170), **not** the Monte-Carlo P(best) estimate this
+> document sketches. Treat the rest of this doc as forward-looking design.
+
 ---
 
 ## Part 1 — Multi-dimensional credit assignment

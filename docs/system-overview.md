@@ -1,13 +1,13 @@
 # System Overview
 
-Nexus is a multi-armed bandit optimization platform for personalizing messaging (push/email/SMS)
-across user personas. It integrates with Braze as the message delivery layer and Hightouch for
-event/user data ingestion.
+Nexus is a multi-armed bandit optimization platform for personalizing messaging
+(push / email / in-app / content-card) across user personas. It integrates with
+Braze as the message delivery layer and Hightouch for event/user data ingestion.
 
 ```mermaid
 graph TB
     subgraph External["External Systems"]
-        BRAZE[Braze CDM<br/>Push / Email / SMS delivery]
+        BRAZE[Braze CDP<br/>push / email / in-app / content-card]
         HT[Hightouch<br/>Reverse ETL / CDP]
         WAREHOUSE[Data Warehouse<br/>User profiles & events]
     end
@@ -27,9 +27,10 @@ graph TB
             API_PERSONAS[/api/personas CRUD + discover]
             API_INGEST_E[/api/ingest/events]
             API_INGEST_U[/api/ingest/users]
+            API_INGEST_B[/api/ingest/braze-events<br/>primary reward path]
             API_SETTINGS[/api/settings]
             API_DECIDE[/api/decide]
-            API_CRON[/api/cron/select-and-send]
+            API_CRON[/api/cron/select-and-send<br/>hourly · 0 * * * *]
         end
 
         subgraph ENGINE["Bandit Engine (src/lib/engine)"]
@@ -37,7 +38,7 @@ graph TB
             EG[Epsilon-Greedy]
             LU[LinUCB<br/>Contextual Bandit]
             RC[Reward Calculator]
-            PD[Persona Discovery<br/>K-Means Clustering]
+            PD[Persona Discovery<br/>HDBSCAN / k-means]
             PA[Persona Assignment<br/>Cosine Similarity]
             FV[Feature Vector<br/>10 dimensions]
             US[User Stats<br/>Accumulator]
@@ -55,10 +56,12 @@ graph TB
     WAREHOUSE -->|sync user profiles| HT
     HT -->|POST /api/ingest/users| API_INGEST_U
     HT -->|POST /api/ingest/events| API_INGEST_E
+    BRAZE -->|Currents click events| API_INGEST_B
 
     API_INGEST_E --> RC
+    API_INGEST_B --> RC
     API_INGEST_E --> US
-    API_INGEST_E --> TS
+    RC --> TS
     API_INGEST_U --> DB
 
     API_AGENTS --> DB
@@ -91,7 +94,7 @@ graph TB
 | **Agent** | An optimization campaign. Has goals, messages, a bandit algorithm, target personas, an optional `audienceCap` (max users per cron run), and an optional `uniqueUsersCap` (lifetime distinct-user ceiling enforced at cron time) |
 | **Message / Variant** | A message (channel + name) with A/B variants the bandit chooses between |
 | **Goal** | A conversion event (e.g. `plan_started`) mapped to a reward tier |
-| **Persona** | A user segment discovered by k-means clustering on 10-dim feature vectors |
+| **Persona** | A user segment — either a hand-authored classifier archetype or one discovered by HDBSCAN/k-means clustering on 10-dim feature vectors |
 | **PersonaArmStats** | Per-persona Beta distribution params (α/β) for each agent×variant arm |
 | **UserDecision** | A record of each message send + optional conversion link |
 | **Feature Vector** | 10-float representation of a user: channel/timing ratios, conversion rate, recency, giving tier, spiritual depth, engagement freq |

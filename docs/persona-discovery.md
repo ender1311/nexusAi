@@ -27,41 +27,50 @@ block-beta
   end
 ```
 
-## K-Means++ Discovery Algorithm
+## Discovery Algorithm
+
+Discovery is orchestrated by `discoverPersonas()` in `src/lib/services/persona-service.ts`
+and triggered by `POST /api/personas/discover` (admin-only) or the
+`/api/cron/discover-personas` cron. It supports two clustering algorithms; **HDBSCAN is the
+default**, with k-means available as an explicit fallback (`config.algorithm: "kmeans"`).
 
 ```mermaid
 flowchart TD
-    START([POST /api/personas/discover]) --> LOAD[Load users with<br/>totalDecisions >= minInteractions]
-    LOAD --> VECS[Compute featureVector<br/>for each eligible user]
+    START([POST /api/personas/discover<br/>or /api/cron/discover-personas]) --> LOAD[Load TrackedUser rows with<br/>totalDecisions >= minInteractions default 20]
+    LOAD --> VECS[Compute 10-dim featureVector per user]
+    VECS --> SAMPLE[Fisher-Yates downsample to<br/>maxSampleSize default 3000 if larger]
 
-    VECS --> KLOOP{Try k = minK to maxK}
+    SAMPLE --> ALGO{config.algorithm?}
 
-    subgraph KMEANS["K-Means++ per k"]
-        KLOOP --> INIT[K-Means++ Initialization:<br/>Pick 1st centroid randomly<br/>Pick subsequent centroids<br/>proportional to cosine distance²]
-        INIT --> ITER[Iterate up to 100 times:<br/>1. Assign each user to nearest centroid<br/>2. Recompute centroid as mean of cluster]
-        ITER --> CONV{Converged?}
-        CONV -->|yes| SILO[Compute Silhouette Score:<br/>for each user: (b-a) / max(a,b)<br/>a = avg dist to same cluster<br/>b = avg dist to nearest other cluster]
-        CONV -->|no, more iters| ITER
-    end
+    ALGO -->|hdbscan default| HDB[HDBSCAN src/lib/engine/hdbscan.ts<br/>minPts=5, minClusterSize=30<br/>density-based; finds k automatically;<br/>labels noise points as -1]
+    ALGO -->|kmeans fallback| KM[k-means sweep k = minK..maxK<br/>runKMeans stabilityRuns each<br/>keep k with best silhouette]
 
-    SILO --> BEST{Best silhouette<br/>so far?}
-    BEST -->|yes| SAVE[Save this k + centroids]
-    BEST -->|no| KLOOP
-    KLOOP -->|k > maxK| TRAITS
+    HDB --> SIL{silhouette gate}
+    KM --> SIL
+    SIL -->|k>1 and silhouette < 0.25| ABORT[Abort: no clusters saved]
+    SIL -->|pass; k=1 accepted| TRAITS
 
-    TRAITS[Derive traits for each cluster:<br/>- Dominant channel (push vs email)<br/>- Peak hour: morning→9, evening→20, mixed→14<br/>- Engagement level from freq (dim 9)<br/>- Giver profile from giving tier (dim 7)<br/>- Spiritual depth from composite (dim 8)]
+    TRAITS[deriveTrait per cluster centroid:<br/>- Dominant channel push vs email<br/>- Peak hour morning→9 evening→20 mixed→14<br/>- Engagement level from freq dim 9<br/>- Giver profile from giving tier dim 7<br/>- Spiritual depth from composite dim 8]
 
-    TRAITS --> COLORS[Assign colors cycling through:<br/>blue → green → purple → orange →<br/>pink → red → teal → yellow]
+    TRAITS --> COLORS[Assign colors cycling blue→green→purple→<br/>orange→pink→red→teal→yellow]
 
-    COLORS --> UPSERT[Upsert Persona records<br/>{ centroid, clusterSize,<br/>silhouetteScore, traits, source: discovered }]
+    COLORS --> UPSERT[Upsert Persona records<br/>source: discovered, centroid, clusterSize,<br/>silhouetteScore, traits, discoveredAt;<br/>deactivate extra stale discovered personas]
 
-    UPSERT --> ASSIGN[batchAssignPersonas:<br/>For each user, find nearest centroid<br/>by cosine similarity]
+    UPSERT --> ASSIGN[batchAssignPersonas:<br/>For each TrackedUser, find nearest<br/>discovered centroid by cosine similarity]
 
-    ASSIGN --> CONF[Confidence scaling:<br/>effectiveConf = similarity × min(1, decisions/20)]
+    ASSIGN --> CONF[Confidence scaling:<br/>effectiveConf = similarity × min 1, decisions/20]
     CONF --> THRESH{effectiveConf >= threshold?}
-    THRESH -->|yes| PERSIST[UPDATE User:<br/>personaId, personaConfidence,<br/>personaAssignedAt]
+    THRESH -->|yes| PERSIST[UPDATE TrackedUser:<br/>personaId, personaConfidence, personaAssignedAt]
     THRESH -->|no| SKIP[User remains unassigned]
 ```
+
+**HDBSCAN vs. k-means.** HDBSCAN is density-based: it finds the cluster count automatically,
+tolerates clusters of varying size, and labels low-density points as noise (`-1`, excluded
+from centroids and the silhouette calculation). k-means requires a fixed `k`, so the fallback
+path sweeps `k = minK..maxK` (default 3..15) running `runKMeans` `stabilityRuns` times per `k`
+and keeps the `k` with the best silhouette score. Both gate on a minimum silhouette of `0.25`
+(a single-cluster HDBSCAN result `k=1` is accepted without the gate, since `minClusterSize`
+already guarantees density). `TrackedUser` is the Prisma model mapped to the `User` table.
 
 ## Cosine Similarity
 

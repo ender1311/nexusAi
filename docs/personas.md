@@ -1,5 +1,13 @@
 # YouVersion Nexus Personas
 
+> **Two kinds of persona.** These eight are the **hand-authored archetypes** assigned by the
+> rule-based classifier (`plan-persona-classifier.ts`) from YouVersion plan/prayer/scripture
+> attributes. They are distinct from the **discovered personas** produced by unsupervised
+> clustering of behavioral feature vectors (`source: "discovered"`, see
+> `docs/persona-discovery.md`). Both populate `Persona` rows and segment `PersonaArmStats`
+> bandit arms; the classifier archetypes carry `source: "classifier"`/seed and are stable,
+> while discovered personas are recomputed by the discovery pipeline.
+
 Eight behavioral archetypes used for bandit arm segmentation. Each persona maps a `label` (used in the classifier and DB) to a short display `name`.
 
 | Name | Label (DB) | Icon | Color | Description |
@@ -22,11 +30,12 @@ Priority order (first match wins):
 2. **Family-first** — plan tagged `Parent`
 3. **Searching** — plan tagged `Seeker`, low engagement
 4. **Plugged-in** — Life.Church publisher
-5. **Anxious** — emotional content tag + meaningful prayer/scripture usage
-6. **Word-driven** — Bible-first tag or plan length ≥ 90 days, low prayer
-7. **Studious** — Devotion-first tag or high devotional frequency
-8. **Connected** — Social-first tag or badge count ≥ 5
-9. `null` — not enough signal
+5. **Anxious** — emotional content tag with prayer/scripture year-count ≥ 2, *or* prayer/scripture year-count ≥ 5 with plan year-count < 20
+6. **Word-driven** — Bible-first tag or plan length ≥ 90 days, with prayer year-count < 3
+7. **Studious** — Devotion-first tag, or plan year-count ≥ 30 with ≥ 3 lifetime finishes
+8. **Connected** — Social-first tag or badge year-count ≥ 5
+9. **Searching (fallback)** — explicit zero engagement (0 lifetime finishes, low year/month counts) → Seeker
+10. `null` — not enough signal
 
 ## Seed script
 

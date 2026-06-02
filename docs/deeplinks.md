@@ -2,6 +2,13 @@
 
 Source: `../wayfinder/src/lib/data/deeplink-inventory-data.ts` (verified inventory)
 
+> **In the database:** this catalog is persisted as `Deeplink` rows
+> (`wayfinderId`, `category`, `subcategory`, `label`, `urlTemplate`, `sortOrder`),
+> seeded by `scripts/seed-deeplink-catalog.ts` (inlined from the wayfinder
+> inventory). The agent message editor's `DeeplinkSelect` / template picker reads
+> these via `src/lib/push-deeplinks.ts` so variant authors pick from the verified
+> list instead of free-typing URLs.
+
 ## Key Links for Re-engagement Push Campaigns
 
 | Intent | URL | Notes |

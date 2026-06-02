@@ -1,10 +1,17 @@
 # Braze Analytics → Reward Pipeline
 
-> **Status:** Live (short-term solution). Replace with Hightouch campaign analytics when available.
+> **Status:** Secondary / backstop path. The **primary** reward path is Braze
+> Currents → `POST /api/ingest/braze-events` (per-user click → reward). This
+> DB-based analytics sweep is a decay backstop for sends whose Currents event
+> never arrived.
 
 ## Overview
 
-Because Hightouch does not yet deliver campaign-level analytics to Nexus, we pull per-send engagement stats directly from the Braze REST API and use them to close the bandit reward loop. This is intentionally simple and self-limiting.
+The primary learning loop is closed per-user by Braze Currents events landing at
+`/api/ingest/braze-events`. As a backstop, the `ingest-braze-analytics` cron pulls
+aggregated per-send engagement stats from the Braze REST API and applies a
+decaying reward to any decisions still missing one. This path is intentionally
+simple and self-limiting.
 
 ---
 
@@ -12,20 +19,24 @@ Because Hightouch does not yet deliver campaign-level analytics to Nexus, we pul
 
 ### 1. Send Phase (`cron/select-and-send`)
 
-For every group of users sent the same variant at the same scheduled time:
+For every group of users sent the same variant at the same scheduled time
+(`src/lib/cron/send-grouping.ts`):
 
-1. A unique `send_id` is registered with Braze (`POST /sends/id/create`).
-2. The message is dispatched:
-   - Immediate: `POST /messages/send`
-   - Scheduled: `POST /messages/schedule/create`
-3. Both `brazeSendId` and `brazeScheduleId` (for scheduled sends) are stored on `UserDecision`.
+1. The message is dispatched — `POST /messages/schedule/create` for a future send
+   (returns `schedule_id`) or `POST /messages/send` for immediate.
+2. A **local** `randomUUID()` is stored on the batch's `UserDecision` rows as
+   `brazeSendId` — an "accepted by Braze" marker, **not** a Braze-registered
+   send_id (Nexus never calls `/sends/id/create`). `brazeScheduleId` is stored for
+   scheduled sends.
+3. Braze's real auto-assigned send_id returns later via Currents to
+   `/api/ingest/braze-events`.
 
-### 2. Analytics Ingestion (`cron/ingest-braze-analytics`)
+### 2. Analytics Ingestion (`cron/ingest-braze-analytics`, every 6h)
 
-Runs ~24–72h after sends (giving Braze time to accumulate engagement data):
+Runs as a backstop ~24–72h after sends (giving Braze time to accumulate data):
 
 1. **Daily budget check**: counts distinct `brazeSendId` values already processed today (`brazeAnalyticsFetchedAt >= start_of_day`). Stops early if ≥ 900.
-2. Fetches `GET /sends/data_series` for each eligible `send_id`.
+2. Fetches `GET /sends/data_series` / `GET /campaigns/data_series` for eligible decisions.
 3. Derives a reward/punishment from the aggregated click and open rates.
 4. Updates `PersonaArmStats` (Thompson Sampling Beta params) and marks decisions with `reward` + `brazeAnalyticsFetchedAt`.
 
