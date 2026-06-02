@@ -27,8 +27,17 @@ npx prisma generate      # Regenerate Prisma client
 npx prisma studio        # Browse DB in browser
 
 # WARNING: prisma.config.ts always loads .env.local (production DB).
-# To apply schema changes to the test DB, use ALTER TABLE via neon() HTTP client
-# with the test DATABASE_URL — never prisma db push on the test DB.
+# Never run prisma migrate dev / db push against the test DB.
+
+# Local test DB (integration + regression suites) — a plain local Postgres.
+# db.ts auto-selects the node-postgres adapter when DATABASE_URL host is localhost.
+# Create once, and set it to UTC so it mirrors production Neon (timestamp math
+# in cron/card-stats SQL assumes a UTC session):
+#   createdb nexus_test
+#   psql -d nexus_test -c "ALTER DATABASE nexus_test SET timezone='UTC';"
+# Load the schema by dumping production (schema.prisma drifts behind the live DB):
+#   pg_dump --schema-only --no-owner --no-privileges "$DATABASE_URL_UNPOOLED" \
+#     | psql -v ON_ERROR_STOP=1 "postgresql://localhost:5432/nexus_test"
 ```
 
 ## Architecture
