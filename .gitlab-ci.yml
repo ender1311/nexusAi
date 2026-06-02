@@ -43,7 +43,9 @@ verify:test:quick:
 
 verify:test:int:
   stage: verify
-  timeout: 15 minutes
+  # Serial fallback (no NEON_API_KEY) takes ~19 min; keep headroom. The parallel
+  # branch-per-worker path finishes in ~5 min once the Neon CI vars are added.
+  timeout: 25 minutes
   variables:
     DATABASE_URL: $TEST_DATABASE_URL
     TEST_DB: "true"
@@ -61,8 +63,9 @@ verify:test:int:
   script:
     - bun install --frozen-lockfile
     - bunx prisma generate
-    # Migrate the parent test branch; per-worker branches clone the migrated schema.
-    - bunx prisma migrate deploy
+    # No migrate step: the shared test DB schema is maintained out-of-band, and
+    # parallel-path per-worker branches clone that already-migrated schema. The
+    # test endpoint isn't reachable via direct-TCP `prisma migrate` from CI anyway.
     - bun run test:int-reg
   after_script:
     # Safety net: reap any ci-* branches a crash/cancel left behind. The 30m
