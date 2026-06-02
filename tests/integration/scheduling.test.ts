@@ -103,6 +103,19 @@ describe("PUT /api/agents/[id]/scheduling", () => {
     expect(res.status).toBe(404);
   });
 
+  it("returns 400 on malformed JSON", async () => {
+    const agent = await createAgent();
+    const req = new Request("http://localhost/", {
+      method: "PUT",
+      body: "{not json",
+      headers: { "Content-Type": "application/json" },
+    });
+    const res = await PUT(req as NextRequest, { params: Promise.resolve({ id: agent.id }) });
+    expect(res.status).toBe(400);
+    const body = await res.json();
+    expect(body.error).toBe("Invalid JSON");
+  });
+
   it("persists smartSuppress=true with custom suppressThresh", async () => {
     const agent = await createAgent();
     const req = buildRequest("PUT", {

@@ -33,8 +33,18 @@ export async function PUT(
   const { id } = await params;
   const forbidden = await requireAdmin();
   if (forbidden) return forbidden;
+
+  let body;
   try {
-    const body = await req.json();
+    body = await req.json();
+  } catch {
+    return NextResponse.json({ error: "Invalid JSON" }, { status: 400 });
+  }
+  if (typeof body !== "object" || body === null) {
+    return NextResponse.json({ error: "Invalid request body" }, { status: 400 });
+  }
+
+  try {
     const { frequencyCap, quietHours, blackoutDates, smartSuppress, suppressThresh, prioritizeLastSeen } = body;
 
     if (

@@ -34,9 +34,15 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
   const { id } = await params;
   const forbidden = await requireAdmin();
   if (forbidden) return forbidden;
-  try {
-    const body = await req.json();
 
+  let body;
+  try {
+    body = await req.json();
+  } catch {
+    return fail("Invalid JSON", 400);
+  }
+
+  try {
     if (body.funnelStage !== undefined && !VALID_STAGES.has(body.funnelStage)) {
       return fail("Invalid funnelStage", 400);
     }

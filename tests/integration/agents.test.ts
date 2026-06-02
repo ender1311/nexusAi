@@ -167,6 +167,19 @@ describe("PATCH /api/agents/[id]", () => {
     expect(res.status).toBe(200);
     expect(body.targetFilter).toEqual(filter);
   });
+
+  it("returns 400 on malformed JSON", async () => {
+    const agent = await prisma.agent.create({ data: { name: "JSON Agent", algorithm: "thompson", epsilon: 0.1 } });
+    const req = new Request("http://localhost/", {
+      method: "PATCH",
+      body: "{not json",
+      headers: { "Content-Type": "application/json" },
+    });
+    const res = await patchAgent(req as NextRequest, { params: Promise.resolve({ id: agent.id }) });
+    expect(res.status).toBe(400);
+    const body = await res.json();
+    expect(body.error).toBe("Invalid JSON");
+  });
 });
 
 describe("PATCH /api/agents/[id] — localizePush", () => {

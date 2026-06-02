@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { revalidateTag } from "next/cache";
 import { prisma } from "@/lib/db";
 import { requireAdmin } from "@/lib/auth";
+import { isPlainObject } from "@/lib/utils";
 
 export async function GET() {
   try {
@@ -18,10 +19,20 @@ export async function GET() {
 export async function POST(req: NextRequest) {
   const forbidden = await requireAdmin();
   if (forbidden) return forbidden;
+
+  let raw: unknown;
   try {
-    const body = await req.json();
+    raw = await req.json();
+  } catch {
+    return NextResponse.json({ error: "Invalid JSON" }, { status: 400 });
+  }
+  if (!isPlainObject(raw)) {
+    return NextResponse.json({ error: "Expected an object of settings" }, { status: 400 });
+  }
+
+  try {
     const results: Array<{ key: string; value: string }> = [];
-    for (const [key, value] of Object.entries(body)) {
+    for (const [key, value] of Object.entries(raw)) {
       const setting = await prisma.appSetting.upsert({
         where: { key },
         update: { value: String(value) },

@@ -17,8 +17,16 @@ mock.module("@workos-inc/authkit-nextjs", () => ({
 }));
 
 // Import AFTER mock.module so the mock takes effect
-const { POST: postMessage } = await import("@/app/api/agents/[id]/messages/route");
+const { POST: postMessage, PUT: putMessage } = await import("@/app/api/agents/[id]/messages/route");
 const { PATCH: patchVariant, DELETE: deleteVariant } = await import("@/app/api/variants/[id]/route");
+
+function rawRequest(method: "POST" | "PUT", body: string): Request {
+  return new Request("http://localhost/", {
+    method,
+    body,
+    headers: { "Content-Type": "application/json" },
+  });
+}
 
 beforeEach(async () => {
   await truncateAll();
@@ -152,5 +160,51 @@ describe("PATCH/DELETE /api/variants/[id]", () => {
 
     const deleted = await prisma.messageVariant.findUnique({ where: { id: variant.id } });
     expect(deleted).toBeNull();
+  });
+});
+
+describe("PUT /api/agents/[id]/messages", () => {
+  it("updates a message name and channel", async () => {
+    const agent = await createAgent();
+    const message = await createMessage(agent.id, { channel: "push" });
+
+    const req = buildRequest("PUT", { messageId: message.id, name: "Renamed", channel: "email" });
+    const res = await putMessage(req as NextRequest, { params: Promise.resolve({ id: agent.id }) });
+
+    expect(res.status).toBe(200);
+    const updated = await prisma.message.findUnique({ where: { id: message.id } });
+    expect(updated!.name).toBe("Renamed");
+    expect(updated!.channel).toBe("email");
+  });
+
+  it("returns 400 on malformed JSON", async () => {
+    const agent = await createAgent();
+    const res = await putMessage(rawRequest("PUT", "{bad") as NextRequest, { params: Promise.resolve({ id: agent.id }) });
+    expect(res.status).toBe(400);
+    const body = await res.json();
+    expect(body.error).toBe("Invalid JSON");
+  });
+
+  it("returns 400 when messageId is missing", async () => {
+    const agent = await createAgent();
+    const req = buildRequest("PUT", { name: "No id" });
+    const res = await putMessage(req as NextRequest, { params: Promise.resolve({ id: agent.id }) });
+    expect(res.status).toBe(400);
+    const body = await res.json();
+    expect(body.error).toBeTruthy();
+  });
+
+  it("returns 400 when messageId is an empty string", async () => {
+    const agent = await createAgent();
+    const req = buildRequest("PUT", { messageId: "   ", name: "Blank id" });
+    const res = await putMessage(req as NextRequest, { params: Promise.resolve({ id: agent.id }) });
+    expect(res.status).toBe(400);
+  });
+
+  it("returns 404 for an unknown messageId", async () => {
+    const agent = await createAgent();
+    const req = buildRequest("PUT", { messageId: "nonexistent-id", name: "Ghost" });
+    const res = await putMessage(req as NextRequest, { params: Promise.resolve({ id: agent.id }) });
+    expect(res.status).toBe(404);
   });
 });
