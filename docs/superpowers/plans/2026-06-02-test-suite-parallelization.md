@@ -1,6 +1,6 @@
 # Test Suite Parallelization — Audit & Plan
 
-> **For agentic workers:** Tier 1 is implemented (see commit on `perf/test-suite-parallel`). Tier 2 is BLOCKED on a `NEON_API_KEY` that only the repo owner can provision (see "Handoff"). Use superpowers:subagent-driven-development to execute Tier 2 once the key exists.
+> **For agentic workers:** Tier 1 AND Tier 2 are both implemented and merged. Tier 2 ships branch-per-worker parallelism on `perf/test-parallel-tier2`. See "Tier 2 — Shipped" below for the measured result (78/78 files in ~294s / 8 workers, down from ~19 min serial — ~3.9× faster) and the safety design.
 
 **Goal:** Make `bun run check` faster while preserving comprehensive coverage, using real parallelism.
 
@@ -49,7 +49,27 @@ Tier 1 does NOT parallelize DB tests (impossible without isolation) — so the b
 
 ---
 
-## Tier 2 — Neon Branch-Per-Worker (the real win)
+## Tier 2 — Shipped (branch `perf/test-parallel-tier2`)
+
+Implemented and validated end-to-end. **Result: 78/78 int+reg files pass in ~294s with 8 workers, vs ~19 min serial — ~3.9× faster.** Floor is the single longest file (`agents.test.ts` ~159s); more than ~8 workers buys little.
+
+**What landed:**
+- `scripts/lib/neon-branch.ts` — Neon REST helper: `createBranch` (with read_write endpoint + pooled connection_uri), `deleteBranch`, `listBranchesByPrefix`, and `resolveParentBranchByHost`. Unit-tested against mocked fetch (`tests/unit/neon-branch.test.ts`).
+- `scripts/lib/test-env.ts` — resolves the TEST project id + DB host and builds a clean worker env (see safety notes).
+- `scripts/run-int-reg.ts` — parallel path (gated on `NEON_API_KEY`) with LPT shard balancing by test-count, per-worker branch isolation, aggregated output, and SIGINT/SIGTERM teardown. Serial path preserved as fallback.
+- `scripts/neon-leak-sweep.ts` — reaps stray `ci-*` branches older than N minutes.
+- `.gitlab-ci.yml` — `verify:test:int` sets `TEST_WORKERS=8`, runs parallel when `NEON_API_KEY`/`NEON_TEST_PROJECT_ID` CI vars exist (else serial), and reaps leaks in `after_script`.
+
+**Three safety landmines discovered & handled during implementation (all empirically caught):**
+1. **Wrong-project branching.** `.env.local` holds the PRODUCTION Neon project id; the test DB is a *separate* project. An early probe cloned production by reading the ambient `NEON_PROJECT_ID`. Fix: resolve the test project from `.env.test`, and `resolveParentBranchByHost` HARD-ABORTS unless the project owns an endpoint whose host matches the test `DATABASE_URL` — so we can never branch the wrong project.
+2. **Prod-cred leak into workers.** The orchestrator runs via `bun scripts/...`, which loads `.env.local` (prod `DATABASE_URL`, real `BRAZE_API_KEY`/`BRAZE_REST_ENDPOINT`, `WORKOS_*`). Spreading `...process.env` into workers made tests hit real Braze (401s). Fix: `buildWorkerEnv` strips every key that `.env.local` defines, so each worker matches a normal `bun test` (which loads only `.env`+`.env.test`), plus the branch `DATABASE_URL`/`TEST_DB` override.
+3. **CPU-clamped worker count.** Work is network-bound (Neon HTTP), so clamping workers to `availableParallelism()` would throttle a 1-CPU CI runner to serial. Worker count is capped only by `TEST_WORKERS` and file count.
+
+**Owner action to enable in CI:** add masked CI/CD variable `NEON_API_KEY` and variable `NEON_TEST_PROJECT_ID` (the test project id). Until then CI stays serial automatically.
+
+---
+
+## Tier 2 — Original Plan: Neon Branch-Per-Worker (the real win)
 
 **Idea:** Neon branches are instant copy-on-write clones of a parent DB (schema + data, no migration step). Create N ephemeral branches from the test DB, shard the 78 files across N workers, each worker pointed at its own branch's connection string, then delete the branches. Per-worker isolation removes the truncate race entirely; process-per-file already handles the mock leak. All files run concurrently.
 
