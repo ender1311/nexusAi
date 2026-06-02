@@ -97,9 +97,16 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
   const { id } = await params;
   const forbidden = await requireAdmin();
   if (forbidden) return forbidden;
+
+  let rawBody;
   try {
-    const body = await req.json();
-    const { messageId, name, channel, variants = [], variant } = body as {
+    rawBody = await req.json();
+  } catch {
+    return NextResponse.json({ error: "Invalid JSON" }, { status: 400 });
+  }
+
+  try {
+    const { messageId, name, channel, variants = [], variant } = rawBody as {
       messageId?: string;
       name?: string;
       channel?: string;
@@ -219,22 +226,39 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
   const { id } = await params;
   const forbidden = await requireAdmin();
   if (forbidden) return forbidden;
-  try {
-    const body = await req.json();
-    const { messageId, name, channel, variants } = body;
 
+  let body;
+  try {
+    body = await req.json();
+  } catch {
+    return NextResponse.json({ error: "Invalid JSON" }, { status: 400 });
+  }
+  const { messageId, name, channel, variants } = body as {
+    messageId?: string;
+    name?: string;
+    channel?: string;
+    variants?: unknown;
+  };
+  if (typeof messageId !== "string" || messageId.trim() === "") {
+    return NextResponse.json({ error: "messageId is required" }, { status: 400 });
+  }
+
+  try {
     const message = await prisma.message.update({
       where: { id: messageId, agentId: id },
       data: {
-        ...(name && { name }),
-        ...(channel && { channel }),
-        ...(variants && { testedVariables: detectTestedVariables(variants as MessageVariant[]) }),
+        ...(typeof name === "string" ? { name } : {}),
+        ...(typeof channel === "string" ? { channel } : {}),
+        ...(variants ? { testedVariables: detectTestedVariables(variants as MessageVariant[]) } : {}),
       },
       include: { variants: true },
     });
 
     return NextResponse.json(message);
   } catch (error) {
+    if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === "P2025") {
+      return NextResponse.json({ error: "Message not found" }, { status: 404 });
+    }
     console.error("PUT /api/agents/[id]/messages error:", error);
     return NextResponse.json({ error: "Failed to update message" }, { status: 500 });
   }

@@ -81,10 +81,16 @@ export async function GET() {
 export async function POST(req: NextRequest) {
   const forbidden = await requireAdmin();
   if (forbidden) return forbidden;
-  try {
-    const body = await req.json();
 
-    if (!body.name) {
+  let body;
+  try {
+    body = await req.json();
+  } catch {
+    return NextResponse.json({ error: "Invalid JSON" }, { status: 400 });
+  }
+
+  try {
+    if (typeof body !== "object" || body === null || !body.name) {
       return NextResponse.json({ error: "name is required" }, { status: 400 });
     }
 

@@ -77,10 +77,19 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ id:
 export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const forbidden = await requireAdmin();
   if (forbidden) return forbidden;
+
+  let body;
+  try {
+    body = await req.json();
+  } catch {
+    return NextResponse.json({ error: "Invalid JSON" }, { status: 400 });
+  }
+  if (typeof body !== "object" || body === null) {
+    return NextResponse.json({ error: "Invalid request body" }, { status: 400 });
+  }
+
   try {
     const { id } = await params;
-    const body = await req.json();
-
     const { lifeContext, demographics, engagement, contentModes, features, channels, metrics, ...coreFields } = body;
 
     const existing = await prisma.persona.findUnique({ where: { id } });
