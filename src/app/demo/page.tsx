@@ -125,8 +125,13 @@ export default function DemoPage() {
         body: JSON.stringify({ agentId: selectedAgentId, userIds }),
         signal: controller.signal,
       })
-        .then((r) => r.json())
-        .then((d: DemoPreviewResponse) => setPreview(d))
+        .then(async (r) => {
+          if (!r.ok) {
+            setPreview(null);
+            return;
+          }
+          setPreview((await r.json()) as DemoPreviewResponse);
+        })
         .catch(() => {})
         .finally(() => setPreviewLoading(false));
     }, 300);
