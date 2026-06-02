@@ -17,17 +17,26 @@ export function AgentFunnelConfig({ agentId, funnelStage, targetFilter }: AgentF
   const [stage, setStage] = useState<FunnelStage>(funnelStage);
   const [saving, setSaving] = useState(false);
   const [dirty, setDirty] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
   async function handleSave() {
     setSaving(true);
+    setError(null);
     try {
-      await fetch(`/api/agents/${agentId}`, {
+      const res = await fetch(`/api/agents/${agentId}`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ funnelStage: stage }),
       });
+      if (!res.ok) {
+        const body = await res.json().catch(() => null);
+        setError(body?.error ?? "Failed to save. Please try again.");
+        return;
+      }
       setDirty(false);
       router.refresh();
+    } catch {
+      setError("Network error — please try again.");
     } finally {
       setSaving(false);
     }
@@ -65,6 +74,7 @@ export function AgentFunnelConfig({ agentId, funnelStage, targetFilter }: AgentF
             </Button>
           )}
         </div>
+        {error && <p className="text-sm text-destructive" role="alert">{error}</p>}
       </div>
 
       <div className="space-y-2">

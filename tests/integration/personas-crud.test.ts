@@ -1,6 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it } from "bun:test";
 import { NextRequest } from "next/server";
-import { truncateAll, prisma } from "../helpers/db";
+import { truncateAll } from "../helpers/db";
 import { buildRequest } from "../helpers/request";
 import { createPersona } from "../helpers/builders";
 

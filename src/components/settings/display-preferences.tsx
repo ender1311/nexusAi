@@ -12,6 +12,7 @@ export function DisplayPreferences() {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
     fetch("/api/preferences/stat-visibility")
@@ -34,14 +35,22 @@ export function DisplayPreferences() {
 
   const handleSave = async () => {
     setSaving(true);
+    setError(null);
     try {
-      await fetch("/api/preferences/stat-visibility", {
+      const res = await fetch("/api/preferences/stat-visibility", {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ hiddenStats: [...hidden] }),
       });
+      if (!res.ok) {
+        const body = await res.json().catch(() => null);
+        setError(body?.error ?? "Failed to save preferences. Please try again.");
+        return;
+      }
       setSaved(true);
       setTimeout(() => setSaved(false), 3000);
+    } catch {
+      setError("Network error — please try again.");
     } finally {
       setSaving(false);
     }
@@ -98,6 +107,7 @@ export function DisplayPreferences() {
               Saved!
             </div>
           )}
+          {error && <span className="text-sm text-destructive" role="alert">{error}</span>}
         </div>
       </CardContent>
     </Card>

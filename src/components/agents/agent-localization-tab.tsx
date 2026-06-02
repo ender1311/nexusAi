@@ -32,6 +32,7 @@ export function AgentLocalizationTab({ agentId, initialLocalizePush }: Props) {
   const [localizePush, setLocalizePush] = useState(initialLocalizePush);
   const [saving, setSaving] = useState(false);
   const [savedAt, setSavedAt] = useState<number | null>(null);
+  const [error, setError] = useState<string | null>(null);
   const savedTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   useEffect(() => {
@@ -40,24 +41,36 @@ export function AgentLocalizationTab({ agentId, initialLocalizePush }: Props) {
     };
   }, []);
 
-  function handleLocalizePush(next: boolean) {
+  async function handleLocalizePush(next: boolean) {
     setLocalizePush(next);
     setSaving(true);
+    setError(null);
     if (savedTimerRef.current !== null) {
       clearTimeout(savedTimerRef.current);
       setSavedAt(null);
     }
-    fetch(`/api/agents/${agentId}`, {
-      method: "PATCH",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ localizePush: next }),
-    })
-      .then(() => {
-        setSavedAt(Date.now());
-        savedTimerRef.current = setTimeout(() => setSavedAt(null), 2000);
-        router.refresh();
-      })
-      .finally(() => setSaving(false));
+    try {
+      const res = await fetch(`/api/agents/${agentId}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ localizePush: next }),
+      });
+      if (!res.ok) {
+        // Revert the optimistic toggle so the UI reflects the persisted state.
+        setLocalizePush(!next);
+        const body = await res.json().catch(() => null);
+        setError(body?.error ?? "Failed to save. Please try again.");
+        return;
+      }
+      setSavedAt(Date.now());
+      savedTimerRef.current = setTimeout(() => setSavedAt(null), 2000);
+      router.refresh();
+    } catch {
+      setLocalizePush(!next);
+      setError("Network error — please try again.");
+    } finally {
+      setSaving(false);
+    }
   }
 
   return (
@@ -78,6 +91,7 @@ export function AgentLocalizationTab({ agentId, initialLocalizePush }: Props) {
           </div>
           <Switch checked={localizePush} onCheckedChange={handleLocalizePush} disabled={saving} />
         </div>
+        {error && <p className="text-xs text-destructive mt-2" role="alert">{error}</p>}
       </CardContent>
     </Card>
   );
