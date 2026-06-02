@@ -12,54 +12,11 @@ import {
   resolveSpecificVerseDeeplink,
   type SpecificVerseDeeplinkMode,
 } from "@/lib/push-deeplinks";
+import { PUSH_CATEGORIES } from "@/lib/push-categories";
 
 // ─── Category / subcategory catalogue ────────────────────────────────────────
 
-type Subcategory = { value: string; label: string };
-type Category = { value: string; label: string; subcategories: Subcategory[] };
-
-const CATEGORIES: Category[] = [
-  {
-    value: "reader",
-    label: "Reader",
-    subcategories: [
-      { value: "open-bible",     label: "Open Bible" },
-      { value: "specific-verse", label: "Specific Verse" },
-      { value: "audio-bible",    label: "Audio Bible" },
-    ],
-  },
-  {
-    value: "plans",
-    label: "Plans",
-    subcategories: [
-      { value: "find-plans",  label: "Find Plans" },
-      { value: "my-plans",    label: "My Plans" },
-      { value: "saved-plans", label: "Saved Plans" },
-    ],
-  },
-  {
-    value: "votd",
-    label: "VOTD",
-    subcategories: [
-      { value: "votd-page", label: "Verse of the Day" },
-    ],
-  },
-  {
-    value: "guided-scripture",
-    label: "Guided Scripture",
-    subcategories: [
-      { value: "todays-story", label: "Today's Story" },
-    ],
-  },
-  {
-    value: "guided-prayer",
-    label: "Guided Prayer",
-    subcategories: [
-      { value: "prayer-list",    label: "Prayer List" },
-      { value: "guided-prayer",  label: "Guided Prayer" },
-    ],
-  },
-];
+const CATEGORIES = PUSH_CATEGORIES;
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -90,8 +47,10 @@ export type TemplatePickerHandle = {
 
 function buildMessageName(category: string, subcategory: string): string {
   const cat = CATEGORIES.find((c) => c.value === category);
-  const sub = cat?.subcategories.find((s) => s.value === subcategory);
-  if (!cat || !sub) return "";
+  if (!cat) return "";
+  if (cat.subcategories.length === 0) return cat.label;
+  const sub = cat.subcategories.find((s) => s.value === subcategory);
+  if (!sub) return "";
   return `${cat.label} — ${sub.label}`;
 }
 
@@ -100,13 +59,14 @@ function buildMessageName(category: string, subcategory: string): string {
 export const TemplatePicker = forwardRef<TemplatePickerHandle, TemplatePickerProps>(
   function TemplatePicker(props, ref) {
   const firstCategory = CATEGORIES[0];
-  const firstSubcategory = firstCategory.subcategories[0];
 
   const [selectedCategory, setSelectedCategory] = useState<string>(firstCategory.value);
-  const [selectedSubcategory, setSelectedSubcategory] = useState<string>(firstSubcategory.value);
+  const [selectedSubcategory, setSelectedSubcategory] = useState<string>(
+    firstCategory.subcategories[0]?.value ?? "",
+  );
   const [selectedVariantIds, setSelectedVariantIds] = useState<Set<string>>(new Set());
   const [messageName, setMessageName] = useState<string>(
-    buildMessageName(firstCategory.value, firstSubcategory.value),
+    buildMessageName(firstCategory.value, firstCategory.subcategories[0]?.value ?? ""),
   );
   const [nameManuallyEdited, setNameManuallyEdited] = useState(false);
   const [fetchState, setFetchState] = useState<FetchState>({ status: "idle" });
@@ -178,7 +138,7 @@ export const TemplatePicker = forwardRef<TemplatePickerHandle, TemplatePickerPro
     const cat = CATEGORIES.find((c) => c.value === categoryValue);
     if (!cat) return;
     setSelectedCategory(categoryValue);
-    setSelectedSubcategory(cat.subcategories[0].value);
+    setSelectedSubcategory(cat.subcategories[0]?.value ?? "");
   }
 
   function handleSubcategoryClick(subcategoryValue: string) {
@@ -316,23 +276,25 @@ export const TemplatePicker = forwardRef<TemplatePickerHandle, TemplatePickerPro
       </div>
 
       {/* Subcategory pills */}
-      <div>
-        <p className="mb-2 text-xs font-medium text-muted-foreground uppercase tracking-wide">
-          Sub-goal
-        </p>
-        <div className="flex flex-wrap gap-1.5">
-          {currentCategory.subcategories.map((sub) => (
-            <Button
-              key={sub.value}
-              variant={sub.value === selectedSubcategory ? "default" : "outline"}
-              size="xs"
-              onClick={() => handleSubcategoryClick(sub.value)}
-            >
-              {sub.label}
-            </Button>
-          ))}
+      {currentCategory.subcategories.length > 0 && (
+        <div>
+          <p className="mb-2 text-xs font-medium text-muted-foreground uppercase tracking-wide">
+            Sub-goal
+          </p>
+          <div className="flex flex-wrap gap-1.5">
+            {currentCategory.subcategories.map((sub) => (
+              <Button
+                key={sub.value}
+                variant={sub.value === selectedSubcategory ? "default" : "outline"}
+                size="xs"
+                onClick={() => handleSubcategoryClick(sub.value)}
+              >
+                {sub.label}
+              </Button>
+            ))}
+          </div>
         </div>
-      </div>
+      )}
 
       {/* Deeplink Version toggle — specific-verse only */}
       {selectedSubcategory === "specific-verse" && (

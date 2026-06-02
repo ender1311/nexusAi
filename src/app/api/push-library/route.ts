@@ -4,10 +4,7 @@ import { prisma } from "@/lib/db";
 import { requireAdmin } from "@/lib/auth";
 import { LIBRARY_AGENT_NAME } from "@/lib/engine/template-sync";
 import { fail, handleRouteError } from "@/lib/api/respond";
-
-const VALID_CATEGORIES = new Set([
-  "reader", "plans", "votd", "guided-scripture", "guided-prayer", "giving",
-]);
+import { VALID_PUSH_CATEGORIES } from "@/lib/push-categories";
 
 export async function GET() {
   try {
@@ -85,7 +82,7 @@ export async function POST(req: NextRequest) {
   if (typeof name !== "string" || name.trim() === "") {
     return fail("name is required", 400);
   }
-  if (typeof category !== "string" || !VALID_CATEGORIES.has(category)) {
+  if (typeof category !== "string" || !VALID_PUSH_CATEGORIES.has(category)) {
     return fail("Invalid category", 400);
   }
   if (typeof msgBody !== "string" || msgBody.trim() === "") {

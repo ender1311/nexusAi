@@ -9,6 +9,7 @@ import { cn } from "@/lib/utils";
 import { TemplateCard } from "./template-card";
 import { TemplateFormSheet } from "./template-form-sheet";
 import { DeleteConfirmDialog } from "./delete-confirm-dialog";
+import { PUSH_CATEGORY_VALUES } from "@/lib/push-categories";
 
 export type TemplateVariant = {
   id: string;
@@ -33,7 +34,7 @@ type Props = {
   isAdmin: boolean;
 };
 
-const CATEGORY_ORDER = ["reader", "votd", "plans", "guided-scripture", "guided-prayer", "giving"];
+const CATEGORY_ORDER = PUSH_CATEGORY_VALUES;
 
 export function PushLibraryClient({ groups, isAdmin }: Props) {
   const [view, setView] = useState<"grid" | "table">("table");

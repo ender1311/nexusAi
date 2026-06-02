@@ -30,34 +30,10 @@ import {
   type SpecificVerseDeeplinkMode,
 } from "@/lib/push-deeplinks";
 import { cn } from "@/lib/utils";
+import { PUSH_CATEGORY_VALUES, PUSH_SUBCATEGORIES } from "@/lib/push-categories";
 
-const CATEGORIES = [
-  "reader",
-  "plans",
-  "votd",
-  "guided-scripture",
-  "guided-prayer",
-  "giving",
-] as const;
-
-const SUBCATEGORIES: Record<string, string[]> = {
-  reader: ["open-bible", "audio-bible", "specific-verse"],
-  plans: ["find-plans", "my-plans", "saved-plans"],
-  votd: ["votd-page", "todays-story"],
-  "guided-scripture": [],
-  "guided-prayer": ["guided-prayer", "prayer-list"],
-  giving: [
-    "monthly-appeal",
-    "giving-tuesday",
-    "eoy",
-    "matching-gift",
-    "recurring-gift",
-    "sower-generosity",
-    "impact-story",
-    "prayer",
-    "thank-you-followup",
-  ],
-};
+const CATEGORIES = PUSH_CATEGORY_VALUES;
+const SUBCATEGORIES = PUSH_SUBCATEGORIES;
 
 type TemplateVariant = {
   id: string;

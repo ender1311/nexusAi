@@ -5,54 +5,11 @@ import { Check, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import type { VariantWithMessage } from "@/types/agent";
+import { PUSH_CATEGORIES } from "@/lib/push-categories";
 
-// ─── Category / subcategory catalogue (shared with TemplatePicker) ────────────
+// ─── Category / subcategory catalogue ─────────────────────────────────────────
 
-type Subcategory = { value: string; label: string };
-type Category = { value: string; label: string; subcategories: Subcategory[] };
-
-const CATEGORIES: Category[] = [
-  {
-    value: "reader",
-    label: "Reader",
-    subcategories: [
-      { value: "open-bible",     label: "Open Bible" },
-      { value: "specific-verse", label: "Specific Verse" },
-      { value: "audio-bible",    label: "Audio Bible" },
-    ],
-  },
-  {
-    value: "plans",
-    label: "Plans",
-    subcategories: [
-      { value: "find-plans",  label: "Find Plans" },
-      { value: "my-plans",    label: "My Plans" },
-      { value: "saved-plans", label: "Saved Plans" },
-    ],
-  },
-  {
-    value: "votd",
-    label: "VOTD",
-    subcategories: [
-      { value: "votd-page", label: "Verse of the Day" },
-    ],
-  },
-  {
-    value: "guided-scripture",
-    label: "Guided Scripture",
-    subcategories: [
-      { value: "todays-story", label: "Today's Story" },
-    ],
-  },
-  {
-    value: "guided-prayer",
-    label: "Guided Prayer",
-    subcategories: [
-      { value: "prayer-list",   label: "Prayer List" },
-      { value: "guided-prayer", label: "Guided Prayer" },
-    ],
-  },
-];
+const CATEGORIES = PUSH_CATEGORIES;
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -80,10 +37,11 @@ export function VariantPicker({
   onCancel,
 }: VariantPickerProps) {
   const firstCategory = CATEGORIES[0];
-  const firstSubcategory = firstCategory.subcategories[0];
 
   const [selectedCategory, setSelectedCategory] = useState<string>(firstCategory.value);
-  const [selectedSubcategory, setSelectedSubcategory] = useState<string>(firstSubcategory.value);
+  const [selectedSubcategory, setSelectedSubcategory] = useState<string>(
+    firstCategory.subcategories[0]?.value ?? "",
+  );
   const [selectedVariantIds, setSelectedVariantIds] = useState<Set<string>>(new Set());
   const [fetchState, setFetchState] = useState<FetchState>({ status: "idle" });
   const [saving, setSaving] = useState(false);
@@ -126,7 +84,7 @@ export function VariantPicker({
     const cat = CATEGORIES.find((c) => c.value === categoryValue);
     if (!cat) return;
     setSelectedCategory(categoryValue);
-    setSelectedSubcategory(cat.subcategories[0].value);
+    setSelectedSubcategory(cat.subcategories[0]?.value ?? "");
   }
 
   function handleVariantToggle(variantId: string) {
@@ -208,21 +166,23 @@ export function VariantPicker({
       </div>
 
       {/* Subcategory pills */}
-      <div>
-        <p className="mb-2 text-xs font-medium text-muted-foreground uppercase tracking-wide">Sub-goal</p>
-        <div className="flex flex-wrap gap-1.5">
-          {currentCategory.subcategories.map((sub) => (
-            <Button
-              key={sub.value}
-              variant={sub.value === selectedSubcategory ? "default" : "outline"}
-              size="xs"
-              onClick={() => setSelectedSubcategory(sub.value)}
-            >
-              {sub.label}
-            </Button>
-          ))}
+      {currentCategory.subcategories.length > 0 && (
+        <div>
+          <p className="mb-2 text-xs font-medium text-muted-foreground uppercase tracking-wide">Sub-goal</p>
+          <div className="flex flex-wrap gap-1.5">
+            {currentCategory.subcategories.map((sub) => (
+              <Button
+                key={sub.value}
+                variant={sub.value === selectedSubcategory ? "default" : "outline"}
+                size="xs"
+                onClick={() => setSelectedSubcategory(sub.value)}
+              >
+                {sub.label}
+              </Button>
+            ))}
+          </div>
         </div>
-      </div>
+      )}
 
       {/* Approved variant list */}
       <div>
