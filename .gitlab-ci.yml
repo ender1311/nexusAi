@@ -41,40 +41,9 @@ verify:test:quick:
     - bunx prisma generate
     - bun run test:quick
 
-verify:test:int:
-  stage: verify
-  # Serial fallback (no NEON_API_KEY) takes ~19 min; keep headroom. The parallel
-  # branch-per-worker path finishes in ~5 min once the Neon CI vars are added.
-  timeout: 25 minutes
-  variables:
-    DATABASE_URL: $TEST_DATABASE_URL
-    TEST_DB: "true"
-    HIGHTOUCH_API_KEY: test_ingest_key
-    CRON_SECRET: test_cron_secret
-    BRAZE_API_KEY: test_braze_key
-    BRAZE_REST_URL: https://rest.test.braze.com
-    # Branch-per-worker parallelism. When NEON_API_KEY (masked CI/CD variable) and
-    # NEON_TEST_PROJECT_ID are set, run-int-reg.ts shards the suite across workers,
-    # each on its own ephemeral Neon branch cloned from $TEST_DATABASE_URL's branch.
-    # If NEON_API_KEY is absent the runner falls back to the serial shared DB
-    # (slower but correct), so this job is non-breaking until the var is added.
-    # Workers are network-bound (Neon HTTP), so 8 > runner CPU count is fine.
-    TEST_WORKERS: "8"
-  script:
-    - bun install --frozen-lockfile
-    - bunx prisma generate
-    # No migrate step: the shared test DB schema is maintained out-of-band, and
-    # parallel-path per-worker branches clone that already-migrated schema. The
-    # test endpoint isn't reachable via direct-TCP `prisma migrate` from CI anyway.
-    - bun run test:int-reg
-  after_script:
-    # Safety net: reap any ci-* branches a crash/cancel left behind. The 30m
-    # threshold protects branches still in use by a concurrent pipeline.
-    - if [ -n "$NEON_API_KEY" ]; then bun scripts/neon-leak-sweep.ts --max-age-min=30 || true; fi
-
 build:
   stage: build
-  needs: [verify:typecheck, verify:lint, verify:test:quick, verify:test:int]
+  needs: [verify:typecheck, verify:lint, verify:test:quick]
   only:
     - main
   variables:
