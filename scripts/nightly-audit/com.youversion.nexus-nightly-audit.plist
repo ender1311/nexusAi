@@ -1,0 +1,55 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<!--
+  Nexus nightly audit LaunchAgent.
+
+  Install:
+    mkdir -p ~/.nexus-nightly-audit/logs
+    cp scripts/nightly-audit/com.youversion.nexus-nightly-audit.plist ~/Library/LaunchAgents/
+    launchctl load ~/Library/LaunchAgents/com.youversion.nexus-nightly-audit.plist
+
+  Trigger a one-off run now:
+    launchctl start com.youversion.nexus-nightly-audit
+
+  Uninstall:
+    launchctl unload ~/Library/LaunchAgents/com.youversion.nexus-nightly-audit.plist
+    rm ~/Library/LaunchAgents/com.youversion.nexus-nightly-audit.plist
+-->
+<plist version="1.0">
+<dict>
+    <key>Label</key>
+    <string>com.youversion.nexus-nightly-audit</string>
+
+    <key>ProgramArguments</key>
+    <array>
+        <string>/bin/bash</string>
+        <string>/Users/danluk/repos/nexus/scripts/nightly-audit/run.sh</string>
+    </array>
+
+    <key>EnvironmentVariables</key>
+    <dict>
+        <key>PATH</key>
+        <string>/opt/homebrew/bin:/usr/local/bin:/usr/bin:/bin:/usr/sbin:/sbin</string>
+        <key>HOME</key>
+        <string>/Users/danluk</string>
+    </dict>
+
+    <!-- Fire nightly at 02:47 local (off-minute to avoid API rush). -->
+    <key>StartCalendarInterval</key>
+    <dict>
+        <key>Hour</key>
+        <integer>2</integer>
+        <key>Minute</key>
+        <integer>47</integer>
+    </dict>
+
+    <!-- Don't run at login/load — only on the schedule above. -->
+    <key>RunAtLoad</key>
+    <false/>
+
+    <key>StandardOutPath</key>
+    <string>/Users/danluk/.nexus-nightly-audit/logs/launchd.out.log</string>
+    <key>StandardErrorPath</key>
+    <string>/Users/danluk/.nexus-nightly-audit/logs/launchd.err.log</string>
+</dict>
+</plist>
