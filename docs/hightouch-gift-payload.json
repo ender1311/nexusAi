@@ -1,21 +1,22 @@
 {
-    "users": [
-        {% for row in rows %}
-        {
-            "external_user_id": {{ row['user_id'] | append: '' | json }},
-            "braze_id": {{ row['braze_user_id_latest'] | append: '' | json }},
-            "attributes": {
-                "donor_alias_ids": {{ row['donor_alias_ids_all'] | append: '' | json }},
-                "gift_count_past_3_to_36_months": {{ row['Gifts Given within the past 3 to 36 Months'] | default: 0 | json }},
-                "gift_currency_most_recent": {{ row['gift_currency_latest'] | default: "" | json }},
-                "gift_amount_most_recent_timestamp": {{ row['gift_amount_latest_timestamp'] | default: "" | json }},
-                "gift_amount_most_recent": {{ row['gift_amount_latest'] | default: 0 | json }},
-                "gift_amount_average": {{ row['gift_amount_average'] | default: 0 | json }},
-                "gift_amount_maximum": {{ row['gift_amount_maximum'] | default: 0 | json }},
-                "gift_amount_lifetime": {{ row['gift_amount_lifetime'] | default: 0 | json }},
-                "gift_count_lifetime": {{ row['gift_count_lifetime'] | default: 0 | json }}
-            }
-        }{% unless forloop.last %},{% endunless %}
-        {% endfor %}
-        ]
-    }
+  "users": [
+    {% for row in rows %}
+    {
+      "external_user_id": "{{ row['user_id'] | default: '' }}",
+      "braze_id": "{{ row['braze_user_id_latest'] | default: '' }}",
+      "attributes": {
+        "donor_alias_ids": "{{ row['donor_alias_ids_all'] | default: '' }}",
+        "has_recurring_gift": {{ row['Has Active Recurring Gift to the YouVersion Fund'] | default: false }},
+        "gift_count_past_3_to_36_months": {{ row['Gifts Given within the past 3 to 36 Months'] | default: 0 }},
+        "gift_currency_most_recent": "{{ row['gift_currency_latest'] | default: '' }}",
+        "gift_amount_most_recent_timestamp": "{{ row['gift_amount_latest_timestamp'] | default: '' }}",
+        "gift_amount_most_recent": {{ row['gift_amount_latest'] | default: 0 }},
+        "gift_amount_average": {{ row['gift_amount_average'] | default: 0 }},
+        "gift_amount_maximum": {{ row['gift_amount_maximum'] | default: 0 }},
+        "gift_amount_lifetime": {{ row['gift_amount_lifetime'] | default: 0 }},
+        "gift_count_lifetime": {{ row['gift_count_lifetime'] | default: 0 }}
+      }
+    }{% unless forloop.last %},{% endunless %}
+    {% endfor %}
+  ]
+}
