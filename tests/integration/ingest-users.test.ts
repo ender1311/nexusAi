@@ -981,6 +981,127 @@ describe("flat Hightouch user sync rows", () => {
   });
 });
 
+// ── flat column-mapping rows WITH identity (Lapsed Habitual MAU style) ─────
+// These rows carry external_user_id / braze_id at the TOP LEVEL alongside flat
+// attribute columns and NO nested `attributes` object. Before the fix they
+// bypassed normalization and every flat attribute field was silently dropped.
+describe("flat column-mapping user sync rows with top-level identity", () => {
+  it("folds all flat top-level attribute fields into attributes", async () => {
+    const lastSeen = "2026-05-20T13:05:00.000Z";
+    const payload = {
+      external_user_id: "usr_flat_identity_1",
+      braze_id: "braze_flat_identity_1",
+      funnel_stage: "lapsed_mau",
+      last_seen_at: lastSeen,
+      email: "person@example.com",
+      first_name: "Ada",
+      language_tag: "en",
+      plan_locale: "en-US",
+      newsletter_push_enabled: true,
+      newsletter_email_enabled: false,
+      first_seen_at: "2025-01-02T00:00:00.000Z",
+      timezone: "America/Chicago",
+    };
+
+    const res = await POST(buildRequest("POST", payload, AUTH) as NextRequest);
+    const body = await res.json();
+
+    expect(res.status).toBe(200);
+    expect(body.upserted).toBe(1);
+
+    const user = await prisma.trackedUser.findUnique({ where: { externalId: "usr_flat_identity_1" } });
+    expect(user).not.toBeNull();
+    expect(user!.brazeId).toBe("braze_flat_identity_1");
+    expect(user!.funnelStage).toBe("lapsed_mau");
+
+    const attrs = user!.attributes as Record<string, unknown>;
+    expect(attrs.last_seen_at).toBe(lastSeen);
+    expect(attrs.email).toBe("person@example.com");
+    expect(attrs.first_name).toBe("Ada");
+    expect(attrs.language_tag).toBe("en");
+    expect(attrs.plan_locale).toBe("en-US");
+    expect(attrs.newsletter_push_enabled).toBe(true);
+    expect(attrs.newsletter_email_enabled).toBe(false);
+    expect(attrs.first_seen_at).toBe("2025-01-02T00:00:00.000Z");
+    expect(attrs.timezone).toBe("America/Chicago");
+
+    // Identity/control keys must NOT leak into attributes.
+    expect("external_user_id" in attrs).toBe(false);
+    expect("braze_id" in attrs).toBe(false);
+    expect("funnel_stage" in attrs).toBe(false);
+
+    // last_seen_at → preferred send time still derived.
+    expect(user!.preferredSendHour).toBe(13);
+    expect(user!.preferredSendMinute).toBe(5);
+  });
+
+  it("does NOT fold flat fields when a nested attributes object is present (Liquid template path)", async () => {
+    const payload = {
+      external_user_id: "usr_nested_wins",
+      braze_id: "braze_nested_wins",
+      // Stray top-level field that should be IGNORED because attributes is nested.
+      email: "ignored@example.com",
+      attributes: { language_tag: "en", plan_locale: "en-GB" },
+    };
+
+    const res = await POST(buildRequest("POST", payload, AUTH) as NextRequest);
+    const body = await res.json();
+
+    expect(res.status).toBe(200);
+    expect(body.upserted).toBe(1);
+
+    const user = await prisma.trackedUser.findUnique({ where: { externalId: "usr_nested_wins" } });
+    const attrs = user!.attributes as Record<string, unknown>;
+    expect(attrs.language_tag).toBe("en");
+    expect(attrs.plan_locale).toBe("en-GB");
+    // Top-level email is not folded when attributes is already nested.
+    expect("email" in attrs).toBe(false);
+  });
+
+  it("renames Hightouch column aliases to canonical attribute keys", async () => {
+    const payload = {
+      external_user_id: "usr_alias_map",
+      "User Last Seen": "2026-05-21T09:30:00.000Z",
+      plan_locale_latest: "es-MX",
+    };
+
+    const res = await POST(buildRequest("POST", payload, AUTH) as NextRequest);
+    expect(res.status).toBe(200);
+
+    const user = await prisma.trackedUser.findUnique({ where: { externalId: "usr_alias_map" } });
+    const attrs = user!.attributes as Record<string, unknown>;
+    expect(attrs.last_seen_at).toBe("2026-05-21T09:30:00.000Z");
+    expect(attrs.plan_locale).toBe("es-MX");
+    // Raw alias column names should not also be present.
+    expect("User Last Seen" in attrs).toBe(false);
+    expect("plan_locale_latest" in attrs).toBe(false);
+  });
+
+  it("folds flat fields for rows inside a wrapped users batch", async () => {
+    const payload = {
+      users: [
+        {
+          external_user_id: "usr_batch_flat",
+          braze_id: "braze_batch_flat",
+          email: "batch@example.com",
+          newsletter_push_enabled: true,
+        },
+      ],
+    };
+
+    const res = await POST(buildRequest("POST", payload, AUTH) as NextRequest);
+    const body = await res.json();
+
+    expect(res.status).toBe(200);
+    expect(body.upserted).toBe(1);
+
+    const user = await prisma.trackedUser.findUnique({ where: { externalId: "usr_batch_flat" } });
+    const attrs = user!.attributes as Record<string, unknown>;
+    expect(attrs.email).toBe("batch@example.com");
+    expect(attrs.newsletter_push_enabled).toBe(true);
+  });
+});
+
 // ── Canvas exact attribution ───────────────────────────────────────────────────
 // When canvas_step_id is present and maps to a known MessageVariant, the open
 // is exactly attributed to that arm and arm stats are updated immediately.
