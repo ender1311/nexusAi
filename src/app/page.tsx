@@ -7,6 +7,7 @@ import { MetricCard } from "@/components/charts/metric-card";
 import { TimeSeriesChart } from "@/components/charts/time-series-chart";
 import { PersonaDistributionChart } from "@/components/charts/persona-distribution";
 import { FunnelStageBreakdown } from "@/components/charts/funnel-stage-breakdown";
+import { ChannelPreferenceBreakdown } from "@/components/charts/channel-preference-breakdown";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -20,6 +21,7 @@ import {
   getCachedRecentDecisions,
   getCachedAllVariantNames,
   getCachedFunnelStageBreakdown,
+  getCachedPreferredChannelStats,
   getCachedFleetRecoveryStats,
   getCachedFleetGiftStats,
 } from "@/lib/cache";
@@ -347,6 +349,12 @@ async function FunnelBreakdownSection() {
   return <FunnelStageBreakdown rows={rows} />;
 }
 
+async function ChannelBreakdownSection() {
+  const stats = await getCachedPreferredChannelStats().catch(() => null);
+  if (!stats) return null;
+  return <ChannelPreferenceBreakdown stats={stats} />;
+}
+
 // ---------------------------------------------------------------------------
 // Main page — synchronous shell, all data streams via Suspense
 // ---------------------------------------------------------------------------
@@ -364,6 +372,7 @@ export default function DashboardPage() {
   void getCachedAllVariantNames();
   void getCachedPersonaDistribution();
   void getCachedFunnelStageBreakdown();
+  void getCachedPreferredChannelStats();
   void getCachedFleetRecoveryStats();
 
   return (
@@ -408,13 +417,16 @@ export default function DashboardPage() {
           </Suspense>
         </div>
 
-        {/* Funnel breakdown + Persona distribution side by side */}
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 sm:gap-6">
+        {/* Funnel breakdown + Persona distribution + Channel preference side by side */}
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 sm:gap-6">
           <Suspense fallback={<CardSkeleton />}>
             <FunnelBreakdownSection />
           </Suspense>
           <Suspense fallback={<CardSkeleton />}>
             <PersonaChartSection />
+          </Suspense>
+          <Suspense fallback={<CardSkeleton />}>
+            <ChannelBreakdownSection />
           </Suspense>
         </div>
 

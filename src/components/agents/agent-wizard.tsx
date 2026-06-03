@@ -9,7 +9,7 @@ import { Badge } from "@/components/ui/badge";
 import { Slider } from "@/components/ui/slider";
 import { Switch } from "@/components/ui/switch";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { cn } from "@/lib/utils";
+import { cn, formatNumber } from "@/lib/utils";
 import { Check, ChevronRight, Bot, Target, MessageSquare, Calendar, Rocket, Pencil } from "lucide-react";
 import { GoalTier, Channel, FrequencyCap, FunnelStage, FUNNEL_STAGES, FUNNEL_STAGE_META, Algorithm } from "@/types/agent";
 import { estimateConvergence } from "@/lib/convergence";
@@ -238,7 +238,15 @@ const UNIQUE_USERS_PRESETS = [
   { label: "Unlimited", value: "unlimited" },
 ];
 
-export function AgentWizard({ personas }: { personas: Persona[] }) {
+export function AgentWizard({
+  personas,
+  pushPreferredCount = 0,
+  totalUsers = 0,
+}: {
+  personas: Persona[];
+  pushPreferredCount?: number;
+  totalUsers?: number;
+}) {
   const router = useRouter();
   const [step, setStep] = useState(1);
   const [form, setForm] = useState<FormData>(defaultForm);
@@ -669,6 +677,13 @@ export function AgentWizard({ personas }: { personas: Persona[] }) {
           <p className="text-sm text-muted-foreground">
             Configure which channels and message variants the agent can test.
           </p>
+
+          {totalUsers > 0 && (
+            <p className="text-xs text-muted-foreground rounded-md border bg-muted/30 px-3 py-2">
+              <span className="font-medium text-foreground">{formatNumber(pushPreferredCount)}</span> of{" "}
+              {formatNumber(totalUsers)} tracked users prefer push as their channel (external, 90-day).
+            </p>
+          )}
 
           {/* Push channel: use the full TemplatePicker in draft mode */}
           {newMsg.channel === "push" ? (
