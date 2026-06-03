@@ -39,10 +39,10 @@
 | `SOURCE_APPLICATION` | `attributes.source_application` |
 | `VERIFIED_FLAG` | `attributes.verified` |
 | `SUSPENDED_TIMESTAMP` | `attributes.suspended_at` (raw timestamp string, null if not suspended) |
-| Trait: Preferred Channel Overall 30 Days | `attributes.preferred_channel_30d` |
-| Trait: Preferred Channel Overall 90 Days | `attributes.preferred_channel_90d` |
-| Trait: Preferred Channel External 30 Days | `attributes.preferred_channel_external_30d` |
-| Trait: Preferred Channel External 90 Days | `attributes.preferred_channel_external_90d` |
+| Trait: Preferred Channel Overall 30 Days | `attributes.preferred_channel_overall_30_days` |
+| Trait: Preferred Channel Overall 90 Days | `attributes.preferred_channel_overall_90_days` |
+| Trait: Preferred Channel External 30 Days | `attributes.preferred_channel_external_30_days` |
+| Trait: Preferred Channel External 90 Days | `attributes.preferred_channel_external_90_days` |
 | Trait: Has Active Recurring Gift to the YouVersion Fund | `attributes.has_recurring_gift` |
 | Trait: Gifts Given within the past 3 to 36 Months | `attributes.gifts_count_3_36mo` |
 

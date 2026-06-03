@@ -8,6 +8,20 @@ const AgentWizard = dynamic(
   { ssr: false },
 );
 
-export function AgentWizardClient({ personas }: { personas: Persona[] }) {
-  return <AgentWizard personas={personas} />;
+export function AgentWizardClient({
+  personas,
+  pushPreferredCount,
+  totalUsers,
+}: {
+  personas: Persona[];
+  pushPreferredCount: number;
+  totalUsers: number;
+}) {
+  return (
+    <AgentWizard
+      personas={personas}
+      pushPreferredCount={pushPreferredCount}
+      totalUsers={totalUsers}
+    />
+  );
 }

@@ -116,6 +116,62 @@ export const getCachedRecentDecisions = cache(
 );
 
 /**
+ * Preferred-channel visibility (synced from Hightouch into TrackedUser.attributes).
+ *  - external_90: push-vs-email preference over the last 90 days — the actionable
+ *    signal for an outbound push agent. Surfaced in the agent-creation wizard.
+ *  - overall_90: preference across all four channels — the dashboard portfolio view.
+ * Single full-table scan via FILTER aggregates. Tagged "user-count" (NOT
+ * "dashboard-stats") and DAY TTL so the hourly cron does not bust this 33M-row scan.
+ */
+export type PreferredChannelStats = {
+  total: number;
+  external: { push_notification: number; email: number };
+  overall: { push_notification: number; email: number; in_app_message: number; content_card: number };
+};
+
+export const getCachedPreferredChannelStats = cache(
+  unstable_cache(
+    async (): Promise<PreferredChannelStats> => {
+      const rows = await prisma.$queryRaw<[{
+        total: bigint;
+        ext_push: bigint;
+        ext_email: bigint;
+        ov_push: bigint;
+        ov_email: bigint;
+        ov_inapp: bigint;
+        ov_cc: bigint;
+      }]>`
+        SELECT
+          COUNT(*)::bigint                                                                                       AS total,
+          COUNT(*) FILTER (WHERE "attributes"->>'preferred_channel_external_90_days' = 'push_notification')::bigint AS ext_push,
+          COUNT(*) FILTER (WHERE "attributes"->>'preferred_channel_external_90_days' = 'email')::bigint             AS ext_email,
+          COUNT(*) FILTER (WHERE "attributes"->>'preferred_channel_overall_90_days' = 'push_notification')::bigint  AS ov_push,
+          COUNT(*) FILTER (WHERE "attributes"->>'preferred_channel_overall_90_days' = 'email')::bigint              AS ov_email,
+          COUNT(*) FILTER (WHERE "attributes"->>'preferred_channel_overall_90_days' = 'in_app_message')::bigint     AS ov_inapp,
+          COUNT(*) FILTER (WHERE "attributes"->>'preferred_channel_overall_90_days' = 'content_card')::bigint       AS ov_cc
+        FROM "User"
+      `;
+      const r = rows[0];
+      return {
+        total: Number(r.total),
+        external: {
+          push_notification: Number(r.ext_push),
+          email: Number(r.ext_email),
+        },
+        overall: {
+          push_notification: Number(r.ov_push),
+          email: Number(r.ov_email),
+          in_app_message: Number(r.ov_inapp),
+          content_card: Number(r.ov_cc),
+        },
+      };
+    },
+    ["preferred-channel-stats"],
+    { tags: ["user-count"], revalidate: TTL.DAY }
+  )
+);
+
+/**
  * Funnel stage breakdown for dashboard + control tower.
  * Tagged "funnel-breakdown" (NOT "dashboard-stats") so the hourly cron
  * revalidateTag("dashboard-stats") does not bust this GROUP BY query on 19M+ rows.
