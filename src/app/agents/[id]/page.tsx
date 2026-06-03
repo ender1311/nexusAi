@@ -595,7 +595,7 @@ async function AudienceTabContent({
     const memberDetails = rawMembers.length > 0
       ? await prisma.trackedUser.findMany({
           where: { externalId: { in: rawMembers.map((m) => m.externalId) } },
-          select: { externalId: true, attributes: true, personaId: true },
+          select: { externalId: true, personaId: true },
         })
       : [];
 
@@ -676,25 +676,18 @@ async function AudienceTabContent({
                 <thead>
                   <tr className="border-b text-xs text-muted-foreground">
                     <th className="px-4 py-2 text-left font-medium">External ID</th>
-                    <th className="px-4 py-2 text-left font-medium">Name</th>
-                    <th className="hidden sm:table-cell px-4 py-2 text-left font-medium">Email</th>
                     <th className="px-4 py-2 text-left font-medium">Persona</th>
                   </tr>
                 </thead>
                 <tbody>
-                  {memberDetails.map((u) => {
-                    const attrs = (u.attributes ?? {}) as Record<string, unknown>;
-                    return (
-                      <tr key={u.externalId} className="border-b last:border-0 hover:bg-muted/40">
-                        <td className="px-4 py-2 font-mono text-xs max-w-[100px] truncate">{u.externalId}</td>
-                        <td className="px-4 py-2 max-w-[80px] truncate">{String(attrs.first_name ?? "—")}</td>
-                        <td className="hidden sm:table-cell px-4 py-2 text-muted-foreground max-w-[160px] truncate">{String(attrs.email ?? "—")}</td>
-                        <td className="px-4 py-2 max-w-[90px] truncate text-muted-foreground text-xs">
-                          {u.personaId ? (personaById.get(u.personaId) ?? u.personaId) : "—"}
-                        </td>
-                      </tr>
-                    );
-                  })}
+                  {memberDetails.map((u) => (
+                    <tr key={u.externalId} className="border-b last:border-0 hover:bg-muted/40">
+                      <td className="px-4 py-2 font-mono text-xs max-w-[100px] truncate">{u.externalId}</td>
+                      <td className="px-4 py-2 max-w-[90px] truncate text-muted-foreground text-xs">
+                        {u.personaId ? (personaById.get(u.personaId) ?? u.personaId) : "—"}
+                      </td>
+                    </tr>
+                  ))}
                 </tbody>
               </table>
             </CardContent>
@@ -730,7 +723,7 @@ async function AudienceTabContent({
     const memberDetails = rawMembers.length > 0
       ? await prisma.trackedUser.findMany({
           where: { externalId: { in: rawMembers.map((m) => m.externalId) } },
-          select: { externalId: true, attributes: true, personaId: true },
+          select: { externalId: true, personaId: true },
         })
       : [];
 
@@ -783,25 +776,18 @@ async function AudienceTabContent({
                 <thead>
                   <tr className="border-b text-xs text-muted-foreground">
                     <th className="px-4 py-2 text-left font-medium">External ID</th>
-                    <th className="px-4 py-2 text-left font-medium">Name</th>
-                    <th className="hidden sm:table-cell px-4 py-2 text-left font-medium">Email</th>
                     <th className="px-4 py-2 text-left font-medium">Persona</th>
                   </tr>
                 </thead>
                 <tbody>
-                  {memberDetails.map((u) => {
-                    const attrs = (u.attributes ?? {}) as Record<string, unknown>;
-                    return (
-                      <tr key={u.externalId} className="border-b last:border-0 hover:bg-muted/40">
-                        <td className="px-4 py-2 font-mono text-xs max-w-[100px] truncate">{u.externalId}</td>
-                        <td className="px-4 py-2 max-w-[80px] truncate">{String(attrs.first_name ?? "—")}</td>
-                        <td className="hidden sm:table-cell px-4 py-2 text-muted-foreground max-w-[160px] truncate">{String(attrs.email ?? "—")}</td>
-                        <td className="px-4 py-2 max-w-[90px] truncate text-muted-foreground text-xs">
-                          {u.personaId ? (personaById.get(u.personaId) ?? u.personaId) : "—"}
-                        </td>
-                      </tr>
-                    );
-                  })}
+                  {memberDetails.map((u) => (
+                    <tr key={u.externalId} className="border-b last:border-0 hover:bg-muted/40">
+                      <td className="px-4 py-2 font-mono text-xs max-w-[100px] truncate">{u.externalId}</td>
+                      <td className="px-4 py-2 max-w-[90px] truncate text-muted-foreground text-xs">
+                        {u.personaId ? (personaById.get(u.personaId) ?? u.personaId) : "—"}
+                      </td>
+                    </tr>
+                  ))}
                 </tbody>
               </table>
             </CardContent>
@@ -878,20 +864,15 @@ async function AudienceTabContent({
               <thead>
                 <tr className="border-b text-xs text-muted-foreground">
                   <th className="px-4 py-2 text-left font-medium">External ID</th>
-                  <th className="px-4 py-2 text-left font-medium">Name</th>
-                  <th className="hidden sm:table-cell px-4 py-2 text-left font-medium">Email</th>
                   <th className="px-4 py-2 text-left font-medium">Persona</th>
                 </tr>
               </thead>
               <tbody>
                 {previewUsers.map((u) => {
-                  const attrs = (u.attributes ?? {}) as Record<string, unknown>;
                   const personaName = personaTargets.find((pt) => pt.personaId === u.personaId)?.persona.name ?? "—";
                   return (
                     <tr key={u.externalId} className="border-b last:border-0 hover:bg-muted/40">
                       <td className="px-4 py-2 font-mono text-xs max-w-[100px] truncate">{u.externalId}</td>
-                      <td className="px-4 py-2 max-w-[80px] truncate">{String(attrs.first_name ?? "—")}</td>
-                      <td className="hidden sm:table-cell px-4 py-2 text-muted-foreground max-w-[160px] truncate">{String(attrs.email ?? "—")}</td>
                       <td className="px-4 py-2 max-w-[90px] truncate">{personaName}</td>
                     </tr>
                   );

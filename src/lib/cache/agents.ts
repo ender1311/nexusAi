@@ -87,7 +87,7 @@ export function getCachedAgentAudienceData(agentId: string, personaIds: string[]
         }),
         prisma.trackedUser.findMany({
           where: { personaId: { in: personaIds } },
-          select: { externalId: true, personaId: true, attributes: true },
+          select: { externalId: true, personaId: true },
           take: 20,
         }),
       ]);
