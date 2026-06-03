@@ -292,7 +292,7 @@ export const getCachedFleetRecoveryTrend = cache(
   )
 );
 
-export const getCachedControlTowerStats = unstable_cache(
+export const getCachedControlTowerStats = cache(unstable_cache(
   async () => {
     const [trackedUsers, personas, agents, decisionRows] = await Promise.all([
       prisma.trackedUser.count(),
@@ -315,7 +315,7 @@ export const getCachedControlTowerStats = unstable_cache(
   },
   ["control-tower-stats"],
   { tags: ["dashboard-stats", "agents", "personas"], revalidate: TTL.STANDARD }
-);
+));
 
 /**
  * Fleet gift insight: attributed gift count + USD revenue (SUM of conversionValue)

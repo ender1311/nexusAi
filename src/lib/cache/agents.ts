@@ -118,7 +118,7 @@ export const getCachedAgentList = cache(
 );
 
 /** Agent list for control tower — includes funnelStage and description. */
-export const getCachedControlTowerAgents = unstable_cache(
+export const getCachedControlTowerAgents = cache(unstable_cache(
   () =>
     prisma.agent.findMany({
       where: { name: { not: LIBRARY_AGENT_NAME } },
@@ -127,7 +127,7 @@ export const getCachedControlTowerAgents = unstable_cache(
     }),
   ["control-tower-agents"],
   { tags: ["agents"], revalidate: TTL.STANDARD }
-);
+));
 
 /**
  * Per-agent card stats for the agents list: unique-user counts and push

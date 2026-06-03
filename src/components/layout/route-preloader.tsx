@@ -10,6 +10,8 @@ export function RoutePreloader() {
     router.prefetch("/");
     router.prefetch("/agents");
     router.prefetch("/performance");
+    router.prefetch("/personas");
+    router.prefetch("/control-tower");
 
     const t = setTimeout(() => {
       void fetch("/api/metrics/push-summary");
