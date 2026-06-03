@@ -99,11 +99,11 @@ export function AudienceCapEditor({ agentId, audienceCap }: Props) {
   return (
     <div className="space-y-3">
       <div className="flex items-center gap-1.5 mb-1">
-        <span className="text-xs font-medium text-muted-foreground">Max users per cron run</span>
-        <InfoTip title="Audience Cap">
+        <span className="text-xs font-medium text-muted-foreground">Per-run rollout limit</span>
+        <InfoTip title="Per-run rollout limit">
           <p>Limits how many users receive a message in each cron run. The cap is applied before any message is sent, so a run with cap=100 selects at most 100 users.</p>
           <p className="mt-1"><strong>Start small.</strong> Use 1–20 when first activating an agent to validate that sends look correct before rolling out to your full audience. Increase once confirmed.</p>
-          <p className="mt-1">Every agent must have a cap — this prevents accidental mass-sends and gives you a predictable send rate as you scale.</p>
+          <p className="mt-1">This smooths your send rate and supports canary rollouts. Leave it uncapped to rely on the daily send cap alone.</p>
         </InfoTip>
       </div>
       <div className="flex items-center gap-3">

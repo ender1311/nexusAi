@@ -311,7 +311,7 @@ describe("POST /api/agents — uniqueUsersCap", () => {
     expect(body.uniqueUsersCap).toBeNull();
   });
 
-  it("creates agent without uniqueUsersCap field (defaults to null)", async () => {
+  it("creates agent without uniqueUsersCap field (defaults to safe 1000)", async () => {
     const res = await apiPost("/agents", {
       name: "No Cap Agent",
       algorithm: "thompson",
@@ -321,7 +321,10 @@ describe("POST /api/agents — uniqueUsersCap", () => {
     });
     const body = await res.json();
     expect(res.status).toBe(201);
-    expect(body.uniqueUsersCap).toBeNull();
+    expect(body.uniqueUsersCap).toBe(1000);
+
+    const persisted = await prisma.agent.findUnique({ where: { id: body.id } });
+    expect(persisted!.uniqueUsersCap).toBe(1000);
   });
 
   it("returns 400 when uniqueUsersCap is 0", async () => {
@@ -374,6 +377,19 @@ describe("POST /api/agents — dailySendCap", () => {
     expect(res.status).toBe(201);
     const body = await res.json();
     expect(body.dailySendCap).toBeNull();
+  });
+
+  it("defaults dailySendCap to safe 500 when field omitted", async () => {
+    const res = await apiPost("/agents", {
+      name: "Default Cap Agent",
+      funnelStage: "wau",
+    });
+    expect(res.status).toBe(201);
+    const body = await res.json();
+    expect(body.dailySendCap).toBe(500);
+
+    const persisted = await prisma.agent.findUnique({ where: { id: body.id } });
+    expect(persisted!.dailySendCap).toBe(500);
   });
 
   it("rejects non-positive dailySendCap", async () => {
