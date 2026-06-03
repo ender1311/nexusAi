@@ -27,6 +27,7 @@ export default function SettingsPage() {
 
   // AI Lift Measurement settings
   const [baselineRate, setBaselineRate] = useState("1.2");
+  const [baselineConvRate, setBaselineConvRate] = useState("");
   const [liftSinceDate, setLiftSinceDate] = useState("");
   const [liftSaved, setLiftSaved] = useState(false);
   const [liftSaving, setLiftSaving] = useState(false);
@@ -55,6 +56,7 @@ export default function SettingsPage() {
       .then((r) => r.json())
       .then((data: Record<string, string>) => {
         if (data["baseline_push_open_rate"]) setBaselineRate(data["baseline_push_open_rate"]);
+        if (data["baseline_conversion_rate"]) setBaselineConvRate(data["baseline_conversion_rate"]);
         if (data["lift_since_date"]) setLiftSinceDate(data["lift_since_date"]);
       })
       .catch(() => {});
@@ -68,6 +70,7 @@ export default function SettingsPage() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           baseline_push_open_rate: baselineRate,
+          baseline_conversion_rate: baselineConvRate,
           lift_since_date: liftSinceDate,
         }),
       });
@@ -240,7 +243,8 @@ export default function SettingsPage() {
           </CardHeader>
           <CardContent className="space-y-4">
             <p className="text-xs text-muted-foreground">
-              Configure the non-Nexus baseline used to measure AI-driven lift on the Performance page.
+              Configure the non-Nexus baselines used to measure AI-driven lift on the Performance page.
+              Each baseline is compared like-for-like against the matching Nexus rate.
             </p>
             <div className="flex flex-wrap gap-4">
               <div className="flex-1 min-w-[8rem]">
@@ -255,6 +259,20 @@ export default function SettingsPage() {
                   onChange={(e) => setBaselineRate(e.target.value)}
                   className="mt-1 w-full sm:w-32"
                 />
+              </div>
+              <div className="flex-1 min-w-[8rem]">
+                <label className="text-xs font-medium text-muted-foreground">Baseline conversion rate (%)</label>
+                <Input
+                  type="number"
+                  step="0.1"
+                  min="0"
+                  max="100"
+                  placeholder="0"
+                  value={baselineConvRate}
+                  onChange={(e) => setBaselineConvRate(e.target.value)}
+                  className="mt-1 w-full sm:w-32"
+                />
+                <p className="text-xs text-muted-foreground mt-1">Leave blank until you have a real number.</p>
               </div>
               <div className="flex-1 min-w-[8rem]">
                 <label className="text-xs font-medium text-muted-foreground">Measure Nexus lift from</label>

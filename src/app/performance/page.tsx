@@ -10,7 +10,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { MetricCard } from "@/components/charts/metric-card";
 import { AgentStatusBadge } from "@/components/agents/agent-status-badge";
 import { ChartsSection } from "./charts-section";
-import { LiftPanel } from "@/components/performance/lift-panel";
+import { ComparisonCard } from "@/components/performance/comparison-card";
 import {
   getCachedPerformanceMetrics,
   getCachedVariantMetrics,
@@ -144,14 +144,16 @@ async function KPIsSection() {
   const [
     { sendsByAgent, conversionsByAgent },
     { variantSends },
-    { baselineRate },
+    { baselineConvRate },
     { sendsCount: liftSendsCount, conversionsCount: liftConversionsCount },
   ] = await Promise.all([getPerfMetrics(), getVarMetrics(), getLiftSets(), getLiftCounts()]);
 
   const fleetSendsTotal = sendsByAgent.reduce((s, r) => s + r._count.id, 0);
   const fleetConversionsTotal = conversionsByAgent.reduce((s, r) => s + r._count.id, 0);
   const fleetConvRate = fleetSendsTotal > 0 ? (fleetConversionsTotal / fleetSendsTotal) * 100 : 0;
-  const nexusLift = baselineLiftSignificance(liftSendsCount, liftConversionsCount, baselineRate);
+  const nexusLift = baselineLiftSignificance(liftSendsCount, liftConversionsCount, baselineConvRate);
+  // Relative conversion-rate lift is only meaningful once a non-zero baseline is configured.
+  const convBaselineSet = baselineConvRate > 0;
 
   return (
     <>
@@ -163,7 +165,7 @@ async function KPIsSection() {
         <MetricCard
           title="Nexus Lift vs Baseline"
           value={
-            nexusLift.nexusSends === 0
+            !convBaselineSet || nexusLift.nexusSends === 0
               ? "—"
               : `${nexusLift.relativeLift >= 0 ? "+" : ""}${nexusLift.relativeLift.toFixed(0)}%`
           }
@@ -193,9 +195,51 @@ async function PushOpenRateSection() {
   );
 }
 
-async function LiftPanelSection() {
-  const { sendsCount, conversionsCount } = await getLiftCounts();
-  return <LiftPanel nexusSendsCount={sendsCount} nexusConversionsCount={conversionsCount} />;
+async function ComparisonsSection() {
+  const [
+    { baselineOpenRate, baselineConvRate, liftSince },
+    { sendsCount, conversionsCount, pushSendsCount, pushOpensCount },
+    { rewardByDate },
+  ] = await Promise.all([getLiftSets(), getLiftCounts(), getChartDecisions()]);
+
+  const liftSinceDate = liftSince ? new Date(liftSince) : null;
+  const liftSinceStr = liftSinceDate?.toISOString().slice(0, 10) ?? null;
+
+  // Daily Nexus conversion rate sparkline (scored sends → positive conversions).
+  const convSparkline = rewardByDate
+    .filter((r) => !liftSinceStr || r.date >= liftSinceStr)
+    .map(({ date, scored, positive }) => ({
+      date,
+      sends: scored,
+      conversions: positive,
+      conversionRate: scored > 0 ? parseFloat(((positive / scored) * 100).toFixed(2)) : 0,
+    }));
+
+  return (
+    <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 sm:gap-6">
+      <ComparisonCard
+        title="Push Open Rate"
+        nexusNumerator={pushOpensCount}
+        nexusDenominator={pushSendsCount}
+        baselinePct={baselineOpenRate}
+        metricNoun="open rate"
+        denominatorNoun="push sends"
+        liftSinceDate={liftSinceDate}
+        footer="Nexus rate = push opens / push sends · Baseline: configured in Settings"
+      />
+      <ComparisonCard
+        title="Conversion Rate"
+        nexusNumerator={conversionsCount}
+        nexusDenominator={sendsCount}
+        baselinePct={baselineConvRate}
+        metricNoun="conv rate"
+        denominatorNoun="scored sends"
+        liftSinceDate={liftSinceDate}
+        sparkline={{ data: convSparkline, label: "Daily Nexus conversion rate" }}
+        footer="Nexus rate = reward > 0 / scored sends · Baseline: configured in Settings"
+      />
+    </div>
+  );
 }
 
 async function AgentTableSection() {
@@ -767,8 +811,13 @@ export default function PerformancePage() {
           </Suspense>
         </div>
 
-        <Suspense fallback={<Skeleton className="h-24 w-full rounded-xl" />}>
-          <LiftPanelSection />
+        <Suspense fallback={
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 sm:gap-6">
+            <Skeleton className="h-64 w-full rounded-xl" />
+            <Skeleton className="h-64 w-full rounded-xl" />
+          </div>
+        }>
+          <ComparisonsSection />
         </Suspense>
 
         {/* Charts stream independently — already wrapped in Suspense */}

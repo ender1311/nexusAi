@@ -267,17 +267,26 @@ export const getCachedChartDecisions = unstable_cache(
   { tags: ["performance"], revalidate: TTL.STANDARD }
 );
 
-/** Lift send/conversion counts for the performance page, keyed by liftSince date. */
+/**
+ * Lift counts for the performance page, keyed by liftSince date.
+ *
+ *  sendsCount / conversionsCount — scored sends (reward IS NOT NULL) and positive
+ *    conversions (reward > 0), drive the Conversion Rate comparison.
+ *  pushSendsCount / pushOpensCount — push channel sends and opens
+ *    (channel='push' [AND pushOpenAt IS NOT NULL]), drive the Push Open Rate comparison.
+ */
 export function getCachedLiftCounts(liftSince: Date | null) {
   const liftSinceKey = liftSince instanceof Date ? liftSince.toISOString() : (liftSince ?? "all");
   return unstable_cache(
     async () => {
       const filter = liftSince ? { gte: liftSince } : undefined;
-      const [sendsCount, conversionsCount] = await Promise.all([
+      const [sendsCount, conversionsCount, pushSendsCount, pushOpensCount] = await Promise.all([
         prisma.userDecision.count({ where: { sentAt: filter, reward: { not: null } } }),
         prisma.userDecision.count({ where: { sentAt: filter, reward: { gt: 0 } } }),
+        prisma.userDecision.count({ where: { sentAt: filter, channel: "push" } }),
+        prisma.userDecision.count({ where: { sentAt: filter, channel: "push", pushOpenAt: { not: null } } }),
       ]);
-      return { sendsCount, conversionsCount };
+      return { sendsCount, conversionsCount, pushSendsCount, pushOpensCount };
     },
     ["lift-counts", String(liftSinceKey)],
     { tags: ["performance"], revalidate: TTL.STANDARD }
@@ -287,19 +296,24 @@ export function getCachedLiftCounts(liftSince: Date | null) {
 /**
  * Lift measurement configuration from AppSetting.
  * Cached for 24h — tag-invalidated by the settings API on save.
- * Returns defaults (1.2% baseline, null since date) when keys are absent.
+ *
+ *  baselineOpenRate — non-Nexus push open rate %, defaults to 1.2 when unset.
+ *  baselineConvRate — non-Nexus conversion rate %, defaults to 0 (unset) so the
+ *    Conversion Rate comparison shows no baseline until the user enters a real number.
+ *  liftSince — ISO start date for the lift window, or null for all-time.
  *
  * `liftSince` is an ISO string (not a Date): unstable_cache JSON-serializes its
  * payload, so a Date would arrive at the caller as a string anyway. Returning a
  * string keeps the type honest — callers parse with `new Date(liftSince)`.
  */
 export const getCachedLiftSettings = unstable_cache(
-  async (): Promise<{ baselineRate: number; liftSince: string | null }> => {
+  async (): Promise<{ baselineOpenRate: number; baselineConvRate: number; liftSince: string | null }> => {
     const rows = await prisma.appSetting.findMany({
-      where: { key: { in: ["baseline_push_open_rate", "lift_since_date"] } },
+      where: { key: { in: ["baseline_push_open_rate", "baseline_conversion_rate", "lift_since_date"] } },
     });
     const map = Object.fromEntries(rows.map((r) => [r.key, r.value]));
-    const baselineRate = parseFloat(map["baseline_push_open_rate"] ?? "1.2");
+    const baselineOpenRate = parseFloat(map["baseline_push_open_rate"] ?? "1.2");
+    const baselineConvRate = parseFloat(map["baseline_conversion_rate"] ?? "0");
     const sinceDateStr = map["lift_since_date"] ?? "";
     const liftSince = (() => {
       if (!sinceDateStr) return null;
@@ -307,7 +321,8 @@ export const getCachedLiftSettings = unstable_cache(
       return isNaN(d.getTime()) ? null : d.toISOString();
     })();
     return {
-      baselineRate: isNaN(baselineRate) ? 1.2 : baselineRate,
+      baselineOpenRate: isNaN(baselineOpenRate) ? 1.2 : baselineOpenRate,
+      baselineConvRate: isNaN(baselineConvRate) ? 0 : baselineConvRate,
       liftSince,
     };
   },
