@@ -32,6 +32,11 @@ export default function SettingsPage() {
   const [liftSaved, setLiftSaved] = useState(false);
   const [liftSaving, setLiftSaving] = useState(false);
 
+  // Agent defaults
+  const [givingMultiplier, setGivingMultiplier] = useState("24");
+  const [agentDefaultsSaved, setAgentDefaultsSaved] = useState(false);
+  const [agentDefaultsSaving, setAgentDefaultsSaving] = useState(false);
+
   const handleDiscover = async () => {
     setDiscovering(true);
     setDiscoveryResult(null);
@@ -58,6 +63,7 @@ export default function SettingsPage() {
         if (data["baseline_push_open_rate"]) setBaselineRate(data["baseline_push_open_rate"]);
         if (data["baseline_conversion_rate"]) setBaselineConvRate(data["baseline_conversion_rate"]);
         if (data["lift_since_date"]) setLiftSinceDate(data["lift_since_date"]);
+        if (data["giving_dollars_to_bibles_multiplier"]) setGivingMultiplier(data["giving_dollars_to_bibles_multiplier"]);
       })
       .catch(() => {});
   }, []);
@@ -78,6 +84,21 @@ export default function SettingsPage() {
       setTimeout(() => setLiftSaved(false), 3000);
     } finally {
       setLiftSaving(false);
+    }
+  };
+
+  const handleSaveAgentDefaults = async () => {
+    setAgentDefaultsSaving(true);
+    try {
+      await fetch("/api/settings", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ giving_dollars_to_bibles_multiplier: givingMultiplier }),
+      });
+      setAgentDefaultsSaved(true);
+      setTimeout(() => setAgentDefaultsSaved(false), 3000);
+    } finally {
+      setAgentDefaultsSaving(false);
     }
   };
 
@@ -295,6 +316,48 @@ export default function SettingsPage() {
                 ) : "Save Lift Settings"}
               </Button>
               {liftSaved && (
+                <div className="flex items-center gap-1.5 text-green-600 dark:text-green-400 text-sm">
+                  <CheckCircle2 className="h-4 w-4" />
+                  Saved!
+                </div>
+              )}
+            </div>
+          </CardContent>
+        </Card>
+
+        {/* Agent Defaults */}
+        <Card>
+          <CardHeader>
+            <CardTitle className="text-sm font-semibold">Agent Defaults</CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <p className="text-xs text-muted-foreground">
+              Dynamic giving handles render &ldquo;A gift of $X a month will distribute over Y Bible apps this year&rdquo;,
+              where Y = the USD ask × this multiplier. Applies to all dynamic-handle pushes.
+            </p>
+            <div className="flex flex-wrap items-end gap-4">
+              <div className="flex-1 min-w-[12rem]">
+                <label className="text-xs font-medium text-muted-foreground">Dollars to Bibles multiplier</label>
+                <Input
+                  type="number"
+                  step="1"
+                  min="1"
+                  placeholder="24"
+                  value={givingMultiplier}
+                  onChange={(e) => setGivingMultiplier(e.target.value)}
+                  className="mt-1 w-full sm:w-32"
+                />
+                <p className="text-xs text-muted-foreground mt-1">Default 24 ($25/mo → 600 Bibles).</p>
+              </div>
+              <Button onClick={handleSaveAgentDefaults} disabled={agentDefaultsSaving} size="sm">
+                {agentDefaultsSaving ? (
+                  <>
+                    <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                    Saving…
+                  </>
+                ) : "Save Agent Defaults"}
+              </Button>
+              {agentDefaultsSaved && (
                 <div className="flex items-center gap-1.5 text-green-600 dark:text-green-400 text-sm">
                   <CheckCircle2 className="h-4 w-4" />
                   Saved!
