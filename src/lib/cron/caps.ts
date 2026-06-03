@@ -18,6 +18,27 @@ function hoursAdjacent(a: number, b: number): boolean {
   return Math.min(diff, 24 - diff) <= 1;
 }
 
+/**
+ * Hard ceiling on rows pulled per agent per cron run. Guards the explicit-unlimited
+ * case (audienceCap = dailySendCap = null) so a query can never be unbounded and
+ * blow the 300s function timeout. New agents default to safe caps (dailySendCap 500
+ * / uniqueUsersCap 1000); this protects agents that opt into unlimited.
+ */
+export const MAX_FETCH_LIMIT = 50_000;
+
+/**
+ * Decide how many eligible users to pull from the DB for one agent in one run.
+ * `audienceCap` is the per-run limit; when unset, derive a window from
+ * `dailySendCap` (2× for suppression headroom). When both are null the agent has
+ * opted into unlimited, so fall back to MAX_FETCH_LIMIT — the result is never
+ * unbounded. Explicit numeric caps are returned as-is (the user owns that choice).
+ */
+export function resolveFetchLimit(audienceCap: number | null, dailySendCap: number | null): number {
+  if (audienceCap != null) return audienceCap;
+  if (dailySendCap != null) return dailySendCap * 2;
+  return MAX_FETCH_LIMIT;
+}
+
 export type AudienceSelection = { kept: string[]; suppressed: number };
 
 /**

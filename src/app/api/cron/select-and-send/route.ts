@@ -23,7 +23,7 @@ import { computeFeatureVector, FEATURE_DIM } from "@/lib/engine/feature-vector";
 import type { BanditArm } from "@/lib/engine/types";
 import { recencyMultiplier } from "@/lib/engine/beta-pdf";
 import { buildEligibleAgentsByUser, classifyExplorationWindows } from "@/lib/cron/exploration-window";
-import { selectAudience, trimToCap } from "@/lib/cron/caps";
+import { selectAudience, trimToCap, resolveFetchLimit } from "@/lib/cron/caps";
 import { classifyReleases, type ReleaseAgentInfo, type ActiveAssignment } from "@/lib/cron/release-sweep";
 import {
   groupDecisionsByVariant,
@@ -271,13 +271,9 @@ export async function POST(req: NextRequest) {
         } else {
           // Funnel-stage path (existing logic + exclude support)
           // Bound the query so agents with millions of eligible users don't load the
-          // entire set into memory. audienceCap is the hard per-run limit; when unset,
-          // derive a safe fetch window from dailySendCap (2× for suppression headroom).
-          // Without at least one cap an agent targeting 7M+ users would exhaust the
-          // 300s function timeout before processing a single send.
-          const fetchLimit =
-            agent.audienceCap ??
-            (agent.dailySendCap != null ? agent.dailySendCap * 2 : undefined);
+          // entire set into memory. See resolveFetchLimit: the all-null "unlimited"
+          // case falls back to MAX_FETCH_LIMIT so the query is never unbounded.
+          const fetchLimit = resolveFetchLimit(agent.audienceCap, agent.dailySendCap);
           let rows = await prisma.trackedUser.findMany({
             where:  {
               personaId: { in: personaIds },
@@ -289,7 +285,7 @@ export async function POST(req: NextRequest) {
               ],
             },
             select: { externalId: true, preferredSendHour: true },
-            ...(fetchLimit !== undefined ? { take: fetchLimit } : {}),
+            take: fetchLimit,
           });
           // Apply excludes to funnel-stage path
           if (effectiveExcludes.length > 0) {

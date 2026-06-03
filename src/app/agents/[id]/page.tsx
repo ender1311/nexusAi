@@ -422,7 +422,7 @@ export default async function AgentDetailPage({ params }: { params: Promise<{ id
             </Card>
             <Card>
               <CardHeader>
-                <CardTitle className="text-sm font-semibold">Audience Cap</CardTitle>
+                <CardTitle className="text-sm font-semibold">Per-run rollout limit</CardTitle>
               </CardHeader>
               <CardContent>
                 <AudienceCapEditor

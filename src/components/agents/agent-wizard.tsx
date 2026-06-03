@@ -209,8 +209,8 @@ const defaultForm: FormData = {
   quietDays: [],
   smartSuppress: false,
   suppressThresh: 0.5,
-  uniqueUsersCap: null,
-  dailySendCap: null,
+  uniqueUsersCap: 1000,
+  dailySendCap: 500,
   segmentMode: false,
   segmentIncludes: [],
   segmentExcludes: [],
@@ -271,9 +271,9 @@ export function AgentWizard({
   });
   const [saving, setSaving] = useState(false);
   const [submitError, setSubmitError] = useState<string | null>(null);
-  const [uniqueUsersPreset, setUniqueUsersPreset] = useState<string>("unlimited");
+  const [uniqueUsersPreset, setUniqueUsersPreset] = useState<string>("1000");
   const [uniqueUsersCustom, setUniqueUsersCustom] = useState<string>("");
-  const [dailySendCapPreset, setDailySendCapPreset] = useState<string>("unlimited");
+  const [dailySendCapPreset, setDailySendCapPreset] = useState<string>("500");
   const [dailySendCapCustom, setDailySendCapCustom] = useState<string>("");
   const [segments, setSegments] = useState<SegmentOption[]>([]);
 

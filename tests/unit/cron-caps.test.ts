@@ -1,8 +1,27 @@
 import { describe, it, expect } from "bun:test";
-import { selectAudience, trimToCap } from "@/lib/cron/caps";
+import { selectAudience, trimToCap, resolveFetchLimit, MAX_FETCH_LIMIT } from "@/lib/cron/caps";
 
 // Deterministic RNG: returns 0 so Fisher-Yates becomes a no-op (stable order).
 const noShuffle = () => 0;
+
+describe("resolveFetchLimit", () => {
+  it("uses audienceCap verbatim when set", () => {
+    expect(resolveFetchLimit(250, 500)).toBe(250);
+    expect(resolveFetchLimit(250, null)).toBe(250);
+  });
+
+  it("derives 2× dailySendCap when audienceCap is null", () => {
+    expect(resolveFetchLimit(null, 500)).toBe(1000);
+  });
+
+  it("falls back to the safety ceiling when both caps are null (explicit-unlimited)", () => {
+    expect(resolveFetchLimit(null, null)).toBe(MAX_FETCH_LIMIT);
+  });
+
+  it("respects an explicit cap larger than the ceiling", () => {
+    expect(resolveFetchLimit(200_000, null)).toBe(200_000);
+  });
+});
 
 describe("trimToCap", () => {
   it("keeps everything when under quota", () => {

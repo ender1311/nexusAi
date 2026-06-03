@@ -142,8 +142,8 @@ export async function POST(req: NextRequest) {
         epsilon: typeof epsilon === "number" ? epsilon : 0.1,
         status: "draft",
         funnelStage: funnelStage as string,
-        ...(uniqueUsersCap !== undefined ? { uniqueUsersCap: uniqueUsersCap as number | null } : {}),
-        ...(dailySendCap !== undefined ? { dailySendCap: dailySendCap as number | null } : {}),
+        uniqueUsersCap: uniqueUsersCap === undefined ? 1000 : (uniqueUsersCap as number | null),
+        dailySendCap: dailySendCap === undefined ? 500 : (dailySendCap as number | null),
         ...(targetSegmentName !== undefined ? { targetSegmentName: typeof targetSegmentName === "string" ? (targetSegmentName as string).trim() : null } : {}),
         ...(segmentTargeting !== undefined ? {
           segmentTargeting: segmentTargeting === null
