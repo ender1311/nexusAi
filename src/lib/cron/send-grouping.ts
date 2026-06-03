@@ -2,7 +2,14 @@ import { randomUUID } from "crypto";
 import { createBrazeClient } from "@/lib/braze/client";
 import { PayloadFactory } from "@/lib/braze/payload-factory";
 import type { BrazeRecipient } from "@/lib/braze/payload-factory";
-import { GIVING_LINK_SENTINEL, buildGivingDeeplink } from "@/lib/engine/giving-link";
+import {
+  GIVING_LINK_SENTINEL,
+  buildGivingDeeplink,
+  resolveLocalGiftAmount,
+  formatGiftAmount,
+  type GivingHandleStrategy,
+} from "@/lib/engine/giving-link";
+import { computeBibles, substituteGivingCopy, DEFAULT_DOLLARS_TO_BIBLES } from "@/lib/engine/giving-copy";
 import { resolvePushLocaleStrict, type LocalizedCopy } from "@/lib/push-locale";
 import { VERSE_PUSH_SENTINEL, pickVerse, resolveVerseCopy, type VersePool, type VerseStrategy } from "@/lib/verse-content";
 
@@ -30,6 +37,8 @@ export type VariantMeta = {
   deeplink: string | null;
   brazeCampaignId: string | null;
   brazeVariantId: string | null;
+  /** Non-null marks a dynamic-handle variant; selects the per-user ask strategy. */
+  givingHandleStrategy: GivingHandleStrategy | null;
 };
 
 type GroupUser = {
@@ -54,6 +63,7 @@ export function groupDecisionsByVariant(
     versePool?: VersePool;
     strategyByVariant?: Map<string, VerseStrategy>;
   },
+  givingMultiplier?: number,
 ): Record<string, VariantSendGroup> {
   const byVariant: Record<string, VariantSendGroup> = {};
 
@@ -63,34 +73,55 @@ export function groupDecisionsByVariant(
     const decisionId = decisionIdByUser.get(user.externalId);
     if (!decisionId) continue;
 
-    const resolvedDeeplink = meta.deeplink === GIVING_LINK_SENTINEL
-      ? buildGivingDeeplink((user.attributes as Record<string, unknown>) ?? {})
-      : meta.deeplink;
-
-    // Verse-push arms (body sentinel) resolve a rotated, localized verse at send
-    // time; otherwise fall back to the standard translation path.
-    const verseStrategy = localization?.strategyByVariant?.get(variantId);
-    const isVerse =
-      meta.body === VERSE_PUSH_SENTINEL && verseStrategy != null && localization?.versePool != null;
-    let copy: LocalizedCopy = { title: meta.title, body: meta.body };
     const attrs = (user.attributes as Record<string, unknown>) ?? {};
     const tag = attrs.language_tag as string | undefined;
-    if (isVerse) {
-      const dateBucket = scheduledAt.toISOString().slice(0, 10);
-      const verse = pickVerse(localization!.versePool!, user.externalId, dateBucket);
-      // Empty pool → skip rather than deliver the raw sentinel as a push body.
-      if (!verse) continue;
-      copy = resolveVerseCopy(verse, tag, verseStrategy!);
-    } else if (localization?.enabled && meta.channel === "push") {
-      // Strict localization: skip recipients we cannot serve in their own language
-      // rather than falling back to the English copy.
-      const localized = resolvePushLocaleStrict(
-        tag,
-        localization.translationsByVariant.get(variantId) ?? new Map(),
-        { title: meta.title, body: meta.body },
-      );
-      if (!localized) continue;
-      copy = localized;
+
+    let copy: LocalizedCopy = { title: meta.title, body: meta.body };
+    let resolvedDeeplink: string | null;
+    let copyKeyed: boolean;
+
+    if (meta.givingHandleStrategy != null) {
+      // Dynamic giving handle: resolve a per-user ask amount + impact figure, then
+      // substitute into copy and override the deeplink with the matching give-URL.
+      const strategy = meta.givingHandleStrategy;
+      const { amountLocal, currencyCode, amountUsd } = resolveLocalGiftAmount(attrs, strategy);
+      const amountDisplay = formatGiftAmount(amountLocal, currencyCode);
+      const bibles = computeBibles(amountUsd, givingMultiplier ?? DEFAULT_DOLLARS_TO_BIBLES);
+      copy = {
+        title: meta.title != null ? substituteGivingCopy(meta.title, { amountDisplay, bibles }) : null,
+        body: substituteGivingCopy(meta.body, { amountDisplay, bibles }),
+      };
+      resolvedDeeplink = buildGivingDeeplink(attrs, strategy);
+      // Per-user copy → batch only users sharing identical resolved copy.
+      copyKeyed = meta.channel === "push";
+    } else {
+      resolvedDeeplink = meta.deeplink === GIVING_LINK_SENTINEL
+        ? buildGivingDeeplink(attrs)
+        : meta.deeplink;
+
+      // Verse-push arms (body sentinel) resolve a rotated, localized verse at send
+      // time; otherwise fall back to the standard translation path.
+      const verseStrategy = localization?.strategyByVariant?.get(variantId);
+      const isVerse =
+        meta.body === VERSE_PUSH_SENTINEL && verseStrategy != null && localization?.versePool != null;
+      if (isVerse) {
+        const dateBucket = scheduledAt.toISOString().slice(0, 10);
+        const verse = pickVerse(localization!.versePool!, user.externalId, dateBucket);
+        // Empty pool → skip rather than deliver the raw sentinel as a push body.
+        if (!verse) continue;
+        copy = resolveVerseCopy(verse, tag, verseStrategy!);
+      } else if (localization?.enabled && meta.channel === "push") {
+        // Strict localization: skip recipients we cannot serve in their own language
+        // rather than falling back to the English copy.
+        const localized = resolvePushLocaleStrict(
+          tag,
+          localization.translationsByVariant.get(variantId) ?? new Map(),
+          { title: meta.title, body: meta.body },
+        );
+        if (!localized) continue;
+        copy = localized;
+      }
+      copyKeyed = meta.channel === "push" && (isVerse || (localization?.enabled ?? false));
     }
 
     const groupInLocalTime = isFallback;
@@ -99,7 +130,6 @@ export function groupDecisionsByVariant(
     // the same resolved copy must batch together; the copy fully determines the
     // payload, so key by it. \u0000 is a NUL field separator (cannot appear in
     // title/body) preventing title|body ambiguity.
-    const copyKeyed = meta.channel === "push" && (isVerse || (localization?.enabled ?? false));
     const groupKey = copyKeyed
       ? `${baseKey}:${copy.title ?? ""}\u0000${copy.body}`
       : baseKey;

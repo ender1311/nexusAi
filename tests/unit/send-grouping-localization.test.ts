@@ -3,7 +3,7 @@ import { groupDecisionsByVariant } from "@/lib/cron/send-grouping";
 import type { VariantMeta } from "@/lib/cron/send-grouping";
 import type { LocalizedCopy } from "@/lib/push-locale";
 
-const meta: VariantMeta = { channel: "push", body: "EN body", title: "EN title", deeplink: null, brazeCampaignId: "c1", brazeVariantId: "bv1" };
+const meta: VariantMeta = { channel: "push", body: "EN body", title: "EN title", deeplink: null, brazeCampaignId: "c1", brazeVariantId: "bv1", givingHandleStrategy: null };
 const variantMeta = new Map<string, VariantMeta>([["v1", meta]]);
 const when = new Date("2026-06-01T08:00:00.000Z");
 
