@@ -123,41 +123,20 @@ function extractPositiveNumber(attrs: Record<string, unknown>, key: string): num
   return n;
 }
 
-/**
- * Compute a personalized ask amount in USD based on user gift history.
- * Anchor blend formula: 0.6 * avg + 0.3 * recent + 0.1 * max (when all three present).
- * Upsell: anchor * 1.1; lapsed discount: * 0.75.
- */
-export function selectGiftAmountUSD(attrs: Record<string, unknown>): number {
-  const avg = extractPositiveNumber(attrs, "gift_amount_average");
-  const recent = extractPositiveNumber(attrs, "gift_amount_most_recent");
+export type GivingHandleStrategy = "avg-gift" | "recent-gift" | "max-gift" | "blend";
+
+export function isGivingHandleStrategy(s: unknown): s is GivingHandleStrategy {
+  return s === "avg-gift" || s === "recent-gift" || s === "max-gift" || s === "blend";
+}
+
+// Shared post-anchor ask pipeline: upsell ×1.1, lapsed ×0.75, cap at 1.5×max, snap to ladder.
+function applyAskPipeline(anchor: number, attrs: Record<string, unknown>): number {
   const max = extractPositiveNumber(attrs, "gift_amount_maximum");
   const lifetimeCount = extractPositiveNumber(attrs, "gift_count_lifetime");
   const recentCount = extractPositiveNumber(attrs, "gift_count_past_3_to_36_months");
 
-  // First-time givers: no gift history at all
-  if (lifetimeCount === null) {
-    return snapToLadder(10, USD_AMOUNT_LADDER);
-  }
-
   // lifetimeCount present but recentCount absent → lapsed giver
-  const isLapsed = recentCount === null;
-
-  // Anchor blend — weighted average of available signals
-  let anchor: number;
-  if (avg !== null && recent !== null && max !== null) {
-    // Full blend: weighted mean of avg, recent, max
-    anchor = 0.6 * avg + 0.3 * recent + 0.1 * max;
-  } else if (avg !== null) {
-    anchor = avg;
-  } else if (recent !== null) {
-    anchor = recent;
-  } else if (max !== null) {
-    // Max is a ceiling signal; use 50% to avoid over-asking
-    anchor = max * 0.5;
-  } else {
-    anchor = 10;
-  }
+  const isLapsed = lifetimeCount !== null && recentCount === null;
 
   // Apply 10% upsell
   let amount = anchor * 1.1;
@@ -178,48 +157,115 @@ export function selectGiftAmountUSD(attrs: Record<string, unknown>): number {
   }
 
   // Snap to ladder, ensuring minimum of 5
-  const snapped = snapToLadder(Math.max(amount, USD_AMOUNT_LADDER[0]), USD_AMOUNT_LADDER);
-  return snapped;
+  return snapToLadder(Math.max(amount, USD_AMOUNT_LADDER[0]), USD_AMOUNT_LADDER);
+}
+
+/**
+ * Compute a personalized ask amount in USD based on user gift history.
+ * Anchor blend formula: 0.6 * avg + 0.3 * recent + 0.1 * max (when all three present).
+ * Upsell: anchor * 1.1; lapsed discount: * 0.75.
+ */
+export function selectGiftAmountUSD(attrs: Record<string, unknown>): number {
+  const avg = extractPositiveNumber(attrs, "gift_amount_average");
+  const recent = extractPositiveNumber(attrs, "gift_amount_most_recent");
+  const max = extractPositiveNumber(attrs, "gift_amount_maximum");
+  const lifetimeCount = extractPositiveNumber(attrs, "gift_count_lifetime");
+
+  // First-time givers: no gift history at all
+  if (lifetimeCount === null) {
+    return snapToLadder(10, USD_AMOUNT_LADDER);
+  }
+
+  // Anchor blend — weighted average of available signals
+  let anchor: number;
+  if (avg !== null && recent !== null && max !== null) {
+    // Full blend: weighted mean of avg, recent, max
+    anchor = 0.6 * avg + 0.3 * recent + 0.1 * max;
+  } else if (avg !== null) {
+    anchor = avg;
+  } else if (recent !== null) {
+    anchor = recent;
+  } else if (max !== null) {
+    // Max is a ceiling signal; use 50% to avoid over-asking
+    anchor = max * 0.5;
+  } else {
+    anchor = 10;
+  }
+
+  return applyAskPipeline(anchor, attrs);
+}
+
+export function selectGiftAmountUSDByStrategy(
+  attrs: Record<string, unknown>,
+  strategy: GivingHandleStrategy,
+): number {
+  if (strategy === "blend") return selectGiftAmountUSD(attrs);
+  const anchorKey =
+    strategy === "avg-gift" ? "gift_amount_average"
+    : strategy === "recent-gift" ? "gift_amount_most_recent"
+    : "gift_amount_maximum";
+  const anchor = extractPositiveNumber(attrs, anchorKey);
+  if (anchor === null) return selectGiftAmountUSD(attrs);
+  const rawAnchor = strategy === "max-gift" ? anchor * 0.5 : anchor;
+  return applyAskPipeline(rawAnchor, attrs);
+}
+
+/**
+ * Resolve the user's preferred currency from gift_currency_most_recent.
+ * Uppercases/trims, defaults to USD, falls back to USD if not in CURRENCY_RATES.
+ */
+function resolveCurrencyCode(attrs: Record<string, unknown>): string {
+  const rawCurrency = attrs["gift_currency_most_recent"];
+  const currencyCode =
+    typeof rawCurrency === "string" && rawCurrency.trim().length > 0
+      ? rawCurrency.trim().toUpperCase()
+      : "USD";
+  return CURRENCY_RATES[currencyCode] !== undefined ? currencyCode : "USD";
+}
+
+export function resolveLocalGiftAmount(
+  attrs: Record<string, unknown>,
+  strategy: GivingHandleStrategy,
+): { amountLocal: number; currencyCode: string; amountUsd: number } {
+  const currencyCode = resolveCurrencyCode(attrs);
+  const amountUsd = selectGiftAmountUSDByStrategy(attrs, strategy);
+  let amountLocal: number;
+  if (currencyCode === "USD") {
+    amountLocal = amountUsd;
+  } else {
+    const localLadder = buildCurrencyLadder(currencyCode);
+    const rate = CURRENCY_RATES[currencyCode];
+    amountLocal = snapToLadder(amountUsd * rate, localLadder);
+  }
+  return { amountLocal, currencyCode, amountUsd };
+}
+
+export function formatGiftAmount(amountLocal: number, currencyCode: string): string {
+  const code = CURRENCY_RATES[currencyCode] !== undefined ? currencyCode : "USD";
+  return new Intl.NumberFormat("en-US", {
+    style: "currency",
+    currency: code,
+    maximumFractionDigits: 0,
+  }).format(amountLocal);
 }
 
 /**
  * Build a personalized giving deeplink for the given user attributes.
  * Currency is detected from gift_currency_most_recent (defaults to USD).
  */
-export function buildGivingDeeplink(attrs: Record<string, unknown>): string {
-  const rawCurrency = attrs["gift_currency_most_recent"];
-  const currencyCode =
-    typeof rawCurrency === "string" && rawCurrency.trim().length > 0
-      ? rawCurrency.trim().toUpperCase()
-      : "USD";
-
-  // Resolve to a known currency or fall back to USD
-  const resolvedCurrency = CURRENCY_RATES[currencyCode] !== undefined ? currencyCode : "USD";
-
-  // Compute USD ask amount, then convert to local currency if needed
-  const usdAmount = selectGiftAmountUSD(attrs);
-  let amount: number;
-
-  if (resolvedCurrency === "USD") {
-    amount = usdAmount;
-  } else {
-    // Convert USD amount to local currency ladder
-    const localLadder = buildCurrencyLadder(resolvedCurrency);
-    // localUsdEquivalent: usdAmount converted to local units for ladder snap
-    const rate = CURRENCY_RATES[resolvedCurrency];
-    const localRaw = usdAmount * rate;
-    amount = snapToLadder(localRaw, localLadder);
-  }
-
+export function buildGivingDeeplink(
+  attrs: Record<string, unknown>,
+  strategy: GivingHandleStrategy = "blend",
+): string {
+  const { amountLocal, currencyCode } = resolveLocalGiftAmount(attrs, strategy);
   const params = new URLSearchParams({
-    currency: resolvedCurrency.toLowerCase(),
+    currency: currencyCode.toLowerCase(),
     fund: "YouVersion",
     frequency: "monthly",
-    amount: String(amount),
+    amount: String(amountLocal),
     utm_medium: "push",
     utm_source: "Nexus",
-    utm_campaign: "optimize_handle",
+    utm_campaign: "nexus-giving",
   });
-
   return `https://www.bible.com/give?${params.toString()}`;
 }
