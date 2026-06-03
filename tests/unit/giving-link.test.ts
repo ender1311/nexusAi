@@ -3,6 +3,10 @@ import {
   snapToLadder,
   buildCurrencyLadder,
   selectGiftAmountUSD,
+  selectGiftAmountUSDByStrategy,
+  resolveLocalGiftAmount,
+  formatGiftAmount,
+  isGivingHandleStrategy,
   buildGivingDeeplink,
   USD_AMOUNT_LADDER,
   CURRENCY_RATES,
@@ -211,7 +215,7 @@ describe("buildGivingDeeplink", () => {
     const url = buildGivingDeeplink({});
     expect(url).toContain("utm_medium=push");
     expect(url).toContain("utm_source=Nexus");
-    expect(url).toContain("utm_campaign=optimize_handle");
+    expect(url).toContain("utm_campaign=nexus-giving");
   });
 
   it("unknown currency falls back to USD", () => {
@@ -274,5 +278,99 @@ describe("usdAmount", () => {
     expect(usdAmount(0, "USD")).toBe(0);
     expect(usdAmount(NaN, "USD")).toBe(0);
     expect(usdAmount(-10, "USD")).toBe(0);
+  });
+});
+
+describe("isGivingHandleStrategy", () => {
+  it("accepts the four known strategies", () => {
+    for (const s of ["avg-gift", "recent-gift", "max-gift", "blend"]) {
+      expect(isGivingHandleStrategy(s)).toBe(true);
+    }
+  });
+  it("rejects unknown values", () => {
+    expect(isGivingHandleStrategy("fixed")).toBe(false);
+    expect(isGivingHandleStrategy(null)).toBe(false);
+    expect(isGivingHandleStrategy(42)).toBe(false);
+  });
+});
+
+describe("selectGiftAmountUSDByStrategy", () => {
+  const histories = {
+    gift_count_lifetime: 8,
+    gift_count_past_3_to_36_months: 4,
+    gift_amount_average: 40,
+    gift_amount_most_recent: 100,
+    gift_amount_maximum: 200,
+  };
+
+  it("blend equals selectGiftAmountUSD", () => {
+    expect(selectGiftAmountUSDByStrategy(histories, "blend")).toBe(selectGiftAmountUSD(histories));
+  });
+
+  it("recent-gift differs from avg-gift when histories diverge", () => {
+    expect(selectGiftAmountUSDByStrategy(histories, "recent-gift"))
+      .not.toBe(selectGiftAmountUSDByStrategy(histories, "avg-gift"));
+  });
+
+  it("avg-gift anchors on gift_amount_average (40 * 1.1 → snaps to 50)", () => {
+    expect(selectGiftAmountUSDByStrategy(histories, "avg-gift")).toBe(50);
+  });
+
+  it("max-gift halves the max anchor (200 * 0.5 * 1.1 = 110 → snaps to 150)", () => {
+    expect(selectGiftAmountUSDByStrategy(histories, "max-gift")).toBe(150);
+  });
+
+  it("falls back to blend when the strategy anchor attr is absent", () => {
+    const noRecent = { gift_count_lifetime: 3, gift_count_past_3_to_36_months: 2, gift_amount_average: 30 };
+    expect(selectGiftAmountUSDByStrategy(noRecent, "recent-gift")).toBe(selectGiftAmountUSD(noRecent));
+  });
+});
+
+describe("resolveLocalGiftAmount", () => {
+  it("USD: amountLocal equals amountUsd", () => {
+    const r = resolveLocalGiftAmount({ gift_count_lifetime: 5, gift_count_past_3_to_36_months: 3, gift_amount_average: 40 }, "avg-gift");
+    expect(r.currencyCode).toBe("USD");
+    expect(r.amountLocal).toBe(r.amountUsd);
+  });
+
+  it("foreign currency: amountLocal is the converted snapped value", () => {
+    const r = resolveLocalGiftAmount(
+      { gift_currency_most_recent: "EUR", gift_count_lifetime: 5, gift_count_past_3_to_36_months: 3, gift_amount_average: 40 },
+      "avg-gift",
+    );
+    expect(r.currencyCode).toBe("EUR");
+    expect(r.amountLocal).toBeGreaterThan(0);
+  });
+
+  it("unknown currency falls back to USD", () => {
+    const r = resolveLocalGiftAmount({ gift_currency_most_recent: "XYZ" }, "blend");
+    expect(r.currencyCode).toBe("USD");
+  });
+});
+
+describe("formatGiftAmount", () => {
+  it("formats USD with no fraction digits", () => {
+    expect(formatGiftAmount(25, "USD")).toBe("$25");
+  });
+  it("formats EUR", () => {
+    expect(formatGiftAmount(20, "EUR")).toBe("€20");
+  });
+  it("unknown currency falls back to USD formatting", () => {
+    expect(formatGiftAmount(25, "XYZ")).toBe("$25");
+  });
+});
+
+describe("buildGivingDeeplink with strategy", () => {
+  it("recent-gift amount can differ from blend when histories diverge", () => {
+    const attrs = {
+      gift_count_lifetime: 8,
+      gift_count_past_3_to_36_months: 4,
+      gift_amount_average: 40,
+      gift_amount_most_recent: 200,
+      gift_amount_maximum: 250,
+    };
+    const blend = buildGivingDeeplink(attrs);
+    const recent = buildGivingDeeplink(attrs, "recent-gift");
+    expect(recent).not.toBe(blend);
   });
 });

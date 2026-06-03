@@ -10,6 +10,7 @@ function meta(overrides: Partial<VariantMeta> = {}): VariantMeta {
     deeplink: "app://home",
     brazeCampaignId: "camp-1",
     brazeVariantId: "var-1",
+    givingHandleStrategy: null,
     ...overrides,
   };
 }
@@ -109,5 +110,58 @@ describe("groupDecisionsByVariant", () => {
       decisionIdByUser,
     );
     expect(Object.values(groups)).toHaveLength(0);
+  });
+
+  it("dynamic-handle variant substitutes per-user copy, sets strategy deeplink, splits by copy", () => {
+    const variantMeta = new Map<string, VariantMeta>([
+      ["v1", meta({
+        body: "A gift of {{ask}} a month will distribute over {{bibles}} Bible apps this year",
+        title: "Give {{ask}}",
+        deeplink: null,
+        givingHandleStrategy: "recent-gift",
+      })],
+    ]);
+    const decisionIdByUser = new Map([["u1", "d1"], ["u2", "d2"]]);
+    const at = new Date("2026-05-30T12:00:00Z");
+
+    const attrs1 = { gift_count_lifetime: 5, gift_count_past_3_to_36_months: 3, gift_amount_most_recent: 25 };
+    const attrs2 = { gift_count_lifetime: 9, gift_count_past_3_to_36_months: 4, gift_amount_most_recent: 200 };
+
+    const groups = groupDecisionsByVariant(
+      [
+        { user: user("u1", null, attrs1), variantId: "v1", scheduledAt: at, inLocalTime: false },
+        { user: user("u2", null, attrs2), variantId: "v1", scheduledAt: at, inLocalTime: false },
+      ],
+      variantMeta,
+      decisionIdByUser,
+      undefined,
+      24,
+    );
+
+    const vals = Object.values(groups);
+    expect(vals).toHaveLength(2);
+    for (const g of vals) {
+      expect(g.body).not.toContain("{{ask}}");
+      expect(g.body).not.toContain("{{bibles}}");
+      expect(g.title).not.toContain("{{ask}}");
+      expect(g.deeplink).toContain("https://www.bible.com/give?");
+      expect(g.deeplink).toContain("utm_campaign=nexus-giving");
+    }
+  });
+
+  it("dynamic-handle uses default multiplier (24) when givingMultiplier omitted", () => {
+    const variantMeta = new Map<string, VariantMeta>([
+      ["v1", meta({ body: "{{bibles}} apps", deeplink: null, givingHandleStrategy: "avg-gift", title: null })],
+    ]);
+    const decisionIdByUser = new Map([["u1", "d1"]]);
+    const at = new Date("2026-05-30T12:00:00Z");
+    const attrs = { gift_count_lifetime: 5, gift_count_past_3_to_36_months: 3, gift_amount_average: 40 };
+
+    const groups = groupDecisionsByVariant(
+      [{ user: user("u1", null, attrs), variantId: "v1", scheduledAt: at, inLocalTime: false }],
+      variantMeta,
+      decisionIdByUser,
+    );
+    expect(Object.values(groups)[0].body).toBe("1,200 apps");
   });
 });

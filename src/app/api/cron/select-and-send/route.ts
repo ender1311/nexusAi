@@ -32,6 +32,8 @@ import {
 } from "@/lib/cron/send-grouping";
 import { VERSE_PUSH_SENTINEL, isVerseStrategy, type VersePool, type VerseStrategy } from "@/lib/verse-content";
 import { loadVersePool } from "@/lib/cron/verse-pool";
+import { isGivingHandleStrategy, type GivingHandleStrategy } from "@/lib/engine/giving-link";
+import { parseMultiplier } from "@/lib/engine/giving-copy";
 
 // Allow up to 300s execution time on Vercel
 export const maxDuration = 300;
@@ -41,6 +43,17 @@ function verifyAuth(req: NextRequest): boolean {
   const secret = process.env.CRON_SECRET;
   if (!secret) return false; // always require CRON_SECRET — no fallback for cron
   return token === secret;
+}
+
+// A dynamic-handle variant carries its amount strategy in actionFeatures.givingHandleStrategy.
+// Returns the strategy (defaulting to "blend") for dynamic-handle variants, else null.
+function deriveGivingStrategy(subcategory: string | null, actionFeatures: unknown): GivingHandleStrategy | null {
+  if (subcategory !== "dynamic-handle") return null;
+  const raw =
+    actionFeatures && typeof actionFeatures === "object"
+      ? (actionFeatures as Record<string, unknown>)["givingHandleStrategy"]
+      : undefined;
+  return isGivingHandleStrategy(raw) ? raw : "blend";
 }
 
 export async function POST(req: NextRequest) {
@@ -174,7 +187,7 @@ export async function POST(req: NextRequest) {
   // preferredHourByAgent: agentId → Map<externalId, preferredSendHour | null>
   // Used by time-bucketed audience selection when prioritizeLastSeen is on.
   const preferredHourByAgent = new Map<string, Map<string, number | null>>();
-  const [, cooldownSetting] = await Promise.all([
+  const [, cooldownSetting, multiplierSetting] = await Promise.all([
     Promise.all(
       agents.map(async (agent) => {
         const personaIds = agent.personaTargets.map((pt) => pt.personaId);
@@ -306,6 +319,7 @@ export async function POST(req: NextRequest) {
     ),
     // ─── Phase 0 setup: fetch cooldown config in parallel with lottery queries ───
     prisma.appSetting.findUnique({ where: { key: "exploration_window_cooldown_days" } }),
+    prisma.appSetting.findUnique({ where: { key: "giving_dollars_to_bibles_multiplier" } }),
   ]);
 
   const lotteryMap = buildAgentLottery(eligibleUsersByAgent);
@@ -318,6 +332,9 @@ export async function POST(req: NextRequest) {
   const cooldownDays = cooldownSetting ? parseInt(cooldownSetting.value, 10) : 90;
   const cooldownMs   = cooldownDays * 86_400_000;
   const windowMs     = 8 * 86_400_000;
+
+  // Global dollars→Bibles multiplier for dynamic-handle impact copy (default 24).
+  const givingMultiplier = parseMultiplier(multiplierSetting?.value);
 
   const explorationAgents = agents.filter(
     (a) => a.funnelStage === "lapsed" || a.funnelStage === "connected"
@@ -468,6 +485,7 @@ export async function POST(req: NextRequest) {
       deeplink: string | null;
       brazeCampaignId: string | null;
       brazeVariantId: string | null;
+      givingHandleStrategy: GivingHandleStrategy | null;
     }>();
     for (const msg of agent.messages) {
       for (const v of msg.variants) {
@@ -478,6 +496,7 @@ export async function POST(req: NextRequest) {
           deeplink:        v.deeplink ?? null,
           brazeCampaignId: msg.brazeCampaignId ?? null,
           brazeVariantId:  v.brazeVariantId ?? null,
+          givingHandleStrategy: deriveGivingStrategy(v.subcategory ?? null, v.actionFeatures),
         });
       }
     }
@@ -955,7 +974,7 @@ export async function POST(req: NextRequest) {
           }
 
           // Group by variant + scheduled time for batch sending
-          byVariant = groupDecisionsByVariant(lotteryDecisionInputs, variantMeta, lotteryDecisionIdByUser, localization);
+          byVariant = groupDecisionsByVariant(lotteryDecisionInputs, variantMeta, lotteryDecisionIdByUser, localization, givingMultiplier);
         }
       }
 
@@ -1342,7 +1361,7 @@ export async function POST(req: NextRequest) {
         }
 
         // Group by variant + scheduled time for batch sending
-        windowByVariant = groupDecisionsByVariant(decisionInputs, variantMeta, decisionIdByUser, localization);
+        windowByVariant = groupDecisionsByVariant(decisionInputs, variantMeta, decisionIdByUser, localization, givingMultiplier);
       }
 
       // Send all window variant groups in parallel batches

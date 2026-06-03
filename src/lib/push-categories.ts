@@ -63,6 +63,7 @@ export const PUSH_CATEGORIES: PushCategory[] = [
       { value: "impact-story", label: "Impact Story" },
       { value: "prayer", label: "Prayer" },
       { value: "thank-you-followup", label: "Thank You Follow-up" },
+      { value: "dynamic-handle", label: "Dynamic Handle" },
     ],
   },
 ];

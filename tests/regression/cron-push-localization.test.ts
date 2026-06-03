@@ -9,7 +9,7 @@ import { describe, it, expect } from "bun:test";
 import { groupDecisionsByVariant, type VariantMeta } from "@/lib/cron/send-grouping";
 import type { LocalizedCopy } from "@/lib/push-locale";
 
-const meta: VariantMeta = { channel: "push", body: "EN", title: "ENt", deeplink: null, brazeCampaignId: "c", brazeVariantId: "b" };
+const meta: VariantMeta = { channel: "push", body: "EN", title: "ENt", deeplink: null, brazeCampaignId: "c", brazeVariantId: "b", givingHandleStrategy: null };
 const vm = new Map([["v1", meta]]);
 const when = new Date("2026-06-01T08:00:00.000Z");
 const u = (id: string, lang?: string) => ({ user: { externalId: id, brazeId: null, attributes: lang ? { language_tag: lang } : {} }, variantId: "v1", scheduledAt: when, inLocalTime: false });

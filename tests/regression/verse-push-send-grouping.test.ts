@@ -6,7 +6,7 @@ import { groupDecisionsByVariant, type VariantMeta } from "@/lib/cron/send-group
 import { VERSE_PUSH_SENTINEL, type VersePool } from "@/lib/verse-content";
 
 const meta = new Map<string, VariantMeta>([
-  ["v-ref", { channel: "push", body: VERSE_PUSH_SENTINEL, title: "[verse:reference]", deeplink: null, brazeCampaignId: null, brazeVariantId: null }],
+  ["v-ref", { channel: "push", body: VERSE_PUSH_SENTINEL, title: "[verse:reference]", deeplink: null, brazeCampaignId: null, brazeVariantId: null, givingHandleStrategy: null }],
 ]);
 
 const pool: VersePool = [{
