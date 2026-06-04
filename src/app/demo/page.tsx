@@ -10,6 +10,7 @@ import { Separator } from "@/components/ui/separator";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Send, CheckCircle2, XCircle, Loader2, Users, Trash2, Download } from "lucide-react";
 import type { DemoPreviewResponse, DemoAssignment } from "@/app/api/demo/preview/route";
+import type { DemoUserGroupRecord } from "@/app/api/demo/groups/route";
 import { OptimizationSimulation } from "@/components/demo/optimization-simulation";
 
 // Inline checkbox — shadcn Checkbox not installed in this project
@@ -29,20 +30,14 @@ const DEFAULT_TEST_USERS = [
 ];
 
 const USER_LABEL_MAP = new Map(DEFAULT_TEST_USERS.map((u) => [u.id, u.label]));
-const GROUPS_KEY = "nexus-demo-groups";
+// Legacy localStorage key. Saved groups now live in the DB (durable across
+// browsers/devices); this key is read once on mount to migrate any leftover
+// local groups, then cleared. localStorage was the cause of vanished groups.
+const LEGACY_GROUPS_KEY = "nexus-demo-groups";
 
 type Group = { id: string; name: string; userIds: string[] };
 type Agent = { id: string; name: string; status: string; _count: { decisions: number } };
 type SendResult = { userId: string; status: "sent" | "suppressed" | "failed"; variantName?: string; reason?: string };
-
-function loadGroups(): Group[] {
-  if (typeof window === "undefined") return [];
-  try {
-    return JSON.parse(localStorage.getItem(GROUPS_KEY) ?? "[]");
-  } catch {
-    return [];
-  }
-}
 
 // ── Push notification preview card ──────────────────────────────────────────
 
@@ -107,7 +102,50 @@ export default function DemoPage() {
         if (active.length > 0) setSelectedAgentId(active[0].id);
       })
       .catch(() => {});
-    setGroups(loadGroups());
+
+    void (async () => {
+      // One-time migration: move any leftover localStorage groups into the DB.
+      // Only clear the local copy once every group is confirmed saved, so a
+      // failed migration never loses a group.
+      try {
+        const stored = localStorage.getItem(LEGACY_GROUPS_KEY);
+        if (stored) {
+          const legacy = JSON.parse(stored) as Array<{ name?: string; userIds?: unknown }>;
+          const valid = legacy.filter(
+            (g): g is { name: string; userIds: string[] } =>
+              typeof g?.name === "string" &&
+              g.name.trim().length > 0 &&
+              Array.isArray(g.userIds) &&
+              g.userIds.length > 0
+          );
+          if (valid.length === 0) {
+            localStorage.removeItem(LEGACY_GROUPS_KEY);
+          } else {
+            const results = await Promise.all(
+              valid.map((g) =>
+                fetch("/api/demo/groups", {
+                  method: "POST",
+                  headers: { "Content-Type": "application/json" },
+                  body: JSON.stringify({ name: g.name, userIds: g.userIds }),
+                })
+                  .then((r) => r.ok)
+                  .catch(() => false)
+              )
+            );
+            if (results.every(Boolean)) localStorage.removeItem(LEGACY_GROUPS_KEY);
+          }
+        }
+      } catch {}
+
+      // Load durable groups from the DB.
+      try {
+        const res = await fetch("/api/demo/groups");
+        if (res.ok) {
+          const { data } = (await res.json()) as { data: DemoUserGroupRecord[] };
+          setGroups(data.map((g) => ({ id: g.id, name: g.name, userIds: g.userIds })));
+        }
+      } catch {}
+    })();
   }, []);
 
   // Auto-fetch preview whenever agent or users change
@@ -151,24 +189,35 @@ export default function DemoPage() {
     setCustomInput("");
   }
 
-  function saveGroup() {
+  async function saveGroup() {
     const name = groupNameInput.trim();
     if (!name || userIds.length === 0) return;
-    const newGroup: Group = { id: Date.now().toString(36), name, userIds: [...userIds] };
-    const updated = [...groups, newGroup];
-    setGroups(updated);
-    localStorage.setItem(GROUPS_KEY, JSON.stringify(updated));
+    const ids = [...userIds];
+    // Optimistic insert; the server upserts by name, so replace any same-name entry.
+    setGroups((prev) => [...prev.filter((g) => g.name !== name), { id: `tmp_${Date.now()}`, name, userIds: ids }]);
     setGroupNameInput("");
+    try {
+      const res = await fetch("/api/demo/groups", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ name, userIds: ids }),
+      });
+      if (res.ok) {
+        const { data } = (await res.json()) as { data: DemoUserGroupRecord };
+        setGroups((prev) =>
+          prev.map((g) => (g.name === name ? { id: data.id, name: data.name, userIds: data.userIds } : g))
+        );
+      }
+    } catch {}
   }
 
   function loadGroup(group: Group) {
     setUserIds([...group.userIds]);
   }
 
-  function deleteGroup(id: string) {
-    const updated = groups.filter((g) => g.id !== id);
-    setGroups(updated);
-    localStorage.setItem(GROUPS_KEY, JSON.stringify(updated));
+  async function deleteGroup(id: string) {
+    setGroups((prev) => prev.filter((g) => g.id !== id));
+    await fetch(`/api/demo/groups/${id}`, { method: "DELETE" }).catch(() => {});
   }
 
   async function handleSend() {
