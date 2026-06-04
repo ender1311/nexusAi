@@ -1,8 +1,14 @@
+import { assetFileTypeFromUrl } from "@/lib/verse-image";
+
 interface PushMessage {
   title: string;
   body: string;
   deeplink?: string;
   iconImageUrl?: string;
+  /** iOS-specific image (square). Falls back to iconImageUrl. */
+  iosImageUrl?: string;
+  /** Android-specific image (2:1). Falls back to iconImageUrl. */
+  androidImageUrl?: string;
   extraData?: Record<string, unknown>;
 }
 
@@ -68,11 +74,14 @@ export class PayloadFactory {
     const resolvedAndroidVariantId = campaignId ? (variantId ?? this.nexusAndroidVariantId) : variantId;
     const resolvedIosVariantId = campaignId ? (variantId ?? this.nexusIosVariantId) : variantId;
 
+    const androidImage = msg.androidImageUrl ?? msg.iconImageUrl;
+    const iosImage = msg.iosImageUrl ?? msg.iconImageUrl;
+
     const androidMsg: Record<string, unknown> = {
       alert: msg.body,
       title: msg.title,
       ...(msg.deeplink && { custom_uri: msg.deeplink }),
-      ...(msg.iconImageUrl && { image_url: msg.iconImageUrl }),
+      ...(androidImage && { image_url: androidImage }),
       ...(msg.extraData && { extra: msg.extraData }),
       ...(resolvedAndroidVariantId && { message_variation_id: resolvedAndroidVariantId }),
       ...((audience.externalUserIds || audience.recipients) && { app_id: this.androidAppId }),
@@ -81,9 +90,7 @@ export class PayloadFactory {
     const appleMsg: Record<string, unknown> = {
       alert: { body: msg.body, title: msg.title },
       ...(msg.deeplink && { custom_uri: msg.deeplink }),
-      ...(msg.iconImageUrl && {
-        rich_notification: { media_url: msg.iconImageUrl, media_type: "img" },
-      }),
+      ...(iosImage && { asset_url: iosImage, asset_file_type: assetFileTypeFromUrl(iosImage) }),
       ...(msg.extraData && { extra: msg.extraData }),
       ...(resolvedIosVariantId && { message_variation_id: resolvedIosVariantId }),
       ...((audience.externalUserIds || audience.recipients) && { app_id: this.iosAppId }),
