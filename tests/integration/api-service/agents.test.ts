@@ -174,6 +174,16 @@ describe("POST /agents — caps defaults", () => {
     expect(body.uniqueUsersCap).toBeNull();
   });
 
+  it("accepts null dailySendCap (unlimited) and persists null", async () => {
+    const res = await app.request("/agents", {
+      method: "POST",
+      headers: ADMIN,
+      body: JSON.stringify({ name: "Caps F", funnelStage: "wau", dailySendCap: null, goals: [], messages: [] }),
+    });
+    const body = await res.json() as { dailySendCap: number | null };
+    expect(body.dailySendCap).toBeNull();
+  });
+
   it("returns 400 when uniqueUsersCap is 0", async () => {
     const res = await app.request("/agents", {
       method: "POST",
