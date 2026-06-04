@@ -16,25 +16,6 @@ import { unstable_cache } from "next/cache";
 import { cache } from "react";
 import Link from "next/link";
 
-/**
- * Cheap KPI aggregate — two indexed counts + one name lookup. Independent of the
- * heavier full-persona-list query so the metric cards paint before the grids.
- */
-const getPersonaKpis = cache(
-  unstable_cache(
-    async () => {
-      const [totalPersonas, assignedUsers, firstPersona] = await Promise.all([
-        prisma.persona.count(),
-        prisma.trackedUser.count({ where: { personaId: { not: null } } }),
-        prisma.persona.findFirst({ orderBy: { createdAt: "asc" }, select: { name: true } }),
-      ]);
-      return { totalPersonas, assignedUsers, topPersonaName: firstPersona?.name ?? "" };
-    },
-    ["personas-kpis"],
-    { tags: ["personas"], revalidate: 900 }
-  )
-);
-
 const getPersonas = cache(
   unstable_cache(
     async (): Promise<Persona[]> => {
@@ -66,11 +47,13 @@ const getPersonas = cache(
 );
 
 async function KpiSection() {
-  const { totalPersonas, assignedUsers, topPersonaName } = await getPersonaKpis().catch(() => ({
-    totalPersonas: 0,
-    assignedUsers: 0,
-    topPersonaName: "",
-  }));
+  // Derive KPIs from the per-persona counts the grids already need, deduped via
+  // React cache(). Avoids a standalone COUNT over ~34M TrackedUser rows (~22s),
+  // which exceeded this route's maxDuration and surfaced as "connection closed".
+  const personas = await getPersonas().catch(() => [] as Persona[]);
+  const totalPersonas = personas.length;
+  const assignedUsers = personas.reduce((s, p) => s + (p._count?.trackedUsers ?? 0), 0);
+  const topPersonaName = personas[0]?.name ?? "";
 
   return (
     <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
@@ -185,9 +168,8 @@ function GridsSkeleton() {
 }
 
 export default function PersonasPage() {
-  // Warm both queries in parallel on entry; each Suspense boundary below then
-  // resolves from cache and streams independently.
-  void getPersonaKpis();
+  // Warm the shared persona query on entry; both Suspense boundaries below then
+  // resolve from the deduped cache() promise.
   void getPersonas();
 
   return (
