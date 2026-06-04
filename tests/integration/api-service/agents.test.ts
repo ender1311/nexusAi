@@ -326,6 +326,40 @@ describe("POST /agents — targetPersonaIds", () => {
   });
 });
 
+describe("POST /agents — required nested fields", () => {
+  it("returns 400 when a goal is missing eventName", async () => {
+    const res = await app.request("/agents", {
+      method: "POST",
+      headers: ADMIN,
+      body: JSON.stringify({
+        name: "Bad Goal",
+        funnelStage: "wau",
+        goals: [{ tier: "primary" }],
+        messages: [],
+      }),
+    });
+    expect(res.status).toBe(400);
+    const body = await res.json() as { error: string };
+    expect(body.error).toBe("each goal requires a non-empty eventName");
+  });
+
+  it("returns 400 when a message is missing channel", async () => {
+    const res = await app.request("/agents", {
+      method: "POST",
+      headers: ADMIN,
+      body: JSON.stringify({
+        name: "Bad Message",
+        funnelStage: "wau",
+        goals: [],
+        messages: [{ name: "M1" }],
+      }),
+    });
+    expect(res.status).toBe(400);
+    const body = await res.json() as { error: string };
+    expect(body.error).toBe("each message requires a non-empty channel");
+  });
+});
+
 describe("POST /agents — nested goals & messages", () => {
   it("creates goals, messages, and variants and computes testedVariables", async () => {
     const res = await app.request("/agents", {

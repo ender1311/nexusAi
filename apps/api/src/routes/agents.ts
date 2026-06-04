@@ -66,7 +66,7 @@ agents.post("/", async (c) => {
     targetPersonaIds,
     targetSegmentName,
   } = body;
-  const segmentTargeting = body.segmentTargeting as unknown;
+  const segmentTargeting = body.segmentTargeting;
 
   if (typeof name !== "string" || name.trim().length === 0) {
     return c.json({ error: "name is required" }, 400);
@@ -126,6 +126,30 @@ agents.post("/", async (c) => {
     }
   }
 
+  if (goals !== undefined && !Array.isArray(goals)) {
+    return c.json({ error: "goals must be an array" }, 400);
+  }
+  for (const g of (Array.isArray(goals) ? goals : []) as Array<Record<string, unknown>>) {
+    if (typeof g.eventName !== "string" || g.eventName.trim().length === 0) {
+      return c.json({ error: "each goal requires a non-empty eventName" }, 400);
+    }
+    if (typeof g.tier !== "string" || g.tier.trim().length === 0) {
+      return c.json({ error: "each goal requires a non-empty tier" }, 400);
+    }
+  }
+
+  if (messages !== undefined && !Array.isArray(messages)) {
+    return c.json({ error: "messages must be an array" }, 400);
+  }
+  for (const m of (Array.isArray(messages) ? messages : []) as Array<Record<string, unknown>>) {
+    if (typeof m.name !== "string" || m.name.trim().length === 0) {
+      return c.json({ error: "each message requires a non-empty name" }, 400);
+    }
+    if (typeof m.channel !== "string" || m.channel.trim().length === 0) {
+      return c.json({ error: "each message requires a non-empty channel" }, 400);
+    }
+  }
+
   try {
     if (targetSegmentName && typeof targetSegmentName === "string") {
       const trimmed = (targetSegmentName as string).trim();
@@ -156,7 +180,7 @@ agents.post("/", async (c) => {
         algorithm: typeof algorithm === "string" ? algorithm : "thompson",
         epsilon: typeof epsilon === "number" ? epsilon : 0.1,
         status: "draft",
-        funnelStage: funnelStage as string,
+        funnelStage: typeof funnelStage === "string" ? funnelStage : undefined,
         uniqueUsersCap: uniqueUsersCap === undefined ? 1000 : (uniqueUsersCap as number | null),
         dailySendCap: dailySendCap === undefined ? 500 : (dailySendCap as number | null),
         ...(targetSegmentName !== undefined ? { targetSegmentName: typeof targetSegmentName === "string" ? (targetSegmentName as string).trim() : null } : {}),
@@ -173,8 +197,8 @@ agents.post("/", async (c) => {
           : {}),
         goals: {
           create: goalList.map((g) => ({
-            eventName: String(g.eventName),
-            tier: String(g.tier),
+            eventName: (g.eventName as string).trim(),
+            tier: (g.tier as string).trim(),
             valueWeight: typeof g.valueWeight === "number" ? g.valueWeight : 1.0,
             description: typeof g.description === "string" ? g.description : undefined,
             weightMode: typeof g.weightMode === "string" ? g.weightMode : "fixed",
@@ -186,8 +210,8 @@ agents.post("/", async (c) => {
           create: messageList.map((m) => {
             const variantList = (Array.isArray(m.variants) ? m.variants : []) as MessageVariant[];
             return {
-              name: String(m.name),
-              channel: String(m.channel),
+              name: (m.name as string).trim(),
+              channel: (m.channel as string).trim(),
               testedVariables: detectTestedVariables(variantList),
               variants: {
                 create: variantList.map((v) => ({
