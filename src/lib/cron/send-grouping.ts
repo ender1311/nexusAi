@@ -12,6 +12,7 @@ import {
 import { computeBibles, substituteGivingCopy, DEFAULT_DOLLARS_TO_BIBLES } from "@/lib/engine/giving-copy";
 import { resolvePushLocaleStrict, type LocalizedCopy } from "@/lib/push-locale";
 import { VERSE_PUSH_SENTINEL, pickVerse, resolveVerseCopy, type VersePool, type VerseStrategy } from "@/lib/verse-content";
+import { VERSE_IMAGE_SENTINEL, DEFAULT_VERSE_IMAGE_ID, buildVerseImageUrls } from "@/lib/verse-image";
 
 export type VariantSendGroup = {
   variantId: string;
@@ -21,6 +22,8 @@ export type VariantSendGroup = {
   body: string;
   title: string | null;
   deeplink: string | null;
+  iosImageUrl: string | null;
+  androidImageUrl: string | null;
   inLocalTime?: boolean;
   scheduledAt?: Date;
   externalUserIds: string[];
@@ -39,6 +42,8 @@ export type VariantMeta = {
   brazeVariantId: string | null;
   /** Non-null marks a dynamic-handle variant; selects the per-user ask strategy. */
   givingHandleStrategy: GivingHandleStrategy | null;
+  /** null = no image; VERSE_IMAGE_SENTINEL = per-verse image; https URL = static image. */
+  iconImageUrl: string | null;
 };
 
 type GroupUser = {
@@ -79,6 +84,7 @@ export function groupDecisionsByVariant(
     let copy: LocalizedCopy = { title: meta.title, body: meta.body };
     let resolvedDeeplink: string | null;
     let copyKeyed: boolean;
+    let verseImageId: string | undefined;
 
     if (meta.givingHandleStrategy != null) {
       // Dynamic giving handle: resolve a per-user ask amount + impact figure, then
@@ -110,6 +116,7 @@ export function groupDecisionsByVariant(
         // Empty pool → skip rather than deliver the raw sentinel as a push body.
         if (!verse) continue;
         copy = resolveVerseCopy(verse, tag, verseStrategy!);
+        verseImageId = verse.imageId;
       } else if (localization?.enabled && meta.channel === "push") {
         // Strict localization: skip recipients we cannot serve in their own language
         // rather than falling back to the English copy.
@@ -124,15 +131,32 @@ export function groupDecisionsByVariant(
       copyKeyed = meta.channel === "push" && (isVerse || (localization?.enabled ?? false));
     }
 
+    // Resolve per-platform image URLs (payload-determining → folded into the group key).
+    let iosImageUrl: string | null = null;
+    let androidImageUrl: string | null = null;
+    if (meta.iconImageUrl === VERSE_IMAGE_SENTINEL) {
+      // Sentinel only resolves on a verse arm (we have a chosen verse). On a
+      // non-verse arm the sentinel is meaningless → no image.
+      if (meta.body === VERSE_PUSH_SENTINEL && meta.channel === "push") {
+        const { ios, android } = buildVerseImageUrls(verseImageId ?? DEFAULT_VERSE_IMAGE_ID);
+        iosImageUrl = ios;
+        androidImageUrl = android;
+      }
+    } else if (meta.iconImageUrl) {
+      iosImageUrl = meta.iconImageUrl;
+      androidImageUrl = meta.iconImageUrl;
+    }
+
     const groupInLocalTime = isFallback;
     const baseKey = `${variantId}:${scheduledAt.toISOString()}:${groupInLocalTime}:${resolvedDeeplink ?? ""}`;
     // When copy is resolved per-user (localized push or a verse arm), users sharing
     // the same resolved copy must batch together; the copy fully determines the
     // payload, so key by it. \u0000 is a NUL field separator (cannot appear in
     // title/body) preventing title|body ambiguity.
-    const groupKey = copyKeyed
+    const imageKey = `${iosImageUrl ?? ""}\u0000${androidImageUrl ?? ""}`;
+    const groupKey = (copyKeyed
       ? `${baseKey}:${copy.title ?? ""}\u0000${copy.body}`
-      : baseKey;
+      : baseKey) + `\u0000${imageKey}`;
 
     if (!byVariant[groupKey]) {
       byVariant[groupKey] = {
@@ -143,6 +167,8 @@ export function groupDecisionsByVariant(
         body:            copy.body,
         title:           copy.title,
         deeplink:        resolvedDeeplink,
+        iosImageUrl,
+        androidImageUrl,
         inLocalTime:     groupInLocalTime,
         scheduledAt,
         externalUserIds: [],
@@ -194,7 +220,13 @@ export async function sendVariantGroup(
 
     if (group.channel === "push") {
       payload = factory.buildPushPayload(
-        { title: group.title ?? "", body: group.body, deeplink: group.deeplink ?? undefined },
+        {
+          title: group.title ?? "",
+          body: group.body,
+          deeplink: group.deeplink ?? undefined,
+          iosImageUrl: group.iosImageUrl ?? undefined,
+          androidImageUrl: group.androidImageUrl ?? undefined,
+        },
         audience,
         resolvedCampaignId,
         group.brazeVariantId ?? undefined,
