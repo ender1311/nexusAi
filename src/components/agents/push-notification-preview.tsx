@@ -21,7 +21,7 @@ function resolveWithoutName(content: string): string {
     .replace(BRAZE_FIRST_NAME_REGEX, "Friend");
 }
 
-function NotificationCard({ title, body, deeplink }: { title: string; body: string; deeplink?: string | null }) {
+function NotificationCard({ title, body, deeplink, imageUrl }: { title: string; body: string; deeplink?: string | null; imageUrl?: string }) {
   return (
     <div className="w-full max-w-[400px]">
       <div className="overflow-hidden rounded-2xl bg-[#e8e8e8] p-3 font-sans shadow-sm">
@@ -44,6 +44,10 @@ function NotificationCard({ title, body, deeplink }: { title: string; body: stri
             </p>
           </div>
         </div>
+        {imageUrl && (
+          // eslint-disable-next-line @next/next/no-img-element
+          <img src={imageUrl} alt="Push image" className="mt-2 w-full rounded-lg object-cover" />
+        )}
       </div>
       {deeplink && (
         <div className="mt-3 flex items-start gap-2 text-xs text-muted-foreground">
@@ -62,17 +66,18 @@ interface PushNotificationPreviewProps {
   title?: string | null;
   body: string;
   deeplink?: string | null;
+  imageUrl?: string;
   previewName?: string;
 }
 
-export function PushNotificationPreview({ title, body, deeplink, previewName = "Alex" }: PushNotificationPreviewProps) {
+export function PushNotificationPreview({ title, body, deeplink, imageUrl, previewName = "Alex" }: PushNotificationPreviewProps) {
   const [tab, setTab] = useState<"personalized" | "fallback">("personalized");
 
   const t = title ?? "";
   const personalized = hasPersonalization(t) || hasPersonalization(body);
 
   if (!personalized) {
-    return <NotificationCard title={t} body={body} deeplink={deeplink} />;
+    return <NotificationCard title={t} body={body} deeplink={deeplink} imageUrl={imageUrl} />;
   }
 
   return (
@@ -87,6 +92,7 @@ export function PushNotificationPreview({ title, body, deeplink, previewName = "
             title={resolveWithName(t, previewName)}
             body={resolveWithName(body, previewName)}
             deeplink={deeplink}
+            imageUrl={imageUrl}
           />
         </TabsContent>
         <TabsContent value="fallback" className="mt-2">
@@ -94,6 +100,7 @@ export function PushNotificationPreview({ title, body, deeplink, previewName = "
             title={resolveWithoutName(t)}
             body={resolveWithoutName(body)}
             deeplink={deeplink}
+            imageUrl={imageUrl}
           />
         </TabsContent>
       </Tabs>

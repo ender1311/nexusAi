@@ -31,6 +31,7 @@ import {
 } from "@/lib/push-deeplinks";
 import { cn } from "@/lib/utils";
 import { PUSH_CATEGORY_VALUES, PUSH_SUBCATEGORIES } from "@/lib/push-categories";
+import { VERSE_IMAGE_SENTINEL } from "@/lib/verse-image";
 
 const CATEGORIES = PUSH_CATEGORY_VALUES;
 const SUBCATEGORIES = PUSH_SUBCATEGORIES;
@@ -44,6 +45,7 @@ type TemplateVariant = {
   cta: string | null;
   category: string | null;
   subcategory: string | null;
+  iconImageUrl: string | null;
 };
 
 type Props =
@@ -63,6 +65,7 @@ export function TemplateFormSheet({ mode, variant, children }: Props) {
   const [body, setBody] = useState(variant?.body ?? "");
   const [deeplink, setDeeplink] = useState(variant?.deeplink ?? "");
   const [cta, setCta] = useState(variant?.cta ?? "");
+  const [iconImageUrl, setIconImageUrl] = useState(variant?.iconImageUrl ?? "");
 
   // Only meaningful when subcategory === "specific-verse"
   const [svMode, setSvMode] = useState<SpecificVerseDeeplinkMode>(
@@ -87,6 +90,7 @@ export function TemplateFormSheet({ mode, variant, children }: Props) {
       setBody("");
       setDeeplink("");
       setCta("");
+      setIconImageUrl("");
       setSvMode("generic");
       setSvUsfm("");
     }
@@ -118,6 +122,7 @@ export function TemplateFormSheet({ mode, variant, children }: Props) {
             body,
             deeplink: effectiveDeeplink ?? undefined,
             cta: cta || undefined,
+            iconImageUrl: iconImageUrl.trim() || undefined,
           }),
         });
       } else {
@@ -131,6 +136,7 @@ export function TemplateFormSheet({ mode, variant, children }: Props) {
             deeplink: effectiveDeeplink,
             cta: cta || null,
             category,
+            iconImageUrl: iconImageUrl.trim() || null,
           }),
         });
       }
@@ -303,12 +309,38 @@ export function TemplateFormSheet({ mode, variant, children }: Props) {
             />
           </div>
 
+          <div className="space-y-1.5">
+            <Label htmlFor="iconImage">Image (optional)</Label>
+            {["reference", "headline-a", "headline-b", "inverted"].includes(subcategory) ? (
+              <label className="flex items-center gap-2 text-sm">
+                <input
+                  type="checkbox"
+                  checked={iconImageUrl === VERSE_IMAGE_SENTINEL}
+                  onChange={(e) => setIconImageUrl(e.target.checked ? VERSE_IMAGE_SENTINEL : "")}
+                />
+                Attach the per-verse scripture image
+              </label>
+            ) : (
+              <Input
+                id="iconImage"
+                value={iconImageUrl === VERSE_IMAGE_SENTINEL ? "" : iconImageUrl}
+                onChange={(e) => setIconImageUrl(e.target.value)}
+                placeholder="https://… (image URL)"
+              />
+            )}
+          </div>
+
           {/* Live preview */}
           <div className="space-y-1.5">
             <Label>Preview</Label>
             <PushNotificationPreview
               title={title || undefined}
               body={body || "Your message body will appear here."}
+              imageUrl={
+                iconImageUrl === VERSE_IMAGE_SENTINEL
+                  ? "https://imageproxy-cdn.youversionapi.com/320x320/https://s3.amazonaws.com/static-youversionapi-com/images/base/77058/1280x1280.jpg"
+                  : (iconImageUrl || undefined)
+              }
               deeplink={
                 subcategory === "specific-verse"
                   ? (svMode === "generic"

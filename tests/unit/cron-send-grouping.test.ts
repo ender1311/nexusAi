@@ -11,6 +11,7 @@ function meta(overrides: Partial<VariantMeta> = {}): VariantMeta {
     brazeCampaignId: "camp-1",
     brazeVariantId: "var-1",
     givingHandleStrategy: null,
+    iconImageUrl: null,
     ...overrides,
   };
 }

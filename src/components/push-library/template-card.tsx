@@ -18,6 +18,7 @@ type TemplateVariant = {
   cta: string | null;
   category: string | null;
   subcategory: string | null;
+  iconImageUrl: string | null;
   languages: string[];
 };
 

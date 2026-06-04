@@ -21,7 +21,7 @@ export function isVerseStrategy(s: string | null | undefined): s is VerseStrateg
 }
 
 export type VerseLangContent = Partial<Record<VerseField, string>>;
-export type VerseEntry = { usfm: string; byLang: Map<string, VerseLangContent> };
+export type VerseEntry = { usfm: string; byLang: Map<string, VerseLangContent>; imageId?: string };
 export type VersePool = VerseEntry[];
 
 /** FNV-1a 32-bit. Stable across processes/runs (unlike object identity hashing). */
