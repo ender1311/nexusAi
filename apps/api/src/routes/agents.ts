@@ -35,127 +35,165 @@ agents.get("/", async (c) => {
 agents.post("/", async (c) => {
   if (isNotAdmin(c)) return c.json({ error: "Forbidden" }, 403);
 
+  let body: Record<string, unknown> | null;
   try {
-    const body = await c.req.json<{
-      name?: string;
-      description?: string;
-      algorithm?: string;
-      epsilon?: number;
-      goals?: Array<{
-        eventName: string;
-        tier: string;
-        valueWeight: number;
-        description?: string;
-        weightMode?: string;
-        weightProperty?: string | null;
-        weightDefault?: number;
-      }>;
-      messages?: Array<{
-        name: string;
-        channel: string;
-        variants?: Array<MessageVariant>;
-      }>;
-      frequencyCap?: { maxSends: number; period: string };
-      quietStart?: string;
-      quietEnd?: string;
-      timezone?: string;
-      quietDays?: number[];
-      smartSuppress?: boolean;
-      suppressThresh?: number;
-      funnelStage?: string;
-      targetFilter?: unknown;
-      uniqueUsersCap?: number | null;
-      dailySendCap?: number | null;
-      targetPersonaIds?: string[];
-    }>();
+    body = (await c.req.json()) as Record<string, unknown> | null;
+  } catch {
+    return c.json({ error: "Invalid JSON body" }, 400);
+  }
+  if (!body || typeof body !== "object") {
+    return c.json({ error: "Invalid JSON body" }, 400);
+  }
 
-    const {
-      name = "",
-      description,
-      algorithm,
-      epsilon,
-      goals = [],
-      messages = [],
-      frequencyCap,
-      quietStart,
-      quietEnd,
-      timezone,
-      quietDays,
-      smartSuppress,
-      suppressThresh,
-      funnelStage,
-      targetFilter,
-      uniqueUsersCap,
-      dailySendCap,
-      targetPersonaIds = [],
-    } = body;
+  const {
+    name,
+    description,
+    algorithm,
+    epsilon,
+    goals,
+    messages,
+    frequencyCap,
+    quietStart,
+    quietEnd,
+    timezone,
+    quietDays,
+    smartSuppress,
+    suppressThresh,
+    funnelStage,
+    targetFilter,
+    uniqueUsersCap,
+    dailySendCap,
+    targetPersonaIds,
+    targetSegmentName,
+  } = body;
+  const segmentTargeting = body.segmentTargeting as unknown;
 
-    if (typeof name !== "string" || name.trim().length === 0) {
-      return c.json({ error: "name is required" }, 400);
+  if (typeof name !== "string" || name.trim().length === 0) {
+    return c.json({ error: "name is required" }, 400);
+  }
+
+  if (segmentTargeting !== undefined && segmentTargeting !== null) {
+    if (
+      typeof segmentTargeting !== "object" ||
+      Array.isArray(segmentTargeting) ||
+      !Array.isArray((segmentTargeting as { includes?: unknown }).includes) ||
+      !Array.isArray((segmentTargeting as { excludes?: unknown }).excludes) ||
+      (segmentTargeting as { includes: unknown[] }).includes.some((s: unknown) => typeof s !== "string" || !(s as string).trim()) ||
+      (segmentTargeting as { excludes: unknown[] }).excludes.some((s: unknown) => typeof s !== "string" || !(s as string).trim())
+    ) {
+      return c.json({ error: "segmentTargeting must be null or { includes: string[], excludes: string[] } with non-empty strings" }, 400);
     }
+    const st = segmentTargeting as { includes: string[]; excludes: string[] };
+    const overlap = st.includes.filter((s: string) => st.excludes.includes(s));
+    if (overlap.length > 0) {
+      return c.json({ error: `Segment(s) cannot appear in both includes and excludes: ${overlap.join(", ")}` }, 400);
+    }
+  }
 
-    if (funnelStage === undefined || funnelStage === null || !VALID_STAGES.has(funnelStage as (typeof FUNNEL_STAGES)[number])) {
+  const hasSegmentIncludes =
+    Array.isArray((segmentTargeting as { includes?: unknown } | null)?.includes) &&
+    ((segmentTargeting as { includes: unknown[] }).includes.length > 0);
+
+  if (!hasSegmentIncludes) {
+    if (!funnelStage || !VALID_STAGES.has(funnelStage as (typeof FUNNEL_STAGES)[number])) {
       return c.json({ error: "Invalid funnelStage" }, 400);
     }
+  }
 
-    if (targetFilter !== undefined && !isPlainObject(targetFilter)) {
-      return c.json({ error: "targetFilter must be a plain object" }, 400);
+  if (targetFilter !== undefined && targetFilter !== null && !isPlainObject(targetFilter)) {
+    return c.json({ error: "targetFilter must be a plain object" }, 400);
+  }
+
+  if (uniqueUsersCap !== undefined && uniqueUsersCap !== null) {
+    if (!Number.isInteger(uniqueUsersCap) || (uniqueUsersCap as number) < 1) {
+      return c.json({ error: "uniqueUsersCap must be null or a positive integer" }, 400);
     }
+  }
 
-    if (uniqueUsersCap !== undefined && uniqueUsersCap !== null) {
-      if (!Number.isInteger(uniqueUsersCap) || uniqueUsersCap < 1) {
-        return c.json({ error: "uniqueUsersCap must be null or a positive integer" }, 400);
+  if (dailySendCap !== undefined && dailySendCap !== null) {
+    if (!Number.isInteger(dailySendCap) || (dailySendCap as number) < 1) {
+      return c.json({ error: "dailySendCap must be null or a positive integer" }, 400);
+    }
+  }
+
+  if (targetSegmentName !== undefined && targetSegmentName !== null && (typeof targetSegmentName !== "string" || (targetSegmentName as string).trim().length === 0)) {
+    return c.json({ error: "targetSegmentName must be null or a non-empty string" }, 400);
+  }
+
+  if (quietDays !== undefined) {
+    if (!Array.isArray(quietDays) || (quietDays as unknown[]).some((d) => !Number.isInteger(d) || (d as number) < 0 || (d as number) > 6)) {
+      return c.json({ error: "quietDays must be an array of day-of-week numbers (0–6)" }, 400);
+    }
+  }
+
+  try {
+    if (targetSegmentName && typeof targetSegmentName === "string") {
+      const trimmed = (targetSegmentName as string).trim();
+      const conflict = await prisma.agent.findFirst({ where: { targetSegmentName: trimmed }, select: { name: true } });
+      if (conflict) {
+        return c.json({ error: `Segment "${trimmed}" is already assigned to agent "${conflict.name}"` }, 409);
+      }
+    }
+    if (hasSegmentIncludes) {
+      const includeSegs = (segmentTargeting as { includes: string[] }).includes;
+      for (const seg of includeSegs) {
+        const conflict = await prisma.agent.findFirst({ where: { targetSegmentName: seg }, select: { name: true } });
+        if (conflict) {
+          return c.json({ error: `Segment "${seg}" is exclusively assigned to agent "${conflict.name}"` }, 409);
+        }
       }
     }
 
-    if (dailySendCap !== undefined && dailySendCap !== null) {
-      if (!Number.isInteger(dailySendCap) || dailySendCap < 1) {
-        return c.json({ error: "dailySendCap must be null or a positive integer" }, 400);
-      }
-    }
-
-    if (quietDays !== undefined) {
-      if (!Array.isArray(quietDays) || quietDays.some((d) => !Number.isInteger(d) || d < 0 || d > 6)) {
-        return c.json({ error: "quietDays must be an array of day-of-week numbers (0–6)" }, 400);
-      }
-    }
+    const goalList = Array.isArray(goals) ? (goals as Array<Record<string, unknown>>) : [];
+    const messageList = Array.isArray(messages) ? (messages as Array<Record<string, unknown>>) : [];
+    const personaIds = Array.isArray(targetPersonaIds) ? (targetPersonaIds as string[]) : [];
+    const qDays = Array.isArray(quietDays) ? (quietDays as number[]) : [];
 
     const agent = await prisma.agent.create({
       data: {
-        name,
-        description,
-        algorithm: algorithm ?? "thompson",
-        epsilon: epsilon ?? 0.1,
+        name: name.trim(),
+        description: typeof description === "string" ? description : undefined,
+        algorithm: typeof algorithm === "string" ? algorithm : "thompson",
+        epsilon: typeof epsilon === "number" ? epsilon : 0.1,
         status: "draft",
         funnelStage: funnelStage as string,
-        ...(uniqueUsersCap !== undefined ? { uniqueUsersCap } : {}),
-        ...(dailySendCap !== undefined ? { dailySendCap } : {}),
-        ...(targetFilter !== undefined
+        uniqueUsersCap: uniqueUsersCap === undefined ? 1000 : (uniqueUsersCap as number | null),
+        dailySendCap: dailySendCap === undefined ? 500 : (dailySendCap as number | null),
+        ...(targetSegmentName !== undefined ? { targetSegmentName: typeof targetSegmentName === "string" ? (targetSegmentName as string).trim() : null } : {}),
+        ...(segmentTargeting !== undefined ? {
+          segmentTargeting: segmentTargeting === null
+            ? Prisma.DbNull
+            : {
+                includes: (segmentTargeting as { includes: string[]; excludes: string[] }).includes.map((s: string) => s.trim()),
+                excludes: (segmentTargeting as { includes: string[]; excludes: string[] }).excludes.map((s: string) => s.trim()),
+              }
+        } : {}),
+        ...(targetFilter !== undefined && targetFilter !== null
           ? { targetFilter: targetFilter as Prisma.InputJsonValue }
           : {}),
         goals: {
-          create: goals.map((g) => ({
-            eventName: g.eventName,
-            tier: g.tier,
-            valueWeight: g.valueWeight,
-            description: g.description,
-            weightMode: g.weightMode ?? "fixed",
-            weightProperty: g.weightProperty ?? null,
-            weightDefault: g.weightDefault ?? 1.0,
+          create: goalList.map((g) => ({
+            eventName: String(g.eventName),
+            tier: String(g.tier),
+            valueWeight: typeof g.valueWeight === "number" ? g.valueWeight : 1.0,
+            description: typeof g.description === "string" ? g.description : undefined,
+            weightMode: typeof g.weightMode === "string" ? g.weightMode : "fixed",
+            weightProperty: typeof g.weightProperty === "string" ? g.weightProperty : null,
+            weightDefault: typeof g.weightDefault === "number" ? g.weightDefault : 1.0,
           })),
         },
         messages: {
-          create: messages.map((m) => {
-            const variantList = m.variants ?? [];
+          create: messageList.map((m) => {
+            const variantList = (Array.isArray(m.variants) ? m.variants : []) as MessageVariant[];
             return {
-              name: m.name,
-              channel: m.channel,
+              name: String(m.name),
+              channel: String(m.channel),
               testedVariables: detectTestedVariables(variantList),
               variants: {
                 create: variantList.map((v) => ({
                   name: v.name ?? "V1",
                   subject: v.subject,
-                  body: v.body,
+                  body: v.body ?? "",
                   cta: v.cta,
                   title: v.title,
                   iconImageUrl: v.iconImageUrl,
@@ -171,15 +209,17 @@ agents.post("/", async (c) => {
         },
         schedulingRule: {
           create: {
-            frequencyCap: frequencyCap ?? { maxSends: 3, period: "week" },
+            frequencyCap: (isPlainObject(frequencyCap)
+              ? frequencyCap
+              : { maxSends: 3, period: "week" }) as Prisma.InputJsonValue,
             quietHours: {
-              start: quietStart ?? "22:00",
-              end: quietEnd ?? "08:00",
-              timezone: timezone ?? "America/New_York",
-              ...(Array.isArray(quietDays) && quietDays.length > 0 ? { quietDays } : {}),
-            },
-            smartSuppress: smartSuppress ?? false,
-            suppressThresh: suppressThresh ?? 0.5,
+              start: typeof quietStart === "string" ? quietStart : "22:00",
+              end: typeof quietEnd === "string" ? quietEnd : "08:00",
+              timezone: typeof timezone === "string" ? timezone : "America/New_York",
+              ...(qDays.length > 0 ? { quietDays: qDays } : {}),
+            } as Prisma.InputJsonValue,
+            smartSuppress: typeof smartSuppress === "boolean" ? smartSuppress : false,
+            suppressThresh: typeof suppressThresh === "number" ? suppressThresh : 0.5,
           },
         },
       },
@@ -187,9 +227,9 @@ agents.post("/", async (c) => {
 
     void revalidate("agents");
 
-    if (targetPersonaIds.length > 0) {
+    if (personaIds.length > 0) {
       await prisma.agentPersonaTarget.createMany({
-        data: targetPersonaIds.map((personaId) => ({ agentId: agent.id, personaId })),
+        data: personaIds.map((personaId) => ({ agentId: agent.id, personaId })),
         skipDuplicates: true,
       });
     }
