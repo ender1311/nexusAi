@@ -526,6 +526,7 @@ export async function POST(req: NextRequest) {
       brazeCampaignId: string | null;
       brazeVariantId: string | null;
       givingHandleStrategy: GivingHandleStrategy | null;
+      iconImageUrl: string | null;
     }>();
     for (const msg of agent.messages) {
       for (const v of msg.variants) {
@@ -537,6 +538,7 @@ export async function POST(req: NextRequest) {
           brazeCampaignId: msg.brazeCampaignId ?? null,
           brazeVariantId:  v.brazeVariantId ?? null,
           givingHandleStrategy: deriveGivingStrategy(v.subcategory ?? null, v.actionFeatures),
+          iconImageUrl:    v.iconImageUrl ?? null,
         });
       }
     }
