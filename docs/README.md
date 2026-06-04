@@ -55,8 +55,8 @@ understand how the system works.
 | [brain.md](./brain.md) | Early design narrative (historical context) |
 | [todo-later.md](./todo-later.md) | Deferred work and ideas |
 
-JSON payload templates (`hightouch-*.json`, `giving-push-library.json`) sit
-alongside these docs as concrete Hightouch Liquid / library examples.
+JSON payload templates live in [`json/`](./json/) (`hightouch-*.json`,
+`giving-push-library.json`) as concrete Hightouch Liquid / library examples.
 
 ## Quick Reference
 

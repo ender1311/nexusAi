@@ -1,4 +1,4 @@
-// Bulk-insert the curated giving push library (docs/giving-push-library.json) into
+// Bulk-insert the curated giving push library (docs/json/giving-push-library.json) into
 // the push copy library as MessageVariant rows under the LIBRARY_AGENT_NAME agent.
 //
 // SAFETY: dry-run by default — prints the plan and writes NOTHING. Pass --commit to
@@ -22,7 +22,7 @@ type Entry = {
 };
 
 const COMMIT = process.argv.includes("--commit");
-const JSON_PATH = path.join(process.cwd(), "docs", "giving-push-library.json");
+const JSON_PATH = path.join(process.cwd(), "docs", "json", "giving-push-library.json");
 
 async function main() {
   const raw = fs.readFileSync(JSON_PATH, "utf-8");

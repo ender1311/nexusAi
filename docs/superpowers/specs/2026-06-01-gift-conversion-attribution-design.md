@@ -15,7 +15,7 @@ feed an **amount-weighted** reward into the bandit, and surface gift performance
 Gift attribution is **partially wired but inert today**:
 
 - Gift data arrives as **user attributes** via Hightouch (`/api/ingest/users`), not
-  as a discrete event. Payload of record: `docs/hightouch-gift-payload.json`
+  as a discrete event. Payload of record: `docs/json/hightouch-gift-payload.json`
   (key fields: `gift_amount_most_recent`, `gift_amount_most_recent_timestamp`,
   `gift_currency_most_recent`, plus donor signals used by `giving-link.ts`).
 - `src/app/api/ingest/users/route.ts:893–996` already detects

@@ -1,7 +1,7 @@
 {
   "_comment": "Liquid template for Hightouch HTTP Request sync → POST /api/ingest/users — funnel_stage: mau (Habitual MAU). Paste _template into the JSON editor in the sync configuration.",
   "_notes": [
-    "Replaces docs/hightouch-template-payload.json — avoids | json filters that cause 'Maximum call stack size exceeded' at batch sizes >100.",
+    "Replaces docs/json/hightouch-template-payload.json — avoids | json filters that cause 'Maximum call stack size exceeded' at batch sizes >100.",
     "Set batch size to 100 rows per request (not 1000).",
     "funnel_stage is hardcoded to 'mau' for the Habitual MAU audience.",
     "braze_user_id_latest maps to braze_id — column name from the Hightouch audience model.",

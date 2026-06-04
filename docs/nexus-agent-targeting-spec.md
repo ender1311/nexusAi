@@ -738,7 +738,7 @@ Set via `POST /api/agents/:id/scheduling-rule` (or directly in DB for now). Thes
 
 ## 10 — Hightouch: attributes required for targetFilter
 
-The following `TrackedUser.attributes` keys are referenced by the targetFilters above. All must be present in the Hightouch → `/api/ingest/users` sync payload. Cross-reference with `hightouch-ingest-users-payload.json`.
+The following `TrackedUser.attributes` keys are referenced by the targetFilters above. All must be present in the Hightouch → `/api/ingest/users` sync payload. Cross-reference with `json/hightouch-ingest-users-payload.json`.
 
 | Attribute key | Source column | Type | Notes |
 |---|---|---|---|
@@ -750,7 +750,7 @@ The following `TrackedUser.attributes` keys are referenced by the targetFilters 
 | `streak_depth` | *(not yet mapped)* | number | **Add to Hightouch sync** — user's current streak length in days |
 | `plan_depth` | *(not yet mapped)* | number | **Add to Hightouch sync** — number of plan days completed in active plan |
 
-### Add to Hightouch Liquid template (`hightouch-ingest-users-payload.json`)
+### Add to Hightouch Liquid template (`json/hightouch-ingest-users-payload.json`)
 
 In the `attributes` object, add:
 
