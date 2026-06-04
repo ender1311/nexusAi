@@ -159,6 +159,39 @@ describe("POST /api/push-library", () => {
     expect(body).toHaveProperty("error");
   });
 
+  it("returns 400 when title is missing (push requires a title)", async () => {
+    mockAuth.roles = ["admin"];
+    await seedLibrary();
+
+    const req = buildRequest("POST", {
+      name: "Missing title",
+      category: "reader",
+      body: "Has a body but no title",
+    }) as NextRequest;
+    const res = await POST(req);
+
+    expect(res.status).toBe(400);
+    const body = await res.json();
+    expect(body.error).toMatch(/title/i);
+  });
+
+  it("returns 400 when title is blank whitespace", async () => {
+    mockAuth.roles = ["admin"];
+    await seedLibrary();
+
+    const req = buildRequest("POST", {
+      name: "Blank title",
+      category: "reader",
+      title: "   ",
+      body: "Has a body",
+    }) as NextRequest;
+    const res = await POST(req);
+
+    expect(res.status).toBe(400);
+    const body = await res.json();
+    expect(body.error).toMatch(/title/i);
+  });
+
   it("creates a variant in the giving category", async () => {
     mockAuth.roles = ["admin"];
     await seedLibrary();
@@ -212,6 +245,7 @@ describe("specific-verse deeplinks", () => {
       name: "Verse of the Day",
       category: "reader",
       subcategory: "specific-verse",
+      title: "Verse of the Day",
       body: "Read Matthew 1:1 today.",
       deeplink: "youversion://bible?reference=MAT.1.1",
     }) as NextRequest;
@@ -233,6 +267,7 @@ describe("specific-verse deeplinks", () => {
       name: "Open Bible Generic",
       category: "reader",
       subcategory: "specific-verse",
+      title: "Open your Bible",
       body: "Tap to read your Bible.",
       deeplink: "youversion://bible",
     }) as NextRequest;

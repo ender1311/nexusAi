@@ -7,6 +7,7 @@ import { PushNotificationPreview } from "@/components/agents/push-notification-p
 import { TemplateFormSheet } from "@/components/push-library/template-form-sheet";
 import { DeleteConfirmDialog } from "@/components/push-library/delete-confirm-dialog";
 import { LanguageCoverageBadge } from "@/components/push-library/language-coverage-badge";
+import { isPushVariantComplete } from "@/lib/messages/push-completeness";
 
 type TemplateVariant = {
   id: string;
@@ -37,6 +38,11 @@ export function TemplateCard({ variant, isAdmin }: TemplateCardProps) {
         <div className="flex items-start justify-between gap-2">
           <p className="text-sm font-medium leading-tight">{variant.name}</p>
           <div className="flex shrink-0 items-center gap-1">
+            {!isPushVariantComplete(variant) && (
+              <Badge variant="destructive" className="shrink-0 text-xs">
+                Incomplete
+              </Badge>
+            )}
             <LanguageCoverageBadge languages={variant.languages} />
             {variant.subcategory && (
               <Badge variant="outline" className="shrink-0 text-xs">
