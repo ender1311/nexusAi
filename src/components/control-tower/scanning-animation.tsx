@@ -28,10 +28,10 @@ export function ScanningAnimation({ phase, progress }: ScanningAnimationProps) {
     <div className="rounded-xl border bg-card ring-1 ring-foreground/10 p-8 space-y-8">
       {/* Header */}
       <div className="text-center space-y-1">
-        <p className="text-xs font-mono uppercase tracking-widest text-primary">
+        <p className="text-xs font-mono uppercase tracking-widest ct-text-shimmer">
           Nexus AI — Active Analysis
         </p>
-        <h3 className="text-lg font-semibold">Scanning in progress</h3>
+        <h3 className="text-lg font-semibold ct-text-shimmer-strong">Scanning in progress</h3>
       </div>
 
       {/* Concentric rings */}
@@ -81,7 +81,7 @@ export function ScanningAnimation({ phase, progress }: ScanningAnimationProps) {
       <div className="text-center min-h-[1.5rem]">
         <p
           ref={phaseRef}
-          className="font-mono text-sm text-muted-foreground transition-opacity duration-200"
+          className="font-mono text-sm ct-text-shimmer transition-opacity duration-200"
         >
           {phase}
         </p>
