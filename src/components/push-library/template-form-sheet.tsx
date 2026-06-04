@@ -222,6 +222,7 @@ export function TemplateFormSheet({ mode, variant, children }: Props) {
               value={title}
               onChange={(e) => setTitle(e.target.value)}
               placeholder="Push notification title"
+              required
             />
           </div>
 

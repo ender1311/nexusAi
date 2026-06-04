@@ -39,6 +39,7 @@ import { VERSE_PUSH_SENTINEL, isVerseStrategy, type VersePool, type VerseStrateg
 import { loadVersePool } from "@/lib/cron/verse-pool";
 import { isGivingHandleStrategy, type GivingHandleStrategy } from "@/lib/engine/giving-link";
 import { parseMultiplier } from "@/lib/engine/giving-copy";
+import { isPushVariantComplete } from "@/lib/messages/push-completeness";
 
 // Allow up to 300s execution time on Vercel
 export const maxDuration = 300;
@@ -116,6 +117,34 @@ export async function POST(req: NextRequest) {
       },
     },
   });
+
+  // Drop incomplete push variants from the candidate pool before any selection.
+  // A push must have both a title and a body; an incomplete variant is skipped
+  // (logged) so its complete siblings still send and the agent is never blocked.
+  // Filtering at the source propagates to variantMeta, allVariantIds, arms, etc.
+  let skippedIncompletePush = 0;
+  for (const agent of agents) {
+    for (const msg of agent.messages) {
+      if (msg.channel !== "push") continue;
+      const complete = msg.variants.filter((v) =>
+        isPushVariantComplete({ title: v.title, body: v.body })
+      );
+      if (complete.length !== msg.variants.length) {
+        for (const v of msg.variants) {
+          if (!isPushVariantComplete({ title: v.title, body: v.body })) {
+            skippedIncompletePush++;
+            console.warn(
+              `[cron/select-and-send] skipping incomplete push variant ${v.id} (agent ${agent.id}): missing title and/or body`
+            );
+          }
+        }
+        msg.variants = complete;
+      }
+    }
+  }
+  if (skippedIncompletePush > 0) {
+    console.warn(`[cron/select-and-send] skipped ${skippedIncompletePush} incomplete push variant(s)`);
+  }
 
   void prisma.cronRun.update({
     where: { id: cronRunId },

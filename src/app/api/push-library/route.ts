@@ -88,6 +88,10 @@ export async function POST(req: NextRequest) {
   if (typeof msgBody !== "string" || msgBody.trim() === "") {
     return fail("body is required", 400);
   }
+  // Push Library variants are always push-channel — a push needs a title too.
+  if (typeof title !== "string" || title.trim() === "") {
+    return fail("title is required for push", 400);
+  }
 
   try {
     // Find or create library agent

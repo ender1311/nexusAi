@@ -4,6 +4,7 @@ import { prisma } from "@/lib/db";
 import { LIBRARY_AGENT_NAME, TEMPLATE_COPY_FIELDS } from "@/lib/engine/template-sync";
 import { syncClonesFromTemplate } from "@/lib/services/template-service";
 import { requireAdmin } from "@/lib/auth";
+import { isPushVariantComplete, missingPushFields } from "@/lib/messages/push-completeness";
 
 // Fields an operator is allowed to update via PATCH.
 // Excludes id, messageId, sourceTemplateId, createdAt (structural / immutable).
@@ -43,6 +44,29 @@ export async function PATCH(
     return NextResponse.json({ error: "No valid fields to update" }, { status: 400 });
   }
 
+  // Channel-aware completeness: a push variant must keep a non-empty title AND
+  // body after this edit. Fetched before the update so an incomplete edit is
+  // rejected (400) rather than persisted. Single-level include only (Neon).
+  const message = await prisma.message.findUnique({
+    where: { id: variant.messageId },
+    include: { agent: { select: { name: true } } },
+  });
+  if (message?.channel === "push") {
+    const resultingTitle = "title" in updateData ? updateData.title : variant.title;
+    const resultingBody = "body" in updateData ? updateData.body : variant.body;
+    const candidate = {
+      title: typeof resultingTitle === "string" ? resultingTitle : null,
+      body: typeof resultingBody === "string" ? resultingBody : null,
+    };
+    if (!isPushVariantComplete(candidate)) {
+      const missing = missingPushFields(candidate).join(" and ");
+      return NextResponse.json(
+        { error: `push requires a non-empty ${missing}` },
+        { status: 400 }
+      );
+    }
+  }
+
   let updated;
   try {
     updated = await prisma.messageVariant.update({
@@ -54,12 +78,7 @@ export async function PATCH(
   }
 
   // If this is a template variant, sync copy fields to all clones.
-  // Fetch agent name separately to avoid Neon adapter nested-include issues.
   let clonesUpdated = 0;
-  const message = await prisma.message.findUnique({
-    where: { id: variant.messageId },
-    include: { agent: { select: { name: true } } },
-  });
   if (message?.agent?.name === LIBRARY_AGENT_NAME) {
     const copyData = Object.fromEntries(
       TEMPLATE_COPY_FIELDS.map((f) => [f, (updated as Record<string, unknown>)[f]])
