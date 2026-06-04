@@ -10,8 +10,8 @@ import {
 const noStats = {};
 
 describe("isPushTargetingMode / constants", () => {
-  it("default mode is permissive", () => {
-    expect(DEFAULT_PUSH_TARGETING_MODE).toBe("permissive");
+  it("default mode is broad (gate disabled until opted in)", () => {
+    expect(DEFAULT_PUSH_TARGETING_MODE).toBe("broad");
   });
   it("recognizes valid modes and rejects others", () => {
     for (const m of PUSH_TARGETING_MODES) expect(isPushTargetingMode(m)).toBe(true);

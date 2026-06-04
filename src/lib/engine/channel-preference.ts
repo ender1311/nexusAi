@@ -17,7 +17,10 @@ export type PushTargetingMode = "strict" | "permissive" | "broad";
 
 export const PUSH_TARGETING_MODES = ["strict", "permissive", "broad"] as const;
 
-export const DEFAULT_PUSH_TARGETING_MODE: PushTargetingMode = "permissive";
+// Defaults to "broad" (gate disabled) so push send behavior is unchanged until an
+// admin explicitly opts into preferred-channel targeting in Settings — which they
+// should only do once the Hightouch preferred-channel traits carry real values.
+export const DEFAULT_PUSH_TARGETING_MODE: PushTargetingMode = "broad";
 
 export function isPushTargetingMode(value: unknown): value is PushTargetingMode {
   return (
