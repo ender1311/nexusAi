@@ -9,6 +9,7 @@ import { cn } from "@/lib/utils";
 import Link from "next/link";
 import { ChevronDown, ChevronRight, Plus } from "lucide-react";
 import type { Channel, TestedVariable } from "@/types/agent";
+import { maskPersonalization } from "@/lib/messages/personalization";
 
 const channelColors: Record<Channel, string> = {
   push:  "bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400",
@@ -71,9 +72,9 @@ function CollapsibleMessage({ msg }: { msg: Message }) {
               <div className="flex-1 min-w-0">
                 <span className="text-xs font-medium">{v.name}</span>
                 {msg.channel === "push" && v.title && (
-                  <span className="text-xs text-muted-foreground ml-2">· {v.title}</span>
+                  <span className="text-xs text-muted-foreground ml-2">· {maskPersonalization(v.title)}</span>
                 )}
-                <p className="text-xs text-muted-foreground line-clamp-2 mt-0.5">{v.body}</p>
+                <p className="text-xs text-muted-foreground line-clamp-2 mt-0.5">{maskPersonalization(v.body)}</p>
               </div>
               <Badge
                 variant="outline"

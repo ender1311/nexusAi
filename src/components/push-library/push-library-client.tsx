@@ -10,6 +10,7 @@ import { TemplateCard } from "./template-card";
 import { TemplateFormSheet } from "./template-form-sheet";
 import { DeleteConfirmDialog } from "./delete-confirm-dialog";
 import { PUSH_CATEGORY_VALUES } from "@/lib/push-categories";
+import { maskPersonalization } from "@/lib/messages/personalization";
 
 export type TemplateVariant = {
   id: string;
@@ -228,9 +229,9 @@ export function PushLibraryClient({ groups, isAdmin }: Props) {
                       )}
                     </td>
                     <td className="px-4 py-3 text-sm text-muted-foreground">
-                      {v.title ?? <span className="opacity-40">—</span>}
+                      {maskPersonalization(v.title) ?? <span className="opacity-40">—</span>}
                     </td>
-                    <td className="px-4 py-3 text-sm leading-relaxed">{v.body}</td>
+                    <td className="px-4 py-3 text-sm leading-relaxed">{maskPersonalization(v.body)}</td>
                     {isAdmin && (
                       <td className="px-4 py-3">
                         <div className="flex items-center justify-end gap-1">

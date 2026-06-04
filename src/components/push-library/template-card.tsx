@@ -8,6 +8,7 @@ import { TemplateFormSheet } from "@/components/push-library/template-form-sheet
 import { DeleteConfirmDialog } from "@/components/push-library/delete-confirm-dialog";
 import { LanguageCoverageBadge } from "@/components/push-library/language-coverage-badge";
 import { isPushVariantComplete } from "@/lib/messages/push-completeness";
+import { maskPersonalization } from "@/lib/messages/personalization";
 
 type TemplateVariant = {
   id: string;
@@ -53,8 +54,8 @@ export function TemplateCard({ variant, isAdmin }: TemplateCardProps) {
           </div>
         </div>
         <PushNotificationPreview
-          title={variant.title}
-          body={variant.body}
+          title={maskPersonalization(variant.title)}
+          body={maskPersonalization(variant.body) ?? ""}
           deeplink={variant.deeplink}
         />
         {truncatedDeeplink && (
