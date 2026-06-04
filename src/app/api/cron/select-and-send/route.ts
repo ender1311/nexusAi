@@ -23,6 +23,11 @@ import { computeFeatureVector, FEATURE_DIM } from "@/lib/engine/feature-vector";
 import type { BanditArm } from "@/lib/engine/types";
 import { recencyMultiplier } from "@/lib/engine/beta-pdf";
 import { buildEligibleAgentsByUser, classifyExplorationWindows } from "@/lib/cron/exploration-window";
+import {
+  isPushPreferred,
+  isPushTargetingMode,
+  DEFAULT_PUSH_TARGETING_MODE,
+} from "@/lib/engine/channel-preference";
 import { selectAudience, trimToCap, resolveFetchLimit } from "@/lib/cron/caps";
 import { classifyReleases, type ReleaseAgentInfo, type ActiveAssignment } from "@/lib/cron/release-sweep";
 import {
@@ -187,7 +192,7 @@ export async function POST(req: NextRequest) {
   // preferredHourByAgent: agentId → Map<externalId, preferredSendHour | null>
   // Used by time-bucketed audience selection when prioritizeLastSeen is on.
   const preferredHourByAgent = new Map<string, Map<string, number | null>>();
-  const [, cooldownSetting, multiplierSetting] = await Promise.all([
+  const [, cooldownSetting, multiplierSetting, pushTargetingModeSetting] = await Promise.all([
     Promise.all(
       agents.map(async (agent) => {
         const personaIds = agent.personaTargets.map((pt) => pt.personaId);
@@ -320,7 +325,13 @@ export async function POST(req: NextRequest) {
     // ─── Phase 0 setup: fetch cooldown config in parallel with lottery queries ───
     prisma.appSetting.findUnique({ where: { key: "exploration_window_cooldown_days" } }),
     prisma.appSetting.findUnique({ where: { key: "giving_dollars_to_bibles_multiplier" } }),
+    prisma.appSetting.findUnique({ where: { key: "push_targeting_mode" } }),
   ]);
+
+  // Push send-eligibility targeting strictness (strict | permissive | broad).
+  const pushTargetingMode = isPushTargetingMode(pushTargetingModeSetting?.value)
+    ? pushTargetingModeSetting.value
+    : DEFAULT_PUSH_TARGETING_MODE;
 
   const lotteryMap = buildAgentLottery(eligibleUsersByAgent);
   // lotteryMap: Map<externalUserId, agentId>  — held in memory for this run
@@ -361,7 +372,7 @@ export async function POST(req: NextRequest) {
     ]);
     const assignmentByUser = new Map(existingAssignments.map((a) => [a.externalUserId, a]));
 
-    const eligibleAgentsByUser = buildEligibleAgentsByUser(explorationAgents, explorationUsers);
+    const eligibleAgentsByUser = buildEligibleAgentsByUser(explorationAgents, explorationUsers, pushTargetingMode);
     const classification = classifyExplorationWindows(
       explorationUsers,
       assignmentByUser,
@@ -760,6 +771,20 @@ export async function POST(req: NextRequest) {
       });
       suppress.targetFilter += eligibleUsers.length - channelFiltered.length;
 
+      // Preferred-channel gate: push agents only target users whose behavioral
+      // preferred external channel is push (mode-dependent; see channel-preference.ts).
+      const prefFiltered = hasPushMessages
+        ? channelFiltered.filter((u) =>
+            isPushPreferred(
+              (u.attributes as Record<string, unknown>) ?? {},
+              u.channelStats,
+              u.funnelStage,
+              pushTargetingMode,
+            ),
+          )
+        : channelFiltered;
+      suppress.targetFilter += channelFiltered.length - prefFiltered.length;
+
       // Language filter for push agents: English-only sends by default. When the
       // agent opts into push localization, do NOT force EN and do NOT exclude
       // missing-language_tag users — every recipient gets copy (English fallback).
@@ -768,13 +793,13 @@ export async function POST(req: NextRequest) {
           ? agent.languageFilter
           : (hasPushMessages && !localizeEnabled) ? "en" : null;
       const langFiltered = effectiveAgentLang
-        ? channelFiltered.filter((u) => {
+        ? prefFiltered.filter((u) => {
             const attrs = u.attributes as Record<string, unknown>;
             const lang = attrs?.language_tag as string | undefined;
             return lang?.startsWith(effectiveAgentLang) === true;
           })
-        : channelFiltered;
-      suppress.targetFilter += channelFiltered.length - langFiltered.length;
+        : prefFiltered;
+      suppress.targetFilter += prefFiltered.length - langFiltered.length;
 
       // Apply targetFilter in-memory on the already-loaded page (V1: no SQL-side JSON filtering)
       const targetFiltered = langFiltered.filter((u) => {

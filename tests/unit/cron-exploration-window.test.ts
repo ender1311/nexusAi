@@ -26,23 +26,24 @@ function user(overrides: Partial<ExplorationUser> = {}): ExplorationUser {
     personaId: "p1",
     funnelStage: null,
     attributes: { language_tag: "en-US" },
+    channelStats: null,
     ...overrides,
   };
 }
 
 describe("buildEligibleAgentsByUser", () => {
   it("matches users to agents by persona membership", () => {
-    const res = buildEligibleAgentsByUser([agent()], [user()]);
+    const res = buildEligibleAgentsByUser([agent()], [user()], "permissive");
     expect(res.get("u1")).toEqual(["agent-1"]);
   });
 
   it("excludes users not in the agent's persona set", () => {
-    const res = buildEligibleAgentsByUser([agent()], [user({ personaId: "other" })]);
+    const res = buildEligibleAgentsByUser([agent()], [user({ personaId: "other" })], "permissive");
     expect(res.has("u1")).toBe(false);
   });
 
   it("skips users with no persona", () => {
-    const res = buildEligibleAgentsByUser([agent()], [user({ personaId: null })]);
+    const res = buildEligibleAgentsByUser([agent()], [user({ personaId: null })], "permissive");
     expect(res.has("u1")).toBe(false);
   });
 
@@ -50,6 +51,7 @@ describe("buildEligibleAgentsByUser", () => {
     const res = buildEligibleAgentsByUser(
       [agent()],
       [user({ attributes: { language_tag: "en-US", newsletter_push_enabled: false } })],
+      "permissive",
     );
     expect(res.has("u1")).toBe(false);
   });
@@ -58,19 +60,30 @@ describe("buildEligibleAgentsByUser", () => {
     const res = buildEligibleAgentsByUser(
       [agent()],
       [user({ attributes: { language_tag: "es-MX" } })],
+      "permissive",
     );
     expect(res.has("u1")).toBe(false);
   });
 
   it("applies funnel-stage filter when no segment targeting is active", () => {
     const a = agent({ funnelStage: "lapsed_dau" });
-    expect(buildEligibleAgentsByUser([a], [user({ funnelStage: "active" })]).has("u1")).toBe(false);
-    expect(buildEligibleAgentsByUser([a], [user({ funnelStage: "lapsed_dau" })]).get("u1")).toEqual(["agent-1"]);
+    expect(buildEligibleAgentsByUser([a], [user({ funnelStage: "active" })], "permissive").has("u1")).toBe(false);
+    expect(buildEligibleAgentsByUser([a], [user({ funnelStage: "lapsed_dau" })], "permissive").get("u1")).toEqual(["agent-1"]);
   });
 
   it("skips funnel-stage filter when segment includes are present", () => {
     const a = agent({ funnelStage: "lapsed_dau", segmentTargeting: { includes: ["seg-1"] } });
-    expect(buildEligibleAgentsByUser([a], [user({ funnelStage: "active" })]).get("u1")).toEqual(["agent-1"]);
+    expect(buildEligibleAgentsByUser([a], [user({ funnelStage: "active" })], "permissive").get("u1")).toEqual(["agent-1"]);
+  });
+
+  it("strict mode excludes push agent when preferred external channel is not push", () => {
+    const a = agent({ funnelStage: "lapsed_dau" });
+    const u = user({
+      funnelStage: "lapsed_dau",
+      attributes: { language_tag: "en-US", preferred_channel_external_90_days: "email" },
+    });
+    expect(buildEligibleAgentsByUser([a], [u], "strict").has("u1")).toBe(false);
+    expect(buildEligibleAgentsByUser([a], [u], "broad").get("u1")).toEqual(["agent-1"]);
   });
 });
 
