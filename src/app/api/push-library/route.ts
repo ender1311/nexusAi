@@ -27,6 +27,7 @@ export async function GET() {
         status: true,
         category: true,
         subcategory: true,
+        iconImageUrl: true,
       },
       orderBy: [{ category: "asc" }, { subcategory: "asc" }, { createdAt: "asc" }],
     });
@@ -69,7 +70,7 @@ export async function POST(req: NextRequest) {
     return fail("Invalid JSON", 400);
   }
 
-  const { name, category, subcategory, title, body: msgBody, deeplink, cta } = body as {
+  const { name, category, subcategory, title, body: msgBody, deeplink, cta, iconImageUrl } = body as {
     name?: unknown;
     category?: unknown;
     subcategory?: unknown;
@@ -77,6 +78,7 @@ export async function POST(req: NextRequest) {
     body?: unknown;
     deeplink?: unknown;
     cta?: unknown;
+    iconImageUrl?: unknown;
   };
 
   if (typeof name !== "string" || name.trim() === "") {
@@ -133,6 +135,7 @@ export async function POST(req: NextRequest) {
         cta: typeof cta === "string" ? cta.trim() || null : null,
         category,
         subcategory: typeof subcategory === "string" ? subcategory.trim() || null : null,
+        iconImageUrl: typeof iconImageUrl === "string" ? iconImageUrl.trim() || null : null,
         status: "active",
       },
     });

@@ -219,6 +219,24 @@ describe("POST /api/push-library", () => {
     expect(givingGroup).toBeDefined();
   });
 
+  it("persists iconImageUrl on create", async () => {
+    mockAuth.roles = ["admin"];
+    await seedLibrary();
+
+    const req = buildRequest("POST", {
+      name: "Img arm",
+      category: "reader",
+      title: "T",
+      body: "B",
+      iconImageUrl: "__NEXUS_VERSE_IMAGE__",
+    }) as NextRequest;
+    const res = await POST(req);
+    const body = await res.json();
+
+    expect(res.status).toBe(201);
+    expect(body.data.iconImageUrl).toBe("__NEXUS_VERSE_IMAGE__");
+  });
+
   it("returns 400 for an unrecognized category", async () => {
     mockAuth.roles = ["admin"];
     await seedLibrary();
