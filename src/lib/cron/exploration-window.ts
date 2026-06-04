@@ -5,6 +5,8 @@
  * write sets.
  */
 
+import { isPushPreferred, type PushTargetingMode } from "@/lib/engine/channel-preference";
+
 export type ExplorationAgent = {
   id: string;
   funnelStage: string | null;
@@ -20,6 +22,7 @@ export type ExplorationUser = {
   personaId: string | null;
   funnelStage: string | null;
   attributes: unknown;
+  channelStats: unknown;
 };
 
 export type ExistingAssignment = {
@@ -37,6 +40,7 @@ export type ExistingAssignment = {
 export function buildEligibleAgentsByUser(
   agents: ExplorationAgent[],
   users: ExplorationUser[],
+  pushTargetingMode: PushTargetingMode,
 ): Map<string, string[]> {
   const agentPersonaSets = new Map<string, Set<string>>();
   for (const agent of agents) {
@@ -55,6 +59,9 @@ export function buildEligibleAgentsByUser(
       if (agentHasPush && attrs?.newsletter_push_enabled === false) continue;
       const agentHasEmail = agent.messages.some((m) => m.channel === "email");
       if (agentHasEmail && attrs?.newsletter_email_enabled === false) continue;
+      // Preferred-channel gate: push agents only target users whose behavioral
+      // preferred external channel is push (mode-dependent; see channel-preference.ts).
+      if (agentHasPush && !isPushPreferred(attrs ?? {}, user.channelStats, user.funnelStage, pushTargetingMode)) continue;
       // Language filter: agent.languageFilter takes precedence; push agents default to English-only.
       const effectiveLang =
         agent.languageFilter && agent.languageFilter !== "all"

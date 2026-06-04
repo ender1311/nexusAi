@@ -56,6 +56,21 @@ describe("POST /api/settings", () => {
     expect(rows[0]!.value).toBe("new");
   });
 
+  it("round-trips push_targeting_mode through POST then GET", async () => {
+    const postRes = await POST(buildRequest("POST", { push_targeting_mode: "strict" }) as NextRequest);
+    expect(postRes.status).toBe(200);
+
+    const getRes = await GET();
+    const body = await getRes.json();
+    expect(body.push_targeting_mode).toBe("strict");
+
+    // overwrite to permissive
+    await POST(buildRequest("POST", { push_targeting_mode: "permissive" }) as NextRequest);
+    const getRes2 = await GET();
+    const body2 = await getRes2.json();
+    expect(body2.push_targeting_mode).toBe("permissive");
+  });
+
   it("returns 400 on malformed JSON", async () => {
     const res = await POST(rawRequest("{not valid json") as NextRequest);
     expect(res.status).toBe(400);

@@ -10,6 +10,32 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Badge } from "@/components/ui/badge";
 import { DisplayPreferences } from "@/components/settings/display-preferences";
 import { CheckCircle2, Loader2, Sparkles, BarChart2 } from "lucide-react";
+import {
+  type PushTargetingMode,
+  DEFAULT_PUSH_TARGETING_MODE,
+  isPushTargetingMode,
+} from "@/lib/engine/channel-preference";
+
+const PUSH_TARGETING_MODE_OPTIONS: { value: PushTargetingMode; label: string; description: string }[] = [
+  {
+    value: "strict",
+    label: "Strict",
+    description:
+      "Push agents only target users whose behavioral preferred external channel is push (30-day for active stages, 90-day for lapsed). Smallest, highest-intent audience.",
+  },
+  {
+    value: "permissive",
+    label: "Permissive",
+    description:
+      "Cascade through external 30d → 90d → overall windows, then engagement stats. Users with no preference signal are included. Larger audience.",
+  },
+  {
+    value: "broad",
+    label: "Broad",
+    description:
+      "Preferred-channel gate disabled. Push agents target everyone eligible by persona, opt-out and language. Largest audience.",
+  },
+];
 
 export default function SettingsPage() {
   const [saved, setSaved] = useState(false);
@@ -36,6 +62,10 @@ export default function SettingsPage() {
   const [givingMultiplier, setGivingMultiplier] = useState("24");
   const [agentDefaultsSaved, setAgentDefaultsSaved] = useState(false);
   const [agentDefaultsSaving, setAgentDefaultsSaving] = useState(false);
+
+  const [pushTargetingMode, setPushTargetingMode] = useState<PushTargetingMode>(DEFAULT_PUSH_TARGETING_MODE);
+  const [pushTargetingSaved, setPushTargetingSaved] = useState(false);
+  const [pushTargetingSaving, setPushTargetingSaving] = useState(false);
 
   const handleDiscover = async () => {
     setDiscovering(true);
@@ -64,6 +94,7 @@ export default function SettingsPage() {
         if (data["baseline_conversion_rate"]) setBaselineConvRate(data["baseline_conversion_rate"]);
         if (data["lift_since_date"]) setLiftSinceDate(data["lift_since_date"]);
         if (data["giving_dollars_to_bibles_multiplier"]) setGivingMultiplier(data["giving_dollars_to_bibles_multiplier"]);
+        if (isPushTargetingMode(data["push_targeting_mode"])) setPushTargetingMode(data["push_targeting_mode"]);
       })
       .catch(() => {});
   }, []);
@@ -99,6 +130,21 @@ export default function SettingsPage() {
       setTimeout(() => setAgentDefaultsSaved(false), 3000);
     } finally {
       setAgentDefaultsSaving(false);
+    }
+  };
+
+  const handleSavePushTargeting = async () => {
+    setPushTargetingSaving(true);
+    try {
+      await fetch("/api/settings", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ push_targeting_mode: pushTargetingMode }),
+      });
+      setPushTargetingSaved(true);
+      setTimeout(() => setPushTargetingSaved(false), 3000);
+    } finally {
+      setPushTargetingSaving(false);
     }
   };
 
@@ -358,6 +404,54 @@ export default function SettingsPage() {
                 ) : "Save Agent Defaults"}
               </Button>
               {agentDefaultsSaved && (
+                <div className="flex items-center gap-1.5 text-green-600 dark:text-green-400 text-sm">
+                  <CheckCircle2 className="h-4 w-4" />
+                  Saved!
+                </div>
+              )}
+            </div>
+          </CardContent>
+        </Card>
+
+        {/* Push Targeting Mode */}
+        <Card>
+          <CardHeader>
+            <CardTitle className="text-sm font-semibold">Push Targeting Mode</CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <p className="text-xs text-muted-foreground">
+              Controls how strictly push agents respect each user&apos;s behavioral preferred channel
+              (synced from Hightouch). Applies to every push agent on both the lottery and exploration-window
+              send paths.
+            </p>
+            <div className="flex flex-wrap items-end gap-4">
+              <div className="flex-1 min-w-[12rem]">
+                <label className="text-xs font-medium text-muted-foreground">Targeting strictness</label>
+                <Select value={pushTargetingMode} onValueChange={(v) => setPushTargetingMode(v as PushTargetingMode)}>
+                  <SelectTrigger className="mt-1 w-full sm:w-48">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {PUSH_TARGETING_MODE_OPTIONS.map((opt) => (
+                      <SelectItem key={opt.value} value={opt.value}>
+                        {opt.label}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                <p className="text-xs text-muted-foreground mt-1">
+                  {PUSH_TARGETING_MODE_OPTIONS.find((o) => o.value === pushTargetingMode)?.description}
+                </p>
+              </div>
+              <Button onClick={handleSavePushTargeting} disabled={pushTargetingSaving} size="sm">
+                {pushTargetingSaving ? (
+                  <>
+                    <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                    Saving…
+                  </>
+                ) : "Save Push Targeting"}
+              </Button>
+              {pushTargetingSaved && (
                 <div className="flex items-center gap-1.5 text-green-600 dark:text-green-400 text-sm">
                   <CheckCircle2 className="h-4 w-4" />
                   Saved!
