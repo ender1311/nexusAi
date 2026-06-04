@@ -188,3 +188,56 @@ html {
     text-shadow: 0 0 12px rgba(255, 61, 77, 0.5);
   }
 }
+
+/* Shimmering "analyzing" text — a highlight band sweeps left-to-right across
+   the glyphs via a clipped moving gradient. */
+@keyframes ct-text-shimmer {
+  0% {
+    background-position: 200% 0;
+  }
+  100% {
+    background-position: -200% 0;
+  }
+}
+
+.ct-text-shimmer {
+  background-image: linear-gradient(
+    100deg,
+    var(--color-muted-foreground) 0%,
+    var(--color-muted-foreground) 38%,
+    var(--color-primary) 50%,
+    var(--color-muted-foreground) 62%,
+    var(--color-muted-foreground) 100%
+  );
+  background-size: 200% 100%;
+  background-clip: text;
+  -webkit-background-clip: text;
+  color: transparent;
+  -webkit-text-fill-color: transparent;
+  animation: ct-text-shimmer 2.2s linear infinite;
+}
+
+/* A brighter variant for the headline — sweeps white through the foreground. */
+.ct-text-shimmer-strong {
+  background-image: linear-gradient(
+    100deg,
+    var(--color-foreground) 0%,
+    var(--color-foreground) 40%,
+    #ffffff 50%,
+    var(--color-foreground) 60%,
+    var(--color-foreground) 100%
+  );
+  background-size: 200% 100%;
+  background-clip: text;
+  -webkit-background-clip: text;
+  color: transparent;
+  -webkit-text-fill-color: transparent;
+  animation: ct-text-shimmer 2.8s linear infinite;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .ct-text-shimmer,
+  .ct-text-shimmer-strong {
+    animation: none;
+  }
+}
