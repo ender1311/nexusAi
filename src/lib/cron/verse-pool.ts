@@ -3,7 +3,11 @@ import { usfmToHuman, usfmSortKey } from "@/lib/usfm";
 import type { VersePool, VerseEntry, VerseField, VerseLangContent } from "@/lib/verse-content";
 
 const CAMPAIGN = "resurrection-push";
+// Render fields required for an entry to be poolable.
 const CONTENT_TYPES = ["reference", "a-title", "b-title", "verse-text"] as const;
+const IMAGE_CONTENT_TYPE = "image";
+// Types fetched from the DB (image is loaded but not required for poolability).
+const LOAD_CONTENT_TYPES = [...CONTENT_TYPES, IMAGE_CONTENT_TYPE] as const;
 
 export type CampaignContentRow = {
   contentType: string;
@@ -19,10 +23,17 @@ export type CampaignContentRow = {
 export function shapeVersePool(rows: CampaignContentRow[]): VersePool {
   const byUsfm = new Map<string, VerseEntry>();
   for (const r of rows) {
-    const field = r.contentType as VerseField;
-    if (!CONTENT_TYPES.includes(field as (typeof CONTENT_TYPES)[number])) continue;
     let e = byUsfm.get(r.usfmReference);
     if (!e) { e = { usfm: r.usfmReference, byLang: new Map() }; byUsfm.set(r.usfmReference, e); }
+
+    if (r.contentType === IMAGE_CONTENT_TYPE) {
+      const id = r.body?.trim();
+      if (id) e.imageId = id;
+      continue;
+    }
+
+    const field = r.contentType as VerseField;
+    if (!CONTENT_TYPES.includes(field as (typeof CONTENT_TYPES)[number])) continue;
     let lc = e.byLang.get(r.language) as VerseLangContent | undefined;
     if (!lc) { lc = {}; e.byLang.set(r.language, lc); }
     const value = field === "a-title" || field === "b-title" ? r.title : r.body;
@@ -46,7 +57,7 @@ export function shapeVersePool(rows: CampaignContentRow[]): VersePool {
 /** Load the active verse pool from the DB and shape it. */
 export async function loadVersePool(prisma: typeof import("@/lib/db").prisma): Promise<VersePool> {
   const rows = await prisma.campaignContent.findMany({
-    where: { campaign: CAMPAIGN, status: "active", contentType: { in: [...CONTENT_TYPES] } },
+    where: { campaign: CAMPAIGN, status: "active", contentType: { in: [...LOAD_CONTENT_TYPES] } },
     select: { contentType: true, language: true, usfmReference: true, usfmHuman: true, title: true, body: true },
   });
   return shapeVersePool(rows);
