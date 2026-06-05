@@ -36,7 +36,7 @@ export async function POST(req: NextRequest) {
     const created = await prisma.pushSubcategory.create({
       data: { categoryId, slug, label, deeplinkBehavior, sortOrder: (max._max.sortOrder ?? -1) + 1 },
     });
-    revalidateTag(PUSH_TAXONOMY_TAG);
+    revalidateTag(PUSH_TAXONOMY_TAG, "max");
     return ok(created, 201);
   } catch (err) {
     return handleRouteError("POST /api/push-library/subcategories", err); // P2002 → 409

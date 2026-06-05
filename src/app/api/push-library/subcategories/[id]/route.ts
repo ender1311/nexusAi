@@ -40,7 +40,7 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
 
   try {
     const updated = await prisma.pushSubcategory.update({ where: { id }, data });
-    revalidateTag(PUSH_TAXONOMY_TAG);
+    revalidateTag(PUSH_TAXONOMY_TAG, "max");
     return ok(updated);
   } catch (err) {
     return handleRouteError(`PATCH /api/push-library/subcategories/${id}`, err);
@@ -61,7 +61,7 @@ export async function DELETE(_req: NextRequest, { params }: { params: Promise<{ 
   }
   try {
     await prisma.pushSubcategory.delete({ where: { id } });
-    revalidateTag(PUSH_TAXONOMY_TAG);
+    revalidateTag(PUSH_TAXONOMY_TAG, "max");
     return ok({ id });
   } catch (err) {
     return handleRouteError(`DELETE /api/push-library/subcategories/${id}`, err);

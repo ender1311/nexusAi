@@ -1,4 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, mock } from "bun:test";
+import { NextRequest } from "next/server";
 import { prisma } from "../helpers/db";
 
 mock.module("@/lib/auth", () => ({
@@ -20,7 +21,7 @@ afterEach(async () => {
 });
 
 function req(body: unknown) {
-  return new Request("http://t", { method: "POST", body: JSON.stringify(body) });
+  return new NextRequest("http://t", { method: "POST", body: JSON.stringify(body) });
 }
 
 describe("category CRUD", () => {
@@ -54,7 +55,7 @@ describe("category CRUD", () => {
   it("PATCH updates label/sortOrder/isActive but not slug", async () => {
     const c = await prisma.pushCategory.create({ data: { slug: "x", label: "X" } });
     const res = await PATCH(
-      new Request("http://t", { method: "PATCH", body: JSON.stringify({ label: "X2", slug: "hacked", isActive: false }) }),
+      new NextRequest("http://t", { method: "PATCH", body: JSON.stringify({ label: "X2", slug: "hacked", isActive: false }) }),
       { params: Promise.resolve({ id: c.id }) },
     );
     expect(res.status).toBe(200);
@@ -67,13 +68,13 @@ describe("category CRUD", () => {
   it("DELETE blocks (409) a category that still has subcategories", async () => {
     const c = await prisma.pushCategory.create({ data: { slug: "c", label: "C" } });
     await prisma.pushSubcategory.create({ data: { categoryId: c.id, slug: "s", label: "S" } });
-    const res = await DELETE(new Request("http://t", { method: "DELETE" }), { params: Promise.resolve({ id: c.id }) });
+    const res = await DELETE(new NextRequest("http://t", { method: "DELETE" }), { params: Promise.resolve({ id: c.id }) });
     expect(res.status).toBe(409);
   });
 
   it("DELETE removes an empty category", async () => {
     const c = await prisma.pushCategory.create({ data: { slug: "d", label: "D" } });
-    const res = await DELETE(new Request("http://t", { method: "DELETE" }), { params: Promise.resolve({ id: c.id }) });
+    const res = await DELETE(new NextRequest("http://t", { method: "DELETE" }), { params: Promise.resolve({ id: c.id }) });
     expect(res.status).toBe(200);
     expect(await prisma.pushCategory.findUnique({ where: { id: c.id } })).toBeNull();
   });

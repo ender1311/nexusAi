@@ -1,4 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, mock } from "bun:test";
+import { NextRequest } from "next/server";
 import { prisma } from "../helpers/db";
 import { createAgent, createMessage, createVariant } from "../helpers/builders";
 
@@ -28,7 +29,7 @@ afterEach(async () => {
 
 describe("subcategory CRUD", () => {
   it("creates a subcategory under a category with derived slug", async () => {
-    const res = await POST(new Request("http://t", { method: "POST", body: JSON.stringify({ categoryId: catId, label: "Year End Appeal" }) }));
+    const res = await POST(new NextRequest("http://t", { method: "POST", body: JSON.stringify({ categoryId: catId, label: "Year End Appeal" }) }));
     expect(res.status).toBe(201);
     const { data } = await res.json();
     expect(data.slug).toBe("year-end-appeal");
@@ -37,13 +38,13 @@ describe("subcategory CRUD", () => {
   });
 
   it("rejects an unknown categoryId with 400", async () => {
-    const res = await POST(new Request("http://t", { method: "POST", body: JSON.stringify({ categoryId: "nope", label: "X" }) }));
+    const res = await POST(new NextRequest("http://t", { method: "POST", body: JSON.stringify({ categoryId: "nope", label: "X" }) }));
     expect(res.status).toBe(400);
   });
 
   it("rejects a duplicate slug with 409", async () => {
-    await POST(new Request("http://t", { method: "POST", body: JSON.stringify({ categoryId: catId, label: "EOY" }) }));
-    const res = await POST(new Request("http://t", { method: "POST", body: JSON.stringify({ categoryId: catId, label: "eoy" }) }));
+    await POST(new NextRequest("http://t", { method: "POST", body: JSON.stringify({ categoryId: catId, label: "EOY" }) }));
+    const res = await POST(new NextRequest("http://t", { method: "POST", body: JSON.stringify({ categoryId: catId, label: "eoy" }) }));
     expect(res.status).toBe(409);
   });
 
@@ -51,7 +52,7 @@ describe("subcategory CRUD", () => {
     const other = await prisma.pushCategory.create({ data: { slug: "reader", label: "Reader" } });
     const s = await prisma.pushSubcategory.create({ data: { categoryId: catId, slug: "sv", label: "SV" } });
     const res = await PATCH(
-      new Request("http://t", { method: "PATCH", body: JSON.stringify({ deeplinkBehavior: "specific-verse", categoryId: other.id }) }),
+      new NextRequest("http://t", { method: "PATCH", body: JSON.stringify({ deeplinkBehavior: "specific-verse", categoryId: other.id }) }),
       { params: Promise.resolve({ id: s.id }) },
     );
     expect(res.status).toBe(200);
@@ -63,7 +64,7 @@ describe("subcategory CRUD", () => {
   it("PATCH rejects an invalid deeplinkBehavior with 400", async () => {
     const s = await prisma.pushSubcategory.create({ data: { categoryId: catId, slug: "z", label: "Z" } });
     const res = await PATCH(
-      new Request("http://t", { method: "PATCH", body: JSON.stringify({ deeplinkBehavior: "teleport" }) }),
+      new NextRequest("http://t", { method: "PATCH", body: JSON.stringify({ deeplinkBehavior: "teleport" }) }),
       { params: Promise.resolve({ id: s.id }) },
     );
     expect(res.status).toBe(400);
@@ -74,13 +75,13 @@ describe("subcategory CRUD", () => {
     const agent = await createAgent({ name: "Push Copy Library" });
     const msg = await createMessage(agent.id, { channel: "push" });
     await createVariant(msg.id, { category: "giving", subcategory: "inuse" });
-    const res = await DELETE(new Request("http://t", { method: "DELETE" }), { params: Promise.resolve({ id: s.id }) });
+    const res = await DELETE(new NextRequest("http://t", { method: "DELETE" }), { params: Promise.resolve({ id: s.id }) });
     expect(res.status).toBe(409);
   });
 
   it("DELETE removes an unused subcategory", async () => {
     const s = await prisma.pushSubcategory.create({ data: { categoryId: catId, slug: "free", label: "Free" } });
-    const res = await DELETE(new Request("http://t", { method: "DELETE" }), { params: Promise.resolve({ id: s.id }) });
+    const res = await DELETE(new NextRequest("http://t", { method: "DELETE" }), { params: Promise.resolve({ id: s.id }) });
     expect(res.status).toBe(200);
     expect(await prisma.pushSubcategory.findUnique({ where: { id: s.id } })).toBeNull();
   });
