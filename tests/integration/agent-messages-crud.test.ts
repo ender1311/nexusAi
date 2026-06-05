@@ -75,6 +75,35 @@ describe("POST /api/agents/[id]/messages", () => {
     expect(body.variants.some((v: { name: string }) => v.name === "V2")).toBe(true);
   });
 
+  it("returns 400 when a push variant is missing a title", async () => {
+    const agent = await createAgent();
+
+    const req = buildRequest("POST", {
+      name: "Titleless push",
+      channel: "push",
+      variants: [{ name: "V1", body: "Body only" }],
+    });
+    const res = await postMessage(req as NextRequest, { params: Promise.resolve({ id: agent.id }) });
+
+    expect(res.status).toBe(400);
+    expect((await res.json()).error).toMatch(/title/i);
+  });
+
+  it("returns 400 when adding a titleless variant to an existing push message", async () => {
+    const agent = await createAgent();
+    const message = await createMessage(agent.id, { channel: "push" });
+    await createVariant(message.id, { name: "V1", title: "Has title", body: "Body" });
+
+    const req = buildRequest("POST", {
+      messageId: message.id,
+      variant: { name: "V2", body: "No title" },
+    });
+    const res = await postMessage(req as NextRequest, { params: Promise.resolve({ id: agent.id }) });
+
+    expect(res.status).toBe(400);
+    expect((await res.json()).error).toMatch(/title/i);
+  });
+
   it("persists sourceTemplateId when cloning a library template into a new message", async () => {
     // Regression: sanitizeVariant once dropped sourceTemplateId, so template lineage
     // was lost whenever a push was added to an agent via the picker (existing-agent path).
@@ -86,7 +115,7 @@ describe("POST /api/agents/[id]/messages", () => {
     const req = buildRequest("POST", {
       name: "Cloned Message",
       channel: "push",
-      variants: [{ name: "V1", body: "Cloned body", sourceTemplateId: template.id }],
+      variants: [{ name: "V1", title: "Cloned title", body: "Cloned body", sourceTemplateId: template.id }],
     });
     const res = await postMessage(req as NextRequest, { params: Promise.resolve({ id: agent.id }) });
     const body = await res.json();
@@ -109,7 +138,7 @@ describe("POST /api/agents/[id]/messages", () => {
 
     const req = buildRequest("POST", {
       messageId: message.id,
-      variant: { name: "V2", body: "New body", sourceTemplateId: template.id },
+      variant: { name: "V2", title: "New title", body: "New body", sourceTemplateId: template.id },
     });
     const res = await postMessage(req as NextRequest, { params: Promise.resolve({ id: agent.id }) });
     const body = await res.json();

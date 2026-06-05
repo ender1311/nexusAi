@@ -11,6 +11,7 @@ import { TemplateFormSheet } from "./template-form-sheet";
 import { DeleteConfirmDialog } from "./delete-confirm-dialog";
 import { useTaxonomy, activeTaxonomy } from "./use-taxonomy";
 import { maskPersonalization } from "@/lib/messages/personalization";
+import { isPushVariantComplete } from "@/lib/messages/push-completeness";
 
 export type TemplateVariant = {
   id: string;
@@ -384,7 +385,12 @@ export function PushLibraryClient({ groups, canManageLibrary }: Props) {
                       )}
                     </td>
                     <td className="px-4 py-3 text-sm text-muted-foreground">
-                      {maskPersonalization(v.title) ?? <span className="opacity-40">—</span>}
+                      <div className="flex items-start gap-1.5">
+                        <span>{maskPersonalization(v.title) ?? <span className="opacity-40">—</span>}</span>
+                        {!isPushVariantComplete(v) && (
+                          <Badge variant="destructive" className="shrink-0 text-xs">Incomplete</Badge>
+                        )}
+                      </div>
                     </td>
                     <td className="px-4 py-3 text-sm leading-relaxed">{maskPersonalization(v.body)}</td>
                     {canManageLibrary && (

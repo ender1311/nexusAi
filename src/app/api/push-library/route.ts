@@ -8,7 +8,7 @@ import { ok, fail, handleRouteError } from "@/lib/api/respond";
 import { getPushTaxonomy } from "@/lib/cache/push-taxonomy";
 import { validateVariantTaxonomy } from "@/lib/push-taxonomy";
 
-const FILTER_PARAMS = ["q", "category", "subcategory", "sort", "dir", "limit", "cursor"];
+const FILTER_PARAMS = ["q", "category", "subcategory", "status", "sort", "dir", "limit", "cursor"];
 const SORT_FIELDS = new Set(["createdAt", "name", "sortOrder"]);
 
 export async function GET(req: NextRequest) {

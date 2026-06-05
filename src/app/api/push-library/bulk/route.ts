@@ -6,6 +6,8 @@ import { ok, fail, handleRouteError } from "@/lib/api/respond";
 import { getPushTaxonomy } from "@/lib/cache/push-taxonomy";
 import { validateVariantTaxonomy } from "@/lib/push-taxonomy";
 
+const ALLOWED_STATUSES = new Set(["active", "paused", "draft", "archived"]);
+
 export async function POST(req: NextRequest) {
   const forbidden = await requireLibraryEditor();
   if (forbidden) return forbidden;
@@ -39,6 +41,7 @@ export async function POST(req: NextRequest) {
     if (op === "setStatus") {
       const status = body.status;
       if (typeof status !== "string" || !status.trim()) return fail("status is required", 400);
+      if (!ALLOWED_STATUSES.has(status)) return fail("status must be one of: active, paused, draft, archived", 400);
       const r = await prisma.messageVariant.updateMany({ where, data: { status } });
       revalidateTag("agents", "max");
       return ok({ updated: r.count });
