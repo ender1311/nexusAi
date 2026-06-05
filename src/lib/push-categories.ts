@@ -71,9 +71,6 @@ export const PUSH_CATEGORIES: PushCategory[] = [
 // Ordered list of category values (also serves as canonical sort order).
 export const PUSH_CATEGORY_VALUES: string[] = PUSH_CATEGORIES.map((c) => c.value);
 
-// Set form for O(1) validation at the API boundary.
-export const VALID_PUSH_CATEGORIES: Set<string> = new Set(PUSH_CATEGORY_VALUES);
-
 // category value → ordered subcategory value list (slug form, for the form sheet).
 export const PUSH_SUBCATEGORIES: Record<string, string[]> = Object.fromEntries(
   PUSH_CATEGORIES.map((c) => [c.value, c.subcategories.map((s) => s.value)]),
