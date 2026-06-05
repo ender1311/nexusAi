@@ -33,8 +33,8 @@ export function ManageCategoriesSheet({ children }: { children: ReactNode }) {
   return (
     <Sheet>
       <SheetTrigger render={<span />}>{children}</SheetTrigger>
-      <SheetContent className="w-full sm:max-w-xl overflow-y-auto">
-        <SheetHeader>
+      <SheetContent expandable className="w-full sm:max-w-2xl overflow-y-auto">
+        <SheetHeader className="pr-20">
           <SheetTitle>Manage Categories</SheetTitle>
         </SheetHeader>
         {error && <p className="text-sm text-destructive px-4">{error}</p>}
@@ -79,22 +79,22 @@ function CategoryBlock({
 
   return (
     <div className="border rounded-lg p-3">
-      <div className="flex items-center gap-2">
-        <Input value={label} onChange={(e) => setLabel(e.target.value)} className="font-medium" />
+      <div className="flex flex-wrap items-center gap-2">
+        <Input value={label} onChange={(e) => setLabel(e.target.value)} className="font-medium flex-1 min-w-[10rem]" />
         <Button size="sm" variant="outline" onClick={() => call(`/api/push-library/categories/${cat.id}`, { method: "PATCH", body: JSON.stringify({ label }) })}>Save</Button>
         <Button size="sm" variant="ghost" onClick={() => call(`/api/push-library/categories/${cat.id}`, { method: "PATCH", body: JSON.stringify({ isActive: !cat.isActive }) })}>{cat.isActive ? "Disable" : "Enable"}</Button>
         <Button size="sm" variant="destructive" onClick={() => call(`/api/push-library/categories/${cat.id}`, { method: "DELETE" })}>Delete</Button>
       </div>
 
-      <div className="mt-3 ml-4 space-y-2">
+      <div className="mt-3 sm:ml-4 space-y-2">
         {cat.subcategories.map((s) => (
-          <div key={s.id} className="flex items-center gap-2 text-sm">
-            <span className="flex-1">{s.label}{!s.isActive && " (disabled)"}</span>
-            <select defaultValue={s.deeplinkBehavior} onChange={(e) => call(`/api/push-library/subcategories/${s.id}`, { method: "PATCH", body: JSON.stringify({ deeplinkBehavior: e.target.value }) })} className="border rounded px-1 py-0.5">
+          <div key={s.id} className="flex flex-wrap items-center gap-2 text-sm">
+            <span className="flex-1 min-w-[8rem]">{s.label}{!s.isActive && " (disabled)"}</span>
+            <select defaultValue={s.deeplinkBehavior} onChange={(e) => call(`/api/push-library/subcategories/${s.id}`, { method: "PATCH", body: JSON.stringify({ deeplinkBehavior: e.target.value }) })} className="border rounded px-1 py-0.5 max-w-[10rem]">
               <option value="none">none</option>
               <option value="specific-verse">specific-verse</option>
             </select>
-            <select defaultValue={cat.id} onChange={(e) => call(`/api/push-library/subcategories/${s.id}`, { method: "PATCH", body: JSON.stringify({ categoryId: e.target.value }) })} className="border rounded px-1 py-0.5">
+            <select defaultValue={cat.id} onChange={(e) => call(`/api/push-library/subcategories/${s.id}`, { method: "PATCH", body: JSON.stringify({ categoryId: e.target.value }) })} className="border rounded px-1 py-0.5 max-w-[10rem]">
               {categories.map((c) => <option key={c.id} value={c.id}>{c.label}</option>)}
             </select>
             <Button size="sm" variant="ghost" onClick={() => call(`/api/push-library/subcategories/${s.id}`, { method: "PATCH", body: JSON.stringify({ isActive: !s.isActive }) })}>{s.isActive ? "Disable" : "Enable"}</Button>
