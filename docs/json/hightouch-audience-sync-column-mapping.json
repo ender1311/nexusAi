@@ -1,0 +1,4 @@
+{
+  "cohort_id": "YOUR_BRAZE_COHORT_ID_HERE",
+  "user_id": "{{ row['user_id'] }}"
+}

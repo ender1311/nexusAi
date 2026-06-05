@@ -1,11 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
 import { verifyIngestAuth } from "@/lib/ingest-auth";
-
-type CohortChange = {
-  user_ids?: string[];
-  braze_user_ids?: string[];
-};
+import { parseAudiencePayload } from "./parse-payload";
 
 type SuccessResponse = {
   ok: true;
@@ -32,41 +28,12 @@ export async function POST(
     return NextResponse.json({ error: "Invalid JSON body" }, { status: 400 });
   }
 
-  if (typeof body !== "object" || body === null) {
-    return NextResponse.json({ error: "Invalid payload: expected an object" }, { status: 400 });
+  const parsed = parseAudiencePayload(body);
+  if (!parsed.ok) {
+    return NextResponse.json({ error: parsed.error }, { status: 400 });
   }
 
-  const raw = body as Record<string, unknown>;
-
-  if (typeof raw.cohort_id !== "string" || raw.cohort_id.trim() === "") {
-    return NextResponse.json(
-      { error: "Invalid payload: cohort_id must be a non-empty string" },
-      { status: 400 },
-    );
-  }
-
-  if (!Array.isArray(raw.cohort_changes)) {
-    return NextResponse.json(
-      { error: "Invalid payload: cohort_changes must be an array" },
-      { status: 400 },
-    );
-  }
-
-  const cohortId = raw.cohort_id.trim();
-  const cohortChanges = raw.cohort_changes as CohortChange[];
-
-  // Flatten all user_ids across all cohort_changes
-  const externalIds: string[] = cohortChanges
-    .flatMap((c) => (Array.isArray(c.user_ids) ? c.user_ids : []))
-    .map((id) => (typeof id === "string" ? id.trim() : ""))
-    .filter((id) => id.length > 0);
-
-  // Flatten all braze_user_ids across all cohort_changes
-  const brazeIds: string[] = cohortChanges
-    .flatMap((c) => (Array.isArray(c.braze_user_ids) ? c.braze_user_ids : []))
-    .map((id) => (typeof id === "string" ? id.trim() : ""))
-    .filter((id) => id.length > 0);
-
+  const { cohortId, externalIds, brazeIds } = parsed.payload;
   const totalReceived = externalIds.length + brazeIds.length;
 
   if (totalReceived > MAX_BATCH) {
