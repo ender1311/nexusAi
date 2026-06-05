@@ -164,13 +164,13 @@ export function TemplateFormSheet({ mode, variant, children }: Props) {
       }}
     >
       <SheetTrigger render={<span />}>{children}</SheetTrigger>
-      <SheetContent className="w-full sm:max-w-lg overflow-y-auto flex flex-col">
-        <SheetHeader className="pb-2">
+      <SheetContent expandable className="w-full sm:max-w-lg overflow-y-auto flex flex-col">
+        <SheetHeader className="pb-2 pr-20">
           <SheetTitle>
             {mode === "create" ? "New Push" : "Edit Push"}
           </SheetTitle>
         </SheetHeader>
-        <form onSubmit={handleSubmit} className="space-y-5 mt-6 flex-1 pb-4">
+        <form onSubmit={handleSubmit} className="space-y-5 mt-6 flex-1 px-4 pb-4 w-full max-w-2xl mx-auto">
           <div className="space-y-1.5">
             <Label htmlFor="name">Name</Label>
             <Input
@@ -356,7 +356,7 @@ export function TemplateFormSheet({ mode, variant, children }: Props) {
           </div>
 
           {formError && <p className="text-sm text-destructive">{formError}</p>}
-          <SheetFooter className="pt-2">
+          <SheetFooter className="pt-2 px-0">
             <Button type="submit" disabled={loading} className="w-full">
               {loading
                 ? mode === "create"
