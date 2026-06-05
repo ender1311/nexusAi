@@ -26,6 +26,7 @@ import { buildEligibleAgentsByUser, classifyExplorationWindows } from "@/lib/cro
 import {
   isPushPreferred,
   isPushTargetingMode,
+  isNewsletterOptedOut,
   DEFAULT_PUSH_TARGETING_MODE,
 } from "@/lib/engine/channel-preference";
 import { partitionByPreferredHour, trimToCap, resolveFetchLimit } from "@/lib/cron/caps";
@@ -834,9 +835,9 @@ export async function POST(req: NextRequest) {
       const hasPushMessages = agent.messages.some((m) => m.channel === "push");
       const hasEmailMessages = agent.messages.some((m) => m.channel === "email");
       const channelFiltered = eligibleUsers.filter((u) => {
-        const attrs = u.attributes as Record<string, unknown>;
-        if (hasPushMessages && attrs?.newsletter_push_enabled === false) return false;
-        if (hasEmailMessages && attrs?.newsletter_email_enabled === false) return false;
+        const attrs = (u.attributes as Record<string, unknown>) ?? {};
+        if (hasPushMessages && isNewsletterOptedOut(attrs, "push")) return false;
+        if (hasEmailMessages && isNewsletterOptedOut(attrs, "email")) return false;
         return true;
       });
       suppress.targetFilter += eligibleUsers.length - channelFiltered.length;
