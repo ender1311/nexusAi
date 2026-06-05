@@ -109,7 +109,6 @@ export const AgentScalarFieldEnum = {
   targetSegmentName: 'targetSegmentName',
   segmentTargeting: 'segmentTargeting',
   fallbackSendHour: 'fallbackSendHour',
-  audienceCap: 'audienceCap',
   uniqueUsersCap: 'uniqueUsersCap',
   dailySendCap: 'dailySendCap',
   cohortAssignedAt: 'cohortAssignedAt',
