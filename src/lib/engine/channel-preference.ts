@@ -121,3 +121,25 @@ export function isPushPreferred(
 
   return channelStatsFavorsPush(channelStats);
 }
+
+/**
+ * Newsletter opt-out gate. Hightouch syncs `newsletter_<channel>_enabled` from a
+ * warehouse column whose type we don't control: it can arrive as a JSON boolean
+ * (`false`), a string (`"false"`), or an integer (`0`). All falsey representations
+ * mean opted-out. Opt-out model: missing / true / unrecognized → opted in.
+ *
+ * A strict `=== false` check silently fails to suppress when the value is a
+ * string or integer, which would send to users who explicitly opted out.
+ */
+export function isNewsletterOptedOut(
+  attributes: Record<string, unknown>,
+  channel: "push" | "email",
+): boolean {
+  const value = attributes[`newsletter_${channel}_enabled`];
+  if (value === false || value === 0) return true;
+  if (typeof value === "string") {
+    const v = value.trim().toLowerCase();
+    return v === "false" || v === "0" || v === "no" || v === "off" || v === "f";
+  }
+  return false;
+}

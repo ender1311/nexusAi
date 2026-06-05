@@ -2,6 +2,7 @@ import { describe, expect, it } from "bun:test";
 import {
   isPushPreferred,
   isPushTargetingMode,
+  isNewsletterOptedOut,
   DEFAULT_PUSH_TARGETING_MODE,
   PUSH_TARGETING_MODES,
   type PushTargetingMode,
@@ -165,5 +166,38 @@ describe("isPushPreferred — value normalization", () => {
     const mode: PushTargetingMode = "permissive";
     expect(isPushPreferred({ preferred_channel_external_30_days: "in_app_message" }, noStats, "dau4", mode)).toBe(false);
     expect(isPushPreferred({ preferred_channel_external_30_days: "content_card" }, noStats, "dau4", mode)).toBe(false);
+  });
+});
+
+// Regression: the newsletter opt-out gate used a strict `=== false` check, so a
+// Hightouch value synced as a string ("false") or integer (0) — depending on the
+// source warehouse column type — silently failed to suppress, sending push/email
+// to users who explicitly opted out. isNewsletterOptedOut treats every falsey
+// representation as opted-out while preserving the opt-out model (missing/true →
+// opted in).
+describe("isNewsletterOptedOut — type-tolerant opt-out", () => {
+  it("suppresses on every falsey representation of the channel flag", () => {
+    expect(isNewsletterOptedOut({ newsletter_push_enabled: false }, "push")).toBe(true);
+    expect(isNewsletterOptedOut({ newsletter_push_enabled: 0 }, "push")).toBe(true);
+    expect(isNewsletterOptedOut({ newsletter_push_enabled: "false" }, "push")).toBe(true);
+    expect(isNewsletterOptedOut({ newsletter_push_enabled: "FALSE" }, "push")).toBe(true);
+    expect(isNewsletterOptedOut({ newsletter_push_enabled: " false " }, "push")).toBe(true);
+    expect(isNewsletterOptedOut({ newsletter_push_enabled: "0" }, "push")).toBe(true);
+    expect(isNewsletterOptedOut({ newsletter_push_enabled: "no" }, "push")).toBe(true);
+    expect(isNewsletterOptedOut({ newsletter_push_enabled: "off" }, "push")).toBe(true);
+  });
+
+  it("opt-out model: missing / true / unrecognized → opted in (not suppressed)", () => {
+    expect(isNewsletterOptedOut({}, "push")).toBe(false);
+    expect(isNewsletterOptedOut({ newsletter_push_enabled: true }, "push")).toBe(false);
+    expect(isNewsletterOptedOut({ newsletter_push_enabled: "true" }, "push")).toBe(false);
+    expect(isNewsletterOptedOut({ newsletter_push_enabled: 1 }, "push")).toBe(false);
+    expect(isNewsletterOptedOut({ newsletter_push_enabled: null }, "push")).toBe(false);
+  });
+
+  it("reads the channel-specific key independently", () => {
+    const attrs = { newsletter_push_enabled: true, newsletter_email_enabled: false };
+    expect(isNewsletterOptedOut(attrs, "push")).toBe(false);
+    expect(isNewsletterOptedOut(attrs, "email")).toBe(true);
   });
 });

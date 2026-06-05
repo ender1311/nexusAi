@@ -5,7 +5,7 @@
  * write sets.
  */
 
-import { isPushPreferred, type PushTargetingMode } from "@/lib/engine/channel-preference";
+import { isPushPreferred, isNewsletterOptedOut, type PushTargetingMode } from "@/lib/engine/channel-preference";
 
 export type ExplorationAgent = {
   id: string;
@@ -53,15 +53,15 @@ export function buildEligibleAgentsByUser(
     const eligible: string[] = [];
     for (const agent of agents) {
       if (!agentPersonaSets.get(agent.id)?.has(user.personaId)) continue;
-      const attrs = user.attributes as Record<string, unknown>;
-      // Channel eligibility: newsletter_*_enabled must not be explicitly false (opt-out model).
+      const attrs = (user.attributes as Record<string, unknown>) ?? {};
+      // Channel eligibility: newsletter_*_enabled must not be opted out (opt-out model).
       const agentHasPush = agent.messages.some((m) => m.channel === "push");
-      if (agentHasPush && attrs?.newsletter_push_enabled === false) continue;
+      if (agentHasPush && isNewsletterOptedOut(attrs, "push")) continue;
       const agentHasEmail = agent.messages.some((m) => m.channel === "email");
-      if (agentHasEmail && attrs?.newsletter_email_enabled === false) continue;
+      if (agentHasEmail && isNewsletterOptedOut(attrs, "email")) continue;
       // Preferred-channel gate: push agents only target users whose behavioral
       // preferred external channel is push (mode-dependent; see channel-preference.ts).
-      if (agentHasPush && !isPushPreferred(attrs ?? {}, user.channelStats, user.funnelStage, pushTargetingMode)) continue;
+      if (agentHasPush && !isPushPreferred(attrs, user.channelStats, user.funnelStage, pushTargetingMode)) continue;
       // Language filter: agent.languageFilter takes precedence; push agents default to English-only.
       const effectiveLang =
         agent.languageFilter && agent.languageFilter !== "all"
