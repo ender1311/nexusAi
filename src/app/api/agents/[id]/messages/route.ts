@@ -4,6 +4,7 @@ import { prisma } from "@/lib/db";
 import { detectTestedVariables } from "@/lib/engine/variant-diff";
 import { MessageVariant } from "@/types/agent";
 import { requireAdmin } from "@/lib/auth";
+import { isPushVariantComplete, missingPushFields } from "@/lib/messages/push-completeness";
 
 type VariantInput = {
   name?: string;
@@ -18,6 +19,13 @@ type VariantInput = {
   frequencyCapOverride?: Prisma.InputJsonValue | null;
   sourceTemplateId?: string | null;
 };
+
+function pushCompletenessError(channel: string, variant: { title?: string | null; body?: string | null }): string | null {
+  if (channel !== "push") return null;
+  if (isPushVariantComplete(variant)) return null;
+  const missing = missingPushFields(variant).join(" and ");
+  return `push requires a non-empty ${missing}`;
+}
 
 function sanitizeVariant(input: VariantInput) {
   return {
@@ -127,6 +135,14 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
         return NextResponse.json({ error: "Message not found" }, { status: 404 });
       }
 
+      const completenessErr = pushCompletenessError(existingMessage.channel, {
+        title: variant.title,
+        body: variant.body,
+      });
+      if (completenessErr) {
+        return NextResponse.json({ error: completenessErr }, { status: 400 });
+      }
+
       const created = await prisma.messageVariant.create({
         data: {
           messageId,
@@ -178,6 +194,13 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
     }
     if (variants.some((v) => !v.body?.trim())) {
       return NextResponse.json({ error: "each variant requires body" }, { status: 400 });
+    }
+
+    for (const v of variants) {
+      const completenessErr = pushCompletenessError(channel, { title: v.title, body: v.body });
+      if (completenessErr) {
+        return NextResponse.json({ error: completenessErr }, { status: 400 });
+      }
     }
 
     const sanitizedVariants = variants.map(sanitizeVariant);

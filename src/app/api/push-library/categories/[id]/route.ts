@@ -41,9 +41,16 @@ export async function DELETE(_req: NextRequest, { params }: { params: Promise<{ 
   if (forbidden) return forbidden;
   const { id } = await params;
 
+  const category = await prisma.pushCategory.findUnique({ where: { id } });
+  if (!category) return fail("Category not found", 404);
+
   const subCount = await prisma.pushSubcategory.count({ where: { categoryId: id } });
   if (subCount > 0) {
     return fail("Cannot delete a category that still has subcategories — move or delete them first", 409);
+  }
+  const variantCount = await prisma.messageVariant.count({ where: { category: category.slug } });
+  if (variantCount > 0) {
+    return fail("Cannot delete a category that still has pushes — move or delete them first", 409);
   }
   try {
     await prisma.pushCategory.delete({ where: { id } });
