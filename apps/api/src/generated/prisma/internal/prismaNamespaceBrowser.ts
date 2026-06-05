@@ -78,7 +78,9 @@ export const ModelName = {
   CampaignContent: 'CampaignContent',
   DemoUserGroup: 'DemoUserGroup',
   UserSegment: 'UserSegment',
-  UserPreference: 'UserPreference'
+  UserPreference: 'UserPreference',
+  PushCategory: 'PushCategory',
+  PushSubcategory: 'PushSubcategory'
 } as const
 
 export type ModelName = (typeof ModelName)[keyof typeof ModelName]
@@ -174,6 +176,7 @@ export const MessageVariantScalarFieldEnum = {
   warmupUntil: 'warmupUntil',
   category: 'category',
   subcategory: 'subcategory',
+  sortOrder: 'sortOrder',
   sourceTemplateId: 'sourceTemplateId',
   actionFeatures: 'actionFeatures',
   createdAt: 'createdAt'
@@ -520,6 +523,32 @@ export const UserPreferenceScalarFieldEnum = {
 } as const
 
 export type UserPreferenceScalarFieldEnum = (typeof UserPreferenceScalarFieldEnum)[keyof typeof UserPreferenceScalarFieldEnum]
+
+
+export const PushCategoryScalarFieldEnum = {
+  id: 'id',
+  slug: 'slug',
+  label: 'label',
+  sortOrder: 'sortOrder',
+  isActive: 'isActive',
+  createdAt: 'createdAt'
+} as const
+
+export type PushCategoryScalarFieldEnum = (typeof PushCategoryScalarFieldEnum)[keyof typeof PushCategoryScalarFieldEnum]
+
+
+export const PushSubcategoryScalarFieldEnum = {
+  id: 'id',
+  categoryId: 'categoryId',
+  slug: 'slug',
+  label: 'label',
+  sortOrder: 'sortOrder',
+  deeplinkBehavior: 'deeplinkBehavior',
+  isActive: 'isActive',
+  createdAt: 'createdAt'
+} as const
+
+export type PushSubcategoryScalarFieldEnum = (typeof PushSubcategoryScalarFieldEnum)[keyof typeof PushSubcategoryScalarFieldEnum]
 
 
 export const SortOrder = {

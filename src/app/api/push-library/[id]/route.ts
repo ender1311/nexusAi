@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { revalidateTag } from "next/cache";
 import { prisma } from "@/lib/db";
-import { requireAdmin } from "@/lib/auth";
+import { requireLibraryEditor } from "@/lib/auth";
 import { LIBRARY_AGENT_NAME } from "@/lib/engine/template-sync";
 import { fail, handleRouteError } from "@/lib/api/respond";
 
@@ -9,7 +9,7 @@ export async function DELETE(
   _req: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
-  const forbidden = await requireAdmin();
+  const forbidden = await requireLibraryEditor();
   if (forbidden) return forbidden;
 
   const { id } = await params;

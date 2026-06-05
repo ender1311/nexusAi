@@ -29,11 +29,13 @@ export type AggregateMessageVariant = {
 export type MessageVariantAvgAggregateOutputType = {
   preferredHour: number | null
   preferredDayOfWeek: number | null
+  sortOrder: number | null
 }
 
 export type MessageVariantSumAggregateOutputType = {
   preferredHour: number | null
   preferredDayOfWeek: number | null
+  sortOrder: number | null
 }
 
 export type MessageVariantMinAggregateOutputType = {
@@ -54,6 +56,7 @@ export type MessageVariantMinAggregateOutputType = {
   warmupUntil: Date | null
   category: string | null
   subcategory: string | null
+  sortOrder: number | null
   sourceTemplateId: string | null
   createdAt: Date | null
 }
@@ -76,6 +79,7 @@ export type MessageVariantMaxAggregateOutputType = {
   warmupUntil: Date | null
   category: string | null
   subcategory: string | null
+  sortOrder: number | null
   sourceTemplateId: string | null
   createdAt: Date | null
 }
@@ -99,6 +103,7 @@ export type MessageVariantCountAggregateOutputType = {
   warmupUntil: number
   category: number
   subcategory: number
+  sortOrder: number
   sourceTemplateId: number
   actionFeatures: number
   createdAt: number
@@ -109,11 +114,13 @@ export type MessageVariantCountAggregateOutputType = {
 export type MessageVariantAvgAggregateInputType = {
   preferredHour?: true
   preferredDayOfWeek?: true
+  sortOrder?: true
 }
 
 export type MessageVariantSumAggregateInputType = {
   preferredHour?: true
   preferredDayOfWeek?: true
+  sortOrder?: true
 }
 
 export type MessageVariantMinAggregateInputType = {
@@ -134,6 +141,7 @@ export type MessageVariantMinAggregateInputType = {
   warmupUntil?: true
   category?: true
   subcategory?: true
+  sortOrder?: true
   sourceTemplateId?: true
   createdAt?: true
 }
@@ -156,6 +164,7 @@ export type MessageVariantMaxAggregateInputType = {
   warmupUntil?: true
   category?: true
   subcategory?: true
+  sortOrder?: true
   sourceTemplateId?: true
   createdAt?: true
 }
@@ -179,6 +188,7 @@ export type MessageVariantCountAggregateInputType = {
   warmupUntil?: true
   category?: true
   subcategory?: true
+  sortOrder?: true
   sourceTemplateId?: true
   actionFeatures?: true
   createdAt?: true
@@ -290,6 +300,7 @@ export type MessageVariantGroupByOutputType = {
   warmupUntil: Date | null
   category: string | null
   subcategory: string | null
+  sortOrder: number
   sourceTemplateId: string | null
   actionFeatures: runtime.JsonValue | null
   createdAt: Date
@@ -337,6 +348,7 @@ export type MessageVariantWhereInput = {
   warmupUntil?: Prisma.DateTimeNullableFilter<"MessageVariant"> | Date | string | null
   category?: Prisma.StringNullableFilter<"MessageVariant"> | string | null
   subcategory?: Prisma.StringNullableFilter<"MessageVariant"> | string | null
+  sortOrder?: Prisma.IntFilter<"MessageVariant"> | number
   sourceTemplateId?: Prisma.StringNullableFilter<"MessageVariant"> | string | null
   actionFeatures?: Prisma.JsonNullableFilter<"MessageVariant">
   createdAt?: Prisma.DateTimeFilter<"MessageVariant"> | Date | string
@@ -366,6 +378,7 @@ export type MessageVariantOrderByWithRelationInput = {
   warmupUntil?: Prisma.SortOrderInput | Prisma.SortOrder
   category?: Prisma.SortOrderInput | Prisma.SortOrder
   subcategory?: Prisma.SortOrderInput | Prisma.SortOrder
+  sortOrder?: Prisma.SortOrder
   sourceTemplateId?: Prisma.SortOrderInput | Prisma.SortOrder
   actionFeatures?: Prisma.SortOrderInput | Prisma.SortOrder
   createdAt?: Prisma.SortOrder
@@ -398,6 +411,7 @@ export type MessageVariantWhereUniqueInput = Prisma.AtLeast<{
   warmupUntil?: Prisma.DateTimeNullableFilter<"MessageVariant"> | Date | string | null
   category?: Prisma.StringNullableFilter<"MessageVariant"> | string | null
   subcategory?: Prisma.StringNullableFilter<"MessageVariant"> | string | null
+  sortOrder?: Prisma.IntFilter<"MessageVariant"> | number
   sourceTemplateId?: Prisma.StringNullableFilter<"MessageVariant"> | string | null
   actionFeatures?: Prisma.JsonNullableFilter<"MessageVariant">
   createdAt?: Prisma.DateTimeFilter<"MessageVariant"> | Date | string
@@ -427,6 +441,7 @@ export type MessageVariantOrderByWithAggregationInput = {
   warmupUntil?: Prisma.SortOrderInput | Prisma.SortOrder
   category?: Prisma.SortOrderInput | Prisma.SortOrder
   subcategory?: Prisma.SortOrderInput | Prisma.SortOrder
+  sortOrder?: Prisma.SortOrder
   sourceTemplateId?: Prisma.SortOrderInput | Prisma.SortOrder
   actionFeatures?: Prisma.SortOrderInput | Prisma.SortOrder
   createdAt?: Prisma.SortOrder
@@ -459,6 +474,7 @@ export type MessageVariantScalarWhereWithAggregatesInput = {
   warmupUntil?: Prisma.DateTimeNullableWithAggregatesFilter<"MessageVariant"> | Date | string | null
   category?: Prisma.StringNullableWithAggregatesFilter<"MessageVariant"> | string | null
   subcategory?: Prisma.StringNullableWithAggregatesFilter<"MessageVariant"> | string | null
+  sortOrder?: Prisma.IntWithAggregatesFilter<"MessageVariant"> | number
   sourceTemplateId?: Prisma.StringNullableWithAggregatesFilter<"MessageVariant"> | string | null
   actionFeatures?: Prisma.JsonNullableWithAggregatesFilter<"MessageVariant">
   createdAt?: Prisma.DateTimeWithAggregatesFilter<"MessageVariant"> | Date | string
@@ -482,6 +498,7 @@ export type MessageVariantCreateInput = {
   warmupUntil?: Date | string | null
   category?: string | null
   subcategory?: string | null
+  sortOrder?: number
   actionFeatures?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   createdAt?: Date | string
   message: Prisma.MessageCreateNestedOneWithoutVariantsInput
@@ -510,6 +527,7 @@ export type MessageVariantUncheckedCreateInput = {
   warmupUntil?: Date | string | null
   category?: string | null
   subcategory?: string | null
+  sortOrder?: number
   sourceTemplateId?: string | null
   actionFeatures?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   createdAt?: Date | string
@@ -536,6 +554,7 @@ export type MessageVariantUpdateInput = {
   warmupUntil?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   category?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   subcategory?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  sortOrder?: Prisma.IntFieldUpdateOperationsInput | number
   actionFeatures?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   message?: Prisma.MessageUpdateOneRequiredWithoutVariantsNestedInput
@@ -564,6 +583,7 @@ export type MessageVariantUncheckedUpdateInput = {
   warmupUntil?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   category?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   subcategory?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  sortOrder?: Prisma.IntFieldUpdateOperationsInput | number
   sourceTemplateId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   actionFeatures?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
@@ -591,6 +611,7 @@ export type MessageVariantCreateManyInput = {
   warmupUntil?: Date | string | null
   category?: string | null
   subcategory?: string | null
+  sortOrder?: number
   sourceTemplateId?: string | null
   actionFeatures?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   createdAt?: Date | string
@@ -614,6 +635,7 @@ export type MessageVariantUpdateManyMutationInput = {
   warmupUntil?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   category?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   subcategory?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  sortOrder?: Prisma.IntFieldUpdateOperationsInput | number
   actionFeatures?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
 }
@@ -637,6 +659,7 @@ export type MessageVariantUncheckedUpdateManyInput = {
   warmupUntil?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   category?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   subcategory?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  sortOrder?: Prisma.IntFieldUpdateOperationsInput | number
   sourceTemplateId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   actionFeatures?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
@@ -676,6 +699,7 @@ export type MessageVariantCountOrderByAggregateInput = {
   warmupUntil?: Prisma.SortOrder
   category?: Prisma.SortOrder
   subcategory?: Prisma.SortOrder
+  sortOrder?: Prisma.SortOrder
   sourceTemplateId?: Prisma.SortOrder
   actionFeatures?: Prisma.SortOrder
   createdAt?: Prisma.SortOrder
@@ -684,6 +708,7 @@ export type MessageVariantCountOrderByAggregateInput = {
 export type MessageVariantAvgOrderByAggregateInput = {
   preferredHour?: Prisma.SortOrder
   preferredDayOfWeek?: Prisma.SortOrder
+  sortOrder?: Prisma.SortOrder
 }
 
 export type MessageVariantMaxOrderByAggregateInput = {
@@ -704,6 +729,7 @@ export type MessageVariantMaxOrderByAggregateInput = {
   warmupUntil?: Prisma.SortOrder
   category?: Prisma.SortOrder
   subcategory?: Prisma.SortOrder
+  sortOrder?: Prisma.SortOrder
   sourceTemplateId?: Prisma.SortOrder
   createdAt?: Prisma.SortOrder
 }
@@ -726,6 +752,7 @@ export type MessageVariantMinOrderByAggregateInput = {
   warmupUntil?: Prisma.SortOrder
   category?: Prisma.SortOrder
   subcategory?: Prisma.SortOrder
+  sortOrder?: Prisma.SortOrder
   sourceTemplateId?: Prisma.SortOrder
   createdAt?: Prisma.SortOrder
 }
@@ -733,6 +760,7 @@ export type MessageVariantMinOrderByAggregateInput = {
 export type MessageVariantSumOrderByAggregateInput = {
   preferredHour?: Prisma.SortOrder
   preferredDayOfWeek?: Prisma.SortOrder
+  sortOrder?: Prisma.SortOrder
 }
 
 export type MessageVariantScalarRelationFilter = {
@@ -888,6 +916,7 @@ export type MessageVariantCreateWithoutMessageInput = {
   warmupUntil?: Date | string | null
   category?: string | null
   subcategory?: string | null
+  sortOrder?: number
   actionFeatures?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   createdAt?: Date | string
   sourceTemplate?: Prisma.MessageVariantCreateNestedOneWithoutClonesInput
@@ -914,6 +943,7 @@ export type MessageVariantUncheckedCreateWithoutMessageInput = {
   warmupUntil?: Date | string | null
   category?: string | null
   subcategory?: string | null
+  sortOrder?: number
   sourceTemplateId?: string | null
   actionFeatures?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   createdAt?: Date | string
@@ -970,6 +1000,7 @@ export type MessageVariantScalarWhereInput = {
   warmupUntil?: Prisma.DateTimeNullableFilter<"MessageVariant"> | Date | string | null
   category?: Prisma.StringNullableFilter<"MessageVariant"> | string | null
   subcategory?: Prisma.StringNullableFilter<"MessageVariant"> | string | null
+  sortOrder?: Prisma.IntFilter<"MessageVariant"> | number
   sourceTemplateId?: Prisma.StringNullableFilter<"MessageVariant"> | string | null
   actionFeatures?: Prisma.JsonNullableFilter<"MessageVariant">
   createdAt?: Prisma.DateTimeFilter<"MessageVariant"> | Date | string
@@ -993,6 +1024,7 @@ export type MessageVariantCreateWithoutClonesInput = {
   warmupUntil?: Date | string | null
   category?: string | null
   subcategory?: string | null
+  sortOrder?: number
   actionFeatures?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   createdAt?: Date | string
   message: Prisma.MessageCreateNestedOneWithoutVariantsInput
@@ -1020,6 +1052,7 @@ export type MessageVariantUncheckedCreateWithoutClonesInput = {
   warmupUntil?: Date | string | null
   category?: string | null
   subcategory?: string | null
+  sortOrder?: number
   sourceTemplateId?: string | null
   actionFeatures?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   createdAt?: Date | string
@@ -1050,6 +1083,7 @@ export type MessageVariantCreateWithoutSourceTemplateInput = {
   warmupUntil?: Date | string | null
   category?: string | null
   subcategory?: string | null
+  sortOrder?: number
   actionFeatures?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   createdAt?: Date | string
   message: Prisma.MessageCreateNestedOneWithoutVariantsInput
@@ -1077,6 +1111,7 @@ export type MessageVariantUncheckedCreateWithoutSourceTemplateInput = {
   warmupUntil?: Date | string | null
   category?: string | null
   subcategory?: string | null
+  sortOrder?: number
   actionFeatures?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   createdAt?: Date | string
   clones?: Prisma.MessageVariantUncheckedCreateNestedManyWithoutSourceTemplateInput
@@ -1123,6 +1158,7 @@ export type MessageVariantUpdateWithoutClonesInput = {
   warmupUntil?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   category?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   subcategory?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  sortOrder?: Prisma.IntFieldUpdateOperationsInput | number
   actionFeatures?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   message?: Prisma.MessageUpdateOneRequiredWithoutVariantsNestedInput
@@ -1150,6 +1186,7 @@ export type MessageVariantUncheckedUpdateWithoutClonesInput = {
   warmupUntil?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   category?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   subcategory?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  sortOrder?: Prisma.IntFieldUpdateOperationsInput | number
   sourceTemplateId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   actionFeatures?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
@@ -1191,6 +1228,7 @@ export type MessageVariantCreateWithoutTranslationsInput = {
   warmupUntil?: Date | string | null
   category?: string | null
   subcategory?: string | null
+  sortOrder?: number
   actionFeatures?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   createdAt?: Date | string
   message: Prisma.MessageCreateNestedOneWithoutVariantsInput
@@ -1218,6 +1256,7 @@ export type MessageVariantUncheckedCreateWithoutTranslationsInput = {
   warmupUntil?: Date | string | null
   category?: string | null
   subcategory?: string | null
+  sortOrder?: number
   sourceTemplateId?: string | null
   actionFeatures?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   createdAt?: Date | string
@@ -1259,6 +1298,7 @@ export type MessageVariantUpdateWithoutTranslationsInput = {
   warmupUntil?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   category?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   subcategory?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  sortOrder?: Prisma.IntFieldUpdateOperationsInput | number
   actionFeatures?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   message?: Prisma.MessageUpdateOneRequiredWithoutVariantsNestedInput
@@ -1286,6 +1326,7 @@ export type MessageVariantUncheckedUpdateWithoutTranslationsInput = {
   warmupUntil?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   category?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   subcategory?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  sortOrder?: Prisma.IntFieldUpdateOperationsInput | number
   sourceTemplateId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   actionFeatures?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
@@ -1311,6 +1352,7 @@ export type MessageVariantCreateWithoutDecisionsInput = {
   warmupUntil?: Date | string | null
   category?: string | null
   subcategory?: string | null
+  sortOrder?: number
   actionFeatures?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   createdAt?: Date | string
   message: Prisma.MessageCreateNestedOneWithoutVariantsInput
@@ -1338,6 +1380,7 @@ export type MessageVariantUncheckedCreateWithoutDecisionsInput = {
   warmupUntil?: Date | string | null
   category?: string | null
   subcategory?: string | null
+  sortOrder?: number
   sourceTemplateId?: string | null
   actionFeatures?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   createdAt?: Date | string
@@ -1379,6 +1422,7 @@ export type MessageVariantUpdateWithoutDecisionsInput = {
   warmupUntil?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   category?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   subcategory?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  sortOrder?: Prisma.IntFieldUpdateOperationsInput | number
   actionFeatures?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   message?: Prisma.MessageUpdateOneRequiredWithoutVariantsNestedInput
@@ -1406,6 +1450,7 @@ export type MessageVariantUncheckedUpdateWithoutDecisionsInput = {
   warmupUntil?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   category?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   subcategory?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  sortOrder?: Prisma.IntFieldUpdateOperationsInput | number
   sourceTemplateId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   actionFeatures?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
@@ -1431,6 +1476,7 @@ export type MessageVariantCreateManyMessageInput = {
   warmupUntil?: Date | string | null
   category?: string | null
   subcategory?: string | null
+  sortOrder?: number
   sourceTemplateId?: string | null
   actionFeatures?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   createdAt?: Date | string
@@ -1454,6 +1500,7 @@ export type MessageVariantUpdateWithoutMessageInput = {
   warmupUntil?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   category?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   subcategory?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  sortOrder?: Prisma.IntFieldUpdateOperationsInput | number
   actionFeatures?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   sourceTemplate?: Prisma.MessageVariantUpdateOneWithoutClonesNestedInput
@@ -1480,6 +1527,7 @@ export type MessageVariantUncheckedUpdateWithoutMessageInput = {
   warmupUntil?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   category?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   subcategory?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  sortOrder?: Prisma.IntFieldUpdateOperationsInput | number
   sourceTemplateId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   actionFeatures?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
@@ -1506,6 +1554,7 @@ export type MessageVariantUncheckedUpdateManyWithoutMessageInput = {
   warmupUntil?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   category?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   subcategory?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  sortOrder?: Prisma.IntFieldUpdateOperationsInput | number
   sourceTemplateId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   actionFeatures?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
@@ -1530,6 +1579,7 @@ export type MessageVariantCreateManySourceTemplateInput = {
   warmupUntil?: Date | string | null
   category?: string | null
   subcategory?: string | null
+  sortOrder?: number
   actionFeatures?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   createdAt?: Date | string
 }
@@ -1552,6 +1602,7 @@ export type MessageVariantUpdateWithoutSourceTemplateInput = {
   warmupUntil?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   category?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   subcategory?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  sortOrder?: Prisma.IntFieldUpdateOperationsInput | number
   actionFeatures?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   message?: Prisma.MessageUpdateOneRequiredWithoutVariantsNestedInput
@@ -1579,6 +1630,7 @@ export type MessageVariantUncheckedUpdateWithoutSourceTemplateInput = {
   warmupUntil?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   category?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   subcategory?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  sortOrder?: Prisma.IntFieldUpdateOperationsInput | number
   actionFeatures?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   clones?: Prisma.MessageVariantUncheckedUpdateManyWithoutSourceTemplateNestedInput
@@ -1605,6 +1657,7 @@ export type MessageVariantUncheckedUpdateManyWithoutSourceTemplateInput = {
   warmupUntil?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   category?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   subcategory?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  sortOrder?: Prisma.IntFieldUpdateOperationsInput | number
   actionFeatures?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
 }
@@ -1677,6 +1730,7 @@ export type MessageVariantSelect<ExtArgs extends runtime.Types.Extensions.Intern
   warmupUntil?: boolean
   category?: boolean
   subcategory?: boolean
+  sortOrder?: boolean
   sourceTemplateId?: boolean
   actionFeatures?: boolean
   createdAt?: boolean
@@ -1707,6 +1761,7 @@ export type MessageVariantSelectCreateManyAndReturn<ExtArgs extends runtime.Type
   warmupUntil?: boolean
   category?: boolean
   subcategory?: boolean
+  sortOrder?: boolean
   sourceTemplateId?: boolean
   actionFeatures?: boolean
   createdAt?: boolean
@@ -1733,6 +1788,7 @@ export type MessageVariantSelectUpdateManyAndReturn<ExtArgs extends runtime.Type
   warmupUntil?: boolean
   category?: boolean
   subcategory?: boolean
+  sortOrder?: boolean
   sourceTemplateId?: boolean
   actionFeatures?: boolean
   createdAt?: boolean
@@ -1759,12 +1815,13 @@ export type MessageVariantSelectScalar = {
   warmupUntil?: boolean
   category?: boolean
   subcategory?: boolean
+  sortOrder?: boolean
   sourceTemplateId?: boolean
   actionFeatures?: boolean
   createdAt?: boolean
 }
 
-export type MessageVariantOmit<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = runtime.Types.Extensions.GetOmit<"id" | "messageId" | "name" | "subject" | "body" | "cta" | "status" | "brazeVariantId" | "brazeCanvasStepId" | "title" | "iconImageUrl" | "deeplink" | "preferredHour" | "preferredDayOfWeek" | "frequencyCapOverride" | "warmupUntil" | "category" | "subcategory" | "sourceTemplateId" | "actionFeatures" | "createdAt", ExtArgs["result"]["messageVariant"]>
+export type MessageVariantOmit<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = runtime.Types.Extensions.GetOmit<"id" | "messageId" | "name" | "subject" | "body" | "cta" | "status" | "brazeVariantId" | "brazeCanvasStepId" | "title" | "iconImageUrl" | "deeplink" | "preferredHour" | "preferredDayOfWeek" | "frequencyCapOverride" | "warmupUntil" | "category" | "subcategory" | "sortOrder" | "sourceTemplateId" | "actionFeatures" | "createdAt", ExtArgs["result"]["messageVariant"]>
 export type MessageVariantInclude<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
   message?: boolean | Prisma.MessageDefaultArgs<ExtArgs>
   sourceTemplate?: boolean | Prisma.MessageVariant$sourceTemplateArgs<ExtArgs>
@@ -1810,6 +1867,7 @@ export type $MessageVariantPayload<ExtArgs extends runtime.Types.Extensions.Inte
     warmupUntil: Date | null
     category: string | null
     subcategory: string | null
+    sortOrder: number
     sourceTemplateId: string | null
     actionFeatures: runtime.JsonValue | null
     createdAt: Date
@@ -2259,6 +2317,7 @@ export interface MessageVariantFieldRefs {
   readonly warmupUntil: Prisma.FieldRef<"MessageVariant", 'DateTime'>
   readonly category: Prisma.FieldRef<"MessageVariant", 'String'>
   readonly subcategory: Prisma.FieldRef<"MessageVariant", 'String'>
+  readonly sortOrder: Prisma.FieldRef<"MessageVariant", 'Int'>
   readonly sourceTemplateId: Prisma.FieldRef<"MessageVariant", 'String'>
   readonly actionFeatures: Prisma.FieldRef<"MessageVariant", 'Json'>
   readonly createdAt: Prisma.FieldRef<"MessageVariant", 'DateTime'>

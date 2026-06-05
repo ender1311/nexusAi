@@ -8,6 +8,7 @@ import { prisma } from "@/lib/db";
 import { getAuth } from "@/lib/auth";
 import { LIBRARY_AGENT_NAME } from "@/lib/engine/template-sync";
 import { TemplateFormSheet } from "@/components/push-library/template-form-sheet";
+import { ManageCategoriesSheet } from "@/components/push-library/manage-categories-sheet";
 import { PushLibraryClient } from "@/components/push-library/push-library-client";
 import type { TemplateGroup, TemplateVariant } from "@/components/push-library/push-library-client";
 import { PushTranslationUpload } from "@/components/messages/push-translation-upload";
@@ -60,8 +61,7 @@ const getGroups = unstable_cache(
 );
 
 export default async function MessagesPage() {
-  const [{ user }, groups] = await Promise.all([getAuth(), getGroups()]);
-  const isAdmin = !!user; // all authenticated users can manage the push library
+  const [{ canManageLibrary }, groups] = await Promise.all([getAuth(), getGroups()]);
 
   const totalVariants = groups.reduce((s, g) => s + g.variants.length, 0);
   const description = `${totalVariants} push${totalVariants !== 1 ? "es" : ""} across ${groups.length} group${groups.length !== 1 ? "s" : ""}`;
@@ -69,14 +69,19 @@ export default async function MessagesPage() {
   return (
     <>
       <Header title="Push Library" description={description}>
-        {isAdmin ? (
-          <TemplateFormSheet mode="create">
-            <Button size="sm">+ New Push</Button>
-          </TemplateFormSheet>
+        {canManageLibrary ? (
+          <div className="flex gap-2">
+            <ManageCategoriesSheet>
+              <Button size="sm" variant="outline">Manage Categories</Button>
+            </ManageCategoriesSheet>
+            <TemplateFormSheet mode="create">
+              <Button size="sm">+ New Push</Button>
+            </TemplateFormSheet>
+          </div>
         ) : null}
       </Header>
       <div className="p-4 sm:p-6">
-        {isAdmin && (
+        {canManageLibrary && (
           <div className="mb-6">
             <PushTranslationUpload />
           </div>
@@ -88,7 +93,7 @@ export default async function MessagesPage() {
             <p className="text-sm mt-1">Run the seed script to populate the library.</p>
           </div>
         ) : (
-          <PushLibraryClient groups={groups} isAdmin={isAdmin} />
+          <PushLibraryClient groups={groups} canManageLibrary={canManageLibrary} />
         )}
       </div>
     </>

@@ -179,3 +179,13 @@ export type UserSegment = Prisma.UserSegmentModel
  * 
  */
 export type UserPreference = Prisma.UserPreferenceModel
+/**
+ * Model PushCategory
+ * 
+ */
+export type PushCategory = Prisma.PushCategoryModel
+/**
+ * Model PushSubcategory
+ * 
+ */
+export type PushSubcategory = Prisma.PushSubcategoryModel

@@ -411,7 +411,9 @@ export const ModelName = {
   CampaignContent: 'CampaignContent',
   DemoUserGroup: 'DemoUserGroup',
   UserSegment: 'UserSegment',
-  UserPreference: 'UserPreference'
+  UserPreference: 'UserPreference',
+  PushCategory: 'PushCategory',
+  PushSubcategory: 'PushSubcategory'
 } as const
 
 export type ModelName = (typeof ModelName)[keyof typeof ModelName]
@@ -427,7 +429,7 @@ export type TypeMap<ExtArgs extends runtime.Types.Extensions.InternalArgs = runt
     omit: GlobalOmitOptions
   }
   meta: {
-    modelProps: "agent" | "goal" | "message" | "messageVariant" | "messageVariantTranslation" | "deeplink" | "userDecision" | "trackedUser" | "persona" | "agentPersonaTarget" | "personaArmStats" | "userArmStats" | "linUCBArm" | "schedulingRule" | "modelMetric" | "planSet" | "planSetMember" | "appSetting" | "userAgentAssignment" | "funnelTransition" | "cronRun" | "failedBrazeSend" | "processedEventId" | "ingestSyncLog" | "campaignContent" | "demoUserGroup" | "userSegment" | "userPreference"
+    modelProps: "agent" | "goal" | "message" | "messageVariant" | "messageVariantTranslation" | "deeplink" | "userDecision" | "trackedUser" | "persona" | "agentPersonaTarget" | "personaArmStats" | "userArmStats" | "linUCBArm" | "schedulingRule" | "modelMetric" | "planSet" | "planSetMember" | "appSetting" | "userAgentAssignment" | "funnelTransition" | "cronRun" | "failedBrazeSend" | "processedEventId" | "ingestSyncLog" | "campaignContent" | "demoUserGroup" | "userSegment" | "userPreference" | "pushCategory" | "pushSubcategory"
     txIsolationLevel: TransactionIsolationLevel
   }
   model: {
@@ -2503,6 +2505,154 @@ export type TypeMap<ExtArgs extends runtime.Types.Extensions.InternalArgs = runt
         }
       }
     }
+    PushCategory: {
+      payload: Prisma.$PushCategoryPayload<ExtArgs>
+      fields: Prisma.PushCategoryFieldRefs
+      operations: {
+        findUnique: {
+          args: Prisma.PushCategoryFindUniqueArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$PushCategoryPayload> | null
+        }
+        findUniqueOrThrow: {
+          args: Prisma.PushCategoryFindUniqueOrThrowArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$PushCategoryPayload>
+        }
+        findFirst: {
+          args: Prisma.PushCategoryFindFirstArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$PushCategoryPayload> | null
+        }
+        findFirstOrThrow: {
+          args: Prisma.PushCategoryFindFirstOrThrowArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$PushCategoryPayload>
+        }
+        findMany: {
+          args: Prisma.PushCategoryFindManyArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$PushCategoryPayload>[]
+        }
+        create: {
+          args: Prisma.PushCategoryCreateArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$PushCategoryPayload>
+        }
+        createMany: {
+          args: Prisma.PushCategoryCreateManyArgs<ExtArgs>
+          result: BatchPayload
+        }
+        createManyAndReturn: {
+          args: Prisma.PushCategoryCreateManyAndReturnArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$PushCategoryPayload>[]
+        }
+        delete: {
+          args: Prisma.PushCategoryDeleteArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$PushCategoryPayload>
+        }
+        update: {
+          args: Prisma.PushCategoryUpdateArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$PushCategoryPayload>
+        }
+        deleteMany: {
+          args: Prisma.PushCategoryDeleteManyArgs<ExtArgs>
+          result: BatchPayload
+        }
+        updateMany: {
+          args: Prisma.PushCategoryUpdateManyArgs<ExtArgs>
+          result: BatchPayload
+        }
+        updateManyAndReturn: {
+          args: Prisma.PushCategoryUpdateManyAndReturnArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$PushCategoryPayload>[]
+        }
+        upsert: {
+          args: Prisma.PushCategoryUpsertArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$PushCategoryPayload>
+        }
+        aggregate: {
+          args: Prisma.PushCategoryAggregateArgs<ExtArgs>
+          result: runtime.Types.Utils.Optional<Prisma.AggregatePushCategory>
+        }
+        groupBy: {
+          args: Prisma.PushCategoryGroupByArgs<ExtArgs>
+          result: runtime.Types.Utils.Optional<Prisma.PushCategoryGroupByOutputType>[]
+        }
+        count: {
+          args: Prisma.PushCategoryCountArgs<ExtArgs>
+          result: runtime.Types.Utils.Optional<Prisma.PushCategoryCountAggregateOutputType> | number
+        }
+      }
+    }
+    PushSubcategory: {
+      payload: Prisma.$PushSubcategoryPayload<ExtArgs>
+      fields: Prisma.PushSubcategoryFieldRefs
+      operations: {
+        findUnique: {
+          args: Prisma.PushSubcategoryFindUniqueArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$PushSubcategoryPayload> | null
+        }
+        findUniqueOrThrow: {
+          args: Prisma.PushSubcategoryFindUniqueOrThrowArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$PushSubcategoryPayload>
+        }
+        findFirst: {
+          args: Prisma.PushSubcategoryFindFirstArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$PushSubcategoryPayload> | null
+        }
+        findFirstOrThrow: {
+          args: Prisma.PushSubcategoryFindFirstOrThrowArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$PushSubcategoryPayload>
+        }
+        findMany: {
+          args: Prisma.PushSubcategoryFindManyArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$PushSubcategoryPayload>[]
+        }
+        create: {
+          args: Prisma.PushSubcategoryCreateArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$PushSubcategoryPayload>
+        }
+        createMany: {
+          args: Prisma.PushSubcategoryCreateManyArgs<ExtArgs>
+          result: BatchPayload
+        }
+        createManyAndReturn: {
+          args: Prisma.PushSubcategoryCreateManyAndReturnArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$PushSubcategoryPayload>[]
+        }
+        delete: {
+          args: Prisma.PushSubcategoryDeleteArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$PushSubcategoryPayload>
+        }
+        update: {
+          args: Prisma.PushSubcategoryUpdateArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$PushSubcategoryPayload>
+        }
+        deleteMany: {
+          args: Prisma.PushSubcategoryDeleteManyArgs<ExtArgs>
+          result: BatchPayload
+        }
+        updateMany: {
+          args: Prisma.PushSubcategoryUpdateManyArgs<ExtArgs>
+          result: BatchPayload
+        }
+        updateManyAndReturn: {
+          args: Prisma.PushSubcategoryUpdateManyAndReturnArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$PushSubcategoryPayload>[]
+        }
+        upsert: {
+          args: Prisma.PushSubcategoryUpsertArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$PushSubcategoryPayload>
+        }
+        aggregate: {
+          args: Prisma.PushSubcategoryAggregateArgs<ExtArgs>
+          result: runtime.Types.Utils.Optional<Prisma.AggregatePushSubcategory>
+        }
+        groupBy: {
+          args: Prisma.PushSubcategoryGroupByArgs<ExtArgs>
+          result: runtime.Types.Utils.Optional<Prisma.PushSubcategoryGroupByOutputType>[]
+        }
+        count: {
+          args: Prisma.PushSubcategoryCountArgs<ExtArgs>
+          result: runtime.Types.Utils.Optional<Prisma.PushSubcategoryCountAggregateOutputType> | number
+        }
+      }
+    }
   }
 } & {
   other: {
@@ -2619,6 +2769,7 @@ export const MessageVariantScalarFieldEnum = {
   warmupUntil: 'warmupUntil',
   category: 'category',
   subcategory: 'subcategory',
+  sortOrder: 'sortOrder',
   sourceTemplateId: 'sourceTemplateId',
   actionFeatures: 'actionFeatures',
   createdAt: 'createdAt'
@@ -2967,6 +3118,32 @@ export const UserPreferenceScalarFieldEnum = {
 export type UserPreferenceScalarFieldEnum = (typeof UserPreferenceScalarFieldEnum)[keyof typeof UserPreferenceScalarFieldEnum]
 
 
+export const PushCategoryScalarFieldEnum = {
+  id: 'id',
+  slug: 'slug',
+  label: 'label',
+  sortOrder: 'sortOrder',
+  isActive: 'isActive',
+  createdAt: 'createdAt'
+} as const
+
+export type PushCategoryScalarFieldEnum = (typeof PushCategoryScalarFieldEnum)[keyof typeof PushCategoryScalarFieldEnum]
+
+
+export const PushSubcategoryScalarFieldEnum = {
+  id: 'id',
+  categoryId: 'categoryId',
+  slug: 'slug',
+  label: 'label',
+  sortOrder: 'sortOrder',
+  deeplinkBehavior: 'deeplinkBehavior',
+  isActive: 'isActive',
+  createdAt: 'createdAt'
+} as const
+
+export type PushSubcategoryScalarFieldEnum = (typeof PushSubcategoryScalarFieldEnum)[keyof typeof PushSubcategoryScalarFieldEnum]
+
+
 export const SortOrder = {
   asc: 'asc',
   desc: 'desc'
@@ -3235,6 +3412,8 @@ export type GlobalOmitConfig = {
   demoUserGroup?: Prisma.DemoUserGroupOmit
   userSegment?: Prisma.UserSegmentOmit
   userPreference?: Prisma.UserPreferenceOmit
+  pushCategory?: Prisma.PushCategoryOmit
+  pushSubcategory?: Prisma.PushSubcategoryOmit
 }
 
 /* Types for Logging */

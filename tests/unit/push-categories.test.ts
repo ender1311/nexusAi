@@ -2,7 +2,6 @@ import { describe, expect, it } from "bun:test";
 import {
   PUSH_CATEGORIES,
   PUSH_CATEGORY_VALUES,
-  VALID_PUSH_CATEGORIES,
   PUSH_SUBCATEGORIES,
 } from "@/lib/push-categories";
 
@@ -11,14 +10,12 @@ describe("push-categories catalogue", () => {
     // Regression: template-picker / variant-picker once hardcoded a catalogue that
     // omitted "giving", making the 56 curated giving pushes unselectable into agents.
     expect(PUSH_CATEGORY_VALUES).toContain("giving");
-    expect(VALID_PUSH_CATEGORIES.has("giving")).toBe(true);
     expect(PUSH_SUBCATEGORIES.giving.length).toBe(10);
     expect(PUSH_SUBCATEGORIES.giving).toContain("dynamic-handle");
   });
 
   it("derives every helper from the same source so they cannot drift", () => {
     expect(PUSH_CATEGORY_VALUES).toEqual(PUSH_CATEGORIES.map((c) => c.value));
-    expect([...VALID_PUSH_CATEGORIES].sort()).toEqual([...PUSH_CATEGORY_VALUES].sort());
     for (const c of PUSH_CATEGORIES) {
       expect(PUSH_SUBCATEGORIES[c.value]).toEqual(c.subcategories.map((s) => s.value));
     }

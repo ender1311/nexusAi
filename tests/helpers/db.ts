@@ -62,6 +62,8 @@ export async function truncateAll(): Promise<void> {
   await prisma.appSetting.deleteMany();
   await prisma.campaignContent.deleteMany();
   await prisma.deeplink.deleteMany();
+  await prisma.pushSubcategory.deleteMany().catch(() => {});
+  await prisma.pushCategory.deleteMany().catch(() => {});
   await prisma.demoUserGroup.deleteMany().catch(() => {});
 }
 

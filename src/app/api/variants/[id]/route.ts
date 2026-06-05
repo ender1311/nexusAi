@@ -3,7 +3,9 @@ import { revalidateTag } from "next/cache";
 import { prisma } from "@/lib/db";
 import { LIBRARY_AGENT_NAME, TEMPLATE_COPY_FIELDS } from "@/lib/engine/template-sync";
 import { syncClonesFromTemplate } from "@/lib/services/template-service";
-import { requireAdmin } from "@/lib/auth";
+import { requireLibraryEditor } from "@/lib/auth";
+import { getPushTaxonomy } from "@/lib/cache/push-taxonomy";
+import { validateVariantTaxonomy } from "@/lib/push-taxonomy";
 import { isPushVariantComplete, missingPushFields } from "@/lib/messages/push-completeness";
 
 // Fields an operator is allowed to update via PATCH.
@@ -12,6 +14,7 @@ const UPDATABLE_FIELDS = new Set([
   "name", "subject", "body", "cta", "status", "brazeVariantId", "title",
   "iconImageUrl", "deeplink", "preferredHour", "preferredDayOfWeek",
   "frequencyCapOverride", "warmupUntil", "actionFeatures", "category",
+  "subcategory", "sortOrder",
 ]);
 
 export async function PATCH(
@@ -19,7 +22,7 @@ export async function PATCH(
   { params }: { params: Promise<{ id: string }> }
 ) {
   const { id } = await params;
-  const forbidden = await requireAdmin();
+  const forbidden = await requireLibraryEditor();
   if (forbidden) return forbidden;
 
   let body: Record<string, unknown>;
@@ -42,6 +45,18 @@ export async function PATCH(
 
   if (Object.keys(updateData).length === 0) {
     return NextResponse.json({ error: "No valid fields to update" }, { status: 400 });
+  }
+
+  if ("category" in updateData || "subcategory" in updateData) {
+    const resultingCategory = "category" in updateData ? updateData.category : variant.category;
+    const resultingSub = "subcategory" in updateData ? updateData.subcategory : variant.subcategory;
+    if (typeof resultingCategory !== "string") {
+      return NextResponse.json({ error: "category is required" }, { status: 400 });
+    }
+    const taxonomy = await getPushTaxonomy();
+    const subSlug = typeof resultingSub === "string" && resultingSub.trim() ? resultingSub.trim() : null;
+    const valid = validateVariantTaxonomy(taxonomy, resultingCategory, subSlug);
+    if (!valid.ok) return NextResponse.json({ error: valid.error }, { status: 400 });
   }
 
   // Channel-aware completeness: a push variant must keep a non-empty title AND
@@ -95,7 +110,7 @@ export async function DELETE(
   { params }: { params: Promise<{ id: string }> }
 ) {
   const { id } = await params;
-  const forbidden = await requireAdmin();
+  const forbidden = await requireLibraryEditor();
   if (forbidden) return forbidden;
 
   try {

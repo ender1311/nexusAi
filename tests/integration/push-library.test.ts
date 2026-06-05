@@ -8,6 +8,8 @@ import { buildRequest } from "../helpers/request";
 // Mutable auth state — mutate before each test that needs a specific role
 const mockAuth: { roles: string[] } = { roles: [] };
 
+mock.module("next/cache", () => ({ revalidateTag: () => {}, unstable_cache: (fn: unknown) => fn }));
+
 mock.module("@workos-inc/authkit-nextjs", () => ({
   withAuth: () =>
     Promise.resolve({
@@ -28,6 +30,16 @@ const LIBRARY_AGENT_NAME = "Push Copy Library";
 beforeEach(async () => {
   await truncateAll();
   mockAuth.roles = [];
+  // Seed taxonomy so POST taxonomy validation passes for categories used in these tests
+  const reader = await prisma.pushCategory.create({ data: { slug: "reader", label: "Reader" } });
+  await prisma.pushSubcategory.createMany({
+    data: [
+      { categoryId: reader.id, slug: "open-bible", label: "Open Bible" },
+      { categoryId: reader.id, slug: "specific-verse", label: "Specific Verse" },
+    ],
+  });
+  const giving = await prisma.pushCategory.create({ data: { slug: "giving", label: "Giving" } });
+  await prisma.pushSubcategory.create({ data: { categoryId: giving.id, slug: "sower-generosity", label: "Sower Generosity" } });
 });
 afterEach(async () => {
   await truncateAll();
@@ -52,7 +64,7 @@ async function seedLibrary() {
 describe("GET /api/push-library", () => {
   it("returns grouped variants for authenticated user", async () => {
     await seedLibrary();
-    const res = await GET();
+    const res = await GET(new Request("http://t/api/push-library") as never);
     const body = await res.json();
 
     expect(res.status).toBe(200);
@@ -81,7 +93,7 @@ describe("GET /api/push-library", () => {
       status: "archived",
     });
 
-    const res = await GET();
+    const res = await GET(new Request("http://t/api/push-library") as never);
     const body = await res.json();
 
     const names = body.data.flatMap((g: { variants: { name: string }[] }) =>
@@ -136,7 +148,7 @@ describe("POST /api/push-library", () => {
     expect(body.data.cta).toBe("Open Bible App");
 
     // Verify it appears in GET
-    const getRes = await GET();
+    const getRes = await GET(new Request("http://t/api/push-library") as never);
     const getBody = await getRes.json();
     const allNames = getBody.data.flatMap((g: { variants: { name: string }[] }) =>
       g.variants.map((v: { name: string }) => v.name)
@@ -211,7 +223,7 @@ describe("POST /api/push-library", () => {
     expect(body.data.category).toBe("giving");
     expect(body.data.subcategory).toBe("sower-generosity");
 
-    const getRes = await GET();
+    const getRes = await GET(new Request("http://t/api/push-library") as never);
     const getBody = await getRes.json();
     const givingGroup = getBody.data.find(
       (g: { category: string }) => g.category === "giving"
@@ -310,7 +322,7 @@ describe("specific-verse deeplinks", () => {
       status: "active",
     });
 
-    const res = await GET();
+    const res = await GET(new Request("http://t/api/push-library") as never);
     const body = await res.json();
 
     expect(res.status).toBe(200);
@@ -355,7 +367,7 @@ describe("DELETE /api/push-library/[id]", () => {
     expect(inDb!.status).toBe("archived");
 
     // Verify excluded from GET
-    const getRes = await GET();
+    const getRes = await GET(new Request("http://t/api/push-library") as never);
     const getBody = await getRes.json();
     const allIds = getBody.data.flatMap((g: { variants: { id: string }[] }) =>
       g.variants.map((v: { id: string }) => v.id)
