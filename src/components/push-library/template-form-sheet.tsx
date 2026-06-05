@@ -30,11 +30,8 @@ import {
   type SpecificVerseDeeplinkMode,
 } from "@/lib/push-deeplinks";
 import { cn } from "@/lib/utils";
-import { PUSH_CATEGORY_VALUES, PUSH_SUBCATEGORIES } from "@/lib/push-categories";
+import { useTaxonomy, activeTaxonomy } from "./use-taxonomy";
 import { VERSE_IMAGE_SENTINEL } from "@/lib/verse-image";
-
-const CATEGORIES = PUSH_CATEGORY_VALUES;
-const SUBCATEGORIES = PUSH_SUBCATEGORIES;
 
 type TemplateVariant = {
   id: string;
@@ -67,11 +64,10 @@ export function TemplateFormSheet({ mode, variant, children }: Props) {
   const [cta, setCta] = useState(variant?.cta ?? "");
   const [iconImageUrl, setIconImageUrl] = useState(variant?.iconImageUrl ?? "");
 
-  // Only meaningful when subcategory === "specific-verse"
+  // Verse-deeplink mode is meaningful only when the selected subcategory's
+  // deeplinkBehavior is "specific-verse" (see isVerseDeeplink below).
   const [svMode, setSvMode] = useState<SpecificVerseDeeplinkMode>(
-    variant?.subcategory === "specific-verse" && isSpecificVerseDeeplink(variant?.deeplink)
-      ? "specific"
-      : "generic"
+    isSpecificVerseDeeplink(variant?.deeplink) ? "specific" : "generic"
   );
   const [svUsfm, setSvUsfm] = useState(
     isSpecificVerseDeeplink(variant?.deeplink)
@@ -79,7 +75,15 @@ export function TemplateFormSheet({ mode, variant, children }: Props) {
       : ""
   );
 
-  const subcategoryOptions = SUBCATEGORIES[category] ?? [];
+  const { taxonomy } = useTaxonomy();
+  const active = activeTaxonomy(taxonomy);
+  const categoryOptions = active.map((c) => ({ value: c.slug, label: c.label }));
+  const selectedCategory = active.find((c) => c.slug === category);
+  const subcategoryOptions = selectedCategory
+    ? selectedCategory.subcategories.map((s) => ({ value: s.slug, label: s.label }))
+    : [];
+  const selectedSub = selectedCategory?.subcategories.find((s) => s.slug === subcategory);
+  const isVerseDeeplink = selectedSub?.deeplinkBehavior === "specific-verse";
 
   function resetForm() {
     if (mode === "create") {
@@ -102,7 +106,7 @@ export function TemplateFormSheet({ mode, variant, children }: Props) {
     setFormError(null);
 
     const effectiveDeeplink =
-      subcategory === "specific-verse"
+      isVerseDeeplink
         ? (svMode === "generic"
             ? GENERIC_BIBLE_DEEPLINK
             : (svUsfm.trim() ? buildSpecificVerseDeeplink(svUsfm.trim()) : null))
@@ -191,9 +195,9 @@ export function TemplateFormSheet({ mode, variant, children }: Props) {
                 <SelectValue placeholder="Select category" />
               </SelectTrigger>
               <SelectContent>
-                {CATEGORIES.map((c) => (
-                  <SelectItem key={c} value={c}>
-                    {c}
+                {categoryOptions.map((c) => (
+                  <SelectItem key={c.value} value={c.value}>
+                    {c.label}
                   </SelectItem>
                 ))}
               </SelectContent>
@@ -212,8 +216,8 @@ export function TemplateFormSheet({ mode, variant, children }: Props) {
                 </SelectTrigger>
                 <SelectContent>
                   {subcategoryOptions.map((s) => (
-                    <SelectItem key={s} value={s}>
-                      {s}
+                    <SelectItem key={s.value} value={s.value}>
+                      {s.label}
                     </SelectItem>
                   ))}
                 </SelectContent>
@@ -246,7 +250,7 @@ export function TemplateFormSheet({ mode, variant, children }: Props) {
 
           <div className="space-y-1.5">
             <Label htmlFor="deeplink">Deeplink</Label>
-            {subcategory === "specific-verse" ? (
+            {isVerseDeeplink ? (
               <div className="space-y-2">
                 <div className="flex rounded-md border overflow-hidden text-xs">
                   <button
@@ -342,7 +346,7 @@ export function TemplateFormSheet({ mode, variant, children }: Props) {
                   : (iconImageUrl || undefined)
               }
               deeplink={
-                subcategory === "specific-verse"
+                isVerseDeeplink
                   ? (svMode === "generic"
                       ? GENERIC_BIBLE_DEEPLINK
                       : (svUsfm ? buildSpecificVerseDeeplink(svUsfm) : undefined))
