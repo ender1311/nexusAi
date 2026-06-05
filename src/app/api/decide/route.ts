@@ -31,7 +31,14 @@ export async function POST(req: NextRequest) {
     ? (context as DecideContext)
     : undefined;
 
-  const result = await decideForUser({ agentId, externalUserId, context: decideContext });
+  let result;
+  try {
+    result = await decideForUser({ agentId, externalUserId, context: decideContext });
+  } catch (err) {
+    console.error("POST /api/decide failed:", err);
+    return NextResponse.json({ error: "Decision service unavailable" }, { status: 500 });
+  }
+
   if (!result) {
     return NextResponse.json(
       { error: "Agent not found, inactive, or has no active variants" },

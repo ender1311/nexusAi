@@ -64,7 +64,7 @@ describe("validation", () => {
     expect(body.error).toBeTruthy();
   });
 
-  it("returns 400 when cohort_changes is missing", async () => {
+  it("returns 400 when cohort_id is present but no user ids are provided", async () => {
     const req = buildRequest("POST", { cohort_id: "cohort_abc" }, AUTH);
     const res = await POST(req as unknown as NextRequest);
     expect(res.status).toBe(400);
@@ -96,6 +96,70 @@ describe("validation", () => {
     expect(res.status).toBe(400);
     const body = await res.json();
     expect(body.error).toContain("10,000");
+  });
+});
+
+// ── Hightouch column mapping (user_id) ─────────────────────────────────────
+describe("Hightouch column mapping", () => {
+  it("upserts from top-level user_id", async () => {
+    const cohortId = "test_cohort_ht_flat";
+    const req = buildRequest(
+      "POST",
+      { cohort_id: cohortId, user_id: "123456" },
+      AUTH,
+    );
+    const res = await POST(req as unknown as NextRequest);
+    expect(res.status).toBe(200);
+
+    const body = await res.json();
+    expect(body.received).toBe(1);
+    expect(body.upserted).toBe(1);
+
+    const segment = await prisma.userSegment.findFirst({
+      where: { externalId: "123456", segmentName: cohortId },
+    });
+    expect(segment).toBeTruthy();
+  });
+
+  it("upserts from users array with user_id rows", async () => {
+    const cohortId = "test_cohort_ht_users";
+    const req = buildRequest(
+      "POST",
+      {
+        cohort_id: cohortId,
+        users: [{ user_id: "u1" }, { user_id: "u2" }],
+      },
+      AUTH,
+    );
+    const res = await POST(req as unknown as NextRequest);
+    expect(res.status).toBe(200);
+
+    const body = await res.json();
+    expect(body.received).toBe(2);
+    expect(body.upserted).toBe(2);
+
+    const segments = await prisma.userSegment.findMany({
+      where: { segmentName: cohortId },
+    });
+    expect(segments).toHaveLength(2);
+  });
+
+  it("upserts from singular user_id inside cohort_changes", async () => {
+    const cohortId = "test_cohort_ht_change";
+    const req = buildRequest(
+      "POST",
+      {
+        cohort_id: cohortId,
+        cohort_changes: [{ user_id: "u1" }, { user_id: "u2" }],
+      },
+      AUTH,
+    );
+    const res = await POST(req as unknown as NextRequest);
+    expect(res.status).toBe(200);
+
+    const body = await res.json();
+    expect(body.received).toBe(2);
+    expect(body.upserted).toBe(2);
   });
 });
 

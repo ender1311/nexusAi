@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
+import { getCachedControlTowerStats } from "@/lib/cache/dashboard";
 
 export type StatsData = {
   trackedUsers: number;
@@ -11,24 +12,20 @@ export type StatsData = {
 
 export async function GET(): Promise<NextResponse<StatsData | { error: string }>> {
   try {
-    const [trackedUsers, personas, agents, decisions, totalConversions] = await Promise.all([
-      prisma.trackedUser.count(),
-      prisma.persona.count({ where: { isActive: true } }),
+    // trackedUsers/personas/decisions/conversions come from the DAY-cached helper —
+    // it shares the 19M-row TrackedUser + UserDecision full-table scans with the
+    // dashboard so they run at most once/day instead of on every request here.
+    const [base, agents] = await Promise.all([
+      getCachedControlTowerStats(),
       prisma.agent.count({ where: { status: "active" } }),
-      prisma.userDecision.aggregate({
-        _count: { id: true },
-        _sum: { reward: true },
-        where: {},
-      }),
-      prisma.userDecision.count({ where: { conversionAt: { not: null } } }),
     ]);
 
     const res = NextResponse.json({
-      trackedUsers,
-      personas,
+      trackedUsers: base.trackedUsers,
+      personas: base.personas,
       agents,
-      totalDecisions: decisions._count.id,
-      totalConversions,
+      totalDecisions: base.totalDecisions,
+      totalConversions: base.totalConversions,
     });
     res.headers.set("Cache-Control", "public, s-maxage=60, stale-while-revalidate=120");
     return res;
