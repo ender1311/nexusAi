@@ -28,7 +28,8 @@ import {
   isPushTargetingMode,
   DEFAULT_PUSH_TARGETING_MODE,
 } from "@/lib/engine/channel-preference";
-import { selectAudience, trimToCap, resolveFetchLimit } from "@/lib/cron/caps";
+import { partitionByPreferredHour, trimToCap, resolveFetchLimit } from "@/lib/cron/caps";
+import { selectCohort } from "@/lib/cron/cohort-assignment";
 import { classifyReleases, type ReleaseAgentInfo, type ActiveAssignment } from "@/lib/cron/release-sweep";
 import {
   groupDecisionsByVariant,
@@ -295,14 +296,14 @@ export async function POST(req: NextRequest) {
               return;
             }
           }
+          const segLockClause = agent.cohortAssignedAt
+            ? { lockedByAgentId: agent.id }
+            : { OR: [{ lockedByAgentId: null }, { lockedByAgentId: agent.id }] };
           const rows = await prisma.trackedUser.findMany({
             where: {
               externalId: { in: memberIds },
               personaId:  { in: personaIds },
-              OR: [
-                { lockedByAgentId: null },
-                { lockedByAgentId: agent.id },
-              ],
+              ...segLockClause,
             },
             select: { externalId: true, preferredSendHour: true },
           });
@@ -320,16 +321,18 @@ export async function POST(req: NextRequest) {
           // Bound the query so agents with millions of eligible users don't load the
           // entire set into memory. See resolveFetchLimit: the all-null "unlimited"
           // case falls back to MAX_FETCH_LIMIT so the query is never unbounded.
-          const fetchLimit = resolveFetchLimit(agent.audienceCap, agent.dailySendCap);
+          const fetchLimit = resolveFetchLimit(agent.dailySendCap, agent.uniqueUsersCap);
+          // Materialized cohort agents process ONLY their own locked cohort — they
+          // stop recruiting. Un-materialized agents pull the recruitable pool.
+          const lockClause = agent.cohortAssignedAt
+            ? { lockedByAgentId: agent.id }
+            : { OR: [{ lockedByAgentId: null }, { lockedByAgentId: agent.id }] };
           let rows = await prisma.trackedUser.findMany({
             where:  {
               personaId: { in: personaIds },
               ...langFilter,
               ...funnelFilter,
-              OR: [
-                { lockedByAgentId: null },
-                { lockedByAgentId: agent.id },
-              ],
+              ...lockClause,
             },
             select: { externalId: true, preferredSendHour: true },
             take: fetchLimit,
@@ -361,6 +364,43 @@ export async function POST(req: NextRequest) {
   const pushTargetingMode = isPushTargetingMode(pushTargetingModeSetting?.value)
     ? pushTargetingModeSetting.value
     : DEFAULT_PUSH_TARGETING_MODE;
+
+  // ─── Cohort materialization ───────────────────────────────────────────────
+  // First tick after an agent goes active: pick a fixed cohort of up to
+  // uniqueUsersCap eligible users, lock them, and record assignments. Sequential
+  // (not parallel) so each agent's locks are visible to the next; the null-guarded
+  // updateMany is the arbiter when two new agents contend for the same users.
+  for (const agent of agents) {
+    if (agent.cohortAssignedAt) continue;          // already materialized
+    if (agent.uniqueUsersCap == null) continue;     // unlimited agents never materialize
+    const pool = eligibleUsersByAgent.get(agent.id) ?? [];
+    if (pool.length === 0) continue;                // nothing eligible yet; retry next tick
+
+    const sample = selectCohort(pool, agent.uniqueUsersCap);
+    // Lock only users not already locked by anyone — race-safe.
+    await prisma.trackedUser.updateMany({
+      where: { externalId: { in: sample }, lockedByAgentId: null },
+      data:  { lockedByAgentId: agent.id },
+    });
+    // Re-read which ones we actually own now (covers concurrent contention).
+    const lockedRows = await prisma.trackedUser.findMany({
+      where: { externalId: { in: sample }, lockedByAgentId: agent.id },
+      select: { externalId: true },
+    });
+    const lockedIds = lockedRows.map((r) => r.externalId);
+    if (lockedIds.length > 0) {
+      await prisma.userAgentAssignment.createMany({
+        data: lockedIds.map((externalUserId) => ({ externalUserId, agentId: agent.id, startedAt: now })),
+        skipDuplicates: true,
+      });
+      for (const id of lockedIds) activeOwnerByUser.set(id, agent.id);
+    }
+    await prisma.agent.update({ where: { id: agent.id }, data: { cohortAssignedAt: now } });
+    agent.cohortAssignedAt = now; // keep in-memory agent consistent for the rest of this run
+    // This agent now processes only its locked cohort this run.
+    eligibleUsersByAgent.set(agent.id, lockedIds);
+  }
+  // ─── End cohort materialization ───────────────────────────────────────────
 
   const lotteryMap = buildAgentLottery(eligibleUsersByAgent);
   // lotteryMap: Map<externalUserId, agentId>  — held in memory for this run
@@ -451,7 +491,7 @@ export async function POST(req: NextRequest) {
     const metricsBefore = { sent: totalSent, suppressed: totalSuppressed, errors: totalErrors };
     const personaIds = agent.personaTargets.map((pt) => pt.personaId);
     if (personaIds.length === 0) continue;
-    const suppress = { freqCap: 0, smartSuppress: 0, dailyCap: 0, quietHours: 0, targetFilter: 0, audienceCap: 0, uniqueUsersCap: 0, blackout: 0 };
+    const suppress = { freqCap: 0, smartSuppress: 0, dailyCap: 0, quietHours: 0, targetFilter: 0, uniqueUsersCap: 0, blackout: 0 };
 
     // Derive the users assigned to this agent by the lottery
     const assignedUserIds = [...lotteryMap.entries()]
@@ -461,17 +501,16 @@ export async function POST(req: NextRequest) {
     // Exclude in-window users from lottery pipeline (they're handled separately below)
     let lotteryUserIds = assignedUserIds.filter((id) => !inWindowUserIdSet.has(id));
 
-    // Apply audience cap — time-bucketed selection when prioritizeLastSeen is on (default),
-    // otherwise fall back to Fisher-Yates random shuffle.
-    if (agent.audienceCap !== null && agent.audienceCap !== undefined) {
-      const selection = selectAudience(lotteryUserIds, {
-        audienceCap: agent.audienceCap,
+    // Send-timing fairness: when prioritizeLastSeen is on, hold back users whose
+    // preferred hour is far from now (they send in their matching hourly run).
+    // No per-run ceiling — dailySendCap is the ramp knob.
+    {
+      const partition = partitionByPreferredHour(lotteryUserIds, {
         prioritizeLastSeen: agent.schedulingRule?.prioritizeLastSeen !== false,
         currentHour: now.getUTCHours(),
         preferredHourByUser: preferredHourByAgent.get(agent.id) ?? new Map<string, number | null>(),
       });
-      lotteryUserIds = selection.kept;
-      suppress.audienceCap = selection.suppressed;
+      lotteryUserIds = partition.kept;
     }
 
     // Daily send cap — stop / trim when the agent has already hit its daily limit.
