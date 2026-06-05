@@ -1,21 +1,15 @@
-import { afterEach, beforeEach, describe, expect, it } from "bun:test";
+import { afterEach, beforeEach, describe, expect, it, mock } from "bun:test";
 import { NextRequest } from "next/server";
 import { truncateAll, prisma } from "../helpers/db";
 import { buildRequest } from "../helpers/request";
 import { createPersona } from "../helpers/builders";
 import { app } from "../../apps/api/src/app";
-
-// POST /api/agents now uses Prisma directly (no Fly.io proxy)
-import { POST as createAgent } from "@/app/api/agents/route";
+import * as apiClient from "@/lib/api-client";
+import { POST as postAgents } from "@/app/api/agents/route";
 // Route handlers for [id] routes — Prisma directly
 import { GET as getAgent, PATCH as patchAgent, DELETE as deleteAgent } from "@/app/api/agents/[id]/route";
 
 const AUTH = { "Authorization": "Bearer test-secret" };
-
-async function apiPost(_path: string, body: unknown) {
-  const req = buildRequest("POST", body);
-  return createAgent(req as NextRequest);
-}
 
 async function apiGet(path: string) {
   return app.request(path, { headers: AUTH });
@@ -27,23 +21,6 @@ beforeEach(async () => {
 
 afterEach(async () => {
   await truncateAll();
-});
-
-describe("POST /api/agents", () => {
-  it("creates an agent and returns 201", async () => {
-    const res = await apiPost("/agents", {
-      name: "Test Campaign",
-      algorithm: "thompson",
-      epsilon: 0.1,
-      funnelStage: "wau",
-      goals: [],
-      messages: [],
-    });
-    const body = await res.json();
-    expect(res.status).toBe(201);
-    expect(body.name).toBe("Test Campaign");
-    expect(body.id).toBeTruthy();
-  });
 });
 
 describe("GET /api/agents", () => {
@@ -221,345 +198,6 @@ describe("PATCH /api/agents/[id] — localizePush", () => {
   });
 });
 
-describe("POST /api/agents — funnelStage + targetFilter", () => {
-  it("creates agent with valid funnelStage and targetFilter, round-trips both fields", async () => {
-    const filter = { attribute: "country", op: "eq", value: "US" };
-    const res = await apiPost("/agents", {
-      name: "Staged Agent",
-      algorithm: "thompson",
-      epsilon: 0.1,
-      funnelStage: "lapsed_mau",
-      targetFilter: filter,
-      goals: [],
-      messages: [],
-    });
-    const body = await res.json();
-    expect(res.status).toBe(201);
-    expect(body.funnelStage).toBe("lapsed_mau");
-    expect(body.targetFilter).toEqual(filter);
-  });
-
-  it("returns 400 for invalid funnelStage", async () => {
-    const res = await apiPost("/agents", {
-      name: "Bad Stage Agent",
-      algorithm: "thompson",
-      funnelStage: "unknown",
-      goals: [],
-      messages: [],
-    });
-    const body = await res.json();
-    expect(res.status).toBe(400);
-    expect(body.error).toBe("Invalid funnelStage");
-  });
-
-  it("returns 400 when funnelStage is missing", async () => {
-    const res = await apiPost("/agents", {
-      name: "No Stage Agent",
-      algorithm: "thompson",
-      goals: [],
-      messages: [],
-    });
-    const body = await res.json();
-    expect(res.status).toBe(400);
-    expect(body.error).toBe("Invalid funnelStage");
-  });
-
-  it("returns 400 for invalid targetFilter (array) on POST", async () => {
-    const res = await apiPost("/agents", {
-      name: "Bad Filter Agent",
-      algorithm: "thompson",
-      funnelStage: "wau",
-      targetFilter: [1, 2, 3],
-      goals: [],
-      messages: [],
-    });
-    const body = await res.json();
-    expect(res.status).toBe(400);
-    expect(body.error).toBe("targetFilter must be a plain object");
-  });
-});
-
-describe("POST /api/agents — uniqueUsersCap", () => {
-  it("creates agent with uniqueUsersCap and persists it", async () => {
-    const res = await apiPost("/agents", {
-      name: "Capped Agent",
-      algorithm: "thompson",
-      funnelStage: "wau",
-      uniqueUsersCap: 10000,
-      goals: [],
-      messages: [],
-    });
-    const body = await res.json();
-    expect(res.status).toBe(201);
-    expect(body.uniqueUsersCap).toBe(10000);
-
-    const persisted = await prisma.agent.findUnique({ where: { id: body.id } });
-    expect(persisted!.uniqueUsersCap).toBe(10000);
-  });
-
-  it("creates agent with null uniqueUsersCap (unlimited)", async () => {
-    const res = await apiPost("/agents", {
-      name: "Unlimited Agent",
-      algorithm: "thompson",
-      funnelStage: "wau",
-      uniqueUsersCap: null,
-      goals: [],
-      messages: [],
-    });
-    const body = await res.json();
-    expect(res.status).toBe(201);
-    expect(body.uniqueUsersCap).toBeNull();
-  });
-
-  it("creates agent without uniqueUsersCap field (defaults to safe 1000)", async () => {
-    const res = await apiPost("/agents", {
-      name: "No Cap Agent",
-      algorithm: "thompson",
-      funnelStage: "wau",
-      goals: [],
-      messages: [],
-    });
-    const body = await res.json();
-    expect(res.status).toBe(201);
-    expect(body.uniqueUsersCap).toBe(1000);
-
-    const persisted = await prisma.agent.findUnique({ where: { id: body.id } });
-    expect(persisted!.uniqueUsersCap).toBe(1000);
-  });
-
-  it("returns 400 when uniqueUsersCap is 0", async () => {
-    const res = await apiPost("/agents", {
-      name: "Bad Cap Agent",
-      algorithm: "thompson",
-      funnelStage: "wau",
-      uniqueUsersCap: 0,
-      goals: [],
-      messages: [],
-    });
-    const body = await res.json();
-    expect(res.status).toBe(400);
-    expect(body.error).toBe("uniqueUsersCap must be null or a positive integer");
-  });
-
-  it("returns 400 when uniqueUsersCap is negative", async () => {
-    const res = await apiPost("/agents", {
-      name: "Bad Cap Agent",
-      algorithm: "thompson",
-      funnelStage: "wau",
-      uniqueUsersCap: -500,
-      goals: [],
-      messages: [],
-    });
-    const body = await res.json();
-    expect(res.status).toBe(400);
-    expect(body.error).toBe("uniqueUsersCap must be null or a positive integer");
-  });
-});
-
-describe("POST /api/agents — dailySendCap", () => {
-  it("stores dailySendCap when provided", async () => {
-    const res = await apiPost("/agents", {
-      name: "Capped Agent",
-      funnelStage: "wau",
-      dailySendCap: 500,
-    });
-    expect(res.status).toBe(201);
-    const body = await res.json();
-    expect(body.dailySendCap).toBe(500);
-  });
-
-  it("dailySendCap null means unlimited", async () => {
-    const res = await apiPost("/agents", {
-      name: "Unlimited Agent",
-      funnelStage: "wau",
-      dailySendCap: null,
-    });
-    expect(res.status).toBe(201);
-    const body = await res.json();
-    expect(body.dailySendCap).toBeNull();
-  });
-
-  it("defaults dailySendCap to safe 500 when field omitted", async () => {
-    const res = await apiPost("/agents", {
-      name: "Default Cap Agent",
-      funnelStage: "wau",
-    });
-    expect(res.status).toBe(201);
-    const body = await res.json();
-    expect(body.dailySendCap).toBe(500);
-
-    const persisted = await prisma.agent.findUnique({ where: { id: body.id } });
-    expect(persisted!.dailySendCap).toBe(500);
-  });
-
-  it("rejects non-positive dailySendCap", async () => {
-    const res = await apiPost("/agents", {
-      name: "Bad Agent",
-      funnelStage: "wau",
-      dailySendCap: -1,
-    });
-    expect(res.status).toBe(400);
-  });
-});
-
-describe("POST /api/agents — sourceTemplateId", () => {
-  it("stores sourceTemplateId on variant when provided", async () => {
-    // Create template data directly via Prisma for a real FK-valid ID
-    const templateAgent = await prisma.agent.create({
-      data: { name: "Template Agent", algorithm: "thompson", epsilon: 0.1, funnelStage: "connected" },
-    });
-    const templateMessage = await prisma.message.create({
-      data: { agentId: templateAgent.id, name: "Template Msg", channel: "push" },
-    });
-    const templateVariant = await prisma.messageVariant.create({
-      data: { messageId: templateMessage.id, name: "Template V1", body: "Template body" },
-    });
-
-    const res = await apiPost("/agents", {
-      name: "Test Agent",
-      funnelStage: "wau",
-      messages: [
-        {
-          name: "Push Message",
-          channel: "push",
-          variants: [
-            {
-              name: "V1",
-              body: "Test body",
-              title: "Test title",
-              deeplink: "youversion://bible",
-              sourceTemplateId: templateVariant.id,
-            },
-          ],
-        },
-      ],
-    });
-    const agent = await res.json();
-
-    expect(res.status).toBe(201);
-
-    const variant = await prisma.messageVariant.findFirst({
-      where: { message: { agentId: agent.id } },
-    });
-    expect(variant).not.toBeNull();
-    expect(variant!.sourceTemplateId).toBe(templateVariant.id);
-    expect(variant!.deeplink).toBe("youversion://bible");
-  });
-});
-
-describe("POST /api/agents — goal weight fields", () => {
-  it("weightMode property goals are preserved", async () => {
-    const res = await apiPost("/agents", {
-      name: "Weight Mode Agent",
-      algorithm: "thompson",
-      funnelStage: "wau",
-      goals: [
-        {
-          eventName: "order_completed",
-          tier: "best",
-          valueWeight: 5,
-          weightMode: "property",
-          weightProperty: "order_value",
-          weightDefault: 2.5,
-        },
-      ],
-      messages: [],
-    });
-    const body = await res.json();
-    expect(res.status).toBe(201);
-
-    const goals = await prisma.goal.findMany({ where: { agentId: body.id } });
-    expect(goals).toHaveLength(1);
-    expect(goals[0].weightMode).toBe("property");
-    expect(goals[0].weightProperty).toBe("order_value");
-    expect(goals[0].weightDefault).toBe(2.5);
-  });
-});
-
-describe("POST /api/agents — targetPersonaIds", () => {
-  it("targetPersonaIds creates persona targets", async () => {
-    const persona = await prisma.persona.create({
-      data: { name: "P1", label: "p1", traits: "{}", centroid: "[]" },
-    });
-
-    const res = await apiPost("/agents", {
-      name: "Persona Agent",
-      algorithm: "thompson",
-      funnelStage: "wau",
-      goals: [],
-      messages: [],
-      targetPersonaIds: [persona.id],
-    });
-    const body = await res.json();
-    expect(res.status).toBe(201);
-
-    const targets = await prisma.agentPersonaTarget.findMany({ where: { agentId: body.id } });
-    expect(targets).toHaveLength(1);
-    expect(targets[0].personaId).toBe(persona.id);
-  });
-});
-
-describe("POST /api/agents — validation", () => {
-  it("returns 400 when name is empty string", async () => {
-    const res = await apiPost("/agents", {
-      name: "",
-      algorithm: "thompson",
-      funnelStage: "wau",
-      goals: [],
-      messages: [],
-    });
-    const body = await res.json();
-    expect(res.status).toBe(400);
-    expect(body.error).toBe("name is required");
-  });
-});
-
-describe("POST /api/agents — targetSegmentName", () => {
-  it("creates agent with targetSegmentName and persists it", async () => {
-    const res = await apiPost("/agents", {
-      name: "Segment Agent",
-      algorithm: "thompson",
-      funnelStage: "wau",
-      targetSegmentName: "bible_readers",
-      goals: [],
-      messages: [],
-    });
-    const body = await res.json();
-    expect(res.status).toBe(201);
-    expect(body.targetSegmentName).toBe("bible_readers");
-
-    const persisted = await prisma.agent.findUnique({ where: { id: body.id } });
-    expect(persisted!.targetSegmentName).toBe("bible_readers");
-  });
-
-  it("returns 400 when targetSegmentName is an empty string", async () => {
-    const res = await apiPost("/agents", {
-      name: "Bad Segment Agent",
-      algorithm: "thompson",
-      funnelStage: "wau",
-      targetSegmentName: "",
-      goals: [],
-      messages: [],
-    });
-    const body = await res.json();
-    expect(res.status).toBe(400);
-    expect(body.error).toBe("targetSegmentName must be null or a non-empty string");
-  });
-
-  it("creates agent with null targetSegmentName (funnel stage mode)", async () => {
-    const res = await apiPost("/agents", {
-      name: "Null Segment Agent",
-      algorithm: "thompson",
-      funnelStage: "wau",
-      targetSegmentName: null,
-      goals: [],
-      messages: [],
-    });
-    const body = await res.json();
-    expect(res.status).toBe(201);
-    expect(body.targetSegmentName).toBeNull();
-  });
-});
 
 describe("PATCH /api/agents/[id] — targetSegmentName", () => {
   it("sets targetSegmentName to a new segment value and persists it", async () => {
@@ -735,70 +373,55 @@ describe("PATCH /api/agents/:id — segmentTargeting", () => {
   });
 });
 
-describe("POST /api/agents — segmentTargeting", () => {
-  function basePayload(overrides: Record<string, unknown> = {}) {
-    return {
-      name: "Segment Agent",
-      algorithm: "thompson",
-      epsilon: 0.1,
-      goals: [],
-      messages: [],
-      ...overrides,
-    };
-  }
+// Shared spy instance whose implementation is swapped per-test.
+// The wrapper is typed to match apiFetch's signature so TypeScript is happy;
+// the actual spy captures calls for assertion.
+let apiFetchSpy = mock((_path: string, _opts?: object) => Promise.resolve({}));
+mock.module("@/lib/api-client", () => ({
+  apiFetch: (path: string, opts?: object) => apiFetchSpy(path, opts),
+  ApiError: apiClient.ApiError,
+}));
 
-  it("creates agent with segmentTargeting (no funnelStage required)", async () => {
-    const res = await apiPost("/agents", basePayload({
-      segmentTargeting: { includes: ["seg_a", "seg_b"], excludes: ["seg_c"] },
-    }));
-    expect(res.status).toBe(201);
-    const body = await res.json();
-    expect(body.segmentTargeting).toEqual({ includes: ["seg_a", "seg_b"], excludes: ["seg_c"] });
-  });
+describe("POST /api/agents — proxy behaviour", () => {
+  it("forwards a created agent and returns 201", async () => {
+    apiFetchSpy = mock(() => Promise.resolve({ id: "agent_1", name: "Proxied" }));
 
-  it("creates agent with excludes-only segmentTargeting + funnelStage", async () => {
-    const res = await apiPost("/agents", basePayload({
-      funnelStage: "wau",
-      segmentTargeting: { includes: [], excludes: ["seg_c"] },
-    }));
-    expect(res.status).toBe(201);
-    const body = await res.json();
-    expect(body.segmentTargeting).toEqual({ includes: [], excludes: ["seg_c"] });
-  });
-
-  it("still requires funnelStage when includes is empty", async () => {
-    const res = await apiPost("/agents", basePayload({
-      segmentTargeting: { includes: [], excludes: [] },
-      // no funnelStage
-    }));
-    expect(res.status).toBe(400);
-  });
-
-  it("rejects segmentTargeting with overlap between includes and excludes", async () => {
-    const res = await apiPost("/agents", basePayload({
-      segmentTargeting: { includes: ["seg_a"], excludes: ["seg_a"] },
-    }));
-    expect(res.status).toBe(400);
-    const body = await res.json();
-    expect(body.error).toContain("seg_a");
-  });
-
-  it("rejects segmentTargeting with invalid shape", async () => {
-    const res = await apiPost("/agents", basePayload({
-      segmentTargeting: { includes: "not_array", excludes: [] },
-    }));
-    expect(res.status).toBe(400);
-  });
-
-  it("rejects when include segment is exclusively assigned to another agent via targetSegmentName", async () => {
-    await prisma.agent.create({
-      data: { name: "Other Agent", algorithm: "thompson", epsilon: 0.1, targetSegmentName: "seg_taken" },
+    const req = new Request("http://test/api/agents", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ name: "Proxied", funnelStage: "wau" }),
     });
-    const res = await apiPost("/agents", basePayload({
-      segmentTargeting: { includes: ["seg_taken"], excludes: [] },
-    }));
+    const res = await postAgents(req as unknown as Parameters<typeof postAgents>[0]);
+    expect(res.status).toBe(201);
+    const json = await res.json() as { id: string };
+    expect(json.id).toBe("agent_1");
+    expect(apiFetchSpy).toHaveBeenCalled();
+  });
+
+  it("propagates an upstream 409 from the API service", async () => {
+    apiFetchSpy = mock(() => Promise.reject(new apiClient.ApiError(409, "Segment taken")));
+
+    const req = new Request("http://test/api/agents", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ name: "Dup", funnelStage: "wau" }),
+    });
+    const res = await postAgents(req as unknown as Parameters<typeof postAgents>[0]);
     expect(res.status).toBe(409);
-    const body = await res.json();
-    expect(body.error).toContain("seg_taken");
+    const json = await res.json() as { error: string };
+    expect(json.error).toBe("Segment taken");
+  });
+
+  it("returns 400 for an invalid JSON body without calling the service", async () => {
+    apiFetchSpy = mock(() => Promise.resolve({}));
+
+    const req = new Request("http://test/api/agents", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: "not json",
+    });
+    const res = await postAgents(req as unknown as Parameters<typeof postAgents>[0]);
+    expect(res.status).toBe(400);
+    expect(apiFetchSpy).not.toHaveBeenCalled();
   });
 });

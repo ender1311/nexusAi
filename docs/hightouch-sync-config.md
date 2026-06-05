@@ -48,7 +48,7 @@
 
 ### Liquid template
 
-See `hightouch-ingest-users-payload.json` in this directory.
+See [`json/hightouch-ingest-users-payload.json`](./json/hightouch-ingest-users-payload.json).
 
 > **Hightouch Liquid gotcha:** The `present` filter is not supported. For nullable fields, store the raw value as a string (e.g. `suspended_at`) instead of trying to coerce to boolean.
 
@@ -58,7 +58,7 @@ See `hightouch-ingest-users-payload.json` in this directory.
 - **Triggers:** Rows added (or per your Lightning / sync design)
 - **Batching:** ≤ 1000 events per request
 - **Required fields per event:** `event_id`, `event_name`, `external_user_id`, `occurred_at` (ISO 8601)
-- **Liquid template:** `hightouch-push-open-events-payload.json` (push opens from `braze_user_id`, `user_id`, `timezone`, `event_timestamp`)
+- **Liquid template:** [`json/hightouch-push-open-events-payload.json`](./json/hightouch-push-open-events-payload.json) (push opens from `braze_user_id`, `user_id`, `timezone`, `event_timestamp`)
 
   ```json
   {

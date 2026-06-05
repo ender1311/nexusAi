@@ -1,8 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it } from "bun:test";
-import { NextRequest } from "next/server";
 import { truncateAll, prisma } from "../helpers/db";
-import { buildRequest } from "../helpers/request";
-import { POST as createAgent } from "@/app/api/agents/route";
+import { app } from "../../apps/api/src/app";
 
 // Regression: agent-creation wizard dropped picked push verses.
 // In Step 3 the push channel uses TemplatePicker, whose selection lived only
@@ -13,14 +11,13 @@ import { POST as createAgent } from "@/app/api/agents/route";
 //
 // This test guards the end-to-end contract that commit relies on: a payload
 // shaped exactly like addMessageFromTemplate's output must persist every
-// variant the user picked.
+// variant the user picked. POST /api/agents is now a proxy to the Hono service,
+// so the persistence contract is exercised directly against that service.
 
-async function apiPost(body: unknown) {
-  const req = buildRequest("POST", body);
-  return createAgent(req as NextRequest);
-}
+const AUTH = { Authorization: `Bearer ${process.env.INTERNAL_API_SECRET ?? "test-secret"}` };
+const ADMIN = { ...AUTH, "X-User-Role": "admin", "Content-Type": "application/json" };
 
-describe("POST /api/agents — wizard template messages persist", () => {
+describe("POST /agents — wizard template messages persist", () => {
   beforeEach(async () => {
     await truncateAll();
   });
@@ -45,24 +42,28 @@ describe("POST /api/agents — wizard template messages persist", () => {
       sourceTemplateId: undefined,
     });
 
-    const res = await apiPost({
-      name: "Verse Agent",
-      funnelStage: "wau",
-      messages: [
-        {
-          name: "Reader — Specific Verse",
-          channel: "push",
-          variants: [
-            pickedVerse("Do Not Fear (Isaiah 41:10)", "Do not fear, for I am with you…", "youversion://bible?reference=ISA.41.10"),
-            pickedVerse("The Lord Is My Shepherd (Psalm 23)", "The Lord is my shepherd…", "youversion://bible?reference=PSA.23.1"),
-            pickedVerse("Be Strong (Joshua 1:9)", "Be strong and courageous…", "youversion://bible?reference=JOS.1.9"),
-          ],
-        },
-      ],
+    const res = await app.request("/agents", {
+      method: "POST",
+      headers: ADMIN,
+      body: JSON.stringify({
+        name: "Verse Agent",
+        funnelStage: "wau",
+        messages: [
+          {
+            name: "Reader — Specific Verse",
+            channel: "push",
+            variants: [
+              pickedVerse("Do Not Fear (Isaiah 41:10)", "Do not fear, for I am with you…", "youversion://bible?reference=ISA.41.10"),
+              pickedVerse("The Lord Is My Shepherd (Psalm 23)", "The Lord is my shepherd…", "youversion://bible?reference=PSA.23.1"),
+              pickedVerse("Be Strong (Joshua 1:9)", "Be strong and courageous…", "youversion://bible?reference=JOS.1.9"),
+            ],
+          },
+        ],
+      }),
     });
 
     expect(res.status).toBe(201);
-    const agent = await res.json();
+    const agent = await res.json() as { id: string };
 
     const variants = await prisma.messageVariant.findMany({
       where: { message: { agentId: agent.id } },

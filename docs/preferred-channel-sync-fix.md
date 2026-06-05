@@ -14,7 +14,7 @@ already reads the canonical keys below.
 Two independent problems, both must be fixed:
 
 ### 1. Key-name drift — live syncs emit off-contract keys
-The canonical contract (`docs/hightouch-ingest-users-payload.json`) and Nexus code
+The canonical contract (`docs/json/hightouch-ingest-users-payload.json`) and Nexus code
 (`src/lib/cache/dashboard.ts:146-151`) read the **long-form** keys:
 
 | Canonical key Nexus reads          | users with key present |
@@ -34,7 +34,7 @@ the **short form**, overall-only:
 | `preferred_channel_external_30d` | 871,028 | **0** |
 | `preferred_channel_external_90d` | 871,028 | **0** |
 
-The `mau` syncs (`hightouch-habitual-mau-payload.json`, `hightouch-template-payload-v4.json`)
+The `mau` syncs (`docs/json/hightouch-habitual-mau-payload.json`, `docs/json/hightouch-template-payload-v4.json`)
 emit **no** preferred-channel keys at all.
 
 ### 2. Empty source traits — values are blank everywhere
@@ -62,7 +62,7 @@ A user with no engagement in the window should be **absent / null**, not an empt
 string, so Nexus can distinguish "no signal" from a real preference.
 
 ### B. Align every live sync to the canonical long-form keys
-Bring all per-stage sync templates in line with `docs/hightouch-ingest-users-payload.json`,
+Bring all per-stage sync templates in line with `docs/json/hightouch-ingest-users-payload.json`,
 emitting these exact keys (do **not** rename — Nexus reads them verbatim):
 
 ```jsonc

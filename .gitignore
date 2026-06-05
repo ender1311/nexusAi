@@ -58,4 +58,4 @@ next-env.d.ts
 .playwright-mcp/
 
 # Hightouch debug dumps — contain real user PII (names, emails, IDs); never commit
-docs/failed.json
+docs/json/failed.json
