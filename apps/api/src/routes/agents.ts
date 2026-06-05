@@ -5,6 +5,7 @@ import { revalidate } from "../lib/revalidate";
 import { isNotAdmin } from "../middleware/auth";
 import { LIBRARY_AGENT_NAME, FUNNEL_STAGES } from "../lib/constants";
 import { detectTestedVariables, type MessageVariant } from "../lib/variant-diff";
+import { prismaErrorResponse } from "../lib/errors";
 
 const agents = new Hono();
 
@@ -260,6 +261,8 @@ agents.post("/", async (c) => {
 
     return c.json(agent, 201);
   } catch (error) {
+    const mapped = prismaErrorResponse(error);
+    if (mapped) return c.json(mapped.body, mapped.status);
     console.error("POST /agents error:", error);
     return c.json({ error: "Failed to create agent" }, 500);
   }
