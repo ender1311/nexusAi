@@ -2554,9 +2554,9 @@ export const AgentScalarFieldEnum = {
   targetSegmentName: 'targetSegmentName',
   segmentTargeting: 'segmentTargeting',
   fallbackSendHour: 'fallbackSendHour',
-  audienceCap: 'audienceCap',
   uniqueUsersCap: 'uniqueUsersCap',
   dailySendCap: 'dailySendCap',
+  cohortAssignedAt: 'cohortAssignedAt',
   languageFilter: 'languageFilter',
   localizePush: 'localizePush',
   staleFunnelStageDays: 'staleFunnelStageDays',
@@ -2673,6 +2673,7 @@ export const UserDecisionScalarFieldEnum = {
   conversionAt: 'conversionAt',
   pushOpenAt: 'pushOpenAt',
   reward: 'reward',
+  conversionValue: 'conversionValue',
   brazeAnalyticsFetchedAt: 'brazeAnalyticsFetchedAt',
   decisionContext: 'decisionContext'
 } as const
@@ -3077,13 +3078,6 @@ export type ListIntFieldRefInput<$PrismaModel> = FieldRefInputType<$PrismaModel,
 
 
 /**
- * Reference to a field of type 'Boolean'
- */
-export type BooleanFieldRefInput<$PrismaModel> = FieldRefInputType<$PrismaModel, 'Boolean'>
-    
-
-
-/**
  * Reference to a field of type 'DateTime'
  */
 export type DateTimeFieldRefInput<$PrismaModel> = FieldRefInputType<$PrismaModel, 'DateTime'>
@@ -3094,6 +3088,13 @@ export type DateTimeFieldRefInput<$PrismaModel> = FieldRefInputType<$PrismaModel
  * Reference to a field of type 'DateTime[]'
  */
 export type ListDateTimeFieldRefInput<$PrismaModel> = FieldRefInputType<$PrismaModel, 'DateTime[]'>
+    
+
+
+/**
+ * Reference to a field of type 'Boolean'
+ */
+export type BooleanFieldRefInput<$PrismaModel> = FieldRefInputType<$PrismaModel, 'Boolean'>
     
 
 /**

@@ -1,25 +1,34 @@
 import { describe, it, expect } from "bun:test";
-import { selectAudience, trimToCap, resolveFetchLimit, MAX_FETCH_LIMIT } from "@/lib/cron/caps";
-
-// Deterministic RNG: returns 0 so Fisher-Yates becomes a no-op (stable order).
-const noShuffle = () => 0;
+import {
+  partitionByPreferredHour,
+  trimToCap,
+  resolveFetchLimit,
+  MAX_FETCH_LIMIT,
+} from "@/lib/cron/caps";
 
 describe("resolveFetchLimit", () => {
-  it("uses audienceCap verbatim when set", () => {
-    expect(resolveFetchLimit(250, 500)).toBe(250);
-    expect(resolveFetchLimit(250, null)).toBe(250);
+  it("uses uniqueUsersCap when it is the larger driver (cohort needs N candidates)", () => {
+    expect(resolveFetchLimit(500, 1000)).toBe(1000);
   });
 
-  it("derives 2× dailySendCap when audienceCap is null", () => {
-    expect(resolveFetchLimit(null, 500)).toBe(1000);
+  it("uses 2x dailySendCap when it exceeds uniqueUsersCap", () => {
+    expect(resolveFetchLimit(800, 1000)).toBe(1600);
   });
 
-  it("falls back to the safety ceiling when both caps are null (explicit-unlimited)", () => {
+  it("uses 2x dailySendCap when uniqueUsersCap is null", () => {
+    expect(resolveFetchLimit(500, null)).toBe(1000);
+  });
+
+  it("uses uniqueUsersCap when dailySendCap is null", () => {
+    expect(resolveFetchLimit(null, 1000)).toBe(1000);
+  });
+
+  it("falls back to the safety ceiling when both are null (explicit-unlimited)", () => {
     expect(resolveFetchLimit(null, null)).toBe(MAX_FETCH_LIMIT);
   });
 
-  it("respects an explicit cap larger than the ceiling", () => {
-    expect(resolveFetchLimit(200_000, null)).toBe(200_000);
+  it("never exceeds the safety ceiling", () => {
+    expect(resolveFetchLimit(null, 200_000)).toBe(MAX_FETCH_LIMIT);
   });
 });
 
@@ -38,77 +47,41 @@ describe("trimToCap", () => {
   });
 });
 
-describe("selectAudience — plain lottery", () => {
-  it("keeps up to the cap and suppresses the rest", () => {
-    const res = selectAudience(["a", "b", "c", "d"], {
-      audienceCap: 2,
+describe("partitionByPreferredHour", () => {
+  it("returns everyone (no deferral) when prioritizeLastSeen is false", () => {
+    const res = partitionByPreferredHour(["a", "b", "c"], {
       prioritizeLastSeen: false,
       currentHour: 12,
       preferredHourByUser: new Map(),
-      random: noShuffle,
     });
-    expect(res.kept).toHaveLength(2);
-    expect(res.suppressed).toBe(2);
+    expect(res.kept.sort()).toEqual(["a", "b", "c"]);
+    expect(res.deferred).toBe(0);
   });
 
-  it("keeps everyone when cap exceeds pool", () => {
-    const res = selectAudience(["a", "b"], {
-      audienceCap: 10,
-      prioritizeLastSeen: false,
-      currentHour: 12,
-      preferredHourByUser: new Map(),
-      random: noShuffle,
-    });
-    expect(res.kept.sort()).toEqual(["a", "b"]);
-    expect(res.suppressed).toBe(0);
-  });
-});
-
-describe("selectAudience — prioritizeLastSeen", () => {
-  it("prefers users whose preferred hour is within ±1 of now, defers far ones (not suppressed)", () => {
+  it("keeps time-matched + no-preference users, defers far-hour users (not suppressed)", () => {
     const preferred = new Map<string, number | null>([
       ["match-now", 12],
       ["match-adjacent", 13],
       ["far", 3],
       ["no-pref", null],
     ]);
-    const res = selectAudience(["match-now", "match-adjacent", "far", "no-pref"], {
-      audienceCap: 10,
+    const res = partitionByPreferredHour(["match-now", "match-adjacent", "far", "no-pref"], {
       prioritizeLastSeen: true,
       currentHour: 12,
       preferredHourByUser: preferred,
-      random: noShuffle,
     });
-    // far user deferred to its matching hourly run — neither kept nor suppressed
     expect(res.kept.sort()).toEqual(["match-adjacent", "match-now", "no-pref"]);
-    expect(res.suppressed).toBe(0);
+    expect(res.deferred).toBe(1);
   });
 
   it("wraps adjacency across midnight", () => {
     const preferred = new Map<string, number | null>([["late", 23]]);
-    const res = selectAudience(["late"], {
-      audienceCap: 10,
+    const res = partitionByPreferredHour(["late"], {
       prioritizeLastSeen: true,
       currentHour: 0,
       preferredHourByUser: preferred,
-      random: noShuffle,
     });
     expect(res.kept).toEqual(["late"]);
-  });
-
-  it("places time-matched users ahead of no-preference users under a tight cap", () => {
-    const preferred = new Map<string, number | null>([
-      ["match", 12],
-      ["no-pref", null],
-    ]);
-    const res = selectAudience(["no-pref", "match"], {
-      audienceCap: 1,
-      prioritizeLastSeen: true,
-      currentHour: 12,
-      preferredHourByUser: preferred,
-      random: noShuffle,
-    });
-    expect(res.kept).toEqual(["match"]);
-    expect(res.suppressed).toBe(1);
+    expect(res.deferred).toBe(0);
   });
 });

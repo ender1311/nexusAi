@@ -802,10 +802,6 @@ export type MessageVariantUncheckedCreateNestedManyWithoutSourceTemplateInput = 
   connect?: Prisma.MessageVariantWhereUniqueInput | Prisma.MessageVariantWhereUniqueInput[]
 }
 
-export type NullableDateTimeFieldUpdateOperationsInput = {
-  set?: Date | string | null
-}
-
 export type MessageVariantUpdateOneWithoutClonesNestedInput = {
   create?: Prisma.XOR<Prisma.MessageVariantCreateWithoutClonesInput, Prisma.MessageVariantUncheckedCreateWithoutClonesInput>
   connectOrCreate?: Prisma.MessageVariantCreateOrConnectWithoutClonesInput

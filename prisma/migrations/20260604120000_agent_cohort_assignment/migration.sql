@@ -1,0 +1,1 @@
+ALTER TABLE "Agent" ADD COLUMN IF NOT EXISTS "cohortAssignedAt" TIMESTAMP(3);

@@ -109,9 +109,9 @@ export const AgentScalarFieldEnum = {
   targetSegmentName: 'targetSegmentName',
   segmentTargeting: 'segmentTargeting',
   fallbackSendHour: 'fallbackSendHour',
-  audienceCap: 'audienceCap',
   uniqueUsersCap: 'uniqueUsersCap',
   dailySendCap: 'dailySendCap',
+  cohortAssignedAt: 'cohortAssignedAt',
   languageFilter: 'languageFilter',
   localizePush: 'localizePush',
   staleFunnelStageDays: 'staleFunnelStageDays',
@@ -228,6 +228,7 @@ export const UserDecisionScalarFieldEnum = {
   conversionAt: 'conversionAt',
   pushOpenAt: 'pushOpenAt',
   reward: 'reward',
+  conversionValue: 'conversionValue',
   brazeAnalyticsFetchedAt: 'brazeAnalyticsFetchedAt',
   decisionContext: 'decisionContext'
 } as const

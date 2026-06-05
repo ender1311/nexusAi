@@ -66,12 +66,6 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
       }
     }
 
-    if (body.audienceCap !== undefined) {
-      if (body.audienceCap !== null && (!Number.isInteger(body.audienceCap) || body.audienceCap < 1)) {
-        return fail("audienceCap must be null or a positive integer", 400);
-      }
-    }
-
     if (body.dailySendCap !== undefined) {
       if (body.dailySendCap !== null && (!Number.isInteger(body.dailySendCap) || body.dailySendCap < 1)) {
         return fail("dailySendCap must be null or a positive integer", 400);
@@ -127,11 +121,24 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
       }
     }
 
-    // Release user locks when agent is stopped, paused, or targeting criteria change
-    if (body.status === "paused" || body.status === "draft" || body.targetSegmentName !== undefined || body.funnelStage !== undefined || body.segmentTargeting !== undefined) {
+    // Release user locks when agent is stopped, paused, or targeting criteria change.
+    // The cohort is tied to those locks, so also release this agent's active
+    // assignments and clear cohortAssignedAt → it re-materializes a fresh cohort
+    // on the next active cron tick.
+    const releasesCohort =
+      body.status === "paused" ||
+      body.status === "draft" ||
+      body.targetSegmentName !== undefined ||
+      body.funnelStage !== undefined ||
+      body.segmentTargeting !== undefined;
+    if (releasesCohort) {
       await prisma.trackedUser.updateMany({
         where: { lockedByAgentId: id },
         data:  { lockedByAgentId: null },
+      });
+      await prisma.userAgentAssignment.updateMany({
+        where: { agentId: id, releasedAt: null },
+        data:  { releasedAt: new Date(), releaseReason: "manual" },
       });
     }
 
@@ -146,7 +153,6 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
         ...(body.funnelStage !== undefined ? { funnelStage: body.funnelStage } : {}),
         ...(body.targetFilter !== undefined ? { targetFilter: body.targetFilter } : {}),
         ...(body.fallbackSendHour !== undefined ? { fallbackSendHour: body.fallbackSendHour } : {}),
-        ...(body.audienceCap !== undefined ? { audienceCap: body.audienceCap } : {}),
         ...(body.dailySendCap !== undefined ? { dailySendCap: body.dailySendCap } : {}),
         ...(body.languageFilter !== undefined ? { languageFilter: body.languageFilter } : {}),
         ...(body.localizePush !== undefined ? { localizePush: body.localizePush } : {}),
@@ -157,6 +163,7 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
             ? body.segmentTargeting
             : { includes: body.segmentTargeting.includes.map((s: string) => s.trim()), excludes: body.segmentTargeting.excludes.map((s: string) => s.trim()) },
         } : {}),
+        ...(releasesCohort ? { cohortAssignedAt: null } : {}),
       },
     });
     revalidatePath(`/agents/${id}`);

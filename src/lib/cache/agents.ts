@@ -138,7 +138,7 @@ export const getCachedControlTowerAgents = cache(unstable_cache(
  */
 export const getCachedAgentCardStats = unstable_cache(
   async () => {
-    const [uniqueUserRows, pushRows] = await Promise.all([
+    const [uniqueUserRows, pushRows, assignedRows] = await Promise.all([
       prisma.$queryRaw<Array<{ agentId: string; cnt: bigint }>>`
         SELECT "agentId", COUNT(DISTINCT "userId") AS cnt
         FROM "UserDecision"
@@ -162,10 +162,19 @@ export const getCachedAgentCardStats = unstable_cache(
         FROM "UserDecision"
         GROUP BY "agentId"
       `,
+      // Active cohort assignments (releasedAt IS NULL) per agent — "Assigned",
+      // distinct from "Reached" (uniqueUsers = COUNT DISTINCT messaged users).
+      prisma.$queryRaw<Array<{ agentId: string; cnt: bigint }>>`
+        SELECT "agentId", COUNT(*)::bigint AS cnt
+        FROM "UserAgentAssignment"
+        WHERE "releasedAt" IS NULL
+        GROUP BY "agentId"
+      `,
     ]);
     return {
       uniqueUsers: uniqueUserRows.map((r) => ({ agentId: r.agentId, count: Number(r.cnt) })),
       pushStats: pushRows.map((r) => ({ agentId: r.agentId, sends: Number(r.sends), opens: Number(r.opens) })),
+      assigned: assignedRows.map((r) => ({ agentId: r.agentId, count: Number(r.cnt) })),
     };
   },
   ["agent-card-stats"],
