@@ -31,7 +31,7 @@ export async function POST(req: NextRequest) {
       const subSlug = typeof body.subcategory === "string" && body.subcategory.trim() ? body.subcategory.trim() : null;
       const taxonomy = await getPushTaxonomy();
       const valid = validateVariantTaxonomy(taxonomy, category, subSlug);
-      if (!valid.ok) return fail(valid.error ?? "invalid taxonomy", 400);
+      if (!valid.ok) return fail(valid.error, 400);
       const r = await prisma.messageVariant.updateMany({ where, data: { category, subcategory: subSlug } });
       revalidateTag("agents", "max");
       return ok({ updated: r.count });
