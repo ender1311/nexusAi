@@ -77,6 +77,7 @@ export interface Agent {
   targetSegmentName?: string | null;
   segmentTargeting?: SegmentTargeting | null;
   uniqueUsers?: number;
+  assigned?: number;
   pushSends?: number;
   pushOpens?: number;
   pushOpenRate?: number | null;

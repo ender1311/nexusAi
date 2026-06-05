@@ -25,23 +25,25 @@ import {
 
 type ConvergenceState = "exploring" | "learning" | "converging" | "confident";
 
-function UniqueUsersCapCell({ uniqueUsers, uniqueUsersCap }: {
+function UniqueUsersCapCell({ uniqueUsers, assigned, uniqueUsersCap }: {
   uniqueUsers: number;
+  assigned: number;
   uniqueUsersCap: number | null | undefined;
 }) {
-  const pct = uniqueUsersCap && uniqueUsersCap > 0 ? Math.min(100, Math.round((uniqueUsers / uniqueUsersCap) * 100)) : null;
+  const pct = uniqueUsersCap && uniqueUsersCap > 0 ? Math.min(100, Math.round((assigned / uniqueUsersCap) * 100)) : null;
 
   return (
     <div className="text-right min-w-0">
-      <p className="text-xs text-muted-foreground">Unique users</p>
+      <p className="text-xs text-muted-foreground">Assigned</p>
       <div className="flex items-center justify-end gap-1 mt-0.5">
-        <span className="text-xs font-medium tabular-nums">{formatNumber(uniqueUsers)}</span>
-        {uniqueUsersCap != null && (
-          <span className="text-xs text-muted-foreground tabular-nums">
-            / {formatNumber(uniqueUsersCap)}{pct !== null ? ` (${pct}%)` : ""}
-          </span>
-        )}
+        <span className="text-xs font-medium tabular-nums">{formatNumber(assigned)}</span>
+        <span className="text-xs text-muted-foreground tabular-nums">
+          / {uniqueUsersCap != null ? formatNumber(uniqueUsersCap) : "∞"}{pct !== null ? ` (${pct}%)` : ""}
+        </span>
       </div>
+      <p className="text-xs text-muted-foreground mt-0.5">
+        Reached <span className="tabular-nums">{formatNumber(uniqueUsers)}</span>
+      </p>
     </div>
   );
 }
@@ -199,6 +201,7 @@ export function AgentCard({ agent, conversionRate, convergenceState, hiddenStats
                 {!hide("agent.uniqueUsers") && (
                 <UniqueUsersCapCell
                   uniqueUsers={agent.uniqueUsers ?? 0}
+                  assigned={agent.assigned ?? 0}
                   uniqueUsersCap={agent.uniqueUsersCap}
                 />
                 )}

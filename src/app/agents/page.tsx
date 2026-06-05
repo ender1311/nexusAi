@@ -86,6 +86,7 @@ export default async function AgentsPage({
   ]);
 
   const uniqueUsersMap = new Map(cardStats.uniqueUsers.map((r) => [r.agentId, r.count]));
+  const assignedMap = new Map(cardStats.assigned.map((r) => [r.agentId, r.count]));
   const pushStatsMap = new Map(
     cardStats.pushStats.map((r) => [r.agentId, { sends: r.sends, opens: r.opens }]),
   );
@@ -108,6 +109,7 @@ export default async function AgentsPage({
     dailySendCap: a.dailySendCap ?? null,
     targetSegmentName: a.targetSegmentName ?? null,
     uniqueUsers: uniqueUsersMap.get(a.id) ?? 0,
+    assigned: assignedMap.get(a.id) ?? 0,
     pushSends: pushStatsMap.get(a.id)?.sends ?? 0,
     pushOpens: pushStatsMap.get(a.id)?.opens ?? 0,
     pushOpenRate: (() => {
