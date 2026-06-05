@@ -100,6 +100,7 @@ model MessageVariant {
   warmupUntil          DateTime?
   category             String?
   subcategory          String?   // sub-goal within the category
+  sortOrder            Int       @default(0) // manual drag-reorder within a subcategory
   sourceTemplateId     String?
   // Semantic descriptor of the message — enables oracle generalization across variants
   // { tone: "empathy"|"urgency"|"question"|"milestone", hasPersonalization: bool,
@@ -115,6 +116,7 @@ model MessageVariant {
 
   @@index([status, category, subcategory]) // variant picker API (WHERE status='active' AND category=X AND subcategory=Y)
   @@index([brazeCanvasStepId])             // canvas attribution: canvas_step_id → variant lookup
+  @@index([category, subcategory, sortOrder]) // library grouping + manual ordering
 }
 
 model MessageVariantTranslation {
@@ -493,4 +495,32 @@ model UserPreference {
   hiddenStats  String   @default("[]")
   createdAt    DateTime @default(now())
   updatedAt    DateTime @updatedAt
+}
+
+model PushCategory {
+  id        String   @id @default(cuid())
+  slug      String   @unique
+  label     String
+  sortOrder Int      @default(0)
+  isActive  Boolean  @default(true)
+  createdAt DateTime @default(now())
+
+  subcategories PushSubcategory[]
+
+  @@index([isActive, sortOrder])
+}
+
+model PushSubcategory {
+  id               String   @id @default(cuid())
+  categoryId       String
+  slug             String   @unique
+  label            String
+  sortOrder        Int      @default(0)
+  deeplinkBehavior String   @default("none") // "specific-verse" | "none"
+  isActive         Boolean  @default(true)
+  createdAt        DateTime @default(now())
+
+  category PushCategory @relation(fields: [categoryId], references: [id], onDelete: Restrict)
+
+  @@index([categoryId, sortOrder])
 }
