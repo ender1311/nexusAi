@@ -171,11 +171,6 @@ return { scheduledAt: fallback, inLocalTime: true }`}</code>
           sends in the window are skipped entirely.
         </li>
         <li>
-          <strong>Global daily cap</strong>: total sends across all users for this agent today must
-          be below <span className="font-mono">audienceCap</span>. This prevents a single agent from
-          saturating the notification channel when the eligible audience is very large.
-        </li>
-        <li>
           <strong>Timing lottery</strong>: users with{" "}
           <span className="font-mono">preferredSendHour</span> set compete in a timing lottery where
           only users whose computed <span className="font-mono">scheduledAt</span> falls within a

@@ -104,7 +104,6 @@ export default async function AgentsPage({
     funnelStage: a.funnelStage as FunnelStage,
     color: a.color,
     targetFilter: null,
-    audienceCap: a.audienceCap,
     uniqueUsersCap: a.uniqueUsersCap,
     dailySendCap: a.dailySendCap ?? null,
     targetSegmentName: a.targetSegmentName ?? null,

@@ -24,7 +24,6 @@ import { PersonaTargetManager } from "@/components/agents/persona-target-manager
 import { ArmHealthSection } from "./arm-health-section";
 import { CurrentWinnerCard } from "./current-winner-card";
 import { FallbackSendTimeEditor } from "@/components/agents/fallback-send-time-editor";
-import { AudienceCapEditor } from "@/components/agents/audience-cap-editor";
 import { AgentSendsTable } from "@/components/agents/agent-sends-table";
 import { AgentNameEditor } from "@/components/agents/agent-name-editor";
 import { AgentStatusToggle } from "@/components/agents/agent-status-toggle";
@@ -417,17 +416,6 @@ export default async function AgentDetailPage({ params }: { params: Promise<{ id
                 <FallbackSendTimeEditor
                   agentId={agent.id}
                   fallbackSendHour={agent.fallbackSendHour}
-                />
-              </CardContent>
-            </Card>
-            <Card>
-              <CardHeader>
-                <CardTitle className="text-sm font-semibold">Per-run rollout limit</CardTitle>
-              </CardHeader>
-              <CardContent>
-                <AudienceCapEditor
-                  agentId={agent.id}
-                  audienceCap={agent.audienceCap}
                 />
               </CardContent>
             </Card>

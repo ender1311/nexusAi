@@ -72,7 +72,6 @@ export interface Agent {
   funnelStage: FunnelStage;
   color: string;
   targetFilter?: Record<string, unknown> | null;
-  audienceCap?: number | null;
   uniqueUsersCap?: number | null;
   dailySendCap?: number | null;
   targetSegmentName?: string | null;
