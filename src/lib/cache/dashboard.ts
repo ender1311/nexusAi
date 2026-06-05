@@ -292,12 +292,20 @@ export const getCachedFleetRecoveryTrend = cache(
   )
 );
 
+/**
+ * Stats-bar figures for the control tower: total users tracked, active personas,
+ * and all-time decisions/conversions. All four are slow-moving cumulative totals,
+ * so this is cached for a DAY under "user-count"/"personas" (NOT "dashboard-stats")
+ * — the hourly cron must not bust it and re-trigger two full-table scans on the
+ * ~19M-row TrackedUser and UserDecision tables. The user count is delegated to
+ * getCachedTrackedUserCount so the 19M-row TrackedUser scan is shared with the
+ * dashboard and runs at most once/day.
+ */
 export const getCachedControlTowerStats = cache(unstable_cache(
   async () => {
-    const [trackedUsers, personas, agents, decisionRows] = await Promise.all([
-      prisma.trackedUser.count(),
+    const [trackedUsers, personas, decisionRows] = await Promise.all([
+      getCachedTrackedUserCount(),
       prisma.persona.count({ where: { isActive: true } }),
-      prisma.agent.count({ where: { status: "active" } }),
       // Single scan for both total and conversion counts (avoids two separate table scans)
       prisma.$queryRaw<[{ total: bigint; conversions: bigint }]>`
         SELECT COUNT(*)::bigint AS total, COUNT("conversionAt")::bigint AS conversions
@@ -308,13 +316,12 @@ export const getCachedControlTowerStats = cache(unstable_cache(
     return {
       trackedUsers,
       personas,
-      agents,
       totalDecisions: Number(d.total),
       totalConversions: Number(d.conversions),
     };
   },
   ["control-tower-stats"],
-  { tags: ["dashboard-stats", "agents", "personas"], revalidate: TTL.STANDARD }
+  { tags: ["user-count", "personas"], revalidate: TTL.DAY }
 ));
 
 /**
