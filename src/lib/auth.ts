@@ -21,11 +21,21 @@ export async function getSessionUser() {
   };
 }
 
-/** Returns session user + admin flag in one call. */
+export const COPYWRITER_ROLE = "copywriter";
+
+export type RoleFlags = { isAdmin: boolean; isCopywriter: boolean; canManageLibrary: boolean };
+
+/** Pure mapping from WorkOS role slugs to capability flags. */
+export function deriveRoleFlags(roles: string[] | undefined): RoleFlags {
+  const isAdmin = roles?.includes("admin") ?? false;
+  const isCopywriter = roles?.includes(COPYWRITER_ROLE) ?? false;
+  return { isAdmin, isCopywriter, canManageLibrary: isAdmin || isCopywriter };
+}
+
+/** Returns session user + role flags in one call. */
 export async function getAuth(): Promise<{
   user: { id: string; email: string; firstName: string | null; lastName: string | null } | null;
-  isAdmin: boolean;
-}> {
+} & RoleFlags> {
   const auth = await withAuth();
   const user = auth.user
     ? {
@@ -35,12 +45,19 @@ export async function getAuth(): Promise<{
         lastName: auth.user.lastName ?? null,
       }
     : null;
-  return { user, isAdmin: auth.roles?.includes("admin") ?? false };
+  return { user, ...deriveRoleFlags(auth.roles) };
 }
 
 /** Returns a 403 Forbidden response if the current user is not an admin, or null if they are. */
 export async function requireAdmin(): Promise<NextResponse<{ error: string }> | null> {
   const { isAdmin } = await getAuth();
   if (!isAdmin) return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+  return null;
+}
+
+/** 403 unless the caller is an admin OR a copywriter. */
+export async function requireLibraryEditor(): Promise<NextResponse<{ error: string }> | null> {
+  const { canManageLibrary } = await getAuth();
+  if (!canManageLibrary) return NextResponse.json({ error: "Forbidden" }, { status: 403 });
   return null;
 }
