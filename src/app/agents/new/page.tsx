@@ -1,4 +1,4 @@
-export const revalidate = 900;
+export const dynamic = "force-dynamic";
 
 import { Header } from "@/components/layout/header";
 import { AgentWizardClient } from "./agent-wizard-client";
