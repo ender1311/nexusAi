@@ -67,10 +67,12 @@ export class HightouchClient {
     for (;;) {
       const res = await this.get("/syncs", { limit: PAGE, offset });
       if (!res.ok) throw new Error(`Hightouch listSyncs failed: ${res.status}`);
-      const json = (await res.json()) as { data: HightouchSync[]; pagination?: { total: number } };
+      // The Hightouch v1 /syncs endpoint paginates via a boolean `hasMore`, not a
+      // `pagination.total` count. Reading total caused the loop to stop at exactly
+      // one full page (100), silently hiding syncs beyond it (e.g. all-givers-to-nexus).
+      const json = (await res.json()) as { data: HightouchSync[]; hasMore?: boolean };
       all.push(...json.data);
-      const total = json.pagination?.total ?? json.data.length;
-      if (all.length >= total || json.data.length < PAGE) break;
+      if (!json.hasMore || json.data.length === 0) break;
       offset += PAGE;
     }
     return all;
