@@ -6,6 +6,7 @@
  */
 
 import { isPushPreferred, isNewsletterOptedOut, type PushTargetingMode } from "@/lib/engine/channel-preference";
+import { parseSegmentTargeting } from "@/lib/agent-targeting";
 
 export type ExplorationAgent = {
   id: string;
@@ -74,7 +75,7 @@ export function buildEligibleAgentsByUser(
         if (!lang?.startsWith(effectiveLang)) continue;
       }
       // Funnel-stage filter (skipped when segment targeting is active — membership is the filter).
-      const hasSegmentIncludes = !!(agent.segmentTargeting as { includes?: string[] } | null)?.includes?.length;
+      const hasSegmentIncludes = !!parseSegmentTargeting(agent.segmentTargeting)?.includes?.length;
       if (!agent.targetSegmentName && !hasSegmentIncludes && agent.funnelStage && user.funnelStage !== agent.funnelStage) continue;
       eligible.push(agent.id);
     }

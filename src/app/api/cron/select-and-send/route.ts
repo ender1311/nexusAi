@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
 import { revalidateTag } from "next/cache";
 import { randomUUID } from "crypto";
+import { constantTimeEqual } from "@/lib/constant-time-compare";
+import { parseSegmentTargeting } from "@/lib/agent-targeting";
 import {
   getCachedDashboardCounts,
   getCachedDashboardTimeSeries,
@@ -52,11 +54,17 @@ export const maxDuration = 300;
 // open that many concurrent connections at once and exhaust the Neon pool.
 const DB_WRITE_CONCURRENCY = 20;
 
+// Max sends in a single in_local_time exploration window. Once an assignment's
+// sendCount reaches this, the window is full (no more sends) and is marked
+// complete; the send that takes sendCount from WINDOW_SEND_CAP-1 to
+// WINDOW_SEND_CAP is the one that closes it.
+const WINDOW_SEND_CAP = 4;
+
 function verifyAuth(req: NextRequest): boolean {
   const token = req.headers.get("authorization")?.replace("Bearer ", "");
   const secret = process.env.CRON_SECRET;
   if (!secret) return false; // always require CRON_SECRET — no fallback for cron
-  return token === secret;
+  return token != null && constantTimeEqual(token, secret);
 }
 
 // A dynamic-handle variant carries its amount strategy in actionFeatures.givingHandleStrategy.
@@ -202,7 +210,7 @@ export async function POST(req: NextRequest) {
       // Build per-agent target-stage sets from the already-loaded `agents`.
       const agentsById = new Map<string, ReleaseAgentInfo>();
       for (const a of agents) {
-        const seg = a.segmentTargeting as { includes?: string[] } | null;
+        const seg = parseSegmentTargeting(a.segmentTargeting);
         // cohort_exit only applies to funnel-stage-gated agents (no segment includes).
         const targetStages = !seg?.includes?.length && !a.targetSegmentName && a.funnelStage
           ? new Set([a.funnelStage])
@@ -286,7 +294,7 @@ export async function POST(req: NextRequest) {
               ...(staleAt && { funnelStageUpdatedAt: { gte: staleAt } }),
             }
           : {};
-        const segTargeting = agent.segmentTargeting as { includes?: string[]; excludes?: string[] } | null;
+        const segTargeting = parseSegmentTargeting(agent.segmentTargeting);
         const effectiveIncludes: string[] = segTargeting?.includes?.length
           ? segTargeting.includes
           : agent.targetSegmentName
@@ -1290,7 +1298,7 @@ export async function POST(req: NextRequest) {
       // Filter eligible window users by frequency cap + timing check + daily cap
       const eligibleWindowUsers = windowUsers.filter((user) => {
         const assignment = windowAssignmentMap.get(user.externalId);
-        if (!assignment || assignment.sendCount >= 4) return false;
+        if (!assignment || assignment.sendCount >= WINDOW_SEND_CAP) return false;
         if (windowFreqCappedUserIds.has(user.externalId)) {
           totalSuppressed++;
           return false;
@@ -1546,10 +1554,11 @@ export async function POST(req: NextRequest) {
         const sentAssignmentIds = sentWindowUserIds
           .map((uid) => windowAssignmentMap.get(uid)?.id)
           .filter(Boolean) as string[];
-        // IDs of users whose window completes with this send (sendCount was 3, now becomes 4)
+        // IDs of users whose window completes with this send (sendCount was
+        // WINDOW_SEND_CAP-1, now becomes WINDOW_SEND_CAP)
         const completingIds = sentWindowUserIds
           .map((uid) => windowAssignmentMap.get(uid))
-          .filter((a) => a && a.sendCount >= 3)
+          .filter((a) => a && a.sendCount >= WINDOW_SEND_CAP - 1)
           .map((a) => a!.id);
 
         await Promise.all([
@@ -1558,7 +1567,7 @@ export async function POST(req: NextRequest) {
             where: { id: { in: sentAssignmentIds } },
             data: { sendCount: { increment: 1 } },
           }),
-          // Mark window complete for users reaching 4 sends
+          // Mark window complete for users reaching WINDOW_SEND_CAP sends
           completingIds.length > 0
             ? prisma.userAgentAssignment.updateMany({
                 where: { id: { in: completingIds } },
