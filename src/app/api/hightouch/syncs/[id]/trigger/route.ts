@@ -16,8 +16,23 @@ export async function POST(
 
   const { id } = await params;
 
+  // Optional { full_resync }: a full resync re-syncs every row instead of the
+  // incremental diff. Absent/invalid body defaults to an incremental run.
+  let fullResync = false;
   try {
-    const result = await client.triggerSync(id);
+    const body: unknown = await request.json();
+    if (
+      typeof body === "object" && body !== null &&
+      typeof (body as Record<string, unknown>).full_resync === "boolean"
+    ) {
+      fullResync = (body as Record<string, boolean>).full_resync;
+    }
+  } catch {
+    // no/invalid JSON body — keep incremental default
+  }
+
+  try {
+    const result = await client.triggerSync(id, fullResync);
     return NextResponse.json({ data: result });
   } catch (error) {
     console.error(`POST /api/hightouch/syncs/${id}/trigger error:`, error);

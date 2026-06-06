@@ -85,17 +85,33 @@ export class HightouchClient {
     return json.data;
   }
 
-  async triggerSync(id: string): Promise<{ id: string }> {
-    const res = await this.post(`/syncs/${id}/trigger`, {});
+  async triggerSync(id: string, fullResync = false): Promise<{ id: string }> {
+    // Hightouch's trigger endpoint takes an optional `fullResync` flag; omit it
+    // for an incremental run so the body stays empty in the common case.
+    const res = await this.post(`/syncs/${id}/trigger`, fullResync ? { fullResync: true } : {});
     if (!res.ok) throw new Error(`Hightouch triggerSync failed: ${res.status}`);
     return (await res.json()) as { id: string };
   }
 
   async getSyncRuns(id: string, limit = 20): Promise<HightouchSyncRun[]> {
-    const res = await this.get(`/syncs/${id}/runs`, { limit });
-    if (!res.ok) throw new Error(`Hightouch getSyncRuns failed: ${res.status}`);
-    const json = (await res.json()) as { data: HightouchSyncRun[] };
-    return json.data;
+    // Page via `hasMore` like listSyncs: the endpoint caps a single page at 100,
+    // so a bare `limit` request silently truncates when more than 100 are asked
+    // for. Accumulate until we have `limit` runs or the server reports no more.
+    const PAGE = 100;
+    const all: HightouchSyncRun[] = [];
+    let offset = 0;
+    while (all.length < limit) {
+      const res = await this.get(`/syncs/${id}/runs`, {
+        limit: Math.min(PAGE, limit - all.length),
+        offset,
+      });
+      if (!res.ok) throw new Error(`Hightouch getSyncRuns failed: ${res.status}`);
+      const json = (await res.json()) as { data: HightouchSyncRun[]; hasMore?: boolean };
+      all.push(...json.data);
+      if (!json.hasMore || json.data.length === 0) break;
+      offset += json.data.length;
+    }
+    return all.slice(0, limit);
   }
 
   async listModels(): Promise<HightouchModel[]> {

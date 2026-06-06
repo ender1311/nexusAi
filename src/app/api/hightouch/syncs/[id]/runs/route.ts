@@ -1,10 +1,14 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createHightouchClient } from "@/lib/hightouch/client";
+import { requireAdmin } from "@/lib/auth";
 
 export async function GET(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> },
 ) {
+  const forbidden = await requireAdmin();
+  if (forbidden) return forbidden;
+
   const { searchParams } = new URL(request.url);
   const limitParam = searchParams.get("limit");
   const limit = limitParam ? parseInt(limitParam, 10) : 20;

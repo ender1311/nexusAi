@@ -29,6 +29,21 @@ type HealthBannerProps = {
   syncs: HightouchSync[];
 };
 
+/**
+ * Most-recent run timestamp across syncs, compared chronologically — NOT
+ * lexically. ISO strings with differing timezone offsets (e.g. "+00:00" vs "Z")
+ * don't sort correctly as raw strings, which would surface the wrong time.
+ */
+export function latestRunAt(syncs: HightouchSync[]): string | null {
+  return (
+    syncs
+      .map((s) => s.lastRunAt)
+      .filter((d): d is string => d !== null)
+      .sort((a, b) => new Date(a).getTime() - new Date(b).getTime())
+      .at(-1) ?? null
+  );
+}
+
 export function HealthBanner({ syncs }: HealthBannerProps) {
   if (syncs.length === 0) {
     return (
@@ -42,11 +57,7 @@ export function HealthBanner({ syncs }: HealthBannerProps) {
   const failed = syncs.filter((s) => s.status === "failed").length;
   const healthPct = syncs.length > 0 ? Math.round((healthy / syncs.length) * 100) : 0;
 
-  const lastRunAt = syncs
-    .map((s) => s.lastRunAt)
-    .filter((d): d is string => d !== null)
-    .sort()
-    .at(-1);
+  const lastRunAt = latestRunAt(syncs);
 
   return (
     <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
