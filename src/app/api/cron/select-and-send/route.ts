@@ -30,6 +30,7 @@ import {
   DEFAULT_PUSH_TARGETING_MODE,
 } from "@/lib/engine/channel-preference";
 import { partitionByPreferredHour, trimToCap, resolveFetchLimit } from "@/lib/cron/caps";
+import { runChunked } from "@/lib/cron/chunk";
 import { selectCohort } from "@/lib/cron/cohort-assignment";
 import { classifyReleases, type ReleaseAgentInfo, type ActiveAssignment } from "@/lib/cron/release-sweep";
 import {
@@ -45,6 +46,11 @@ import { isPushVariantComplete } from "@/lib/messages/push-completeness";
 
 // Allow up to 300s execution time on Vercel
 export const maxDuration = 300;
+
+// Max parallel DB writes per fan-out batch. A single agent can have thousands of
+// persona×variant arms or claimed users; an unbounded Promise.all over them would
+// open that many concurrent connections at once and exhaust the Neon pool.
+const DB_WRITE_CONCURRENCY = 20;
 
 function verifyAuth(req: NextRequest): boolean {
   const token = req.headers.get("authorization")?.replace("Bearer ", "");
@@ -82,7 +88,15 @@ export async function POST(req: NextRequest) {
 
   // Concurrency lock — prevent duplicate runs if cron invokes before previous run completes.
   // Single atomic INSERT ON CONFLICT eliminates the read-then-write race window.
-  // rowsAffected === 0 means the existing lock is fresh (< 290s old) → another run is active.
+  // rowsAffected === 0 means the existing lock is fresh → another run is active.
+  //
+  // The stale threshold MUST exceed maxDuration (300s). A run is killed at the
+  // 300s wall-clock limit without its finally block firing, so the lock can only
+  // be reclaimed by the TTL. If the TTL were ≤ maxDuration a still-alive slow run
+  // (e.g. mid-dispatch at 290–300s) could have its lock stolen by a concurrent
+  // invocation → double-send. Cron fires hourly, so a crashed run blocking the
+  // lock for LOCK_STALE_SECONDS costs at most one skipped tick.
+  const LOCK_STALE_SECONDS = 600;
   const lockKey = "cron_lock_select_and_send";
   const lockId  = randomUUID();
   const lockTs  = new Date().toISOString();
@@ -91,7 +105,7 @@ export async function POST(req: NextRequest) {
     VALUES (${lockId}, ${lockKey}, ${lockTs})
     ON CONFLICT (key) DO UPDATE
       SET value = EXCLUDED.value
-      WHERE (EXTRACT(EPOCH FROM NOW()) - EXTRACT(EPOCH FROM "AppSetting".value::timestamptz)) > 290
+      WHERE (EXTRACT(EPOCH FROM NOW()) - EXTRACT(EPOCH FROM "AppSetting".value::timestamptz)) > ${LOCK_STALE_SECONDS}
   `;
   if (lockAcquired === 0) {
     return NextResponse.json({ error: "Already running" }, { status: 409 });
@@ -425,6 +439,14 @@ export async function POST(req: NextRequest) {
 
   const lotteryMap = buildAgentLottery(eligibleUsersByAgent);
   // lotteryMap: Map<externalUserId, agentId>  — held in memory for this run
+  // Inverted once: agentId → [externalUserId]. Avoids re-scanning the whole
+  // lotteryMap per agent (was O(users × agents)).
+  const lotteryUsersByAgent = new Map<string, string[]>();
+  for (const [uid, aid] of lotteryMap) {
+    const list = lotteryUsersByAgent.get(aid);
+    if (list) list.push(uid);
+    else lotteryUsersByAgent.set(aid, [uid]);
+  }
   // ── End pre-assignment phase ──────────────────────────────────────────────
 
   // ─── Phase 0: Exploration window assignment ───────────────────────────────
@@ -482,15 +504,13 @@ export async function POST(req: NextRequest) {
         skipDuplicates: true,
       });
     }
-    // Class D — parallel upserts (reset per-user with possibly different agentId)
+    // Class D — chunked parallel upserts (reset per-user with possibly different agentId)
     if (toReset.length > 0) {
-      await Promise.all(
-        toReset.map(({ externalUserId, agentId }) =>
-          prisma.userAgentAssignment.update({
-            where: { externalUserId },
-            data: { agentId, startedAt: now, sendCount: 0, windowCompletedAt: null },
-          })
-        )
+      await runChunked(toReset, DB_WRITE_CONCURRENCY, ({ externalUserId, agentId }) =>
+        prisma.userAgentAssignment.update({
+          where: { externalUserId },
+          data: { agentId, startedAt: now, sendCount: 0, windowCompletedAt: null },
+        })
       );
     }
     if (toClose.length > 0) {
@@ -504,6 +524,14 @@ export async function POST(req: NextRequest) {
 
   // Derived once from inWindowMap — used in every agent's user query
   const inWindowUserIdSet = new Set(inWindowMap.keys());
+  // Inverted once: agentId → [externalUserId]. Avoids re-scanning inWindowMap
+  // per agent (was O(users × agents)).
+  const inWindowUsersByAgent = new Map<string, string[]>();
+  for (const [uid, aid] of inWindowMap) {
+    const list = inWindowUsersByAgent.get(aid);
+    if (list) list.push(uid);
+    else inWindowUsersByAgent.set(aid, [uid]);
+  }
 
   // Per-agent metric accumulators for ModelMetric writes
   const agentMetrics = new Map<string, { sent: number; suppressed: number; errors: number }>();
@@ -515,9 +543,7 @@ export async function POST(req: NextRequest) {
     const suppress = { freqCap: 0, smartSuppress: 0, dailyCap: 0, quietHours: 0, targetFilter: 0, uniqueUsersCap: 0, blackout: 0 };
 
     // Derive the users assigned to this agent by the lottery
-    const assignedUserIds = [...lotteryMap.entries()]
-      .filter(([, aid]) => aid === agent.id)
-      .map(([uid]) => uid);
+    const assignedUserIds = lotteryUsersByAgent.get(agent.id) ?? [];
 
     // Exclude in-window users from lottery pipeline (they're handled separately below)
     let lotteryUserIds = assignedUserIds.filter((id) => !inWindowUserIdSet.has(id));
@@ -550,10 +576,14 @@ export async function POST(req: NextRequest) {
     }
 
     // Lifetime unique users cap — stop sends when the agent has reached its ceiling of
-    // distinct users ever targeted. Uses COUNT(DISTINCT) over all UserDecision rows.
+    // distinct users ever reached. Counts only confirmed sends (brazeSendId set):
+    // lottery UserDecision rows are inserted before the Braze dispatch, so counting
+    // all rows would include never-sent and Braze-failed attempts and trip the cap
+    // early. Mirrors the dailyCap brazeSendId filter above.
     if (agent.uniqueUsersCap != null) {
       const rows = await prisma.$queryRaw<[{ n: bigint }]>`
-        SELECT COUNT(DISTINCT "userId")::bigint AS n FROM "UserDecision" WHERE "agentId" = ${agent.id}
+        SELECT COUNT(DISTINCT "userId")::bigint AS n FROM "UserDecision"
+        WHERE "agentId" = ${agent.id} AND "brazeSendId" IS NOT NULL
       `;
       const alreadyReached = Number(rows[0]?.n ?? 0);
       const trimmed = trimToCap(lotteryUserIds, agent.uniqueUsersCap - alreadyReached);
@@ -572,7 +602,7 @@ export async function POST(req: NextRequest) {
     }
 
     // Check if this agent has any in-window users to process
-    const hasInWindowUsers = [...inWindowMap.entries()].some(([, aid]) => aid === agent.id);
+    const hasInWindowUsers = (inWindowUsersByAgent.get(agent.id)?.length ?? 0) > 0;
 
     // If no lottery users and no in-window users, skip agent entirely
     if (lotteryUserIds.length === 0 && !hasInWindowUsers) continue;
@@ -657,35 +687,34 @@ export async function POST(req: NextRequest) {
     const localization = { enabled: localizeEnabled, translationsByVariant, versePool, strategyByVariant };
     const initialAlpha = agent.algorithm !== "linucb" ? 1 : 0;
     const initialBeta  = agent.algorithm !== "linucb" ? 30 : 0;
-    await Promise.all(
+    await runChunked(
       personaIds.flatMap((personaId) =>
-        allVariantIds.map((variantId) =>
-          prisma.personaArmStats.upsert({
-            where: { personaId_agentId_variantId: { personaId, agentId: agent.id, variantId } },
-            create: { personaId, agentId: agent.id, variantId, alpha: initialAlpha, beta: initialBeta, tries: 0, wins: 0 },
-            update: {},
-          })
-        )
-      )
+        allVariantIds.map((variantId) => ({ personaId, variantId }))
+      ),
+      DB_WRITE_CONCURRENCY,
+      ({ personaId, variantId }) =>
+        prisma.personaArmStats.upsert({
+          where: { personaId_agentId_variantId: { personaId, agentId: agent.id, variantId } },
+          create: { personaId, agentId: agent.id, variantId, alpha: initialAlpha, beta: initialBeta, tries: 0, wins: 0 },
+          update: {},
+        })
     );
 
     // Seed LinUCBArm identity rows for each variant so cold-start LinUCB agents can select.
     if (agent.algorithm === "linucb") {
       const fresh = new LinUCB().initialArm(FEATURE_DIM);
-      await Promise.all(
-        allVariantIds.map((variantId) =>
-          prisma.linUCBArm.upsert({
-            where: { agentId_variantId: { agentId: agent.id, variantId } },
-            create: {
-              agentId: agent.id,
-              variantId,
-              aInv: fresh.aInv as unknown as Prisma.InputJsonValue,
-              b: fresh.b as unknown as Prisma.InputJsonValue,
-              tries: 0,
-            },
-            update: {}, // never overwrite existing learned state
-          })
-        )
+      await runChunked(allVariantIds, DB_WRITE_CONCURRENCY, (variantId) =>
+        prisma.linUCBArm.upsert({
+          where: { agentId_variantId: { agentId: agent.id, variantId } },
+          create: {
+            agentId: agent.id,
+            variantId,
+            aInv: fresh.aInv as unknown as Prisma.InputJsonValue,
+            b: fresh.b as unknown as Prisma.InputJsonValue,
+            tries: 0,
+          },
+          update: {}, // never overwrite existing learned state
+        })
       );
     }
 
@@ -701,17 +730,15 @@ export async function POST(req: NextRequest) {
           !(Array.isArray(r.b) && (r.b as number[]).length === FEATURE_DIM)
       );
       if (staleArms.length > 0) {
-        await Promise.all(
-          staleArms.map((r) =>
-            prisma.linUCBArm.update({
-              where: { agentId_variantId: { agentId: r.agentId, variantId: r.variantId } },
-              data: {
-                aInv: freshArm.aInv as unknown as Prisma.InputJsonValue,
-                b: freshArm.b as unknown as Prisma.InputJsonValue,
-                tries: 0,
-              },
-            })
-          )
+        await runChunked(staleArms, DB_WRITE_CONCURRENCY, (r) =>
+          prisma.linUCBArm.update({
+            where: { agentId_variantId: { agentId: r.agentId, variantId: r.variantId } },
+            data: {
+              aInv: freshArm.aInv as unknown as Prisma.InputJsonValue,
+              b: freshArm.b as unknown as Prisma.InputJsonValue,
+              tries: 0,
+            },
+          })
         );
       }
       const staleIds = new Set(staleArms.map((s) => s.variantId));
@@ -791,6 +818,15 @@ export async function POST(req: NextRequest) {
           orderBy: { sentAt: "desc" },
         }),
       ]);
+
+      // Pre-group recent sends by userId once (rows stay sentAt-desc ordered).
+      // Avoids re-scanning the whole list per user (was O(users × sends)).
+      const recentSendsByUserId = new Map<string, typeof recentSendsByUser>();
+      for (const r of recentSendsByUser) {
+        const list = recentSendsByUserId.get(r.userId);
+        if (list) list.push(r);
+        else recentSendsByUserId.set(r.userId, [r]);
+      }
 
       const freqCappedUserIds = new Set<string>();
       if (hasLotteryFreqCap) {
@@ -963,7 +999,7 @@ export async function POST(req: NextRequest) {
           if (!pid) continue;
 
           // Build recency penalty map for this user
-          const userRecent = recentSendsByUser.filter((r) => r.userId === user.externalId);
+          const userRecent = recentSendsByUserId.get(user.externalId) ?? [];
           const recencyPenalties: Record<string, number> = {};
           for (const r of userRecent) {
             const vid = r.messageVariantId;
@@ -1133,7 +1169,7 @@ export async function POST(req: NextRequest) {
                 })
               : Promise.resolve(),
             // Claims overwrite the unique externalUserId row (spec A1: fresh ownership).
-            ...claimIds.map((uid) =>
+            runChunked(claimIds, DB_WRITE_CONCURRENCY, (uid) =>
               prisma.userAgentAssignment
                 .upsert({
                   where: { externalUserId: uid },
@@ -1153,9 +1189,7 @@ export async function POST(req: NextRequest) {
     }
 
     // ── In-window sub-pool for this agent ──────────────────────────────────
-    const inWindowUserIdsForAgent = [...inWindowMap.entries()]
-      .filter(([, aid]) => aid === agent.id)
-      .map(([uid]) => uid);
+    const inWindowUserIdsForAgent = inWindowUsersByAgent.get(agent.id) ?? [];
 
     if (inWindowUserIdsForAgent.length > 0) {
       // Fetch users and assignments in parallel — independent reads
@@ -1232,6 +1266,14 @@ export async function POST(req: NextRequest) {
           orderBy: { sentAt: "desc" },
         }),
       ]);
+
+      // Pre-group recent sends by userId once (rows stay sentAt-desc ordered).
+      const windowRecentSendsByUserId = new Map<string, typeof windowRecentSends>();
+      for (const r of windowRecentSends) {
+        const list = windowRecentSendsByUserId.get(r.userId);
+        if (list) list.push(r);
+        else windowRecentSendsByUserId.set(r.userId, [r]);
+      }
 
       const windowFreqCappedUserIds = new Set<string>();
       if (hasFreqCap) {
@@ -1357,7 +1399,7 @@ export async function POST(req: NextRequest) {
           if (!pid) continue;
 
           // Build recency penalty map for this user
-          const windowUserRecent = windowRecentSends.filter((r) => r.userId === user.externalId);
+          const windowUserRecent = windowRecentSendsByUserId.get(user.externalId) ?? [];
           const windowRecencyPenalties: Record<string, number> = {};
           for (const r of windowUserRecent) {
             const vid = r.messageVariantId;
