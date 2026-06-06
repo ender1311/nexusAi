@@ -1,3 +1,5 @@
+import { constantTimeEqual } from "@/lib/constant-time-compare";
+
 function configuredIngestSecrets(): string[] {
   return [process.env.INGEST_API_KEY, process.env.HIGHTOUCH_API_KEY]
     .filter((value): value is string => typeof value === "string" && value.trim().length > 0)
@@ -15,6 +17,6 @@ export function verifyIngestAuth(headers: Headers): boolean {
   const hightouchToken = headers.get("x-hightouch-token")?.trim() ?? null;
 
   return [bearerToken, hightouchToken].some(
-    (token) => token !== null && validSecrets.includes(token),
+    (token) => token !== null && validSecrets.some((secret) => constantTimeEqual(token, secret)),
   );
 }

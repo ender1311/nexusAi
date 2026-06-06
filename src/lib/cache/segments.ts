@@ -5,6 +5,7 @@
 import { unstable_cache } from "next/cache";
 import { prisma } from "@/lib/db";
 import { Prisma } from "@/generated/prisma/client";
+import { parseSegmentTargeting } from "@/lib/agent-targeting";
 import { TTL } from "./ttl";
 
 export type SegmentInfo = { name: string; userCount: number; assignedTo: string | null };
@@ -27,7 +28,7 @@ export const getCachedSegments = unstable_cache(
     const assignedTo = new Map<string, string>();
     for (const a of agents) {
       if (a.targetSegmentName) assignedTo.set(a.targetSegmentName, a.name);
-      const st = a.segmentTargeting as { includes?: string[] } | null;
+      const st = parseSegmentTargeting(a.segmentTargeting);
       for (const seg of st?.includes ?? []) {
         if (!assignedTo.has(seg)) assignedTo.set(seg, a.name);
       }
