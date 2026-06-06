@@ -94,8 +94,11 @@ describe("regression: agent card-stats / decision-split SQL column names", () =>
     await prisma.userDecision.create({ data: { agentId: agent.id, userId: "p6", channel: "push" } });
     // non-push — excluded entirely
     await prisma.userDecision.create({ data: { agentId: agent.id, userId: "p7", channel: "email", brazeSendId: "s7" } });
+    // delivered + opened push but sent 31 days ago — outside the 30-day window, excluded
+    const thirtyOneDaysAgo = new Date(Date.now() - 31 * 24 * 60 * 60 * 1000);
+    await prisma.userDecision.create({ data: { agentId: agent.id, userId: "p8", channel: "push", brazeSendId: "s8", sentAt: thirtyOneDaysAgo, pushOpenAt: openedAt } });
 
-    // Exact SQL from getCachedAgentCardStats (push portion).
+    // Exact SQL from getCachedAgentCardStats (push portion) — windowed to 30 days.
     const rows = await prisma.$queryRaw<Array<{ agentId: string; sends: bigint; opens: bigint }>>`
       SELECT "agentId",
              COUNT(*) FILTER (
@@ -112,10 +115,11 @@ describe("regression: agent card-stats / decision-split SQL column names", () =>
              ) AS sends,
              COUNT(*) FILTER (WHERE "channel" = 'push' AND "pushOpenAt" IS NOT NULL) AS opens
       FROM "UserDecision"
+      WHERE "sentAt" >= NOW() - INTERVAL '30 days'
       GROUP BY "agentId"
     `;
     const row = rows.find((r) => r.agentId === agent.id);
-    // sends: p1, p2, p5 ; opens: p1
+    // sends: p1, p2, p5 (p8 excluded by 30-day window) ; opens: p1 (p8's open excluded)
     expect(Number(row?.sends ?? 0)).toBe(3);
     expect(Number(row?.opens ?? 0)).toBe(1);
   });

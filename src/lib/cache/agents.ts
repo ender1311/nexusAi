@@ -131,10 +131,16 @@ export const getCachedControlTowerAgents = cache(unstable_cache(
 
 /**
  * Per-agent card stats for the agents list: unique-user counts and push
- * send/open counts. Both are full-table GROUP BYs over UserDecision (19M+ rows),
- * so they're cached together instead of running on every page request.
- * Numbers are materialized inside the cache fn (unstable_cache JSON-serializes,
- * which would otherwise choke on bigint).
+ * send/open counts. Cached together instead of running on every page request
+ * (unstable_cache JSON-serializes, so bigint is materialized to Number here).
+ *
+ * Both UserDecision aggregates are scoped to the last 30 days (sentAt) and to
+ * confirmed sends (brazeSendId IS NOT NULL) so the card numbers match the
+ * per-agent performance page, which uses the same window/filter. Without the
+ * brazeSendId filter "Reached" counted never-sent lottery rows (sentAt defaults
+ * to now() at insert), and without the window the GROUP BY scanned the full
+ * 19M+ row table. "Assigned" (active cohort) is current-state, so it is not
+ * windowed.
  */
 export const getCachedAgentCardStats = unstable_cache(
   async () => {
@@ -142,6 +148,8 @@ export const getCachedAgentCardStats = unstable_cache(
       prisma.$queryRaw<Array<{ agentId: string; cnt: bigint }>>`
         SELECT "agentId", COUNT(DISTINCT "userId") AS cnt
         FROM "UserDecision"
+        WHERE "brazeSendId" IS NOT NULL
+          AND "sentAt" >= NOW() - INTERVAL '30 days'
         GROUP BY "agentId"
       `,
       prisma.$queryRaw<Array<{ agentId: string; sends: bigint; opens: bigint }>>`
@@ -160,6 +168,7 @@ export const getCachedAgentCardStats = unstable_cache(
                ) AS sends,
                COUNT(*) FILTER (WHERE "channel" = 'push' AND "pushOpenAt" IS NOT NULL) AS opens
         FROM "UserDecision"
+        WHERE "sentAt" >= NOW() - INTERVAL '30 days'
         GROUP BY "agentId"
       `,
       // Active cohort assignments (releasedAt IS NULL) per agent — "Assigned",

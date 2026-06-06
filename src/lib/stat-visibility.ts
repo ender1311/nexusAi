@@ -11,7 +11,6 @@ export type StatKey =
   | "agent.dailyCap"
   | "agent.uniqueUsers"
   | "agent.convergence"
-  | "agent.conversionRate"
   | "agent.pushOpenRate"
   // Dashboard metric cards (src/app/page.tsx)
   | "dashboard.trackedUsers"
@@ -40,7 +39,6 @@ export const STAT_CATALOG: StatGroup[] = [
       { key: "agent.dailyCap", label: "Daily cap" },
       { key: "agent.uniqueUsers", label: "Unique users" },
       { key: "agent.convergence", label: "Convergence status" },
-      { key: "agent.conversionRate", label: "Conversion rate" },
       { key: "agent.pushOpenRate", label: "Push open rate" },
     ],
   },
