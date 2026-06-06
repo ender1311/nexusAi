@@ -105,7 +105,7 @@ export function AddLanguageDrawer({ campaign, language, enVerseRefs, onClose, on
 
   return (
     <Sheet open onOpenChange={(open) => !open && onClose()}>
-      <SheetContent className="flex flex-col w-[640px] sm:max-w-[640px] overflow-hidden">
+      <SheetContent className="flex flex-col w-full sm:w-[640px] sm:max-w-[640px] overflow-hidden">
         <SheetHeader>
           <SheetTitle>Add Language</SheetTitle>
         </SheetHeader>

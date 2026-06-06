@@ -39,7 +39,7 @@ export function TemplateCard({ variant, isAdmin }: TemplateCardProps) {
       <CardContent className="flex-1 p-4 space-y-3">
         <div className="flex items-start justify-between gap-2">
           <p className="text-sm font-medium leading-tight">{variant.name}</p>
-          <div className="flex shrink-0 items-center gap-1">
+          <div className="flex shrink-0 flex-wrap items-center justify-end gap-1">
             {!isPushVariantComplete(variant) && (
               <Badge variant="destructive" className="shrink-0 text-xs">
                 Incomplete
