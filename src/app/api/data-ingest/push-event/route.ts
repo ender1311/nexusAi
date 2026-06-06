@@ -66,6 +66,20 @@ export async function POST(req: NextRequest) {
   });
 
   const ingestRes = await ingestPost(ingestReq);
-  const ingestBody = await ingestRes.json();
-  return NextResponse.json({ data: ingestBody }, { status: ingestRes.status });
+  const ingestBody = (await ingestRes.json()) as
+    | { received?: number; matched?: number }
+    | { error: string };
+
+  if (!ingestRes.ok) {
+    return NextResponse.json(ingestBody, { status: ingestRes.status });
+  }
+
+  // The ingest endpoint returns { received, matched, ... }; the form reads
+  // { processed, matched }. Map received -> processed so the UI reports the
+  // real count instead of always showing 0.
+  const ok = ingestBody as { received?: number; matched?: number };
+  return NextResponse.json(
+    { data: { processed: ok.received ?? 0, matched: ok.matched ?? 0 } },
+    { status: ingestRes.status },
+  );
 }
