@@ -5,6 +5,7 @@ import Link from "next/link";
 import { Header } from "@/components/layout/header";
 import { AgentGrid } from "@/components/agents/agent-grid";
 import { AgentFilters } from "@/components/agents/agent-filters";
+import { KillSwitchToggle } from "@/components/control-tower/kill-switch-toggle";
 import { Button } from "@/components/ui/button";
 import { AgentStatus, FunnelStage, FUNNEL_STAGES, Agent } from "@/types/agent";
 import { Bot, Plus, Search } from "lucide-react";
@@ -138,12 +139,15 @@ export default async function AgentsPage({
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
           <AgentFilters search={search} status={status} stage={safeStage} />
           {isAdmin && (
-            <Link href="/agents/new">
-              <Button size="sm">
-                <Plus className="h-4 w-4 mr-1" />
-                New Agent
-              </Button>
-            </Link>
+            <div className="flex items-center gap-2">
+              <KillSwitchToggle initialOn={killSwitchOn} />
+              <Link href="/agents/new">
+                <Button size="sm">
+                  <Plus className="h-4 w-4 mr-1" />
+                  New Agent
+                </Button>
+              </Link>
+            </div>
           )}
         </div>
 

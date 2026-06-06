@@ -9,6 +9,9 @@ import { AgentToggleGrid } from "@/components/control-tower/agent-toggle-grid";
 import { FunnelStageBreakdown } from "@/components/charts/funnel-stage-breakdown";
 import { UserInspector } from "@/components/control-tower/user-inspector";
 import { CronRuns } from "@/components/control-tower/cron-runs";
+import { prisma } from "@/lib/db";
+import { getAuth } from "@/lib/auth";
+import { KillSwitchToggle } from "@/components/control-tower/kill-switch-toggle";
 import {
   getCachedControlTowerAgents,
   getCachedControlTowerStats,
@@ -33,6 +36,19 @@ async function StatsBarSection() {
 async function AgentTogglesSection() {
   const agents = await getCachedControlTowerAgents().catch(() => []);
   return <AgentToggleGrid agents={agents} />;
+}
+
+async function KillSwitchSection() {
+  const [{ isAdmin }, setting] = await Promise.all([
+    getAuth(),
+    prisma.appSetting.findUnique({ where: { key: "global_sending_paused" } }),
+  ]);
+  if (!isAdmin) return null;
+  return (
+    <div className="px-4 sm:px-6 py-2 flex justify-end">
+      <KillSwitchToggle initialOn={setting?.value === "true"} />
+    </div>
+  );
 }
 
 async function FunnelSection() {
@@ -77,6 +93,10 @@ export default function ControlTowerPage() {
   return (
     <div className="flex flex-col min-h-0">
       <Header title="Control Tower" description="AI-Powered Optimization Command Center" />
+
+      <Suspense fallback={null}>
+        <KillSwitchSection />
+      </Suspense>
 
       <Suspense fallback={<StatsBarSkeleton />}>
         <StatsBarSection />
