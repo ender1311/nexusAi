@@ -3,7 +3,12 @@ import { apiFetch, ApiError } from "@/lib/api-client";
 import { requireAdmin } from "@/lib/auth";
 import { fail, handleRouteError } from "@/lib/api/respond";
 
-export const maxDuration = 15;
+export const maxDuration = 30;
+
+/** AbortSignal.timeout rejects with a DOMException named "TimeoutError". */
+function isTimeout(err: unknown): boolean {
+  return err instanceof DOMException && (err.name === "TimeoutError" || err.name === "AbortError");
+}
 
 export async function GET() {
   try {
@@ -30,11 +35,12 @@ export async function POST(req: NextRequest) {
       method: "POST",
       body: JSON.stringify(body),
       isAdmin: true,
-      timeout: 15000,
+      timeout: 25000,
     });
     return NextResponse.json(agent, { status: 201 });
   } catch (err) {
     if (err instanceof ApiError) return fail(err.message, err.status);
+    if (isTimeout(err)) return fail("The agent service took too long to respond. Please try again.", 504);
     return handleRouteError("POST /api/agents", err);
   }
 }
