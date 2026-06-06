@@ -1,9 +1,19 @@
 import { describe, it, expect, beforeEach, afterEach, mock } from "bun:test";
 import { NextRequest } from "next/server";
 
-// Mock WorkOS before importing any routes that call requireAdmin()
+// Mock WorkOS before importing any routes that call requireAdmin().
+// Admin by default; individual tests flip mockAuth.roles to [] to exercise the
+// 403 path. (All five read routes are now admin-gated — see
+// tests/regression/hightouch-routes-require-admin.test.ts.)
+const mockAuth: { roles: string[] } = { roles: ["admin"] };
 mock.module("@workos-inc/authkit-nextjs", () => ({
-  withAuth: () => Promise.resolve({ user: null, roles: [], sessionId: null, accessToken: null }),
+  withAuth: () =>
+    Promise.resolve({
+      user: { id: "u1", email: "test@youversion.com", firstName: null, lastName: null },
+      roles: mockAuth.roles,
+      sessionId: "sess1",
+      accessToken: "tok1",
+    }),
   signOut: async () => {},
 }));
 
@@ -17,10 +27,12 @@ import { buildRequest } from "../helpers/request";
 
 beforeEach(() => {
   delete process.env.HIGHTOUCH_API_KEY;
+  mockAuth.roles = ["admin"];
 });
 
 afterEach(() => {
   delete process.env.HIGHTOUCH_API_KEY;
+  mockAuth.roles = ["admin"];
 });
 
 describe("GET /api/hightouch/syncs", () => {
@@ -96,6 +108,7 @@ describe("POST /api/hightouch/syncs/[id]/trigger", () => {
   // In the test environment there is no WorkOS session, so isAdmin is false
   // and requireAdmin() returns 403 Forbidden before reaching the client check.
   it("returns 403 when triggering sync without admin auth", async () => {
+    mockAuth.roles = [];
     const req = buildRequest("POST", {});
     const res = await triggerSync(req as NextRequest, {
       params: Promise.resolve({ id: "sync_123" }),
