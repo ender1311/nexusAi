@@ -57,6 +57,7 @@ export type TrackedUserMinAggregateOutputType = {
   brazeId: string | null
   funnelStage: string | null
   funnelStageUpdatedAt: Date | null
+  hasRecurringGift: boolean | null
   lockedByAgentId: string | null
   personaId: string | null
   personaConfidence: number | null
@@ -78,6 +79,7 @@ export type TrackedUserMaxAggregateOutputType = {
   brazeId: string | null
   funnelStage: string | null
   funnelStageUpdatedAt: Date | null
+  hasRecurringGift: boolean | null
   lockedByAgentId: string | null
   personaId: string | null
   personaConfidence: number | null
@@ -104,6 +106,7 @@ export type TrackedUserCountAggregateOutputType = {
   brazeId: number
   funnelStage: number
   funnelStageUpdatedAt: number
+  hasRecurringGift: number
   lockedByAgentId: number
   personaId: number
   personaConfidence: number
@@ -145,6 +148,7 @@ export type TrackedUserMinAggregateInputType = {
   brazeId?: true
   funnelStage?: true
   funnelStageUpdatedAt?: true
+  hasRecurringGift?: true
   lockedByAgentId?: true
   personaId?: true
   personaConfidence?: true
@@ -166,6 +170,7 @@ export type TrackedUserMaxAggregateInputType = {
   brazeId?: true
   funnelStage?: true
   funnelStageUpdatedAt?: true
+  hasRecurringGift?: true
   lockedByAgentId?: true
   personaId?: true
   personaConfidence?: true
@@ -192,6 +197,7 @@ export type TrackedUserCountAggregateInputType = {
   brazeId?: true
   funnelStage?: true
   funnelStageUpdatedAt?: true
+  hasRecurringGift?: true
   lockedByAgentId?: true
   personaId?: true
   personaConfidence?: true
@@ -305,6 +311,7 @@ export type TrackedUserGroupByOutputType = {
   brazeId: string | null
   funnelStage: string | null
   funnelStageUpdatedAt: Date | null
+  hasRecurringGift: boolean | null
   lockedByAgentId: string | null
   personaId: string | null
   personaConfidence: number | null
@@ -354,6 +361,7 @@ export type TrackedUserWhereInput = {
   brazeId?: Prisma.StringNullableFilter<"TrackedUser"> | string | null
   funnelStage?: Prisma.StringNullableFilter<"TrackedUser"> | string | null
   funnelStageUpdatedAt?: Prisma.DateTimeNullableFilter<"TrackedUser"> | Date | string | null
+  hasRecurringGift?: Prisma.BoolNullableFilter<"TrackedUser"> | boolean | null
   lockedByAgentId?: Prisma.StringNullableFilter<"TrackedUser"> | string | null
   personaId?: Prisma.StringNullableFilter<"TrackedUser"> | string | null
   personaConfidence?: Prisma.FloatNullableFilter<"TrackedUser"> | number | null
@@ -381,6 +389,7 @@ export type TrackedUserOrderByWithRelationInput = {
   brazeId?: Prisma.SortOrderInput | Prisma.SortOrder
   funnelStage?: Prisma.SortOrderInput | Prisma.SortOrder
   funnelStageUpdatedAt?: Prisma.SortOrderInput | Prisma.SortOrder
+  hasRecurringGift?: Prisma.SortOrderInput | Prisma.SortOrder
   lockedByAgentId?: Prisma.SortOrderInput | Prisma.SortOrder
   personaId?: Prisma.SortOrderInput | Prisma.SortOrder
   personaConfidence?: Prisma.SortOrderInput | Prisma.SortOrder
@@ -411,6 +420,7 @@ export type TrackedUserWhereUniqueInput = Prisma.AtLeast<{
   featureVectorAt?: Prisma.DateTimeNullableFilter<"TrackedUser"> | Date | string | null
   funnelStage?: Prisma.StringNullableFilter<"TrackedUser"> | string | null
   funnelStageUpdatedAt?: Prisma.DateTimeNullableFilter<"TrackedUser"> | Date | string | null
+  hasRecurringGift?: Prisma.BoolNullableFilter<"TrackedUser"> | boolean | null
   lockedByAgentId?: Prisma.StringNullableFilter<"TrackedUser"> | string | null
   personaId?: Prisma.StringNullableFilter<"TrackedUser"> | string | null
   personaConfidence?: Prisma.FloatNullableFilter<"TrackedUser"> | number | null
@@ -438,6 +448,7 @@ export type TrackedUserOrderByWithAggregationInput = {
   brazeId?: Prisma.SortOrderInput | Prisma.SortOrder
   funnelStage?: Prisma.SortOrderInput | Prisma.SortOrder
   funnelStageUpdatedAt?: Prisma.SortOrderInput | Prisma.SortOrder
+  hasRecurringGift?: Prisma.SortOrderInput | Prisma.SortOrder
   lockedByAgentId?: Prisma.SortOrderInput | Prisma.SortOrder
   personaId?: Prisma.SortOrderInput | Prisma.SortOrder
   personaConfidence?: Prisma.SortOrderInput | Prisma.SortOrder
@@ -472,6 +483,7 @@ export type TrackedUserScalarWhereWithAggregatesInput = {
   brazeId?: Prisma.StringNullableWithAggregatesFilter<"TrackedUser"> | string | null
   funnelStage?: Prisma.StringNullableWithAggregatesFilter<"TrackedUser"> | string | null
   funnelStageUpdatedAt?: Prisma.DateTimeNullableWithAggregatesFilter<"TrackedUser"> | Date | string | null
+  hasRecurringGift?: Prisma.BoolNullableWithAggregatesFilter<"TrackedUser"> | boolean | null
   lockedByAgentId?: Prisma.StringNullableWithAggregatesFilter<"TrackedUser"> | string | null
   personaId?: Prisma.StringNullableWithAggregatesFilter<"TrackedUser"> | string | null
   personaConfidence?: Prisma.FloatNullableWithAggregatesFilter<"TrackedUser"> | number | null
@@ -498,6 +510,7 @@ export type TrackedUserCreateInput = {
   brazeId?: string | null
   funnelStage?: string | null
   funnelStageUpdatedAt?: Date | string | null
+  hasRecurringGift?: boolean | null
   lockedByAgentId?: string | null
   personaConfidence?: number | null
   personaAssignedAt?: Date | string | null
@@ -524,6 +537,7 @@ export type TrackedUserUncheckedCreateInput = {
   brazeId?: string | null
   funnelStage?: string | null
   funnelStageUpdatedAt?: Date | string | null
+  hasRecurringGift?: boolean | null
   lockedByAgentId?: string | null
   personaId?: string | null
   personaConfidence?: number | null
@@ -550,6 +564,7 @@ export type TrackedUserUpdateInput = {
   brazeId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   funnelStage?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   funnelStageUpdatedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  hasRecurringGift?: Prisma.NullableBoolFieldUpdateOperationsInput | boolean | null
   lockedByAgentId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   personaConfidence?: Prisma.NullableFloatFieldUpdateOperationsInput | number | null
   personaAssignedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
@@ -576,6 +591,7 @@ export type TrackedUserUncheckedUpdateInput = {
   brazeId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   funnelStage?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   funnelStageUpdatedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  hasRecurringGift?: Prisma.NullableBoolFieldUpdateOperationsInput | boolean | null
   lockedByAgentId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   personaId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   personaConfidence?: Prisma.NullableFloatFieldUpdateOperationsInput | number | null
@@ -602,6 +618,7 @@ export type TrackedUserCreateManyInput = {
   brazeId?: string | null
   funnelStage?: string | null
   funnelStageUpdatedAt?: Date | string | null
+  hasRecurringGift?: boolean | null
   lockedByAgentId?: string | null
   personaId?: string | null
   personaConfidence?: number | null
@@ -628,6 +645,7 @@ export type TrackedUserUpdateManyMutationInput = {
   brazeId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   funnelStage?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   funnelStageUpdatedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  hasRecurringGift?: Prisma.NullableBoolFieldUpdateOperationsInput | boolean | null
   lockedByAgentId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   personaConfidence?: Prisma.NullableFloatFieldUpdateOperationsInput | number | null
   personaAssignedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
@@ -653,6 +671,7 @@ export type TrackedUserUncheckedUpdateManyInput = {
   brazeId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   funnelStage?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   funnelStageUpdatedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  hasRecurringGift?: Prisma.NullableBoolFieldUpdateOperationsInput | boolean | null
   lockedByAgentId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   personaId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   personaConfidence?: Prisma.NullableFloatFieldUpdateOperationsInput | number | null
@@ -679,6 +698,7 @@ export type TrackedUserCountOrderByAggregateInput = {
   brazeId?: Prisma.SortOrder
   funnelStage?: Prisma.SortOrder
   funnelStageUpdatedAt?: Prisma.SortOrder
+  hasRecurringGift?: Prisma.SortOrder
   lockedByAgentId?: Prisma.SortOrder
   personaId?: Prisma.SortOrder
   personaConfidence?: Prisma.SortOrder
@@ -709,6 +729,7 @@ export type TrackedUserMaxOrderByAggregateInput = {
   brazeId?: Prisma.SortOrder
   funnelStage?: Prisma.SortOrder
   funnelStageUpdatedAt?: Prisma.SortOrder
+  hasRecurringGift?: Prisma.SortOrder
   lockedByAgentId?: Prisma.SortOrder
   personaId?: Prisma.SortOrder
   personaConfidence?: Prisma.SortOrder
@@ -730,6 +751,7 @@ export type TrackedUserMinOrderByAggregateInput = {
   brazeId?: Prisma.SortOrder
   funnelStage?: Prisma.SortOrder
   funnelStageUpdatedAt?: Prisma.SortOrder
+  hasRecurringGift?: Prisma.SortOrder
   lockedByAgentId?: Prisma.SortOrder
   personaId?: Prisma.SortOrder
   personaConfidence?: Prisma.SortOrder
@@ -755,6 +777,10 @@ export type TrackedUserListRelationFilter = {
 
 export type TrackedUserOrderByRelationAggregateInput = {
   _count?: Prisma.SortOrder
+}
+
+export type NullableBoolFieldUpdateOperationsInput = {
+  set?: boolean | null
 }
 
 export type TrackedUserCreateNestedManyWithoutPersonaInput = {
@@ -817,6 +843,7 @@ export type TrackedUserCreateWithoutPersonaInput = {
   brazeId?: string | null
   funnelStage?: string | null
   funnelStageUpdatedAt?: Date | string | null
+  hasRecurringGift?: boolean | null
   lockedByAgentId?: string | null
   personaConfidence?: number | null
   personaAssignedAt?: Date | string | null
@@ -842,6 +869,7 @@ export type TrackedUserUncheckedCreateWithoutPersonaInput = {
   brazeId?: string | null
   funnelStage?: string | null
   funnelStageUpdatedAt?: Date | string | null
+  hasRecurringGift?: boolean | null
   lockedByAgentId?: string | null
   personaConfidence?: number | null
   personaAssignedAt?: Date | string | null
@@ -896,6 +924,7 @@ export type TrackedUserScalarWhereInput = {
   brazeId?: Prisma.StringNullableFilter<"TrackedUser"> | string | null
   funnelStage?: Prisma.StringNullableFilter<"TrackedUser"> | string | null
   funnelStageUpdatedAt?: Prisma.DateTimeNullableFilter<"TrackedUser"> | Date | string | null
+  hasRecurringGift?: Prisma.BoolNullableFilter<"TrackedUser"> | boolean | null
   lockedByAgentId?: Prisma.StringNullableFilter<"TrackedUser"> | string | null
   personaId?: Prisma.StringNullableFilter<"TrackedUser"> | string | null
   personaConfidence?: Prisma.FloatNullableFilter<"TrackedUser"> | number | null
@@ -922,6 +951,7 @@ export type TrackedUserCreateManyPersonaInput = {
   brazeId?: string | null
   funnelStage?: string | null
   funnelStageUpdatedAt?: Date | string | null
+  hasRecurringGift?: boolean | null
   lockedByAgentId?: string | null
   personaConfidence?: number | null
   personaAssignedAt?: Date | string | null
@@ -947,6 +977,7 @@ export type TrackedUserUpdateWithoutPersonaInput = {
   brazeId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   funnelStage?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   funnelStageUpdatedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  hasRecurringGift?: Prisma.NullableBoolFieldUpdateOperationsInput | boolean | null
   lockedByAgentId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   personaConfidence?: Prisma.NullableFloatFieldUpdateOperationsInput | number | null
   personaAssignedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
@@ -972,6 +1003,7 @@ export type TrackedUserUncheckedUpdateWithoutPersonaInput = {
   brazeId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   funnelStage?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   funnelStageUpdatedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  hasRecurringGift?: Prisma.NullableBoolFieldUpdateOperationsInput | boolean | null
   lockedByAgentId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   personaConfidence?: Prisma.NullableFloatFieldUpdateOperationsInput | number | null
   personaAssignedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
@@ -997,6 +1029,7 @@ export type TrackedUserUncheckedUpdateManyWithoutPersonaInput = {
   brazeId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   funnelStage?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   funnelStageUpdatedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  hasRecurringGift?: Prisma.NullableBoolFieldUpdateOperationsInput | boolean | null
   lockedByAgentId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   personaConfidence?: Prisma.NullableFloatFieldUpdateOperationsInput | number | null
   personaAssignedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
@@ -1024,6 +1057,7 @@ export type TrackedUserSelect<ExtArgs extends runtime.Types.Extensions.InternalA
   brazeId?: boolean
   funnelStage?: boolean
   funnelStageUpdatedAt?: boolean
+  hasRecurringGift?: boolean
   lockedByAgentId?: boolean
   personaId?: boolean
   personaConfidence?: boolean
@@ -1051,6 +1085,7 @@ export type TrackedUserSelectCreateManyAndReturn<ExtArgs extends runtime.Types.E
   brazeId?: boolean
   funnelStage?: boolean
   funnelStageUpdatedAt?: boolean
+  hasRecurringGift?: boolean
   lockedByAgentId?: boolean
   personaId?: boolean
   personaConfidence?: boolean
@@ -1078,6 +1113,7 @@ export type TrackedUserSelectUpdateManyAndReturn<ExtArgs extends runtime.Types.E
   brazeId?: boolean
   funnelStage?: boolean
   funnelStageUpdatedAt?: boolean
+  hasRecurringGift?: boolean
   lockedByAgentId?: boolean
   personaId?: boolean
   personaConfidence?: boolean
@@ -1105,6 +1141,7 @@ export type TrackedUserSelectScalar = {
   brazeId?: boolean
   funnelStage?: boolean
   funnelStageUpdatedAt?: boolean
+  hasRecurringGift?: boolean
   lockedByAgentId?: boolean
   personaId?: boolean
   personaConfidence?: boolean
@@ -1113,7 +1150,7 @@ export type TrackedUserSelectScalar = {
   updatedAt?: boolean
 }
 
-export type TrackedUserOmit<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = runtime.Types.Extensions.GetOmit<"id" | "externalId" | "attributes" | "totalDecisions" | "totalConversions" | "totalReward" | "channelStats" | "hourlyStats" | "dailyStats" | "preferredSendHour" | "preferredSendMinute" | "timezone" | "featureVector" | "featureVectorAt" | "brazeId" | "funnelStage" | "funnelStageUpdatedAt" | "lockedByAgentId" | "personaId" | "personaConfidence" | "personaAssignedAt" | "createdAt" | "updatedAt", ExtArgs["result"]["trackedUser"]>
+export type TrackedUserOmit<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = runtime.Types.Extensions.GetOmit<"id" | "externalId" | "attributes" | "totalDecisions" | "totalConversions" | "totalReward" | "channelStats" | "hourlyStats" | "dailyStats" | "preferredSendHour" | "preferredSendMinute" | "timezone" | "featureVector" | "featureVectorAt" | "brazeId" | "funnelStage" | "funnelStageUpdatedAt" | "hasRecurringGift" | "lockedByAgentId" | "personaId" | "personaConfidence" | "personaAssignedAt" | "createdAt" | "updatedAt", ExtArgs["result"]["trackedUser"]>
 export type TrackedUserInclude<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
   persona?: boolean | Prisma.TrackedUser$personaArgs<ExtArgs>
 }
@@ -1147,6 +1184,7 @@ export type $TrackedUserPayload<ExtArgs extends runtime.Types.Extensions.Interna
     brazeId: string | null
     funnelStage: string | null
     funnelStageUpdatedAt: Date | null
+    hasRecurringGift: boolean | null
     lockedByAgentId: string | null
     personaId: string | null
     personaConfidence: number | null
@@ -1594,6 +1632,7 @@ export interface TrackedUserFieldRefs {
   readonly brazeId: Prisma.FieldRef<"TrackedUser", 'String'>
   readonly funnelStage: Prisma.FieldRef<"TrackedUser", 'String'>
   readonly funnelStageUpdatedAt: Prisma.FieldRef<"TrackedUser", 'DateTime'>
+  readonly hasRecurringGift: Prisma.FieldRef<"TrackedUser", 'Boolean'>
   readonly lockedByAgentId: Prisma.FieldRef<"TrackedUser", 'String'>
   readonly personaId: Prisma.FieldRef<"TrackedUser", 'String'>
   readonly personaConfidence: Prisma.FieldRef<"TrackedUser", 'Float'>

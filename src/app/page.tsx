@@ -124,6 +124,14 @@ async function MetricCardsSection() {
           icon={TrendingUp}
         />
       )}
+      {giftStats.sowerCount > 0 && !isStatHidden(hiddenStats, "dashboard.sowers") && (
+        <MetricCard
+          title="Sowers Driven (30d)"
+          value={formatNumber(giftStats.sowerCount)}
+          description="recurring givers converted"
+          icon={TrendingUp}
+        />
+      )}
     </>
   );
 }

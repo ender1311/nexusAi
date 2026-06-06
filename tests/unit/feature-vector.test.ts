@@ -130,6 +130,16 @@ describe("computeFeatureVector", () => {
     expect(none).toBe(0);
   });
 
+  it("[7] has_recurring_gift true maps to sower tier (1.0), type-tolerant", () => {
+    // Authoritative recurring signal — counts as sower even without giving_tier.
+    expect(computeFeatureVector({ ...emptyStats, attributes: { has_recurring_gift: true } })[7]).toBeCloseTo(1.0, 5);
+    expect(computeFeatureVector({ ...emptyStats, attributes: { has_recurring_gift: "true" } })[7]).toBeCloseTo(1.0, 5);
+    expect(computeFeatureVector({ ...emptyStats, attributes: { has_recurring_gift: 1 } })[7]).toBeCloseTo(1.0, 5);
+    // Falsy variants do not promote: a plain "giver" stays 0.5, none stays 0.
+    expect(computeFeatureVector({ ...emptyStats, attributes: { has_recurring_gift: "false", giving_tier: "giver" } })[7]).toBeCloseTo(0.5, 5);
+    expect(computeFeatureVector({ ...emptyStats, attributes: { has_recurring_gift: 0 } })[7]).toBe(0);
+  });
+
   it("[8] spiritual depth composite in [0,1]", () => {
     const attrs = {
       plan_day_current_month_count: 31,

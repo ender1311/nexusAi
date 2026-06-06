@@ -333,12 +333,18 @@ export const getCachedFleetGiftStats = cache(
   unstable_cache(
     async () => {
       const thirtyDaysAgo = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000);
-      const [totals, leaderboardRows] = await Promise.all([
+      const [totals, sowerTotals, leaderboardRows] = await Promise.all([
         prisma.$queryRaw<[{ gift_count: bigint; gift_revenue: number | null }]>`
           SELECT COUNT(*)::bigint                         AS gift_count,
                  COALESCE(SUM("conversionValue"), 0)::float AS gift_revenue
           FROM "UserDecision"
           WHERE "conversionEvent" = 'gift_given'
+            AND "conversionAt" >= ${thirtyDaysAgo}
+        `,
+        prisma.$queryRaw<[{ sower_count: bigint }]>`
+          SELECT COUNT(*)::bigint AS sower_count
+          FROM "UserDecision"
+          WHERE "conversionEvent" = 'sower_subscribed'
             AND "conversionAt" >= ${thirtyDaysAgo}
         `,
         prisma.$queryRaw<Array<{ agent_id: string; revenue: number | null; gifts: bigint }>>`
@@ -361,6 +367,7 @@ export const getCachedFleetGiftStats = cache(
       return {
         giftCount: Number(totals[0]?.gift_count ?? 0),
         giftRevenue: Number(totals[0]?.gift_revenue ?? 0),
+        sowerCount: Number(sowerTotals[0]?.sower_count ?? 0),
         leaderboard: leaderboardRows.map((r) => ({
           agentId: r.agent_id,
           name: byId.get(r.agent_id)?.name ?? r.agent_id,

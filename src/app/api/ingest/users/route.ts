@@ -35,6 +35,22 @@ function verifyAuth(req: NextRequest): boolean {
   return verifyIngestAuth(req.headers);
 }
 
+// Hightouch-synced booleans arrive as a real bool, a "true"/"false" string, or a
+// 0/1 int depending on the warehouse column type. Returns true/false when the
+// value is unambiguously present, or null when absent/blank/unrecognized — the
+// null state is what distinguishes "never observed" from an explicit false, so a
+// flag backfill can't be mistaken for a false→true transition.
+function normalizeRecurringFlag(v: unknown): boolean | null {
+  if (typeof v === "boolean") return v;
+  if (typeof v === "number") return v === 1 ? true : v === 0 ? false : null;
+  if (typeof v === "string") {
+    const t = v.trim().toLowerCase();
+    if (t === "true" || t === "1") return true;
+    if (t === "false" || t === "0") return false;
+  }
+  return null;
+}
+
 // Hightouch user-audience syncs ship large batches in a single POST. Identity
 // resolution and persona classification are batched (see below) so the whole
 // payload resolves within the function timeout. Note: Vercel caps the request
@@ -729,10 +745,42 @@ export async function POST(req: NextRequest) {
     const storedStageRows = chunkRecoveryIds.length > 0
       ? await prisma.trackedUser.findMany({
           where: { externalId: { in: chunkRecoveryIds } },
-          select: { externalId: true, funnelStage: true },
+          select: { externalId: true, funnelStage: true, hasRecurringGift: true },
         })
       : [];
     const storedStageByUser = new Map(storedStageRows.map((r) => [r.externalId, r.funnelStage]));
+    // Prior observed has_recurring_gift per user — drives Sower-flip synthesis below.
+    const storedRecurringByUser = new Map(storedStageRows.map((r) => [r.externalId, r.hasRecurringGift]));
+
+    // Pre-load candidate decisions for users whose has_recurring_gift just flipped
+    // false→true this sync, so a Sower subscription can be attributed to the owning
+    // Nexus send. Mirrors the giving-attribution preload: most-recent unattributed
+    // decision within the 30-day window, with agent goals included for reward calc.
+    const SOWER_ATTRIBUTION_WINDOW_MS = 30 * 24 * 60 * 60 * 1000;
+    const sowerWindowStart = new Date(Date.now() - SOWER_ATTRIBUTION_WINDOW_MS);
+    const recurringFlipIds: string[] = [];
+    for (const u of chunk) {
+      const id = u.external_user_id?.trim() || u.braze_id?.trim();
+      if (!id) continue;
+      const incoming = normalizeRecurringFlag((u.attributes as Record<string, unknown> | undefined)?.["has_recurring_gift"]);
+      if (incoming === true && storedRecurringByUser.get(id) === false) recurringFlipIds.push(id);
+    }
+    const sowerRows = recurringFlipIds.length > 0
+      ? await prisma.userDecision.findMany({
+          where: {
+            userId: { in: recurringFlipIds },
+            conversionAt: null,
+            brazeSendId: { not: null },
+            sentAt: { gte: sowerWindowStart },
+          },
+          orderBy: { sentAt: "desc" },
+          include: { agent: { include: { goals: true } } },
+        })
+      : [];
+    const sowerDecisionByUser = new Map<string, (typeof sowerRows)[number]>();
+    for (const row of sowerRows) {
+      if (!sowerDecisionByUser.has(row.userId)) sowerDecisionByUser.set(row.userId, row);
+    }
 
     // Pre-resolve identity records for the whole chunk in two queries instead of
     // a 3×findUnique fan-out per user. Only users that arrive with both a real
@@ -850,6 +898,11 @@ export async function POST(req: NextRequest) {
         ? { funnelStage: user.funnel_stage === "lapsed_dau" ? "lapsed_dau4" : user.funnel_stage, funnelStageUpdatedAt: new Date() }
         : {};
 
+      // Recurring-giver (Sower) state. null = not present this sync → leave column
+      // untouched so a backfill or omitted attribute can't be mistaken for false.
+      const incomingRecurring = normalizeRecurringFlag(raw["has_recurring_gift"]);
+      const recurringData = incomingRecurring !== null ? { hasRecurringGift: incomingRecurring } : {};
+
       await prisma.trackedUser.upsert({
         where: { externalId },
         create: {
@@ -859,6 +912,7 @@ export async function POST(req: NextRequest) {
           ...(preferredSendHour !== undefined && { preferredSendHour, preferredSendMinute }),
           ...(timezone !== undefined && { timezone }),
           ...funnelStageData,
+          ...recurringData,
           ...personaData,
         },
         update: {
@@ -867,6 +921,7 @@ export async function POST(req: NextRequest) {
           ...(preferredSendHour !== undefined && { preferredSendHour, preferredSendMinute }),
           ...(timezone !== undefined && { timezone }),
           ...funnelStageData,
+          ...recurringData,
           ...personaData,
         },
       });
@@ -921,6 +976,28 @@ export async function POST(req: NextRequest) {
         }
       } catch (err) {
         console.error("[ingest/users] recovery detection failed:", err);
+      }
+
+      // ── Sower (recurring-giver) conversion synthesis ───────────────────────
+      // A false→true flip on has_recurring_gift means the user just became a
+      // recurring giver. Synthesize a sower_subscribed conversion against the
+      // owning Nexus send (most-recent unattributed decision in the 30-day window).
+      // Only false→true fires — a null/unknown→true first observation (e.g. the
+      // initial column backfill) is ignored so it can't manufacture conversions.
+      // Fault-isolated: a failure logs and never breaks the user sync.
+      try {
+        if (incomingRecurring === true && storedRecurringByUser.get(externalId) === false) {
+          const decision = sowerDecisionByUser.get(externalId) ?? null;
+          if (decision) {
+            await applyConversion({
+              decision,
+              conversionEvent: "sower_subscribed",
+              occurredAt: new Date(),
+            });
+          }
+        }
+      } catch (err) {
+        console.error("[ingest/users] sower synthesis failed:", err);
       }
 
       // ── Giving conversion attribution ──────────────────────────────────────

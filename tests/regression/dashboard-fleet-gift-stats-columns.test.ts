@@ -28,9 +28,14 @@ describe("getCachedFleetGiftStats", () => {
     const other = await createDecision({ agentId: agent.id, userId: "u_o", messageVariantId: variant.id, channel: "push", sentAt, brazeSendId: "b_o" });
     await prisma.userDecision.update({ where: { id: other.id }, data: { conversionEvent: "plan_started", conversionAt: new Date(), reward: 0.1 } });
 
+    // A recurring-giver (Sower) conversion must be counted in sowerCount, not giftCount.
+    const sower = await createDecision({ agentId: agent.id, userId: "u_s", messageVariantId: variant.id, channel: "push", sentAt, brazeSendId: "b_s" });
+    await prisma.userDecision.update({ where: { id: sower.id }, data: { conversionEvent: "sower_subscribed", conversionAt: new Date(), reward: 1.0 } });
+
     const stats = await getCachedFleetGiftStats();
     expect(stats.giftCount).toBe(2);
     expect(stats.giftRevenue).toBeCloseTo(150, 2);
+    expect(stats.sowerCount).toBe(1);
     expect(stats.leaderboard[0]?.agentId).toBe(agent.id);
     expect(stats.leaderboard[0]?.revenue).toBeCloseTo(150, 2);
   });

@@ -5,12 +5,15 @@ export type AgentGiftMetrics = {
   giftRevenue: number;
   giftConversionRate: number; // gifts ÷ sends, percent
   avgTimeToGiftHours: number;
+  sowerCount: number; // attributed sower_subscribed conversions
+  sowerConversionRate: number; // sowers ÷ sends, percent
 };
 
 /**
  * Per-agent gift metrics over the last 30 days: attributed gift count,
- * USD revenue (SUM of conversionValue), conversion rate (gifts ÷ sends), and
- * average time-to-gift in hours (AVG(conversionAt - sentAt) for gift_given).
+ * USD revenue (SUM of conversionValue), conversion rate (gifts ÷ sends),
+ * average time-to-gift in hours (AVG(conversionAt - sentAt) for gift_given), and
+ * recurring-giver (Sower) conversions: sower_subscribed count and rate (÷ sends).
  */
 export async function agentGiftMetrics(agentId: string): Promise<AgentGiftMetrics> {
   const thirtyDaysAgo = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000);
@@ -19,12 +22,14 @@ export async function agentGiftMetrics(agentId: string): Promise<AgentGiftMetric
     gift_count: bigint;
     gift_revenue: number | null;
     avg_time_to_gift_seconds: number | null;
+    sower_count: bigint;
   }]>`
     SELECT
       COUNT(*)::bigint                                                                            AS sends,
       COUNT(*) FILTER (WHERE "conversionEvent" = 'gift_given')::bigint                            AS gift_count,
       COALESCE(SUM("conversionValue") FILTER (WHERE "conversionEvent" = 'gift_given'), 0)::float  AS gift_revenue,
-      AVG(EXTRACT(EPOCH FROM ("conversionAt" - "sentAt"))) FILTER (WHERE "conversionEvent" = 'gift_given') AS avg_time_to_gift_seconds
+      AVG(EXTRACT(EPOCH FROM ("conversionAt" - "sentAt"))) FILTER (WHERE "conversionEvent" = 'gift_given') AS avg_time_to_gift_seconds,
+      COUNT(*) FILTER (WHERE "conversionEvent" = 'sower_subscribed')::bigint                      AS sower_count
     FROM "UserDecision"
     WHERE "agentId" = ${agentId}
       AND "sentAt" >= ${thirtyDaysAgo}
@@ -32,10 +37,13 @@ export async function agentGiftMetrics(agentId: string): Promise<AgentGiftMetric
   const r = rows[0];
   const sends = Number(r?.sends ?? 0);
   const giftCount = Number(r?.gift_count ?? 0);
+  const sowerCount = Number(r?.sower_count ?? 0);
   return {
     giftCount,
     giftRevenue: Number(r?.gift_revenue ?? 0),
     giftConversionRate: sends > 0 ? (giftCount / sends) * 100 : 0,
     avgTimeToGiftHours: r?.avg_time_to_gift_seconds ? Number(r.avg_time_to_gift_seconds) / 3600 : 0,
+    sowerCount,
+    sowerConversionRate: sends > 0 ? (sowerCount / sends) * 100 : 0,
   };
 }

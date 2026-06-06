@@ -54,6 +54,14 @@ export function calculateReward(
     return Math.max(0, Math.min(1, (baseReward / 10) * frac));
   }
 
+  // A recurring-gift (Sower) subscription is the highest-value conversion: a
+  // standing commitment rather than a one-off. Flat maximum reward regardless of
+  // the goal's configured tier/weight, so the bandit treats becoming a recurring
+  // giver as the top signal — independent of one-time gift size.
+  if (conversionEvent === "sower_subscribed") {
+    return 1.0;
+  }
+
   let weight: number;
   if (matchingGoal.weightMode === "property" && matchingGoal.weightProperty && eventProperties) {
     const propValue = eventProperties[matchingGoal.weightProperty];

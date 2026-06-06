@@ -93,15 +93,31 @@ export function computeFeatureVector(stats: UserStatsInput): number[] {
     const v = attrs[key];
     return typeof v === "string" ? v : "";
   };
+  // Hightouch-synced booleans arrive as bool, "true"/"false" string, or 0/1 int
+  // depending on the warehouse column type — normalize rather than compare.
+  const bool = (key: string): boolean => {
+    const v = attrs[key];
+    if (typeof v === "boolean") return v;
+    if (typeof v === "number") return v === 1;
+    if (typeof v === "string") {
+      const t = v.trim().toLowerCase();
+      return t === "true" || t === "1";
+    }
+    return false;
+  };
 
   // [6] Recency score — absent means no signal (leave as 0)
   if (attrs["days_since_last_open"] !== undefined && attrs["days_since_last_open"] !== null) {
     vec[6] = 1 - Math.min(1, num("days_since_last_open") / 90);
   }
 
-  // [7] Giving tier
+  // [7] Giving tier — recurring givers (Sower) are the top tier. A true
+  // has_recurring_gift flag counts as sower even when giving_tier is unset, since
+  // the boolean is the authoritative recurring-giver signal from Hightouch.
   const giverTier = str("giving_tier").toLowerCase();
-  vec[7] = giverTier === "sower" ? 1.0 : giverTier === "giver" ? 0.5 : 0.0;
+  vec[7] = giverTier === "sower" || bool("has_recurring_gift")
+    ? 1.0
+    : giverTier === "giver" ? 0.5 : 0.0;
 
   // [8] Spiritual depth — mean of five engagement depth signals, each in [0,1]
   const streak  = Math.min(1, num("plan_day_current_month_count") / 31);
