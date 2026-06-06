@@ -819,16 +819,20 @@ export async function POST(req: NextRequest) {
       if (r.brazeId) recordByBrazeId.set(r.brazeId, { id: r.id, externalId: r.externalId });
     }
 
-    const results = await Promise.all(chunk.map(async (user) => {
+    // ── Identity reconciliation pre-pass (sequential) ──────────────────────
+    // A user may have been stored as unverified (externalId = brazeId) and now
+    // arrives with a real external_user_id. Re-keying / dropping the stale
+    // record is destructive and two users in the same chunk can target the
+    // same record, so these ops run one at a time here — never inside the
+    // parallel upsert map below — to avoid a concurrent-reconciliation race.
+    // Produces writeBrazeId per chunk index for the parallel map to consume.
+    const writeBrazeIdByIndex: boolean[] = new Array(chunk.length).fill(false);
+    for (let j = 0; j < chunk.length; j++) {
+      const user = chunk[j]!;
       const externalUserId = user.external_user_id?.trim() || null;
       const brazeId = user.braze_id?.trim() || null;
-      // Unverified users (no external_user_id): use braze_id as the Nexus primary key.
-      const externalId = externalUserId ?? brazeId!;
       let writeBrazeId = brazeId !== null;
 
-      // Identity resolution: a user may have been stored as unverified (externalId = brazeId)
-      // and now arrives with a real external_user_id. Re-key the old record to avoid a
-      // unique constraint violation on brazeId when creating the verified record.
       if (externalUserId && brazeId && externalUserId !== brazeId) {
         const realRecord = recordByExternalId.get(externalUserId) ?? null;
         const brazeExternalRecord = recordByExternalId.get(brazeId) ?? null;
@@ -849,6 +853,21 @@ export async function POST(req: NextRequest) {
           await prisma.trackedUser.delete({ where: { externalId: brazeId } });
         }
       }
+      writeBrazeIdByIndex[j] = writeBrazeId;
+    }
+
+    const results = await Promise.all(chunk.map(async (user, idx) => {
+      const externalUserId = user.external_user_id?.trim() || null;
+      const brazeId = user.braze_id?.trim() || null;
+      // Unverified users (no external_user_id): use braze_id as the Nexus primary key.
+      const externalId = externalUserId ?? brazeId!;
+      const writeBrazeId = writeBrazeIdByIndex[idx]!;
+      // Decisions credited by recovery/sower synthesis earlier in this same
+      // iteration. Giving attribution must skip these — recovery, sower, and
+      // giving all draw from the same pool of unattributed sends, so without
+      // this guard one decision could be credited twice in a single sync.
+      const creditedDecisionIds = new Set<string>();
+
       const raw = (user.attributes ?? {}) as Record<string, unknown>;
 
       const timezone = typeof raw["timezone"] === "string" && raw["timezone"].trim()
@@ -956,9 +975,11 @@ export async function POST(req: NextRequest) {
                 conversionEvent: "funnel_recovery",
                 occurredAt: new Date(),
                 properties: { from_stage: storedStage, to_stage: incomingStage, recovery_rank: rank },
+                personaId,
               });
               attributedAgentId = assignment.agentId;
               attributedDecisionId = decision.id;
+              creditedDecisionIds.add(decision.id);
             }
             // Owned-but-no-decision falls through as organic (null attribution).
           }
@@ -993,7 +1014,9 @@ export async function POST(req: NextRequest) {
               decision,
               conversionEvent: "sower_subscribed",
               occurredAt: new Date(),
+              personaId,
             });
+            creditedDecisionIds.add(decision.id);
           }
         }
       } catch (err) {
@@ -1024,7 +1047,7 @@ export async function POST(req: NextRequest) {
           const decision = alreadyAttributed
             ? null
             : (givingDecisionsByUser.get(externalId) ?? [])
-                .find((d) => d.sentAt >= windowStart && d.sentAt <= giftDate) ?? null;
+                .find((d) => d.sentAt >= windowStart && d.sentAt <= giftDate && !creditedDecisionIds.has(d.id)) ?? null;
 
           if (decision) {
             const giftAmount =

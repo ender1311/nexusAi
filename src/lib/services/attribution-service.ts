@@ -28,6 +28,10 @@ export async function applyConversion(args: {
   conversionEvent: string;
   occurredAt: Date;
   properties?: Record<string, unknown>;
+  // When the caller already knows the user's personaId, pass it to skip the
+  // per-call trackedUser lookup below (avoids an N+1 in batch ingest). Pass
+  // null to mean "known to have no persona"; omit to fall back to the lookup.
+  personaId?: string | null;
 }): Promise<{ reward: number }> {
   const { decision, conversionEvent, occurredAt, properties } = args;
 
@@ -53,18 +57,20 @@ export async function applyConversion(args: {
 
   if (decision.messageVariantId) {
     const variantId = decision.messageVariantId;
-    const user = await prisma.trackedUser.findFirst({
-      where: { externalId: decision.userId },
-      select: { personaId: true },
-    });
+    const personaId = args.personaId !== undefined
+      ? args.personaId
+      : (await prisma.trackedUser.findFirst({
+          where: { externalId: decision.userId },
+          select: { personaId: true },
+        }))?.personaId ?? null;
     const deltaAlpha = reward > 0 ? reward : 0;
     const deltaBeta  = reward <= 0 ? 1 : 0;
     const deltaWins  = reward > 0 ? 1 : 0;
 
     await Promise.all([
-      user?.personaId
+      personaId
         ? upsertArmStats({
-            personaId: user.personaId, agentId: decision.agentId, variantId,
+            personaId, agentId: decision.agentId, variantId,
             deltaAlpha, deltaBeta, deltaWins,
           }).catch((err) => console.error("[attribution] PersonaArmStats failed:", err))
         : Promise.resolve(),
