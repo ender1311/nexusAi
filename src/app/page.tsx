@@ -104,7 +104,7 @@ async function MetricCardsSection() {
   return (
     <>
       {!isStatHidden(hiddenStats, "dashboard.trackedUsers") && <MetricCard title="Tracked Users" value={formatNumber(trackedUsers)} description="synced from Hightouch" icon={Users} />}
-      {!isStatHidden(hiddenStats, "dashboard.activeAgents") && <MetricCard title="Active Agents" value={activeAgents} description="currently running" icon={Bot} trend={0} />}
+      {!isStatHidden(hiddenStats, "dashboard.activeAgents") && <MetricCard title="Active Agents" value={activeAgents} description="currently running" icon={Bot} trend={0} href="/agents" />}
       {!isStatHidden(hiddenStats, "dashboard.messagesSent24h") && <MetricCard title="Messages Sent (24h)" value={formatNumber(sentLast24h)} description="across all channels" icon={Send} />}
       {avgConvRate > 0 && !isStatHidden(hiddenStats, "dashboard.avgConversionRate") && <MetricCard title="Avg Conversion Rate" value={`${avgConvRate.toFixed(2)}%`} description="last 30 days" icon={TrendingUp} />}
       {!isStatHidden(hiddenStats, "dashboard.totalSends") && <MetricCard title="Total Sends" value={formatNumber(totalPushSends)} description="push, last 30 days" icon={Send} />}
