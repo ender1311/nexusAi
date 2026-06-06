@@ -10,7 +10,7 @@ import { Slider } from "@/components/ui/slider";
 import { Switch } from "@/components/ui/switch";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { cn, formatNumber } from "@/lib/utils";
-import { Check, ChevronRight, Bot, Target, MessageSquare, Calendar, Rocket, Pencil } from "lucide-react";
+import { Check, ChevronRight, Bot, Target, MessageSquare, Calendar, Rocket, Pencil, AlertCircle, CheckCircle2 } from "lucide-react";
 import { GoalTier, Channel, FrequencyCap, FunnelStage, FUNNEL_STAGES, FUNNEL_STAGE_META, Algorithm } from "@/types/agent";
 import { estimateConvergence } from "@/lib/convergence";
 import type { Persona } from "@/types/persona";
@@ -28,6 +28,36 @@ const STEPS = [
   { id: 4, label: "Scheduling", icon: Calendar },
   { id: 5, label: "Review", icon: Rocket },
 ];
+
+/**
+ * Submit status banner shown after a launch attempt. Full-width, icon + wrapping
+ * text so long backend error strings don't overflow on narrow (mobile) viewports.
+ */
+function StatusAlert({ error, success }: { error: string | null; success: boolean }) {
+  if (!error && !success) return null;
+  const isError = error !== null;
+  return (
+    <div
+      role="alert"
+      aria-live="assertive"
+      className={cn(
+        "mt-3 flex w-full items-start gap-2.5 rounded-lg border px-3.5 py-3 text-sm",
+        isError
+          ? "border-red-200 bg-red-50 text-red-800 dark:border-red-900/50 dark:bg-red-950/40 dark:text-red-200"
+          : "border-green-200 bg-green-50 text-green-800 dark:border-green-900/50 dark:bg-green-950/40 dark:text-green-200"
+      )}
+    >
+      {isError ? (
+        <AlertCircle className="h-4 w-4 shrink-0 mt-0.5" aria-hidden />
+      ) : (
+        <CheckCircle2 className="h-4 w-4 shrink-0 mt-0.5" aria-hidden />
+      )}
+      <span className="min-w-0 break-words leading-relaxed">
+        {isError ? error : "Agent launched successfully. Taking you to your new agent…"}
+      </span>
+    </div>
+  );
+}
 
 const GOAL_TIERS: Array<{ value: GoalTier; label: string; color: string; weight: number }> = [
   { value: "best", label: "Best", color: "bg-green-500", weight: 10 },
@@ -271,6 +301,7 @@ export function AgentWizard({
   });
   const [saving, setSaving] = useState(false);
   const [submitError, setSubmitError] = useState<string | null>(null);
+  const [submitOk, setSubmitOk] = useState(false);
   const [uniqueUsersPreset, setUniqueUsersPreset] = useState<string>("1000");
   const [uniqueUsersCustom, setUniqueUsersCustom] = useState<string>("");
   const [dailySendCapPreset, setDailySendCapPreset] = useState<string>("500");
@@ -326,6 +357,7 @@ export function AgentWizard({
   const handleSubmit = async () => {
     setSaving(true);
     setSubmitError(null);
+    setSubmitOk(false);
     try {
       const payload = {
         ...form,
@@ -340,18 +372,24 @@ export function AgentWizard({
       });
       if (res.ok) {
         const agent = await res.json();
-        router.push(`/agents/${agent.id}`);
-      } else {
-        let msg = "Failed to launch agent. Please try again.";
-        try {
-          const errBody = await res.json();
-          if (typeof errBody?.error === "string") msg = errBody.error;
-        } catch {
-          // ignore parse error, use default message
-        }
-        setSubmitError(msg);
+        // Keep `saving` true so the buttons stay disabled while the success
+        // banner shows and we navigate to the new agent.
+        setSubmitOk(true);
+        setTimeout(() => router.push(`/agents/${agent.id}`), 900);
+        return;
       }
-    } finally {
+      let msg = "Failed to launch agent. Please try again.";
+      try {
+        const errBody = await res.json();
+        if (typeof errBody?.error === "string") msg = errBody.error;
+      } catch {
+        // ignore parse error, use default message
+      }
+      setSubmitError(msg);
+      setSaving(false);
+    } catch {
+      // fetch rejects on network failure / abort before any response
+      setSubmitError("Couldn't reach the server. Check your connection and try again.");
       setSaving(false);
     }
   };
@@ -406,15 +444,13 @@ export function AgentWizard({
             <ChevronRight className="h-4 w-4 ml-1" />
           </Button>
         ) : (
-          <div className="flex flex-col items-end gap-1">
-            <Button size="sm" onClick={handleSubmit} disabled={saving || !form.name.trim()}>
-              {saving ? "Saving..." : "Launch Agent"}
-              <Rocket className="h-4 w-4 ml-1" />
-            </Button>
-            {submitError && <p className="text-sm text-red-500 mt-2">{submitError}</p>}
-          </div>
+          <Button size="sm" onClick={handleSubmit} disabled={saving || !form.name.trim()}>
+            {saving ? "Saving..." : "Launch Agent"}
+            <Rocket className="h-4 w-4 ml-1" />
+          </Button>
         )}
       </div>
+      <StatusAlert error={submitError} success={submitOk} />
 
       {/* Step 1: Basic Info */}
       {step === 1 && (
@@ -1147,16 +1183,14 @@ export function AgentWizard({
               <ChevronRight className="h-4 w-4 ml-1" />
             </Button>
           ) : (
-            <div className="flex flex-col items-end gap-1">
-              <Button onClick={handleSubmit} disabled={saving || !form.name.trim()}>
-                {saving ? "Saving..." : "Launch Agent"}
-                <Rocket className="h-4 w-4 ml-1" />
-              </Button>
-              {submitError && <p className="text-sm text-red-500 mt-2">{submitError}</p>}
-            </div>
+            <Button onClick={handleSubmit} disabled={saving || !form.name.trim()}>
+              {saving ? "Saving..." : "Launch Agent"}
+              <Rocket className="h-4 w-4 ml-1" />
+            </Button>
           )}
         </div>
       </div>
+      <StatusAlert error={submitError} success={submitOk} />
     </div>
   );
 }
