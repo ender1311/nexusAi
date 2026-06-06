@@ -2709,6 +2709,7 @@ export const AgentScalarFieldEnum = {
   cohortAssignedAt: 'cohortAssignedAt',
   languageFilter: 'languageFilter',
   localizePush: 'localizePush',
+  deeplinkOverride: 'deeplinkOverride',
   staleFunnelStageDays: 'staleFunnelStageDays',
   color: 'color',
   sortOrder: 'sortOrder',

@@ -23,6 +23,7 @@ import {
 } from "@/components/ui/sheet";
 import { FunnelStage, FUNNEL_STAGES, FUNNEL_STAGE_META } from "@/types/agent";
 import { AgentColorPicker } from "./agent-color-picker";
+import { AgentDeeplinkOverrideField } from "./agent-deeplink-override-field";
 import { resolveSegmentTargeting } from "@/lib/agent-targeting";
 import { cn } from "@/lib/utils";
 
@@ -120,6 +121,8 @@ type Props = {
   initialTargetSegmentName: string | null;
   initialSegmentTargeting: { includes: string[]; excludes: string[] } | null;
   initialDailySendCap: number | null;
+  initialDeeplinkOverride: string | null;
+  hasVerseVariants: boolean;
 };
 
 export function AgentEditSheet({
@@ -134,6 +137,8 @@ export function AgentEditSheet({
   initialTargetSegmentName,
   initialSegmentTargeting,
   initialDailySendCap,
+  initialDeeplinkOverride,
+  hasVerseVariants,
 }: Props) {
   const router = useRouter();
   const [open, setOpen] = useState(false);
@@ -172,6 +177,9 @@ export function AgentEditSheet({
     initialDailySendCap !== null && initialCapPreset === "custom" ? String(initialDailySendCap) : ""
   );
 
+  // Bulk deeplink override ("" = no override)
+  const [deeplinkOverride, setDeeplinkOverride] = useState(initialDeeplinkOverride ?? "");
+
   // Reset form state when sheet opens
   const prevOpen = useRef(false);
   useEffect(() => {
@@ -188,11 +196,13 @@ export function AgentEditSheet({
       setSegmentExcludes(computeInitialExcludes());
       setCapPreset(initialCapPreset);
       setCapCustom(initialDailySendCap !== null && initialCapPreset === "custom" ? String(initialDailySendCap) : "");
+      setDeeplinkOverride(initialDeeplinkOverride ?? "");
     }
     prevOpen.current = open;
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open, initialName, initialDescription, initialAlgorithm, initialEpsilon, initialFunnelStage,
-      initialTargetSegmentName, initialSegmentTargeting, initialDailySendCap, initialCapPreset]);
+      initialTargetSegmentName, initialSegmentTargeting, initialDailySendCap, initialCapPreset,
+      initialDeeplinkOverride]);
 
   // Fetch segments when sheet opens
   useEffect(() => {
@@ -230,6 +240,7 @@ export function AgentEditSheet({
           targetSegmentName: null,  // always clear legacy field when using new UI
           segmentTargeting: resolvedSegmentTargeting,
           dailySendCap: resolvedDailySendCap(),
+          deeplinkOverride: deeplinkOverride.trim() === "" ? null : deeplinkOverride.trim(),
         }),
       });
       if (!res.ok) {
@@ -442,6 +453,12 @@ export function AgentEditSheet({
               </div>
               <p className="text-xs text-muted-foreground">Maximum total sends per 24-hour UTC window.</p>
             </div>
+
+            <AgentDeeplinkOverrideField
+              value={deeplinkOverride}
+              onChange={setDeeplinkOverride}
+              hasVerseVariants={hasVerseVariants}
+            />
 
           </section>
         </div>

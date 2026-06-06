@@ -20,6 +20,8 @@ import { GoalPresetPicker } from "@/components/agents/goal-preset-picker";
 import { TemplatePicker, type TemplatePickerHandle } from "@/components/agents/template-picker";
 import { YouVersionGoalPreset } from "@/lib/constants/youversion";
 import { resolveSegmentTargeting } from "@/lib/agent-targeting";
+import { AgentDeeplinkOverrideField } from "@/components/agents/agent-deeplink-override-field";
+import { VERSE_PUSH_SENTINEL } from "@/lib/verse-content";
 
 const STEPS = [
   { id: 1, label: "Basic Info", icon: Bot },
@@ -221,6 +223,7 @@ type FormData = {
   segmentMode: boolean;
   segmentIncludes: string[];
   segmentExcludes: string[];
+  deeplinkOverride: string;
 }
 
 const defaultForm: FormData = {
@@ -244,6 +247,7 @@ const defaultForm: FormData = {
   segmentMode: false,
   segmentIncludes: [],
   segmentExcludes: [],
+  deeplinkOverride: "",
 };
 
 const DAILY_SEND_CAP_PRESETS = [
@@ -364,6 +368,7 @@ export function AgentWizard({
         targetSegmentName: null,
         segmentTargeting: resolveSegmentTargeting(form.segmentMode, form.segmentIncludes, form.segmentExcludes),
         funnelStage: form.segmentMode ? "wau" : form.funnelStage,
+        deeplinkOverride: form.deeplinkOverride.trim() === "" ? null : form.deeplinkOverride.trim(),
       };
       const res = await fetch("/api/agents", {
         method: "POST",
@@ -830,6 +835,14 @@ export function AgentWizard({
               </div>
             );
           })()}
+
+          <AgentDeeplinkOverrideField
+            value={form.deeplinkOverride}
+            onChange={(v) => update("deeplinkOverride", v)}
+            hasVerseVariants={form.messages.some((m) =>
+              m.channel === "push" && m.variants.some((v) => v.body === VERSE_PUSH_SENTINEL),
+            )}
+          />
         </div>
       )}
 

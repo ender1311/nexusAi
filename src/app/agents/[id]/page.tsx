@@ -17,6 +17,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from 
 import { TestedVariable, MessageVariant, AgentStatus, FunnelStage } from "@/types/agent";
 import { getCachedAgent, getCachedActivePersonas, getCachedAgentAudienceData, getCachedAgentDecisionSplit } from "@/lib/cache";
 import { prisma } from "@/lib/db";
+import { VERSE_PUSH_SENTINEL } from "@/lib/verse-content";
 import { getAuth } from "@/lib/auth";
 import { Skeleton } from "@/components/ui/skeleton";
 import { AgentFunnelConfig } from "@/components/agents/agent-funnel-config";
@@ -78,6 +79,10 @@ export default async function AgentDetailPage({ params }: { params: Promise<{ id
       .map((v) => ({ id: v.id, name: v.name, warmupUntil: v.warmupUntil })),
   );
 
+  const hasVerseVariants = agent.messages.some((m) =>
+    m.channel === "push" && m.variants.some((v) => v.body === VERSE_PUSH_SENTINEL),
+  );
+
   return (
     <>
       <Header
@@ -111,6 +116,8 @@ export default async function AgentDetailPage({ params }: { params: Promise<{ id
                   (agent.segmentTargeting as { includes: string[]; excludes: string[] } | null) ?? null
                 }
                 initialDailySendCap={agent.dailySendCap ?? null}
+                initialDeeplinkOverride={agent.deeplinkOverride ?? null}
+                hasVerseVariants={hasVerseVariants}
               />
             )}
             {isAdmin && <AgentStatusToggle agentId={agent.id} status={agent.status} />}

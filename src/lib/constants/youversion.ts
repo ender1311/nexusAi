@@ -44,6 +44,11 @@ export const YOUVERSION_DEEPLINKS: PushDeeplink[] = [
   // Giving
   { label: "Give a Gift", value: "youversion://giving", category: "Giving" },
   { label: "Sower Program", value: "youversion://giving/sower", category: "Giving" },
+  // Web links (bible.com) — open in browser/app via universal links
+  { label: "Find Plans (web)", value: "https://www.bible.com/reading-plans", category: "Web Links" },
+  { label: "My Plans (web)", value: "https://www.bible.com/my-plans", category: "Web Links" },
+  { label: "Saved Plans (web)", value: "https://www.bible.com/saved_plans", category: "Web Links" },
+  { label: "Verse of the Day (web)", value: "https://www.bible.com/verse-of-the-day", category: "Web Links" },
 ];
 
 export const TESTED_VARIABLE_LABELS: Record<TestedVariable, string> = {
