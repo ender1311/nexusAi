@@ -31,7 +31,7 @@ import { agentRowBadge } from "@/lib/dashboard-agent-row";
 import { getHiddenStatsForCurrentUser } from "@/lib/user-preferences";
 import { isStatHidden } from "@/lib/stat-visibility";
 import { TimeSeriesPoint, DecisionLog } from "@/types/metrics";
-import { Bot, Send, TrendingUp, Users, Plus, CheckCircle2, XCircle, ChevronRight } from "lucide-react";
+import { Bot, Send, TrendingUp, Users, Plus, CheckCircle2, XCircle, ChevronRight, Radar } from "lucide-react";
 import { PushOpenRateCard } from "@/components/metrics/push-open-rate-card";
 import Link from "next/link";
 
@@ -453,6 +453,12 @@ export default function DashboardPage() {
                 <Button className="w-full justify-start" variant="outline" size="sm">
                   <Send className="h-4 w-4 mr-2" />
                   Manage Messages
+                </Button>
+              </Link>
+              <Link href="/control-tower">
+                <Button className="w-full justify-start" variant="outline" size="sm">
+                  <Radar className="h-4 w-4 mr-2" />
+                  Control Tower
                 </Button>
               </Link>
             </CardContent>
