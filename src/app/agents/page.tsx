@@ -54,7 +54,7 @@ export default async function AgentsPage({
   // Parallelize WorkOS auth check, agent list, convergence states, unique user counts,
   // and per-agent push open rate (sends + opens from local UserDecision rows — mirrors
   // the per-agent performance page so the card stat is consistent).
-  const [{ isAdmin }, hiddenStats, { dbAgents }, convergenceStates, cardStats] = await Promise.all([
+  const [{ isAdmin }, hiddenStats, { dbAgents }, convergenceStates, cardStats, killSwitchSetting] = await Promise.all([
     getAuth(),
     getHiddenStatsForCurrentUser(),
     unstable_cache(
@@ -83,7 +83,10 @@ export default async function AgentsPage({
   )(),
     getCachedAgentConvergenceStates(),
     getCachedAgentCardStats(),
+    prisma.appSetting.findUnique({ where: { key: "global_sending_paused" } }),
   ]);
+
+  const killSwitchOn = killSwitchSetting?.value === "true";
 
   const uniqueUsersMap = new Map(cardStats.uniqueUsers.map((r) => [r.agentId, r.count]));
   const assignedMap = new Map(cardStats.assigned.map((r) => [r.agentId, r.count]));
@@ -176,7 +179,7 @@ export default async function AgentsPage({
             </div>
           )
         ) : (
-          <AgentGrid agents={agents} convergenceStates={convergenceStates} hiddenStats={hiddenStats} />
+          <AgentGrid agents={agents} convergenceStates={convergenceStates} hiddenStats={hiddenStats} isAdmin={isAdmin} killSwitchOn={killSwitchOn} />
         )}
       </div>
     </>

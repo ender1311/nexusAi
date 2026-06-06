@@ -7,6 +7,7 @@ import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Agent, FUNNEL_STAGE_META } from "@/types/agent";
 import { AgentStatusBadge } from "./agent-status-badge";
+import { AgentPauseToggle } from "./agent-pause-toggle";
 import { cn, formatNumber } from "@/lib/utils";
 import { isStatHidden, type StatKey } from "@/lib/stat-visibility";
 import { Bot, MessageSquare, Target, Trash2 } from "lucide-react";
@@ -60,6 +61,8 @@ interface AgentCardProps {
   conversionRate?: number;
   convergenceState?: ConvergenceState;
   hiddenStats?: StatKey[];
+  isAdmin?: boolean;
+  killSwitchOn?: boolean;
   onDelete?: (id: string) => void;
 }
 
@@ -69,7 +72,7 @@ const algorithmLabels: Record<string, string> = {
   linucb: "LinUCB",
 };
 
-export function AgentCard({ agent, conversionRate, convergenceState, hiddenStats = [], onDelete }: AgentCardProps) {
+export function AgentCard({ agent, conversionRate, convergenceState, hiddenStats = [], isAdmin = false, killSwitchOn = false, onDelete }: AgentCardProps) {
   const router = useRouter();
   const hide = (key: StatKey) => isStatHidden(hiddenStats, key);
   const [showDeleteDialog, setShowDeleteDialog] = useState(false);
@@ -131,6 +134,16 @@ export function AgentCard({ agent, conversionRate, convergenceState, hiddenStats
                     );
                   })()}
                   <AgentStatusBadge status={agent.status} />
+                  {isAdmin && (
+                    <span onClick={(e) => { e.preventDefault(); e.stopPropagation(); }}>
+                      <AgentPauseToggle
+                        agentId={agent.id}
+                        agentName={agent.name}
+                        sendingPaused={agent.sendingPaused}
+                        killSwitchOn={killSwitchOn}
+                      />
+                    </span>
+                  )}
                   <button
                     className="h-6 w-6 flex items-center justify-center rounded-md text-muted-foreground/40 hover:text-destructive hover:bg-destructive/10 transition-colors"
                     aria-label="Delete agent"

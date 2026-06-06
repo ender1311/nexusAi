@@ -32,6 +32,8 @@ interface AgentGridProps {
   agents: Agent[];
   convergenceStates?: Record<string, ConvergenceState>;
   hiddenStats?: StatKey[];
+  isAdmin?: boolean;
+  killSwitchOn?: boolean;
 }
 
 const SORT_OPTIONS: { value: SortMode; label: string }[] = [
@@ -63,12 +65,16 @@ function SortableAgent({
   convergenceState,
   hiddenStats,
   isCustom,
+  isAdmin,
+  killSwitchOn,
   onDelete,
 }: {
   agent: Agent;
   convergenceState?: ConvergenceState;
   hiddenStats?: StatKey[];
   isCustom: boolean;
+  isAdmin?: boolean;
+  killSwitchOn?: boolean;
   onDelete: (id: string) => void;
 }) {
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({
@@ -105,13 +111,15 @@ function SortableAgent({
         agent={agent}
         convergenceState={convergenceState}
         hiddenStats={hiddenStats}
+        isAdmin={isAdmin}
+        killSwitchOn={killSwitchOn}
         onDelete={onDelete}
       />
     </div>
   );
 }
 
-export function AgentGrid({ agents: initialAgents, convergenceStates, hiddenStats }: AgentGridProps) {
+export function AgentGrid({ agents: initialAgents, convergenceStates, hiddenStats, isAdmin = false, killSwitchOn = false }: AgentGridProps) {
   const router = useRouter();
   const [sortMode, setSortMode] = useState<SortMode>("custom");
   const [customOrder, setCustomOrder] = useState<Agent[]>(initialAgents);
@@ -187,6 +195,8 @@ export function AgentGrid({ agents: initialAgents, convergenceStates, hiddenStat
                 convergenceState={convergenceStates?.[agent.id]}
                 hiddenStats={hiddenStats}
                 isCustom={sortMode === "custom"}
+                isAdmin={isAdmin}
+                killSwitchOn={killSwitchOn}
                 onDelete={handleDelete}
               />
             ))}
