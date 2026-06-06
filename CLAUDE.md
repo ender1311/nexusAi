@@ -40,6 +40,10 @@ npx prisma studio        # Browse DB in browser
 #     | psql -v ON_ERROR_STOP=1 "postgresql://localhost:5432/nexus_test"
 ```
 
+## Git workflow
+
+This is currently a solo repo, so **pushing and merging directly to `main` is fine** — a feature branch + MR is optional, not required. The "push and merge" shorthand still means: ship it immediately (commit → push → merge), no finishing-prompt. Run `bun run check` before pushing anything non-trivial.
+
 ## Architecture
 
 **Stack:** Next.js 16 App Router, React 19, TypeScript, Tailwind CSS v4, Prisma v7 + PostgreSQL (Neon), Recharts, shadcn/ui components.
