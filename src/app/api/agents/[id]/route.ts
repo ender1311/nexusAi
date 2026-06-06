@@ -82,6 +82,12 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
       return fail("localizePush must be a boolean", 400);
     }
 
+    if (body.deeplinkOverride !== undefined && body.deeplinkOverride !== null) {
+      if (typeof body.deeplinkOverride !== "string" || body.deeplinkOverride.trim().length === 0) {
+        return fail("deeplinkOverride must be null or a non-empty string", 400);
+      }
+    }
+
     if (body.color !== undefined) {
       if (typeof body.color !== "string" || !/^#[0-9a-fA-F]{6}$/.test(body.color)) {
         return fail("color must be a 6-digit hex value", 400);
@@ -163,6 +169,7 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
             ? body.segmentTargeting
             : { includes: body.segmentTargeting.includes.map((s: string) => s.trim()), excludes: body.segmentTargeting.excludes.map((s: string) => s.trim()) },
         } : {}),
+        ...(body.deeplinkOverride !== undefined ? { deeplinkOverride: typeof body.deeplinkOverride === "string" ? body.deeplinkOverride.trim() : null } : {}),
         ...(releasesCohort ? { cohortAssignedAt: null } : {}),
       },
     });

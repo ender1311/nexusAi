@@ -66,6 +66,7 @@ agents.post("/", async (c) => {
     dailySendCap,
     targetPersonaIds,
     targetSegmentName,
+    deeplinkOverride,
   } = body;
   const segmentTargeting = body.segmentTargeting;
 
@@ -114,6 +115,12 @@ agents.post("/", async (c) => {
   if (dailySendCap !== undefined && dailySendCap !== null) {
     if (!Number.isInteger(dailySendCap) || (dailySendCap as number) < 1) {
       return c.json({ error: "dailySendCap must be null or a positive integer" }, 400);
+    }
+  }
+
+  if (deeplinkOverride !== undefined && deeplinkOverride !== null) {
+    if (typeof deeplinkOverride !== "string" || (deeplinkOverride as string).trim().length === 0) {
+      return c.json({ error: "deeplinkOverride must be null or a non-empty string" }, 400);
     }
   }
 
@@ -184,6 +191,9 @@ agents.post("/", async (c) => {
         funnelStage: typeof funnelStage === "string" ? funnelStage : undefined,
         uniqueUsersCap: uniqueUsersCap === undefined ? 1000 : (uniqueUsersCap as number | null),
         dailySendCap: dailySendCap === undefined ? 500 : (dailySendCap as number | null),
+        ...(deeplinkOverride !== undefined && deeplinkOverride !== null
+          ? { deeplinkOverride: (deeplinkOverride as string).trim() }
+          : {}),
         ...(targetSegmentName !== undefined ? { targetSegmentName: typeof targetSegmentName === "string" ? (targetSegmentName as string).trim() : null } : {}),
         ...(segmentTargeting !== undefined ? {
           segmentTargeting: segmentTargeting === null
