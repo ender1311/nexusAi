@@ -136,6 +136,8 @@ describe("AgentEditSheet segment-conflict handling", () => {
           initialTargetSegmentName={null}
           initialSegmentTargeting={null}
           initialDailySendCap={null}
+          initialDeeplinkOverride={null}
+          hasVerseVariants={false}
         />,
       );
     });
