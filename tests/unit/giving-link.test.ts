@@ -7,6 +7,7 @@ import {
   resolveLocalGiftAmount,
   formatGiftAmount,
   isGivingHandleStrategy,
+  isGivingFrequency,
   buildGivingDeeplink,
   USD_AMOUNT_LADDER,
   CURRENCY_RATES,
@@ -246,6 +247,34 @@ describe("buildGivingDeeplink", () => {
     expect(match).not.toBeNull();
     const amount = parseInt(match![1], 10);
     expect(amount).toBeGreaterThan(0);
+  });
+
+  it("frequency defaults to monthly when not specified (back-compat)", () => {
+    expect(buildGivingDeeplink({}, "blend")).toContain("frequency=monthly");
+  });
+
+  it("frequency='once' emits a one-time give link", () => {
+    const url = buildGivingDeeplink({}, "blend", "once");
+    expect(url).toContain("frequency=once");
+    expect(url).not.toContain("frequency=monthly");
+  });
+
+  it("frequency='monthly' is explicit recurring", () => {
+    expect(buildGivingDeeplink({}, "blend", "monthly")).toContain("frequency=monthly");
+  });
+});
+
+describe("isGivingFrequency", () => {
+  it("accepts the two valid modes", () => {
+    expect(isGivingFrequency("monthly")).toBe(true);
+    expect(isGivingFrequency("once")).toBe(true);
+  });
+  it("rejects anything else", () => {
+    expect(isGivingFrequency("weekly")).toBe(false);
+    expect(isGivingFrequency("")).toBe(false);
+    expect(isGivingFrequency(null)).toBe(false);
+    expect(isGivingFrequency(undefined)).toBe(false);
+    expect(isGivingFrequency(1)).toBe(false);
   });
 });
 

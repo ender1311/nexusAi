@@ -8,6 +8,7 @@ import {
   resolveLocalGiftAmount,
   formatGiftAmount,
   type GivingHandleStrategy,
+  type GivingFrequency,
 } from "@/lib/engine/giving-link";
 import { computeBibles, substituteGivingCopy, DEFAULT_DOLLARS_TO_BIBLES } from "@/lib/engine/giving-copy";
 import { resolvePushLocaleStrict, type LocalizedCopy } from "@/lib/push-locale";
@@ -42,6 +43,8 @@ export type VariantMeta = {
   brazeVariantId: string | null;
   /** Non-null marks a dynamic-handle variant; selects the per-user ask strategy. */
   givingHandleStrategy: GivingHandleStrategy | null;
+  /** One-time vs recurring give-page mode for resolved giving deeplinks. Defaults to "monthly". */
+  givingFrequency?: GivingFrequency;
   /** null = no image; VERSE_IMAGE_SENTINEL = per-verse image; https URL = static image. */
   iconImageUrl: string | null;
 };
@@ -97,12 +100,12 @@ export function groupDecisionsByVariant(
         title: meta.title != null ? substituteGivingCopy(meta.title, { amountDisplay, bibles }) : null,
         body: substituteGivingCopy(meta.body, { amountDisplay, bibles }),
       };
-      resolvedDeeplink = buildGivingDeeplink(attrs, strategy);
+      resolvedDeeplink = buildGivingDeeplink(attrs, strategy, meta.givingFrequency ?? "monthly");
       // Per-user copy → batch only users sharing identical resolved copy.
       copyKeyed = meta.channel === "push";
     } else {
       resolvedDeeplink = meta.deeplink === GIVING_LINK_SENTINEL
-        ? buildGivingDeeplink(attrs)
+        ? buildGivingDeeplink(attrs, "blend", meta.givingFrequency ?? "monthly")
         : meta.deeplink;
 
       // Verse-push arms (body sentinel) resolve a rotated, localized verse at send

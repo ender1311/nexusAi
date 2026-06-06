@@ -157,3 +157,23 @@ describe("gift_given amount-weighted reward", () => {
     expect(calculateReward("gift_given", [], { gift_amount_usd: 100 })).toBe(0);
   });
 });
+
+describe("sower_subscribed flat-max reward", () => {
+  it("returns flat 1.0 when the agent has a sower_subscribed goal", () => {
+    const sowerGoals: Goal[] = [
+      { id: "sg", agentId: "a1", eventName: "sower_subscribed", tier: "best", valueWeight: 10, weightMode: "fixed", weightDefault: 1.0 },
+    ];
+    expect(calculateReward("sower_subscribed", sowerGoals)).toBe(1.0);
+  });
+
+  it("ignores the configured tier — always 1.0 (a recurring commitment is the top signal)", () => {
+    const lowTierGoals: Goal[] = [
+      { id: "sg2", agentId: "a1", eventName: "sower_subscribed", tier: "good", valueWeight: 1, weightMode: "fixed", weightDefault: 1.0 },
+    ];
+    expect(calculateReward("sower_subscribed", lowTierGoals)).toBe(1.0);
+  });
+
+  it("returns 0 when the agent has no sower_subscribed goal (must opt in)", () => {
+    expect(calculateReward("sower_subscribed", [])).toBe(0);
+  });
+});

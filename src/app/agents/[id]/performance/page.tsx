@@ -514,6 +514,24 @@ async function PerformanceContent({ id }: { id: string }) {
         </div>
       )}
 
+      {giftMetrics.sowerCount > 0 && (
+        <div className="space-y-4">
+          <h2 className="text-sm font-semibold text-muted-foreground">Recurring givers (Sowers) driven</h2>
+          <div className="grid grid-cols-2 gap-3 sm:gap-4">
+            <Card><CardContent className="p-4">
+              <p className="text-xs text-muted-foreground">Sowers</p>
+              <p className="text-2xl font-bold mt-1 text-primary">{formatNumber(giftMetrics.sowerCount)}</p>
+              <p className="text-xs text-muted-foreground mt-0.5">recurring subscriptions, last 30 days</p>
+            </CardContent></Card>
+            <Card><CardContent className="p-4">
+              <p className="text-xs text-muted-foreground">Sower Conversion Rate</p>
+              <p className="text-2xl font-bold mt-1">{giftMetrics.sowerConversionRate.toFixed(2)}%</p>
+              <p className="text-xs text-muted-foreground mt-0.5">sowers ÷ sends</p>
+            </CardContent></Card>
+          </div>
+        </div>
+      )}
+
       {personaBreakdown.length > 0 && (
         <Card>
           <CardHeader>

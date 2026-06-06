@@ -38,6 +38,6 @@ describe("agentGiftMetrics", () => {
   it("returns zeros for an agent with no gifts", async () => {
     const agent = await createAgent({ status: "active" });
     const m = await agentGiftMetrics(agent.id);
-    expect(m).toEqual({ giftCount: 0, giftRevenue: 0, giftConversionRate: 0, avgTimeToGiftHours: 0 });
+    expect(m).toEqual({ giftCount: 0, giftRevenue: 0, giftConversionRate: 0, avgTimeToGiftHours: 0, sowerCount: 0, sowerConversionRate: 0 });
   });
 });

@@ -129,6 +129,16 @@ export function isGivingHandleStrategy(s: unknown): s is GivingHandleStrategy {
   return s === "avg-gift" || s === "recent-gift" || s === "max-gift" || s === "blend";
 }
 
+// Recurring vs one-time give-page mode. Emitted as the `frequency` URL param.
+// NOTE: "once" is the conventional bible.com value for a one-time gift; verify
+// against the live give page before relying on it in production (the recurring
+// "monthly" value is already proven). Default stays "monthly" everywhere.
+export type GivingFrequency = "monthly" | "once";
+
+export function isGivingFrequency(s: unknown): s is GivingFrequency {
+  return s === "monthly" || s === "once";
+}
+
 // Shared post-anchor ask pipeline: upsell ×1.1, lapsed ×0.75, cap at 1.5×max, snap to ladder.
 function applyAskPipeline(anchor: number, attrs: Record<string, unknown>): number {
   const max = extractPositiveNumber(attrs, "gift_amount_maximum");
@@ -256,12 +266,13 @@ export function formatGiftAmount(amountLocal: number, currencyCode: string): str
 export function buildGivingDeeplink(
   attrs: Record<string, unknown>,
   strategy: GivingHandleStrategy = "blend",
+  frequency: GivingFrequency = "monthly",
 ): string {
   const { amountLocal, currencyCode } = resolveLocalGiftAmount(attrs, strategy);
   const params = new URLSearchParams({
     currency: currencyCode.toLowerCase(),
     fund: "YouVersion",
-    frequency: "monthly",
+    frequency,
     amount: String(amountLocal),
     utm_medium: "push",
     utm_source: "Nexus",

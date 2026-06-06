@@ -21,7 +21,8 @@ export type StatKey =
   | "dashboard.totalSends"
   | "dashboard.pushOpenRate"
   | "dashboard.recoveries"
-  | "dashboard.gifts";
+  | "dashboard.gifts"
+  | "dashboard.sowers";
 
 export type StatGroup = {
   surface: "agent" | "dashboard";
@@ -55,6 +56,7 @@ export const STAT_CATALOG: StatGroup[] = [
       { key: "dashboard.pushOpenRate", label: "Push open rate" },
       { key: "dashboard.recoveries", label: "Lapsed recovered (30d)" },
       { key: "dashboard.gifts", label: "Gifts driven (30d)" },
+      { key: "dashboard.sowers", label: "Sowers driven (30d)" },
     ],
   },
 ];

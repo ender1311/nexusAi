@@ -39,7 +39,7 @@ import {
 } from "@/lib/cron/send-grouping";
 import { VERSE_PUSH_SENTINEL, isVerseStrategy, type VersePool, type VerseStrategy } from "@/lib/verse-content";
 import { loadVersePool } from "@/lib/cron/verse-pool";
-import { isGivingHandleStrategy, type GivingHandleStrategy } from "@/lib/engine/giving-link";
+import { isGivingHandleStrategy, isGivingFrequency, type GivingHandleStrategy, type GivingFrequency } from "@/lib/engine/giving-link";
 import { parseMultiplier } from "@/lib/engine/giving-copy";
 import { isPushVariantComplete } from "@/lib/messages/push-completeness";
 
@@ -62,6 +62,17 @@ function deriveGivingStrategy(subcategory: string | null, actionFeatures: unknow
       ? (actionFeatures as Record<string, unknown>)["givingHandleStrategy"]
       : undefined;
   return isGivingHandleStrategy(raw) ? raw : "blend";
+}
+
+// Giving variants carry an optional one-time vs recurring choice in
+// actionFeatures.givingFrequency. Defaults to "monthly" (recurring) to preserve
+// existing behavior when unset.
+function deriveGivingFrequency(actionFeatures: unknown): GivingFrequency {
+  const raw =
+    actionFeatures && typeof actionFeatures === "object"
+      ? (actionFeatures as Record<string, unknown>)["givingFrequency"]
+      : undefined;
+  return isGivingFrequency(raw) ? raw : "monthly";
 }
 
 export async function POST(req: NextRequest) {
@@ -575,6 +586,7 @@ export async function POST(req: NextRequest) {
       brazeCampaignId: string | null;
       brazeVariantId: string | null;
       givingHandleStrategy: GivingHandleStrategy | null;
+      givingFrequency: GivingFrequency;
       iconImageUrl: string | null;
     }>();
     for (const msg of agent.messages) {
@@ -591,6 +603,7 @@ export async function POST(req: NextRequest) {
           brazeCampaignId: msg.brazeCampaignId ?? null,
           brazeVariantId:  v.brazeVariantId ?? null,
           givingHandleStrategy: deriveGivingStrategy(v.subcategory ?? null, v.actionFeatures),
+          givingFrequency: deriveGivingFrequency(v.actionFeatures),
           iconImageUrl:    v.iconImageUrl ?? null,
         });
       }
