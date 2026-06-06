@@ -102,13 +102,22 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "Braze not configured (missing BRAZE_API_KEY or BRAZE_REST_URL)" }, { status: 500 });
   }
 
+  const killSwitch = await prisma.appSetting.findUnique({ where: { key: "global_sending_paused" } });
+  if (killSwitch?.value === "true") {
+    await prisma.cronRun.update({
+      where: { id: cronRunId },
+      data: { status: "completed", finishedAt: new Date(), errorMsg: "skipped — global kill switch on" },
+    });
+    return NextResponse.json({ paused: true, sent: 0 });
+  }
+
   const factory = new PayloadFactory();
   let totalSent = 0;
   let totalSuppressed = 0;
   let totalErrors = 0;
 
   const agents = await prisma.agent.findMany({
-    where: { status: "active" },
+    where: { status: "active", sendingPaused: false },
     include: {
       personaTargets: true,
       schedulingRule: true,

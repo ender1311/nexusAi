@@ -30,6 +30,7 @@ model Agent {
   languageFilter   String      @default("all") // "all" | "en" | ISO language prefix; filters by User.attributes.language_tag
   localizePush     Boolean     @default(false) // opt-in; OFF = today's EN-only push behavior
   deeplinkOverride    String?
+  sendingPaused       Boolean   @default(false) // temporary pause-sending gate; orthogonal to status, never resets cohort
   // How many days after a user falls out of the Hightouch audience we keep targeting them.
   // null = no staleness gate (backward compat). Lapsed agents typically use 14; others use 2.
   staleFunnelStageDays Int?

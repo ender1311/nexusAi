@@ -15,6 +15,7 @@ export async function createAgent(overrides: {
   holdMaxDays?: number;
   holdMaxSends?: number;
   deeplinkOverride?: string | null;
+  sendingPaused?: boolean;
 } = {}) {
   const { segmentTargeting, ...rest } = overrides;
   return prisma.agent.create({

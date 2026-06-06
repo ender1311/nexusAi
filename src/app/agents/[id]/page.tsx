@@ -28,6 +28,7 @@ import { FallbackSendTimeEditor } from "@/components/agents/fallback-send-time-e
 import { AgentSendsTable } from "@/components/agents/agent-sends-table";
 import { AgentNameEditor } from "@/components/agents/agent-name-editor";
 import { AgentStatusToggle } from "@/components/agents/agent-status-toggle";
+import { AgentPauseToggle } from "@/components/agents/agent-pause-toggle";
 import { AgentEditSheet } from "@/components/agents/agent-edit-sheet";
 import { AgentDeleteButton } from "@/components/agents/agent-delete-button";
 import { ReleaseAllButton } from "@/components/agents/release-all-button";
@@ -121,6 +122,13 @@ export default async function AgentDetailPage({ params }: { params: Promise<{ id
               />
             )}
             {isAdmin && <AgentStatusToggle agentId={agent.id} status={agent.status} />}
+            {isAdmin && (
+              <AgentPauseToggle
+                agentId={agent.id}
+                agentName={agent.name}
+                sendingPaused={agent.sendingPaused}
+              />
+            )}
             {isAdmin && <AgentDeleteButton agentId={agent.id} agentName={agent.name} />}
             {isAdmin && <ReleaseAllButton agentId={agent.id} />}
           </div>

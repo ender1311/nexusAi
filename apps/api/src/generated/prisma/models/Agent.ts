@@ -64,6 +64,7 @@ export type AgentMinAggregateOutputType = {
   languageFilter: string | null
   localizePush: boolean | null
   deeplinkOverride: string | null
+  sendingPaused: boolean | null
   staleFunnelStageDays: number | null
   color: string | null
   sortOrder: number | null
@@ -89,6 +90,7 @@ export type AgentMaxAggregateOutputType = {
   languageFilter: string | null
   localizePush: boolean | null
   deeplinkOverride: string | null
+  sendingPaused: boolean | null
   staleFunnelStageDays: number | null
   color: string | null
   sortOrder: number | null
@@ -116,6 +118,7 @@ export type AgentCountAggregateOutputType = {
   languageFilter: number
   localizePush: number
   deeplinkOverride: number
+  sendingPaused: number
   staleFunnelStageDays: number
   color: number
   sortOrder: number
@@ -165,6 +168,7 @@ export type AgentMinAggregateInputType = {
   languageFilter?: true
   localizePush?: true
   deeplinkOverride?: true
+  sendingPaused?: true
   staleFunnelStageDays?: true
   color?: true
   sortOrder?: true
@@ -190,6 +194,7 @@ export type AgentMaxAggregateInputType = {
   languageFilter?: true
   localizePush?: true
   deeplinkOverride?: true
+  sendingPaused?: true
   staleFunnelStageDays?: true
   color?: true
   sortOrder?: true
@@ -217,6 +222,7 @@ export type AgentCountAggregateInputType = {
   languageFilter?: true
   localizePush?: true
   deeplinkOverride?: true
+  sendingPaused?: true
   staleFunnelStageDays?: true
   color?: true
   sortOrder?: true
@@ -331,6 +337,7 @@ export type AgentGroupByOutputType = {
   languageFilter: string
   localizePush: boolean
   deeplinkOverride: string | null
+  sendingPaused: boolean
   staleFunnelStageDays: number | null
   color: string
   sortOrder: number
@@ -381,6 +388,7 @@ export type AgentWhereInput = {
   languageFilter?: Prisma.StringFilter<"Agent"> | string
   localizePush?: Prisma.BoolFilter<"Agent"> | boolean
   deeplinkOverride?: Prisma.StringNullableFilter<"Agent"> | string | null
+  sendingPaused?: Prisma.BoolFilter<"Agent"> | boolean
   staleFunnelStageDays?: Prisma.IntNullableFilter<"Agent"> | number | null
   color?: Prisma.StringFilter<"Agent"> | string
   sortOrder?: Prisma.IntFilter<"Agent"> | number
@@ -414,6 +422,7 @@ export type AgentOrderByWithRelationInput = {
   languageFilter?: Prisma.SortOrder
   localizePush?: Prisma.SortOrder
   deeplinkOverride?: Prisma.SortOrderInput | Prisma.SortOrder
+  sendingPaused?: Prisma.SortOrder
   staleFunnelStageDays?: Prisma.SortOrderInput | Prisma.SortOrder
   color?: Prisma.SortOrder
   sortOrder?: Prisma.SortOrder
@@ -450,6 +459,7 @@ export type AgentWhereUniqueInput = Prisma.AtLeast<{
   languageFilter?: Prisma.StringFilter<"Agent"> | string
   localizePush?: Prisma.BoolFilter<"Agent"> | boolean
   deeplinkOverride?: Prisma.StringNullableFilter<"Agent"> | string | null
+  sendingPaused?: Prisma.BoolFilter<"Agent"> | boolean
   staleFunnelStageDays?: Prisma.IntNullableFilter<"Agent"> | number | null
   color?: Prisma.StringFilter<"Agent"> | string
   sortOrder?: Prisma.IntFilter<"Agent"> | number
@@ -483,6 +493,7 @@ export type AgentOrderByWithAggregationInput = {
   languageFilter?: Prisma.SortOrder
   localizePush?: Prisma.SortOrder
   deeplinkOverride?: Prisma.SortOrderInput | Prisma.SortOrder
+  sendingPaused?: Prisma.SortOrder
   staleFunnelStageDays?: Prisma.SortOrderInput | Prisma.SortOrder
   color?: Prisma.SortOrder
   sortOrder?: Prisma.SortOrder
@@ -518,6 +529,7 @@ export type AgentScalarWhereWithAggregatesInput = {
   languageFilter?: Prisma.StringWithAggregatesFilter<"Agent"> | string
   localizePush?: Prisma.BoolWithAggregatesFilter<"Agent"> | boolean
   deeplinkOverride?: Prisma.StringNullableWithAggregatesFilter<"Agent"> | string | null
+  sendingPaused?: Prisma.BoolWithAggregatesFilter<"Agent"> | boolean
   staleFunnelStageDays?: Prisma.IntNullableWithAggregatesFilter<"Agent"> | number | null
   color?: Prisma.StringWithAggregatesFilter<"Agent"> | string
   sortOrder?: Prisma.IntWithAggregatesFilter<"Agent"> | number
@@ -545,6 +557,7 @@ export type AgentCreateInput = {
   languageFilter?: string
   localizePush?: boolean
   deeplinkOverride?: string | null
+  sendingPaused?: boolean
   staleFunnelStageDays?: number | null
   color?: string
   sortOrder?: number
@@ -578,6 +591,7 @@ export type AgentUncheckedCreateInput = {
   languageFilter?: string
   localizePush?: boolean
   deeplinkOverride?: string | null
+  sendingPaused?: boolean
   staleFunnelStageDays?: number | null
   color?: string
   sortOrder?: number
@@ -611,6 +625,7 @@ export type AgentUpdateInput = {
   languageFilter?: Prisma.StringFieldUpdateOperationsInput | string
   localizePush?: Prisma.BoolFieldUpdateOperationsInput | boolean
   deeplinkOverride?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  sendingPaused?: Prisma.BoolFieldUpdateOperationsInput | boolean
   staleFunnelStageDays?: Prisma.NullableIntFieldUpdateOperationsInput | number | null
   color?: Prisma.StringFieldUpdateOperationsInput | string
   sortOrder?: Prisma.IntFieldUpdateOperationsInput | number
@@ -644,6 +659,7 @@ export type AgentUncheckedUpdateInput = {
   languageFilter?: Prisma.StringFieldUpdateOperationsInput | string
   localizePush?: Prisma.BoolFieldUpdateOperationsInput | boolean
   deeplinkOverride?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  sendingPaused?: Prisma.BoolFieldUpdateOperationsInput | boolean
   staleFunnelStageDays?: Prisma.NullableIntFieldUpdateOperationsInput | number | null
   color?: Prisma.StringFieldUpdateOperationsInput | string
   sortOrder?: Prisma.IntFieldUpdateOperationsInput | number
@@ -677,6 +693,7 @@ export type AgentCreateManyInput = {
   languageFilter?: string
   localizePush?: boolean
   deeplinkOverride?: string | null
+  sendingPaused?: boolean
   staleFunnelStageDays?: number | null
   color?: string
   sortOrder?: number
@@ -704,6 +721,7 @@ export type AgentUpdateManyMutationInput = {
   languageFilter?: Prisma.StringFieldUpdateOperationsInput | string
   localizePush?: Prisma.BoolFieldUpdateOperationsInput | boolean
   deeplinkOverride?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  sendingPaused?: Prisma.BoolFieldUpdateOperationsInput | boolean
   staleFunnelStageDays?: Prisma.NullableIntFieldUpdateOperationsInput | number | null
   color?: Prisma.StringFieldUpdateOperationsInput | string
   sortOrder?: Prisma.IntFieldUpdateOperationsInput | number
@@ -731,6 +749,7 @@ export type AgentUncheckedUpdateManyInput = {
   languageFilter?: Prisma.StringFieldUpdateOperationsInput | string
   localizePush?: Prisma.BoolFieldUpdateOperationsInput | boolean
   deeplinkOverride?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  sendingPaused?: Prisma.BoolFieldUpdateOperationsInput | boolean
   staleFunnelStageDays?: Prisma.NullableIntFieldUpdateOperationsInput | number | null
   color?: Prisma.StringFieldUpdateOperationsInput | string
   sortOrder?: Prisma.IntFieldUpdateOperationsInput | number
@@ -758,6 +777,7 @@ export type AgentCountOrderByAggregateInput = {
   languageFilter?: Prisma.SortOrder
   localizePush?: Prisma.SortOrder
   deeplinkOverride?: Prisma.SortOrder
+  sendingPaused?: Prisma.SortOrder
   staleFunnelStageDays?: Prisma.SortOrder
   color?: Prisma.SortOrder
   sortOrder?: Prisma.SortOrder
@@ -794,6 +814,7 @@ export type AgentMaxOrderByAggregateInput = {
   languageFilter?: Prisma.SortOrder
   localizePush?: Prisma.SortOrder
   deeplinkOverride?: Prisma.SortOrder
+  sendingPaused?: Prisma.SortOrder
   staleFunnelStageDays?: Prisma.SortOrder
   color?: Prisma.SortOrder
   sortOrder?: Prisma.SortOrder
@@ -819,6 +840,7 @@ export type AgentMinOrderByAggregateInput = {
   languageFilter?: Prisma.SortOrder
   localizePush?: Prisma.SortOrder
   deeplinkOverride?: Prisma.SortOrder
+  sendingPaused?: Prisma.SortOrder
   staleFunnelStageDays?: Prisma.SortOrder
   color?: Prisma.SortOrder
   sortOrder?: Prisma.SortOrder
@@ -990,6 +1012,7 @@ export type AgentCreateWithoutGoalsInput = {
   languageFilter?: string
   localizePush?: boolean
   deeplinkOverride?: string | null
+  sendingPaused?: boolean
   staleFunnelStageDays?: number | null
   color?: string
   sortOrder?: number
@@ -1022,6 +1045,7 @@ export type AgentUncheckedCreateWithoutGoalsInput = {
   languageFilter?: string
   localizePush?: boolean
   deeplinkOverride?: string | null
+  sendingPaused?: boolean
   staleFunnelStageDays?: number | null
   color?: string
   sortOrder?: number
@@ -1070,6 +1094,7 @@ export type AgentUpdateWithoutGoalsInput = {
   languageFilter?: Prisma.StringFieldUpdateOperationsInput | string
   localizePush?: Prisma.BoolFieldUpdateOperationsInput | boolean
   deeplinkOverride?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  sendingPaused?: Prisma.BoolFieldUpdateOperationsInput | boolean
   staleFunnelStageDays?: Prisma.NullableIntFieldUpdateOperationsInput | number | null
   color?: Prisma.StringFieldUpdateOperationsInput | string
   sortOrder?: Prisma.IntFieldUpdateOperationsInput | number
@@ -1102,6 +1127,7 @@ export type AgentUncheckedUpdateWithoutGoalsInput = {
   languageFilter?: Prisma.StringFieldUpdateOperationsInput | string
   localizePush?: Prisma.BoolFieldUpdateOperationsInput | boolean
   deeplinkOverride?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  sendingPaused?: Prisma.BoolFieldUpdateOperationsInput | boolean
   staleFunnelStageDays?: Prisma.NullableIntFieldUpdateOperationsInput | number | null
   color?: Prisma.StringFieldUpdateOperationsInput | string
   sortOrder?: Prisma.IntFieldUpdateOperationsInput | number
@@ -1134,6 +1160,7 @@ export type AgentCreateWithoutMessagesInput = {
   languageFilter?: string
   localizePush?: boolean
   deeplinkOverride?: string | null
+  sendingPaused?: boolean
   staleFunnelStageDays?: number | null
   color?: string
   sortOrder?: number
@@ -1166,6 +1193,7 @@ export type AgentUncheckedCreateWithoutMessagesInput = {
   languageFilter?: string
   localizePush?: boolean
   deeplinkOverride?: string | null
+  sendingPaused?: boolean
   staleFunnelStageDays?: number | null
   color?: string
   sortOrder?: number
@@ -1214,6 +1242,7 @@ export type AgentUpdateWithoutMessagesInput = {
   languageFilter?: Prisma.StringFieldUpdateOperationsInput | string
   localizePush?: Prisma.BoolFieldUpdateOperationsInput | boolean
   deeplinkOverride?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  sendingPaused?: Prisma.BoolFieldUpdateOperationsInput | boolean
   staleFunnelStageDays?: Prisma.NullableIntFieldUpdateOperationsInput | number | null
   color?: Prisma.StringFieldUpdateOperationsInput | string
   sortOrder?: Prisma.IntFieldUpdateOperationsInput | number
@@ -1246,6 +1275,7 @@ export type AgentUncheckedUpdateWithoutMessagesInput = {
   languageFilter?: Prisma.StringFieldUpdateOperationsInput | string
   localizePush?: Prisma.BoolFieldUpdateOperationsInput | boolean
   deeplinkOverride?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  sendingPaused?: Prisma.BoolFieldUpdateOperationsInput | boolean
   staleFunnelStageDays?: Prisma.NullableIntFieldUpdateOperationsInput | number | null
   color?: Prisma.StringFieldUpdateOperationsInput | string
   sortOrder?: Prisma.IntFieldUpdateOperationsInput | number
@@ -1278,6 +1308,7 @@ export type AgentCreateWithoutDecisionsInput = {
   languageFilter?: string
   localizePush?: boolean
   deeplinkOverride?: string | null
+  sendingPaused?: boolean
   staleFunnelStageDays?: number | null
   color?: string
   sortOrder?: number
@@ -1310,6 +1341,7 @@ export type AgentUncheckedCreateWithoutDecisionsInput = {
   languageFilter?: string
   localizePush?: boolean
   deeplinkOverride?: string | null
+  sendingPaused?: boolean
   staleFunnelStageDays?: number | null
   color?: string
   sortOrder?: number
@@ -1358,6 +1390,7 @@ export type AgentUpdateWithoutDecisionsInput = {
   languageFilter?: Prisma.StringFieldUpdateOperationsInput | string
   localizePush?: Prisma.BoolFieldUpdateOperationsInput | boolean
   deeplinkOverride?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  sendingPaused?: Prisma.BoolFieldUpdateOperationsInput | boolean
   staleFunnelStageDays?: Prisma.NullableIntFieldUpdateOperationsInput | number | null
   color?: Prisma.StringFieldUpdateOperationsInput | string
   sortOrder?: Prisma.IntFieldUpdateOperationsInput | number
@@ -1390,6 +1423,7 @@ export type AgentUncheckedUpdateWithoutDecisionsInput = {
   languageFilter?: Prisma.StringFieldUpdateOperationsInput | string
   localizePush?: Prisma.BoolFieldUpdateOperationsInput | boolean
   deeplinkOverride?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  sendingPaused?: Prisma.BoolFieldUpdateOperationsInput | boolean
   staleFunnelStageDays?: Prisma.NullableIntFieldUpdateOperationsInput | number | null
   color?: Prisma.StringFieldUpdateOperationsInput | string
   sortOrder?: Prisma.IntFieldUpdateOperationsInput | number
@@ -1422,6 +1456,7 @@ export type AgentCreateWithoutPersonaTargetsInput = {
   languageFilter?: string
   localizePush?: boolean
   deeplinkOverride?: string | null
+  sendingPaused?: boolean
   staleFunnelStageDays?: number | null
   color?: string
   sortOrder?: number
@@ -1454,6 +1489,7 @@ export type AgentUncheckedCreateWithoutPersonaTargetsInput = {
   languageFilter?: string
   localizePush?: boolean
   deeplinkOverride?: string | null
+  sendingPaused?: boolean
   staleFunnelStageDays?: number | null
   color?: string
   sortOrder?: number
@@ -1502,6 +1538,7 @@ export type AgentUpdateWithoutPersonaTargetsInput = {
   languageFilter?: Prisma.StringFieldUpdateOperationsInput | string
   localizePush?: Prisma.BoolFieldUpdateOperationsInput | boolean
   deeplinkOverride?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  sendingPaused?: Prisma.BoolFieldUpdateOperationsInput | boolean
   staleFunnelStageDays?: Prisma.NullableIntFieldUpdateOperationsInput | number | null
   color?: Prisma.StringFieldUpdateOperationsInput | string
   sortOrder?: Prisma.IntFieldUpdateOperationsInput | number
@@ -1534,6 +1571,7 @@ export type AgentUncheckedUpdateWithoutPersonaTargetsInput = {
   languageFilter?: Prisma.StringFieldUpdateOperationsInput | string
   localizePush?: Prisma.BoolFieldUpdateOperationsInput | boolean
   deeplinkOverride?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  sendingPaused?: Prisma.BoolFieldUpdateOperationsInput | boolean
   staleFunnelStageDays?: Prisma.NullableIntFieldUpdateOperationsInput | number | null
   color?: Prisma.StringFieldUpdateOperationsInput | string
   sortOrder?: Prisma.IntFieldUpdateOperationsInput | number
@@ -1566,6 +1604,7 @@ export type AgentCreateWithoutSchedulingRuleInput = {
   languageFilter?: string
   localizePush?: boolean
   deeplinkOverride?: string | null
+  sendingPaused?: boolean
   staleFunnelStageDays?: number | null
   color?: string
   sortOrder?: number
@@ -1598,6 +1637,7 @@ export type AgentUncheckedCreateWithoutSchedulingRuleInput = {
   languageFilter?: string
   localizePush?: boolean
   deeplinkOverride?: string | null
+  sendingPaused?: boolean
   staleFunnelStageDays?: number | null
   color?: string
   sortOrder?: number
@@ -1646,6 +1686,7 @@ export type AgentUpdateWithoutSchedulingRuleInput = {
   languageFilter?: Prisma.StringFieldUpdateOperationsInput | string
   localizePush?: Prisma.BoolFieldUpdateOperationsInput | boolean
   deeplinkOverride?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  sendingPaused?: Prisma.BoolFieldUpdateOperationsInput | boolean
   staleFunnelStageDays?: Prisma.NullableIntFieldUpdateOperationsInput | number | null
   color?: Prisma.StringFieldUpdateOperationsInput | string
   sortOrder?: Prisma.IntFieldUpdateOperationsInput | number
@@ -1678,6 +1719,7 @@ export type AgentUncheckedUpdateWithoutSchedulingRuleInput = {
   languageFilter?: Prisma.StringFieldUpdateOperationsInput | string
   localizePush?: Prisma.BoolFieldUpdateOperationsInput | boolean
   deeplinkOverride?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  sendingPaused?: Prisma.BoolFieldUpdateOperationsInput | boolean
   staleFunnelStageDays?: Prisma.NullableIntFieldUpdateOperationsInput | number | null
   color?: Prisma.StringFieldUpdateOperationsInput | string
   sortOrder?: Prisma.IntFieldUpdateOperationsInput | number
@@ -1710,6 +1752,7 @@ export type AgentCreateWithoutMetricsInput = {
   languageFilter?: string
   localizePush?: boolean
   deeplinkOverride?: string | null
+  sendingPaused?: boolean
   staleFunnelStageDays?: number | null
   color?: string
   sortOrder?: number
@@ -1742,6 +1785,7 @@ export type AgentUncheckedCreateWithoutMetricsInput = {
   languageFilter?: string
   localizePush?: boolean
   deeplinkOverride?: string | null
+  sendingPaused?: boolean
   staleFunnelStageDays?: number | null
   color?: string
   sortOrder?: number
@@ -1790,6 +1834,7 @@ export type AgentUpdateWithoutMetricsInput = {
   languageFilter?: Prisma.StringFieldUpdateOperationsInput | string
   localizePush?: Prisma.BoolFieldUpdateOperationsInput | boolean
   deeplinkOverride?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  sendingPaused?: Prisma.BoolFieldUpdateOperationsInput | boolean
   staleFunnelStageDays?: Prisma.NullableIntFieldUpdateOperationsInput | number | null
   color?: Prisma.StringFieldUpdateOperationsInput | string
   sortOrder?: Prisma.IntFieldUpdateOperationsInput | number
@@ -1822,6 +1867,7 @@ export type AgentUncheckedUpdateWithoutMetricsInput = {
   languageFilter?: Prisma.StringFieldUpdateOperationsInput | string
   localizePush?: Prisma.BoolFieldUpdateOperationsInput | boolean
   deeplinkOverride?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  sendingPaused?: Prisma.BoolFieldUpdateOperationsInput | boolean
   staleFunnelStageDays?: Prisma.NullableIntFieldUpdateOperationsInput | number | null
   color?: Prisma.StringFieldUpdateOperationsInput | string
   sortOrder?: Prisma.IntFieldUpdateOperationsInput | number
@@ -1921,6 +1967,7 @@ export type AgentSelect<ExtArgs extends runtime.Types.Extensions.InternalArgs = 
   languageFilter?: boolean
   localizePush?: boolean
   deeplinkOverride?: boolean
+  sendingPaused?: boolean
   staleFunnelStageDays?: boolean
   color?: boolean
   sortOrder?: boolean
@@ -1955,6 +2002,7 @@ export type AgentSelectCreateManyAndReturn<ExtArgs extends runtime.Types.Extensi
   languageFilter?: boolean
   localizePush?: boolean
   deeplinkOverride?: boolean
+  sendingPaused?: boolean
   staleFunnelStageDays?: boolean
   color?: boolean
   sortOrder?: boolean
@@ -1982,6 +2030,7 @@ export type AgentSelectUpdateManyAndReturn<ExtArgs extends runtime.Types.Extensi
   languageFilter?: boolean
   localizePush?: boolean
   deeplinkOverride?: boolean
+  sendingPaused?: boolean
   staleFunnelStageDays?: boolean
   color?: boolean
   sortOrder?: boolean
@@ -2009,6 +2058,7 @@ export type AgentSelectScalar = {
   languageFilter?: boolean
   localizePush?: boolean
   deeplinkOverride?: boolean
+  sendingPaused?: boolean
   staleFunnelStageDays?: boolean
   color?: boolean
   sortOrder?: boolean
@@ -2018,7 +2068,7 @@ export type AgentSelectScalar = {
   updatedAt?: boolean
 }
 
-export type AgentOmit<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = runtime.Types.Extensions.GetOmit<"id" | "name" | "description" | "status" | "algorithm" | "epsilon" | "funnelStage" | "targetFilter" | "targetSegmentName" | "segmentTargeting" | "fallbackSendHour" | "uniqueUsersCap" | "dailySendCap" | "cohortAssignedAt" | "languageFilter" | "localizePush" | "deeplinkOverride" | "staleFunnelStageDays" | "color" | "sortOrder" | "holdMaxDays" | "holdMaxSends" | "createdAt" | "updatedAt", ExtArgs["result"]["agent"]>
+export type AgentOmit<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = runtime.Types.Extensions.GetOmit<"id" | "name" | "description" | "status" | "algorithm" | "epsilon" | "funnelStage" | "targetFilter" | "targetSegmentName" | "segmentTargeting" | "fallbackSendHour" | "uniqueUsersCap" | "dailySendCap" | "cohortAssignedAt" | "languageFilter" | "localizePush" | "deeplinkOverride" | "sendingPaused" | "staleFunnelStageDays" | "color" | "sortOrder" | "holdMaxDays" | "holdMaxSends" | "createdAt" | "updatedAt", ExtArgs["result"]["agent"]>
 export type AgentInclude<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
   goals?: boolean | Prisma.Agent$goalsArgs<ExtArgs>
   messages?: boolean | Prisma.Agent$messagesArgs<ExtArgs>
@@ -2059,6 +2109,7 @@ export type $AgentPayload<ExtArgs extends runtime.Types.Extensions.InternalArgs 
     languageFilter: string
     localizePush: boolean
     deeplinkOverride: string | null
+    sendingPaused: boolean
     staleFunnelStageDays: number | null
     color: string
     sortOrder: number
@@ -2512,6 +2563,7 @@ export interface AgentFieldRefs {
   readonly languageFilter: Prisma.FieldRef<"Agent", 'String'>
   readonly localizePush: Prisma.FieldRef<"Agent", 'Boolean'>
   readonly deeplinkOverride: Prisma.FieldRef<"Agent", 'String'>
+  readonly sendingPaused: Prisma.FieldRef<"Agent", 'Boolean'>
   readonly staleFunnelStageDays: Prisma.FieldRef<"Agent", 'Int'>
   readonly color: Prisma.FieldRef<"Agent", 'String'>
   readonly sortOrder: Prisma.FieldRef<"Agent", 'Int'>

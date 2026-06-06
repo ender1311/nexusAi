@@ -67,6 +67,7 @@ export interface Agent {
   name: string;
   description?: string | null;
   status: AgentStatus;
+  sendingPaused: boolean;
   algorithm: Algorithm;
   epsilon: number;
   funnelStage: FunnelStage;

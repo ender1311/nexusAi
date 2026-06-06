@@ -2710,6 +2710,7 @@ export const AgentScalarFieldEnum = {
   languageFilter: 'languageFilter',
   localizePush: 'localizePush',
   deeplinkOverride: 'deeplinkOverride',
+  sendingPaused: 'sendingPaused',
   staleFunnelStageDays: 'staleFunnelStageDays',
   color: 'color',
   sortOrder: 'sortOrder',

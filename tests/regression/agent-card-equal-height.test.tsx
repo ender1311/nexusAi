@@ -20,6 +20,7 @@ function makeAgent(overrides: Partial<Agent> = {}): Agent {
     name: "Trinity",
     description: null,
     status: "active",
+    sendingPaused: false,
     algorithm: "thompson",
     epsilon: 0.1,
     funnelStage: "lapsed_dau4",

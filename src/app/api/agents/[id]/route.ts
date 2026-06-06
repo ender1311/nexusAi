@@ -88,6 +88,10 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
       }
     }
 
+    if (body.sendingPaused !== undefined && typeof body.sendingPaused !== "boolean") {
+      return fail("Invalid sendingPaused", 400);
+    }
+
     if (body.color !== undefined) {
       if (typeof body.color !== "string" || !/^#[0-9a-fA-F]{6}$/.test(body.color)) {
         return fail("color must be a 6-digit hex value", 400);
@@ -170,6 +174,7 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
             : { includes: body.segmentTargeting.includes.map((s: string) => s.trim()), excludes: body.segmentTargeting.excludes.map((s: string) => s.trim()) },
         } : {}),
         ...(body.deeplinkOverride !== undefined ? { deeplinkOverride: typeof body.deeplinkOverride === "string" ? body.deeplinkOverride.trim() : null } : {}),
+        ...(body.sendingPaused !== undefined ? { sendingPaused: body.sendingPaused } : {}),
         ...(releasesCohort ? { cohortAssignedAt: null } : {}),
       },
     });

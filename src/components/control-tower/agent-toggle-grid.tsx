@@ -4,16 +4,6 @@ import { useRef, useState } from "react";
 import { CheckCircle2 } from "lucide-react";
 import { InfoTip } from "@/components/ui/info-tip";
 import { AgentToggleCard } from "@/components/control-tower/agent-toggle-card";
-import {
-  AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-} from "@/components/ui/alert-dialog";
 import { controlAgents, type ControlAgent } from "@/lib/control-tower/projection";
 
 /** Minimal serializable shape of an Agent row passed from the Server Component. */
@@ -24,6 +14,7 @@ export type SerializedAgent = {
   status: string;
   funnelStage: string;
   color: string;
+  sendingPaused: boolean;
 };
 
 const STAGE_COLORS: Record<string, string> = {
@@ -38,7 +29,7 @@ function mapDbAgents(agents: SerializedAgent[]): ControlAgent[] {
     description: a.description ?? "",
     icon: "Bot",
     color: a.color || STAGE_COLORS[a.funnelStage] || "#6366f1",
-    defaultEnabled: a.status === "active",
+    defaultEnabled: a.status === "active" && !a.sendingPaused,
     impactWeights: { responseRate: 0.5, revenue: 0.3, churnReduction: 0.3, funnelProgression: 0.4 },
   }));
 }
@@ -60,7 +51,6 @@ export function AgentToggleGrid({ agents }: AgentToggleGridProps) {
   const [enabledAgents, setEnabledAgents] = useState<Record<string, boolean>>(() =>
     Object.fromEntries(initialPool.map((a) => [a.id, a.defaultEnabled]))
   );
-  const [pendingOff, setPendingOff] = useState<string | null>(null); // agent id awaiting deactivation confirm
   const [notification, setNotification] = useState<string | null>(null);
 
   const notifTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -71,12 +61,12 @@ export function AgentToggleGrid({ agents }: AgentToggleGridProps) {
     notifTimerRef.current = setTimeout(() => setNotification(null), 3500);
   };
 
-  const updateAgentStatus = async (agentId: string, status: "active" | "draft"): Promise<boolean> => {
+  const updateSending = async (agentId: string, sendingPaused: boolean): Promise<boolean> => {
     try {
       const res = await fetch(`/api/agents/${agentId}`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ status }),
+        body: JSON.stringify({ sendingPaused }),
       });
       return res.ok;
     } catch {
@@ -84,34 +74,19 @@ export function AgentToggleGrid({ agents }: AgentToggleGridProps) {
     }
   };
 
+  // Pause is reversible and non-destructive (cohort + learning are preserved), so
+  // turning an agent off pauses immediately with no confirmation dialog.
   const handleToggle = (agentId: string, on: boolean) => {
-    if (!on) {
-      setPendingOff(agentId); // show confirmation dialog
-      return;
-    }
-    // Turning on: optimistic update; rollback on failure
-    setEnabledAgents((prev) => ({ ...prev, [agentId]: true }));
-    void updateAgentStatus(agentId, "active").then((ok) => {
-      if (!ok) {
-        setEnabledAgents((prev) => ({ ...prev, [agentId]: false }));
-        showNotification("Failed to activate agent — please try again");
-      }
-    });
-  };
-
-  const confirmTurnOff = async () => {
-    if (!pendingOff) return;
-    const agentId = pendingOff;
-    setPendingOff(null);
-    setEnabledAgents((prev) => ({ ...prev, [agentId]: false }));
-    const ok = await updateAgentStatus(agentId, "draft");
-    if (!ok) {
-      setEnabledAgents((prev) => ({ ...prev, [agentId]: true }));
-      showNotification("Failed to deactivate agent — please try again");
-      return;
-    }
+    setEnabledAgents((prev) => ({ ...prev, [agentId]: on }));
     const name = agentPool.find((a) => a.id === agentId)?.name ?? "Agent";
-    showNotification(`${name} has been turned off`);
+    void updateSending(agentId, !on).then((ok) => {
+      if (!ok) {
+        setEnabledAgents((prev) => ({ ...prev, [agentId]: !on }));
+        showNotification(`Failed to ${on ? "resume" : "pause"} agent — please try again`);
+        return;
+      }
+      showNotification(on ? `${name} resumed` : `${name} paused`);
+    });
   };
 
   const enabledCount = Object.values(enabledAgents).filter(Boolean).length;
@@ -124,7 +99,7 @@ export function AgentToggleGrid({ agents }: AgentToggleGridProps) {
           <InfoTip title="AI Agents">
             <p>Each agent targets a specific user segment (funnel stage) and autonomously learns which message variant produces the best outcomes using a bandit algorithm.</p>
             <p className="mt-1"><strong>Active agents</strong> run on every cron cycle — the bandit selects and sends the best variant for each eligible user, then updates its model when rewards arrive.</p>
-            <p className="mt-1">Toggling an agent <strong>off</strong> (draft) stops all future sends immediately without losing any learning history. Turn it back on to resume from where it left off.</p>
+            <p className="mt-1">Toggling an agent <strong>off</strong> pauses its sends immediately and <strong>freezes</strong> its cohort, user assignments, and learning. Turn it back on to resume exactly where it left off.</p>
             <p className="mt-1">The algorithm, goals, scheduling rules, and target personas for each agent are configured on the agent&apos;s detail page.</p>
           </InfoTip>
         </h2>
@@ -142,24 +117,6 @@ export function AgentToggleGrid({ agents }: AgentToggleGridProps) {
           />
         ))}
       </div>
-
-      {/* Deactivation confirmation dialog */}
-      <AlertDialog open={pendingOff !== null} onOpenChange={(open) => { if (!open) setPendingOff(null); }}>
-        <AlertDialogContent size="sm">
-          <AlertDialogHeader>
-            <AlertDialogTitle>Turn off {agentPool.find((a) => a.id === pendingOff)?.name ?? "agent"}?</AlertDialogTitle>
-            <AlertDialogDescription>
-              This agent will stop sending messages immediately. You can turn it back on at any time.
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel>Cancel</AlertDialogCancel>
-            <AlertDialogAction variant="destructive" onClick={confirmTurnOff}>
-              Turn off
-            </AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
 
       {/* Success notification */}
       {notification && (
