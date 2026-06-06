@@ -44,10 +44,31 @@ export function KillSwitchToggle({ initialOn }: { initialOn: boolean }) {
 
   if (initialOn) {
     return (
-      <Button size="sm" variant="destructive" disabled={loading} onClick={() => setKill(false)}>
-        <Power className="h-3.5 w-3.5 mr-1.5" />
-        {loading ? "Resuming…" : "Kill switch ON — Resume all"}
-      </Button>
+      <AlertDialog>
+        <AlertDialogTrigger
+          render={
+            <Button size="sm" variant="destructive" disabled={loading}>
+              <Power className="h-3.5 w-3.5 mr-1.5" />
+              {loading ? "Resuming…" : "Kill switch ON — Resume all"}
+            </Button>
+          }
+        />
+        <AlertDialogContent size="sm">
+          <AlertDialogHeader>
+            <AlertDialogTitle>Turn off kill switch?</AlertDialogTitle>
+            <AlertDialogDescription>
+              This resumes ALL sending across every agent. Communications will start
+              going out again on the next cron run.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction onClick={() => setKill(false)}>
+              Resume all sending
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     );
   }
 
