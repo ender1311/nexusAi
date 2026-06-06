@@ -5,7 +5,7 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Agent, FUNNEL_STAGE_META } from "@/types/agent";
+import { Agent, agentTargetingLabel } from "@/types/agent";
 import { AgentStatusBadge } from "./agent-status-badge";
 import { AgentPauseToggle } from "./agent-pause-toggle";
 import { cn, formatNumber } from "@/lib/utils";
@@ -116,11 +116,6 @@ export function AgentCard({ agent, conversionRate, convergenceState, hiddenStats
                     {agent.description && (
                       <p className="text-xs text-muted-foreground mt-0.5 line-clamp-2">{agent.description}</p>
                     )}
-                    <Badge variant="secondary" className="mt-1.5 text-xs font-normal max-w-full truncate block">
-                      {agent.targetSegmentName
-                        ? `Segment: ${agent.targetSegmentName}`
-                        : (FUNNEL_STAGE_META[agent.funnelStage]?.label ?? agent.funnelStage)}
-                    </Badge>
                   </div>
                 </div>
                 <div className="flex items-center gap-1 shrink-0 flex-wrap justify-end">
@@ -157,6 +152,12 @@ export function AgentCard({ agent, conversionRate, convergenceState, hiddenStats
                   </button>
                 </div>
               </div>
+              {/* Full-width row: on mobile the header controls crush the name
+                  column, which truncated this targeting badge to a single
+                  letter. Its own grid row keeps the funnel stage legible. */}
+              <Badge variant="secondary" className="mt-1 w-fit max-w-full truncate text-xs font-normal">
+                {agentTargetingLabel(agent)}
+              </Badge>
             </CardHeader>
             <CardContent className="pt-0 space-y-3">
               {/* Counts row */}

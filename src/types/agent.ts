@@ -32,6 +32,19 @@ export type SegmentTargeting = {
   excludes: string[];  // user must NOT be in ANY of these segments (OR exclusion)
 };
 
+// Human-readable label for who an agent targets: a named segment if one is set,
+// otherwise the funnel-stage label. Falls back to the raw funnelStage value when
+// it isn't a known FunnelStage (e.g. legacy/Hightouch values), and to "—" when
+// there's nothing to show, so the badge never renders empty.
+export function agentTargetingLabel(
+  agent: { targetSegmentName?: string | null; funnelStage?: string | null },
+): string {
+  if (agent.targetSegmentName) return `Segment: ${agent.targetSegmentName}`;
+  const stage = agent.funnelStage;
+  if (!stage) return "—";
+  return FUNNEL_STAGE_META[stage as FunnelStage]?.label ?? stage;
+}
+
 export type AgentStatus = "draft" | "active" | "paused";
 export type Algorithm = "thompson" | "epsilon_greedy" | "linucb";
 
