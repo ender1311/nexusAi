@@ -570,11 +570,15 @@ export async function POST(req: NextRequest) {
     }>();
     for (const msg of agent.messages) {
       for (const v of msg.variants) {
+        // Agent-level bulk override wins over the per-variant deeplink. Applied
+        // here (not in send-grouping) so identical resolved links collapse into
+        // one Braze send group. Edge: when an override is set it also supersedes
+        // GIVING_LINK_SENTINEL — documented precedence, override URL takes the link.
         variantMeta.set(v.id, {
           channel:         msg.channel,
           body:            v.body,
           title:           v.title ?? null,
-          deeplink:        v.deeplink ?? null,
+          deeplink:        agent.deeplinkOverride ?? v.deeplink ?? null,
           brazeCampaignId: msg.brazeCampaignId ?? null,
           brazeVariantId:  v.brazeVariantId ?? null,
           givingHandleStrategy: deriveGivingStrategy(v.subcategory ?? null, v.actionFeatures),
