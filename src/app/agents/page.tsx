@@ -100,6 +100,7 @@ export default async function AgentsPage({
     name: a.name,
     description: a.description,
     status: a.status as AgentStatus,
+    sendingPaused: a.sendingPaused,
     algorithm: a.algorithm as Agent["algorithm"],
     epsilon: a.epsilon,
     funnelStage: a.funnelStage as FunnelStage,
