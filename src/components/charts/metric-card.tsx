@@ -1,3 +1,4 @@
+import Link from "next/link";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { cn } from "@/lib/utils";
 import { LucideIcon } from "lucide-react";
@@ -9,11 +10,18 @@ interface MetricCardProps {
   icon?: LucideIcon;
   trend?: number;
   className?: string;
+  /** When set, the whole card becomes a link to this route. */
+  href?: string;
 }
 
-export function MetricCard({ title, value, description, icon: Icon, trend, className }: MetricCardProps) {
-  return (
-    <Card className={cn(className)}>
+export function MetricCard({ title, value, description, icon: Icon, trend, className, href }: MetricCardProps) {
+  const card = (
+    <Card
+      className={cn(
+        href && "h-full transition-colors hover:border-primary/40 hover:bg-muted/40",
+        className,
+      )}
+    >
       <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
         <CardTitle className="text-sm font-medium text-muted-foreground">{title}</CardTitle>
         {Icon && <Icon className="h-4 w-4 text-muted-foreground" />}
@@ -33,4 +41,13 @@ export function MetricCard({ title, value, description, icon: Icon, trend, class
       </CardContent>
     </Card>
   );
+
+  if (href) {
+    return (
+      <Link href={href} className="block h-full">
+        {card}
+      </Link>
+    );
+  }
+  return card;
 }
