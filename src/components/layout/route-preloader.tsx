@@ -12,6 +12,7 @@ export function RoutePreloader() {
     router.prefetch("/performance");
     router.prefetch("/personas");
     router.prefetch("/control-tower");
+    router.prefetch("/audience/search");
 
     const t = setTimeout(() => {
       void fetch("/api/metrics/push-summary");
