@@ -8,6 +8,8 @@
 
 **Tech Stack:** Next.js 16 App Router, React 19, TypeScript, Prisma v7 + PostgreSQL (Neon), Bun test runner, happy-dom, Tailwind v4, lucide-react.
 
+> **⚠️ NAMESPACE CORRECTION (post-implementation).** This plan was written assuming the new routes would live under `src/app/api/segments/*`. During Task 8 that path was found to be **already taken** by a load-bearing endpoint (`GET /api/segments` serves Hightouch `UserSegment` names to the agent wizard + edit sheet and has its own test). To avoid clobbering it, all C1 rule-segment routes were implemented under a **separate namespace, `/api/segment-definitions/*`** (`route.ts`, `[id]/route.ts`, `size/route.ts`), and every client `fetch` in the builder targets `/api/segment-definitions`. **The existing `/api/segments` endpoint was left untouched.** When building C2/C3, reference `/api/segment-definitions/*` for rule-segment CRUD + sizing, NOT the `/api/segments/*` paths shown in the task bodies below.
+
 ---
 
 ## Constraints (read before starting)
