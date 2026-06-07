@@ -1,3 +1,7 @@
+import { parseSegmentRule } from "./parse-rule";
+import { compileSegmentRule } from "./compile-sql";
+import { estimateSegmentSize } from "./sizing";
+
 export type RuleSegInput = {
   id: string;
   name: string;
@@ -49,4 +53,15 @@ export function mergeSegmentSizeRows(ruleSegs: RuleSegInput[], htSegs: HtSegInpu
     ),
   ];
   return rows.sort((a, b) => bestSize(b) - bestSize(a));
+}
+
+/**
+ * Live planner estimate for a stored rule. Returns null when the rule is corrupt
+ * or unparseable — parseSegmentRule short-circuits BEFORE any DB call, so a bad
+ * row never throws and never touches Postgres.
+ */
+export async function safeEstimateForRule(rule: unknown): Promise<number | null> {
+  const parsed = parseSegmentRule(rule);
+  if (parsed === null) return null;
+  return estimateSegmentSize(compileSegmentRule(parsed));
 }
