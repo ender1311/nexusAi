@@ -1,10 +1,13 @@
-import { ComingSoon } from "@/components/layout/coming-soon";
+import { Header } from "@/components/layout/header";
+import { UserSearch } from "@/components/users/user-search";
 
-export default function Page() {
+export default function SearchUsersPage() {
   return (
-    <ComingSoon
-      title="Search Users"
-      description="Look up an individual user and see all their data and messaging history."
-    />
+    <>
+      <Header title="Search Users" description="Look up an individual user by external ID, Braze ID, or email." />
+      <div className="flex-1 p-6">
+        <UserSearch />
+      </div>
+    </>
   );
 }
