@@ -25,7 +25,7 @@ Audience › Search Users page render the same view.
 
 ## Components
 
-### 1. `GET /api/users/search?q=` (new, session-guarded)
+### 1. `GET /api/users/search?q=` (new — read route, behind app auth middleware, consistent with the detail route which makes no explicit guard call)
 
 - `q` trimmed; empty → `400 { error }`.
 - If `q` contains `@` → treat as email: `$queryRaw` exact match
