@@ -3,66 +3,151 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import {
-  LayoutDashboard,
-  Bot,
-  BookOpen,
-  BarChart3,
-  Settings,
-  ChevronLeft,
-  ChevronRight,
-  Zap,
-  Users2,
-  Play,
-  Radar,
-  Sprout,
-  Workflow,
-  FlaskConical,
-  Database,
-  HelpCircle,
+  ChevronLeft, ChevronRight, ChevronDown, Zap,
+  LayoutDashboard, Bot, Users2, BookOpen, Sprout,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { useState } from "react";
+import { useMemo, useState, useSyncExternalStore } from "react";
 import { SignOutButton } from "@/components/layout/sign-out-button";
 import { ThemeToggle } from "@/components/layout/theme-toggle";
+import {
+  navTree, isGroup, activeHref, groupLabelForHref,
+  type NavItem, type NavGroup,
+} from "@/components/layout/nav-config";
 
-type SidebarUser = {
-  email: string;
-  firstName: string | null;
-  lastName: string | null;
-};
+type SidebarUser = { email: string; firstName: string | null; lastName: string | null };
 
-const navItems = [
-  { href: "/", label: "Dashboard", icon: LayoutDashboard },
-  { href: "/agents", label: "Agents", icon: Bot },
-  { href: "/messages", label: "Push Library", icon: BookOpen },
-  { href: "/personas", label: "Personas", icon: Users2 },
-  { href: "/performance", label: "Performance", icon: BarChart3 },
-  { href: "/control-tower", label: "Control Tower", icon: Radar },
-  { href: "/data-ingest", label: "Data Ingest", icon: Database },
-  { href: "/demo", label: "Demo", icon: Play },
-  { href: "/architecture", label: "Architecture", icon: Workflow },
-  { href: "/demo/deep-dive", label: "Advanced Docs", icon: FlaskConical },
-  { href: "/about", label: "About", icon: Sprout },
-  { href: "/faq", label: "FAQ", icon: HelpCircle },
-  { href: "/settings", label: "Settings", icon: Settings },
-];
+const EXPANDED_KEY = "nexus.nav.expanded";
+const EXPANDED_EVENT = "nexus:nav-expanded-change";
+
+// Read persisted group state via useSyncExternalStore so it's hydration-safe
+// (server renders the empty snapshot, client swaps to localStorage after) and
+// avoids setState-in-effect. getSnapshot returns the raw string so the
+// reference stays stable across renders; parsing happens in a memo.
+function subscribeExpanded(callback: () => void): () => void {
+  window.addEventListener(EXPANDED_EVENT, callback);
+  window.addEventListener("storage", callback);
+  return () => {
+    window.removeEventListener(EXPANDED_EVENT, callback);
+    window.removeEventListener("storage", callback);
+  };
+}
+function getExpandedSnapshot(): string {
+  return localStorage.getItem(EXPANDED_KEY) ?? "{}";
+}
+function getExpandedServerSnapshot(): string {
+  return "{}";
+}
 
 export function Sidebar({ user }: { user: SidebarUser | null }) {
   const pathname = usePathname();
   const [collapsed, setCollapsed] = useState(false);
+  const active = activeHref(pathname, navTree);
+  const activeGroup = groupLabelForHref(active, navTree);
+
+  const rawExpanded = useSyncExternalStore(subscribeExpanded, getExpandedSnapshot, getExpandedServerSnapshot);
+  const expanded = useMemo<Record<string, boolean>>(() => {
+    try {
+      return JSON.parse(rawExpanded);
+    } catch {
+      return {};
+    }
+  }, [rawExpanded]);
+
+  // A group is open if explicitly toggled open, otherwise it defaults to open
+  // when it contains the active route.
+  function isExpanded(label: string): boolean {
+    if (label in expanded) return expanded[label];
+    return label === activeGroup;
+  }
+
+  function toggleGroup(label: string) {
+    const next = { ...expanded, [label]: !isExpanded(label) };
+    try {
+      localStorage.setItem(EXPANDED_KEY, JSON.stringify(next));
+      window.dispatchEvent(new Event(EXPANDED_EVENT));
+    } catch {
+      /* ignore */
+    }
+  }
 
   const displayName = user
     ? [user.firstName, user.lastName].filter(Boolean).join(" ") || user.email
     : null;
-  const initials = user
-    ? (user.firstName?.[0] ?? user.email[0]).toUpperCase()
-    : "?";
+  const initials = user ? (user.firstName?.[0] ?? user.email[0]).toUpperCase() : "?";
+
+  function renderLink(item: NavItem, nested: boolean) {
+    const isActive = item.href === active;
+    return (
+      <Link
+        key={item.href}
+        href={item.href}
+        title={collapsed ? item.label : undefined}
+        aria-current={isActive ? "page" : undefined}
+        className={cn(
+          "flex items-center gap-3 px-3 py-2 rounded-lg text-sm font-medium transition-colors",
+          nested && !collapsed && "ml-4",
+          isActive
+            ? "bg-primary text-primary-foreground"
+            : "text-muted-foreground hover:bg-muted hover:text-foreground",
+        )}
+      >
+        <item.icon className="h-4 w-4 shrink-0" />
+        {!collapsed && <span>{item.label}</span>}
+      </Link>
+    );
+  }
+
+  function renderGroup(group: NavGroup) {
+    const open = isExpanded(group.label);
+    const hasActive = group.label === activeGroup;
+    if (collapsed) {
+      // Rail mode: a single icon that navigates to the group's first child.
+      const first = group.children[0];
+      return (
+        <Link
+          key={group.label}
+          href={first.href}
+          title={group.label}
+          aria-current={hasActive ? "page" : undefined}
+          className={cn(
+            "flex items-center justify-center px-3 py-2 rounded-lg text-sm font-medium transition-colors",
+            hasActive
+              ? "bg-primary text-primary-foreground"
+              : "text-muted-foreground hover:bg-muted hover:text-foreground",
+          )}
+        >
+          <group.icon className="h-4 w-4 shrink-0" />
+        </Link>
+      );
+    }
+    return (
+      <div key={group.label}>
+        <button
+          type="button"
+          onClick={() => toggleGroup(group.label)}
+          aria-expanded={open}
+          className={cn(
+            "w-full flex items-center gap-3 px-3 py-2 rounded-lg text-sm font-medium transition-colors",
+            hasActive && !open
+              ? "text-foreground"
+              : "text-muted-foreground hover:bg-muted hover:text-foreground",
+          )}
+        >
+          <group.icon className="h-4 w-4 shrink-0" />
+          <span className="flex-1 text-left">{group.label}</span>
+          <ChevronDown className={cn("h-4 w-4 shrink-0 transition-transform", !open && "-rotate-90")} />
+        </button>
+        {open && <div className="mt-1 space-y-1">{group.children.map((c) => renderLink(c, true))}</div>}
+      </div>
+    );
+  }
 
   return (
     <aside
       className={cn(
         "hidden lg:flex flex-col border-r bg-sidebar transition-all duration-300 shrink-0",
-        collapsed ? "w-16" : "w-60"
+        collapsed ? "w-16" : "w-60",
       )}
     >
       <div className="flex items-center justify-between h-16 px-4 border-b">
@@ -79,46 +164,15 @@ export function Sidebar({ user }: { user: SidebarUser | null }) {
           aria-expanded={!collapsed}
           className="p-1 rounded-md hover:bg-muted text-muted-foreground ml-auto"
         >
-          {collapsed ? (
-            <ChevronRight className="h-4 w-4" />
-          ) : (
-            <ChevronLeft className="h-4 w-4" />
-          )}
+          {collapsed ? <ChevronRight className="h-4 w-4" /> : <ChevronLeft className="h-4 w-4" />}
         </button>
       </div>
 
-      <nav className="flex-1 p-2 space-y-1">
-        {(() => {
-          // Pick the single most-specific matching nav item so that /demo/deep-dive
-          // doesn't also highlight /demo.
-          const activeHref = navItems
-            .filter((item) =>
-              item.href === "/"
-                ? pathname === "/"
-                : pathname === item.href || pathname.startsWith(item.href + "/"),
-            )
-            .sort((a, b) => b.href.length - a.href.length)[0]?.href;
-          return navItems.map((item) => (
-            <Link
-              key={item.href}
-              href={item.href}
-              title={collapsed ? item.label : undefined}
-              aria-current={item.href === activeHref ? "page" : undefined}
-              className={cn(
-                "flex items-center gap-3 px-3 py-2 rounded-lg text-sm font-medium transition-colors",
-                item.href === activeHref
-                  ? "bg-primary text-primary-foreground"
-                  : "text-muted-foreground hover:bg-muted hover:text-foreground"
-              )}
-            >
-              <item.icon className="h-4 w-4 shrink-0" />
-              {!collapsed && <span>{item.label}</span>}
-            </Link>
-          ));
-        })()}
+      <nav className="flex-1 p-2 space-y-1 overflow-y-auto">
+        {navTree.map((entry) => (isGroup(entry) ? renderGroup(entry) : renderLink(entry, false)))}
       </nav>
 
-<div className="border-t px-3 py-2.5">
+      <div className="border-t px-3 py-2.5">
         <ThemeToggle collapsed={collapsed} />
       </div>
 
@@ -130,9 +184,7 @@ export function Sidebar({ user }: { user: SidebarUser | null }) {
             </div>
             <div className="min-w-0 flex-1">
               <p className="truncate text-xs font-medium">{displayName}</p>
-              <p className="truncate text-xs text-muted-foreground">
-                {user.email}
-              </p>
+              <p className="truncate text-xs text-muted-foreground">{user.email}</p>
             </div>
           </div>
         )}
@@ -149,35 +201,31 @@ export function Sidebar({ user }: { user: SidebarUser | null }) {
   );
 }
 
-const mobileNavItems = navItems
-  .filter((item) =>
-    ["/", "/agents", "/architecture", "/data-ingest", "/faq"].includes(item.href)
-  )
-  .map((item) => ({
-    ...item,
-    mobileLabel:
-      item.href === "/data-ingest" ? "Ingest" :
-      item.label,
-  }));
+const mobileNavItems = [
+  { href: "/", label: "Dashboard", icon: LayoutDashboard },
+  { href: "/agents", label: "Agents", icon: Bot },
+  { href: "/audience/search", label: "Audience", icon: Users2 },
+  { href: "/messages", label: "Content", icon: BookOpen },
+  { href: "/about", label: "About", icon: Sprout },
+];
 
 export function MobileNav() {
   const pathname = usePathname();
   return (
     <nav className="fixed bottom-0 left-0 right-0 z-50 flex lg:hidden border-t bg-sidebar pb-[env(safe-area-inset-bottom)]">
       {mobileNavItems.map((item) => {
-        const active =
-          item.href === "/" ? pathname === "/" : pathname.startsWith(item.href);
+        const active = item.href === "/" ? pathname === "/" : pathname.startsWith(item.href);
         return (
           <Link
             key={item.href}
             href={item.href}
             className={cn(
               "flex flex-1 flex-col items-center gap-1 py-3 text-xs font-medium transition-colors",
-              active ? "text-primary" : "text-muted-foreground"
+              active ? "text-primary" : "text-muted-foreground",
             )}
           >
             <item.icon className={cn("h-5 w-5", active && "text-primary")} />
-            <span>{item.mobileLabel}</span>
+            <span>{item.label}</span>
           </Link>
         );
       })}
