@@ -43,4 +43,32 @@ describe("parseSegmentRule", () => {
     for (let i = 0; i <= MAX_RULE_DEPTH + 1; i++) node = group("AND", [node]);
     expect(parseSegmentRule(node)).toBeNull();
   });
+
+  // Operator/value-shape mismatches must be rejected at the parse boundary so they
+  // become a 400, not a Postgres 500 (e.g. `in` with a scalar → `= ANY($1)` on a
+  // non-array value). See Task 10 final review.
+  it("rejects an array operator (in/nin) given a non-array value → null", () => {
+    expect(parseSegmentRule(group("AND", [cond("funnelStage", "in", "wau")]))).toBeNull();
+    expect(parseSegmentRule(group("AND", [cond("email", "nin", 5)]))).toBeNull();
+  });
+
+  it("rejects a scalar operator given an array value → null", () => {
+    expect(parseSegmentRule(group("AND", [cond("totalDecisions", "gte", [1, 2])]))).toBeNull();
+    expect(parseSegmentRule(group("AND", [cond("email", "eq", ["a", "b"])]))).toBeNull();
+  });
+
+  it("rejects a segment operator given a non-string value → null", () => {
+    expect(parseSegmentRule(group("AND", [cond("segment_membership", "in_segment", ["x"])]))).toBeNull();
+    expect(parseSegmentRule(group("AND", [cond("segment_membership", "in_segment", 7)]))).toBeNull();
+  });
+
+  it("normalizes valueless operators to a null value", () => {
+    const parsed = parseSegmentRule(group("AND", [cond("has_recurring_gift", "is_true", "ignored")]));
+    expect(parsed?.children[0]).toEqual({ kind: "condition", fieldId: "has_recurring_gift", operator: "is_true", value: null });
+  });
+
+  it("accepts a single segment name string for in_segment", () => {
+    const parsed = parseSegmentRule(group("AND", [cond("segment_membership", "in_segment", "VIP donors")]));
+    expect((parsed?.children[0] as { value: unknown }).value).toBe("VIP donors");
+  });
 });
