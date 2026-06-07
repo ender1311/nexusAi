@@ -20,6 +20,6 @@ export async function POST(req: Request) {
     const result = await exactSegmentSize(where);
     return ok({ count: result.count, mode: "exact" as const, timedOut: result.timedOut });
   } catch (err) {
-    return handleRouteError("POST /api/segments/size", err);
+    return handleRouteError("POST /api/segment-definitions/size", err);
   }
 }

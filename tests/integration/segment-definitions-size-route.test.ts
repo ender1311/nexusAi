@@ -2,7 +2,7 @@ import { afterEach, beforeEach, describe, expect, it } from "bun:test";
 import { truncateAll } from "../helpers/db";
 import { buildRequest } from "../helpers/request";
 import { createUser } from "../helpers/builders";
-import { POST } from "@/app/api/segments/size/route";
+import { POST } from "@/app/api/segment-definitions/size/route";
 
 beforeEach(async () => { await truncateAll(); });
 afterEach(async () => { await truncateAll(); });
