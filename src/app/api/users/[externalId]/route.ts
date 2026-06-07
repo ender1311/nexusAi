@@ -1,4 +1,3 @@
-import { NextRequest } from "next/server";
 import { prisma } from "@/lib/db";
 import { ok, fail, handleRouteError } from "@/lib/api/respond";
 import { buildMessagingTimeline } from "@/lib/users/messaging-history";
@@ -8,7 +7,7 @@ function asRecord(v: unknown): Record<string, unknown> {
 }
 
 export async function GET(
-  _req: NextRequest,
+  _req: Request,
   { params }: { params: Promise<{ externalId: string }> }
 ) {
   const { externalId } = await params;
