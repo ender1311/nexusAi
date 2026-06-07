@@ -16,7 +16,11 @@ class ParamBag {
 }
 
 function leftExpr(c: Condition): { expr: string; isAttr: boolean; attrKey?: string } {
-  const field = getField(c.fieldId)!; // parser guarantees the field exists
+  // The parser guarantees the field exists, but guard here too: this is the only
+  // place catalog identifiers enter the SQL string, so a forged rule that skipped
+  // the parser must never reach the column/key interpolation below.
+  const field = getField(c.fieldId);
+  if (!field) throw new Error(`Unknown segment field: ${c.fieldId}`);
   const compile = field.compile;
   switch (compile.strategy) {
     case "scalar":
@@ -58,11 +62,20 @@ function compileCondition(c: Condition, bag: ParamBag): string {
       return `EXISTS (SELECT 1 FROM "UserSegment" us WHERE us."externalId" = u."externalId" AND us."segmentName" = ${bag.add(c.value)})`;
     case "not_in_segment":
       return `NOT EXISTS (SELECT 1 FROM "UserSegment" us WHERE us."externalId" = u."externalId" AND us."segmentName" = ${bag.add(c.value)})`;
+    default: {
+      const _exhaustive: never = c.operator;
+      throw new Error(`Unhandled segment operator: ${String(_exhaustive)}`);
+    }
   }
 }
 
 function compileNode(node: RuleNode, bag: ParamBag): string {
   if (node.kind === "condition") return compileCondition(node, bag);
+  // `join` is the only group field spliced verbatim into SQL; whitelist it so a
+  // forged rule that bypassed the parser can't inject through the join keyword.
+  if (node.join !== "AND" && node.join !== "OR") {
+    throw new Error(`Illegal segment join: ${String(node.join)}`);
+  }
   const parts = node.children.map((child) => compileNode(child, bag)).filter((s) => s !== "");
   if (parts.length === 0) return "";
   return `(${parts.join(` ${node.join} `)})`;

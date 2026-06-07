@@ -74,4 +74,16 @@ describe("compileSegmentRule", () => {
     expect(r.sql).toBe(`(u."totalDecisions" >= $1)`);
     expect(r.params).toEqual([5]);
   });
+
+  // Defense-in-depth: compileSegmentRule is exported and may be called with a
+  // forged rule that bypassed the parser. Catalog/join identifiers must never
+  // be interpolated from un-validated input.
+  it("throws on an unknown field (forged rule that skipped the parser)", () => {
+    expect(() => compileSegmentRule(g("AND", [c("evil); DROP", "eq", 1)]))).toThrow(/Unknown segment field/);
+  });
+
+  it("throws on an illegal join keyword", () => {
+    const forged = { kind: "group", join: "AND) OR (1=1", children: [c("totalDecisions", "gte", 5)] } as unknown as SegmentRule;
+    expect(() => compileSegmentRule(forged)).toThrow(/Illegal segment join/);
+  });
 });
