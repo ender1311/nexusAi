@@ -23,7 +23,7 @@ export async function exactSegmentSize(where: CompiledWhere): Promise<ExactResul
       await tx.$executeRawUnsafe(`SET LOCAL statement_timeout = ${EXACT_TIMEOUT_MS}`);
       return tx.$queryRawUnsafe<Array<{ n: bigint }>>(sql, ...where.params);
     });
-    return { count: Number(rows[0]?.n ?? 0n), timedOut: false };
+    return { count: Number(rows[0]?.n ?? BigInt(0)), timedOut: false };
   } catch (err) {
     // Postgres raises a statement-timeout error (SQLSTATE 57014); treat as a soft timeout.
     if (err instanceof Error && /statement timeout|57014|canceling statement/i.test(err.message)) {
