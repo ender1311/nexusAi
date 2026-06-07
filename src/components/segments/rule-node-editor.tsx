@@ -14,7 +14,10 @@ export type EditorContext = {
   onToggleJoin: (path: number[], join: "AND" | "OR") => void;
 };
 
-function OPERATOR_LABEL(op: Operator): string {
+const VALUELESS_OPS: Operator[] = ["exists", "nexists", "is_true", "is_false"];
+const MULTI_OPS: Operator[] = ["in", "nin"];
+
+function operatorLabel(op: Operator): string {
   const map: Record<Operator, string> = {
     eq: "=", neq: "≠", gt: ">", gte: "≥", lt: "<", lte: "≤",
     in: "is any of", nin: "is none of", contains: "contains",
@@ -24,10 +27,85 @@ function OPERATOR_LABEL(op: Operator): string {
   return map[op];
 }
 
+// Reset the value when the operator changes so a stale scalar/array never lingers
+// under an incompatible operator (e.g. switching eq → in, or → a valueless op).
+function defaultValueForOperator(op: Operator): Condition["value"] {
+  if (VALUELESS_OPS.includes(op)) return null;
+  if (MULTI_OPS.includes(op)) return [];
+  return null;
+}
+
+function ValueEditor({ node, path, ctx }: { node: Condition; path: number[]; ctx: EditorContext }) {
+  const field = getField(node.fieldId);
+  if (field === undefined || VALUELESS_OPS.includes(node.operator)) return null;
+
+  const selectClass = "rounded border bg-background px-2 py-1 text-sm";
+
+  // Single segment picker (in_segment / not_in_segment).
+  if (field.category === "segment") {
+    return (
+      <select
+        className={selectClass}
+        value={typeof node.value === "string" ? node.value : ""}
+        onChange={(e) => ctx.onChangeCondition(path, { ...node, value: e.target.value })}
+        aria-label="Segment"
+      >
+        <option value="">Select segment…</option>
+        {ctx.segmentNameOptions.map((s) => (
+          <option key={s} value={s}>{s}</option>
+        ))}
+      </select>
+    );
+  }
+
+  // Enum fields (funnel stage from the catalog, persona from props) — multi-select.
+  const enumOptions = field.enumValues ?? (field.id === "persona" ? ctx.personaOptions : undefined);
+  if (enumOptions !== undefined) {
+    const selected = Array.isArray(node.value) ? node.value.map(String) : [];
+    return (
+      <select
+        multiple
+        className={`${selectClass} min-h-16`}
+        value={selected}
+        onChange={(e) => {
+          const next = Array.from(e.target.selectedOptions).map((o) => o.value);
+          ctx.onChangeCondition(path, { ...node, value: next });
+        }}
+        aria-label="Values"
+      >
+        {enumOptions.map((o) => (
+          <option key={o.value} value={o.value}>{o.label}</option>
+        ))}
+      </select>
+    );
+  }
+
+  // Free-text for string/number/date fields.
+  const isMulti = MULTI_OPS.includes(node.operator);
+  return (
+    <input
+      className={selectClass}
+      value={node.value === null ? "" : Array.isArray(node.value) ? node.value.join(",") : String(node.value)}
+      placeholder={isMulti ? "comma,separated" : "value"}
+      onChange={(e) => {
+        const raw = e.target.value;
+        let value: Condition["value"];
+        if (isMulti) {
+          value = raw.split(",").map((s) => s.trim()).filter(Boolean);
+        } else if (field.type === "number") {
+          const n = Number(raw);
+          value = raw.trim() === "" || Number.isNaN(n) ? null : n;
+        } else {
+          value = raw;
+        }
+        ctx.onChangeCondition(path, { ...node, value });
+      }}
+    />
+  );
+}
+
 function ConditionRow({ node, path, ctx }: { node: Condition; path: number[]; ctx: EditorContext }) {
   const field = getField(node.fieldId);
-  const valuelessOps: Operator[] = ["exists", "nexists", "is_true", "is_false"];
-  const needsValue = !valuelessOps.includes(node.operator);
 
   return (
     <div className="flex flex-wrap items-center gap-2 py-1">
@@ -35,8 +113,9 @@ function ConditionRow({ node, path, ctx }: { node: Condition; path: number[]; ct
         className="rounded border bg-background px-2 py-1 text-sm"
         value={node.fieldId}
         onChange={(e) => {
-          const f = getField(e.target.value)!;
-          ctx.onChangeCondition(path, { kind: "condition", fieldId: f.id, operator: f.operators[0], value: null });
+          const f = getField(e.target.value);
+          if (f === undefined) return;
+          ctx.onChangeCondition(path, { kind: "condition", fieldId: f.id, operator: f.operators[0], value: defaultValueForOperator(f.operators[0]) });
         }}
       >
         {FIELD_CATALOG.map((f) => (
@@ -47,28 +126,17 @@ function ConditionRow({ node, path, ctx }: { node: Condition; path: number[]; ct
       <select
         className="rounded border bg-background px-2 py-1 text-sm"
         value={node.operator}
-        onChange={(e) => ctx.onChangeCondition(path, { ...node, operator: e.target.value as Operator })}
+        onChange={(e) => {
+          const nextOp = e.target.value as Operator;
+          ctx.onChangeCondition(path, { ...node, operator: nextOp, value: defaultValueForOperator(nextOp) });
+        }}
       >
         {(field?.operators ?? []).map((op) => (
-          <option key={op} value={op}>{OPERATOR_LABEL(op)}</option>
+          <option key={op} value={op}>{operatorLabel(op)}</option>
         ))}
       </select>
 
-      {needsValue && (
-        <input
-          className="rounded border bg-background px-2 py-1 text-sm"
-          value={node.value === null ? "" : Array.isArray(node.value) ? node.value.join(",") : String(node.value)}
-          placeholder={node.operator === "in" || node.operator === "nin" ? "comma,separated" : "value"}
-          onChange={(e) => {
-            const raw = e.target.value;
-            const value = node.operator === "in" || node.operator === "nin"
-              ? raw.split(",").map((s) => s.trim()).filter(Boolean)
-              : field?.type === "number" ? Number(raw)
-              : raw;
-            ctx.onChangeCondition(path, { ...node, value });
-          }}
-        />
-      )}
+      <ValueEditor node={node} path={path} ctx={ctx} />
 
       <button onClick={() => ctx.onRemove(path)} className="text-muted-foreground hover:text-destructive" aria-label="Remove condition">
         <Trash2 className="h-3.5 w-3.5" />
