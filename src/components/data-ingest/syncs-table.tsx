@@ -257,6 +257,7 @@ export function SyncsTable({ syncs, models, destinations, hasApiKey, apiError }:
   const [search, setSearch] = useState("");
   const [sortField, setSortField] = useState<SortField>("status");
   const [sortDir, setSortDir] = useState<"asc" | "desc">("asc");
+  const [statusFilter, setStatusFilter] = useState<Set<string>>(new Set());
 
   const modelMap = useMemo(
     () => new Map(models.map((m) => [String(m.id), m])),
@@ -267,7 +268,9 @@ export function SyncsTable({ syncs, models, destinations, hasApiKey, apiError }:
     [destinations],
   );
 
-  const filtered = useMemo(() => {
+  // Scope by Nexus-only + search (status counts are computed over this scope so
+  // the pill counts match what the user is currently looking at).
+  const scoped = useMemo(() => {
     let list = syncs;
     if (nexusOnly) {
       list = list.filter((s) => {
@@ -292,6 +295,18 @@ export function SyncsTable({ syncs, models, destinations, hasApiKey, apiError }:
         (destMap.get(String(s.destinationId))?.name ?? "").toLowerCase().includes(q),
       );
     }
+    return list;
+  }, [syncs, nexusOnly, search, modelMap, destMap]);
+
+  const statusCounts = useMemo(() => {
+    const counts = new Map<string, number>();
+    for (const s of scoped) counts.set(s.status, (counts.get(s.status) ?? 0) + 1);
+    return [...counts.entries()].sort((a, b) => statusSortKey(a[0]) - statusSortKey(b[0]));
+  }, [scoped]);
+
+  const filtered = useMemo(() => {
+    let list = scoped;
+    if (statusFilter.size > 0) list = list.filter((s) => statusFilter.has(s.status));
     return [...list].sort((a, b) => {
       let cmp = 0;
       if (sortField === "status") cmp = statusSortKey(a.status) - statusSortKey(b.status);
@@ -303,7 +318,16 @@ export function SyncsTable({ syncs, models, destinations, hasApiKey, apiError }:
       }
       return sortDir === "asc" ? cmp : -cmp;
     });
-  }, [syncs, nexusOnly, search, sortField, sortDir, modelMap, destMap]);
+  }, [scoped, statusFilter, sortField, sortDir]);
+
+  function toggleStatus(status: string) {
+    setStatusFilter((prev) => {
+      const next = new Set(prev);
+      if (next.has(status)) next.delete(status);
+      else next.add(status);
+      return next;
+    });
+  }
 
   function toggleSort(field: SortField) {
     if (sortField === field) setSortDir((d) => (d === "asc" ? "desc" : "asc"));
@@ -371,6 +395,37 @@ export function SyncsTable({ syncs, models, destinations, hasApiKey, apiError }:
         <span className="text-xs text-muted-foreground ml-auto">
           {filtered.length} of {syncs.length}
         </span>
+      </div>
+
+      {/* Status filter pills */}
+      <div className="flex items-center gap-1.5 flex-wrap">
+        <button
+          type="button"
+          onClick={() => setStatusFilter(new Set())}
+          className={cn(
+            "text-xs px-2.5 py-1 rounded-full border transition-colors",
+            statusFilter.size === 0
+              ? "bg-primary text-primary-foreground border-primary"
+              : "bg-background text-muted-foreground border-border hover:border-foreground",
+          )}
+        >
+          All
+        </button>
+        {statusCounts.map(([status, count]) => (
+          <button
+            key={status}
+            type="button"
+            onClick={() => toggleStatus(status)}
+            className={cn(
+              "text-xs px-2.5 py-1 rounded-full border transition-colors",
+              statusFilter.has(status)
+                ? "bg-primary text-primary-foreground border-primary"
+                : "bg-background text-muted-foreground border-border hover:border-foreground",
+            )}
+          >
+            {status.charAt(0).toUpperCase() + status.slice(1)} {count}
+          </button>
+        ))}
       </div>
 
       <div className="rounded-lg border overflow-hidden">
