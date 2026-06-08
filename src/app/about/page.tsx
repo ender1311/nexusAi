@@ -29,9 +29,9 @@ const VOCAB = [
 const FEATURES = [
   { i: "◇", t: "No more A/B picking",           d: "The bandit picks the winner mid-flight. Allocations shift toward what's working in real time." },
   { i: "◷", t: "No more send-time guessing",     d: "Per-user send-time prediction picks the open window. Quiet hours respected automatically." },
-  { i: "◉", t: "No more channel stitching",      d: "Push, email, in-app — Sower routes each user to the channel they actually engage on." },
+  { i: "◉", t: "No more channel stitching",      d: "Push, email, in-app — Nexus routes each user to the channel they actually engage on." },
   { i: "◈", t: "No more cohort surgery",         d: "Personas are inferred from behavior, not hand-built. New cohorts appear as patterns emerge." },
-  { i: "▲", t: "No more guardrail anxiety",      d: "Set a churn floor and a revenue ceiling. Sower steers within them or stops itself." },
+  { i: "▲", t: "No more guardrail anxiety",      d: "Set a churn floor and a revenue ceiling. Nexus steers within them or stops itself." },
   { i: "⌘", t: "No more analytics scavenger hunt", d: "Every decision is logged with the arm, persona, reward, and the model's reasoning." },
 ];
 
@@ -106,7 +106,7 @@ export default async function AboutPage() {
 
   return (
     <>
-      <Header title="About Sower" description="What it is, how it works, and why it exists" />
+      <Header title="About Nexus" description="What it is, how it works, and why it exists" />
 
       {/* Page shell with dotted background */}
       <div className="relative overflow-auto">
@@ -139,7 +139,7 @@ export default async function AboutPage() {
                 <span className="text-muted-foreground">every time.</span>
               </h1>
               <p className="mt-6 text-base sm:text-lg leading-relaxed text-muted-foreground max-w-lg">
-                Sower replaces broadcast sends with a learning loop. Write the messages — Sower decides
+                Nexus replaces broadcast sends with a learning loop. Write the messages — Nexus decides
                 who gets which one, watches what works, and steers the next round toward what bears fruit.
               </p>
               <div className="mt-8 pt-8 border-t flex gap-6 sm:gap-10 flex-wrap">
@@ -163,7 +163,7 @@ export default async function AboutPage() {
                     ))}
                   </div>
                   <div className="flex-1 text-center text-xs font-mono text-muted-foreground">
-                    sower.youversion.com / agent / streak-recovery
+                    nexus.youversion.com / agent / streak-recovery
                   </div>
                 </div>
                 <div className="p-6">
@@ -235,7 +235,7 @@ export default async function AboutPage() {
             <div className="max-w-3xl mb-8 sm:mb-12">
               <div className="text-[11px] font-mono tracking-widest uppercase mb-3" style={{ color: RED }}>WHAT IT DOES</div>
               <h2 className="text-2xl sm:text-4xl font-semibold tracking-tight leading-tight">
-                Six things you stop doing the day Sower goes live.
+                Six things you stop doing the day Nexus goes live.
               </h2>
             </div>
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
@@ -258,7 +258,7 @@ export default async function AboutPage() {
                 <div className="text-[11px] font-mono tracking-widest uppercase mb-3" style={{ color: RED }}>HOW IT WORKS</div>
                 <h2 className="text-2xl sm:text-4xl font-semibold tracking-tight leading-tight">Four moves, on a loop.</h2>
                 <p className="text-sm text-muted-foreground leading-relaxed mt-5">
-                  Sower never stops learning. Each decision sharpens the next, so the longer it runs,
+                  Nexus never stops learning. Each decision sharpens the next, so the longer it runs,
                   the better it gets at finding the right message for each person.
                 </p>
               </div>
@@ -315,7 +315,7 @@ export default async function AboutPage() {
           <section className="px-4 sm:px-16 pb-12 sm:pb-24">
             <div className="text-center mb-8 sm:mb-12">
               <div className="text-[11px] font-mono tracking-widest uppercase mb-3" style={{ color: RED }}>WHY SWITCH</div>
-              <h2 className="text-2xl sm:text-4xl font-semibold tracking-tight leading-tight">Sower vs. how we do it now.</h2>
+              <h2 className="text-2xl sm:text-4xl font-semibold tracking-tight leading-tight">Nexus vs. how we do it now.</h2>
             </div>
             <div className="border rounded-xl overflow-hidden max-w-5xl mx-auto overflow-x-auto">
               <div className="min-w-[480px]">
@@ -326,7 +326,7 @@ export default async function AboutPage() {
                 <div>Capability</div>
                 <div>Manual sends</div>
                 <div>Rule-based</div>
-                <div style={{ color: RED }}>Sower</div>
+                <div style={{ color: RED }}>Nexus</div>
               </div>
               {COMPARISON.map(([cap, a, b, c]) => (
                 <div
@@ -363,7 +363,7 @@ export default async function AboutPage() {
                 </p>
               </div>
               <div className="bg-muted/50 rounded-lg px-5 py-5 font-mono text-xs leading-7 border">
-                <div className="text-muted-foreground">$ curl -X POST sower.api/decide</div>
+                <div className="text-muted-foreground">$ curl -X POST nexus.api/decide</div>
                 <div>→ user_id: <span style={{ color: RED }}>&quot;u_84219&quot;</span></div>
                 <div>→ persona: <span style={{ color: RED }}>&quot;streak_builder&quot;</span></div>
                 <div className="text-muted-foreground mt-2">{"// allocator drew arm with α=14, β=4"}</div>
@@ -400,7 +400,7 @@ export default async function AboutPage() {
                 </div>
                 <h2 className="text-5xl font-semibold tracking-tight leading-none mt-3">Stop sowing blind.</h2>
                 <p className="text-base text-white/70 mt-5 max-w-lg leading-relaxed">
-                  Pick a goal, write a few seeds, point Sower at a campaign. Within a day you&apos;ll see
+                  Pick a goal, write a few seeds, point Nexus at a campaign. Within a day you&apos;ll see
                   which seeds are growing in which soils.
                 </p>
               </div>
@@ -424,7 +424,7 @@ export default async function AboutPage() {
 
           {/* ── Footer ───────────────────────────────────────────────── */}
           <footer className="px-16 py-8 border-t bg-muted/30 flex justify-between text-xs font-mono text-muted-foreground">
-            <span>SOWER · YOUVERSION · INTERNAL · v0.4.2</span>
+            <span>NEXUS · YOUVERSION · INTERNAL · v0.4.2</span>
             <span>nx-2026.05 · thompson-v3</span>
           </footer>
 

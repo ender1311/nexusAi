@@ -7,7 +7,7 @@ const FAQ_CATEGORIES: FaqCategory[] = [
     emoji: "🌱",
     items: [
       {
-        q: "What is Nexus (Sower)?",
+        q: "What is Nexus?",
         a: "Nexus is an intelligent messaging engine that automatically learns which message to send to each user — and when — to maximize meaningful engagement. Rather than sending the same notification to everyone, it continuously experiments across your message variants, observes what resonates with each person, and concentrates future sends toward what works. It gets smarter with every message it sends.",
       },
       {
