@@ -75,3 +75,82 @@ describe("mobileTabs data model", () => {
     expect(activeMobileTabLabel("/personas")).toBe("Data");
   });
 });
+
+import { afterEach, beforeEach, mock } from "bun:test";
+import { act } from "react";
+import { createRoot, type Root } from "react-dom/client";
+
+let pathname = "/";
+mock.module("next/navigation", () => ({ usePathname: () => pathname }));
+
+const { MobileNav } = await import("@/components/layout/sidebar");
+(globalThis as unknown as { IS_REACT_ACT_ENVIRONMENT: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
+
+let container: HTMLDivElement;
+let root: Root;
+
+beforeEach(() => {
+  pathname = "/";
+  container = document.createElement("div");
+  document.body.appendChild(container);
+  root = createRoot(container);
+});
+afterEach(() => {
+  act(() => root.unmount());
+  container.remove();
+});
+
+function tabButton(label: string): HTMLButtonElement | undefined {
+  return Array.from(container.querySelectorAll<HTMLButtonElement>("button"))
+    .find((el) => el.textContent?.includes(label));
+}
+function pill(label: string): HTMLAnchorElement | undefined {
+  return Array.from(container.querySelectorAll<HTMLAnchorElement>("a"))
+    .find((el) => el.textContent?.includes(label));
+}
+
+describe("MobileNav fan-up popover", () => {
+  it("hides a fan tab's pills until the tab is tapped", () => {
+    act(() => root.render(<MobileNav />));
+    expect(pill("Search Users")).toBeUndefined();
+    act(() => tabButton("Audience")!.click());
+    expect(pill("Search Users")).toBeDefined();
+    expect(pill("Segments")).toBeDefined();
+    expect(pill("Sizes")).toBeDefined();
+  });
+
+  it("renders Agents as a direct link with no fan button", () => {
+    act(() => root.render(<MobileNav />));
+    const agents = pill("Agents");
+    expect(agents).toBeDefined();
+    expect(agents!.getAttribute("href")).toBe("/agents");
+    expect(tabButton("Agents")).toBeUndefined();
+  });
+
+  it("exposes Content libraries + Settings inside the About fan", () => {
+    act(() => root.render(<MobileNav />));
+    act(() => tabButton("About")!.click());
+    expect(pill("Push Library")).toBeDefined();
+    expect(pill("Email Library")).toBeDefined();
+    expect(pill("Verse Library")).toBeDefined();
+    expect(pill("Settings")).toBeDefined();
+    expect(pill("Architecture")).toBeDefined();
+  });
+
+  it("closes an open fan when the scrim is tapped", () => {
+    act(() => root.render(<MobileNav />));
+    act(() => tabButton("Data")!.click());
+    expect(pill("Personas")).toBeDefined();
+    const scrim = container.querySelector<HTMLDivElement>('[aria-hidden="true"]');
+    expect(scrim).toBeDefined();
+    act(() => scrim!.click());
+    expect(pill("Personas")).toBeUndefined();
+  });
+
+  it("marks the tab active when the route is one of its pages", () => {
+    pathname = "/audience/segments";
+    act(() => root.render(<MobileNav />));
+    expect(tabButton("Audience")!.className).toContain("text-primary");
+    expect(tabButton("Data")!.className).not.toContain("text-primary");
+  });
+});

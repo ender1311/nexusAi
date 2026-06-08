@@ -2,16 +2,14 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import {
-  ChevronLeft, ChevronRight, ChevronDown, Zap,
-  LayoutDashboard, Bot, Users2, BookOpen, Sprout,
-} from "lucide-react";
+import { ChevronLeft, ChevronRight, ChevronDown, Zap } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { useMemo, useState, useSyncExternalStore } from "react";
+import { useEffect, useMemo, useState, useSyncExternalStore } from "react";
 import { SignOutButton } from "@/components/layout/sign-out-button";
 import { ThemeToggle } from "@/components/layout/theme-toggle";
 import {
   navTree, isGroup, activeHref, groupLabelForHref,
+  mobileTabs, mobileTabLabel, activeMobileTabLabel, isDivider,
   type NavItem, type NavGroup,
 } from "@/components/layout/nav-config";
 
@@ -201,34 +199,92 @@ export function Sidebar({ user }: { user: SidebarUser | null }) {
   );
 }
 
-const mobileNavItems = [
-  { href: "/", label: "Dashboard", icon: LayoutDashboard },
-  { href: "/agents", label: "Agents", icon: Bot },
-  { href: "/audience/search", label: "Audience", icon: Users2 },
-  { href: "/messages", label: "Content", icon: BookOpen },
-  { href: "/about", label: "About", icon: Sprout },
-];
-
 export function MobileNav() {
   const pathname = usePathname();
+  const [openTab, setOpenTab] = useState<string | null>(null);
+  const active = activeHref(pathname, navTree);
+  const activeTab = activeMobileTabLabel(pathname);
+
+  // Route change closes any open fan so it never lingers after navigation.
+  useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    setOpenTab(null);
+  }, [pathname]);
+
   return (
-    <nav className="fixed bottom-0 left-0 right-0 z-50 flex lg:hidden border-t bg-sidebar pb-[env(safe-area-inset-bottom)]">
-      {mobileNavItems.map((item) => {
-        const active = item.href === "/" ? pathname === "/" : pathname.startsWith(item.href);
-        return (
-          <Link
-            key={item.href}
-            href={item.href}
-            className={cn(
-              "flex flex-1 flex-col items-center gap-1 py-3 text-xs font-medium transition-colors",
-              active ? "text-primary" : "text-muted-foreground",
-            )}
-          >
-            <item.icon className={cn("h-5 w-5", active && "text-primary")} />
-            <span>{item.label}</span>
-          </Link>
-        );
-      })}
-    </nav>
+    <>
+      {openTab && (
+        <div
+          className="fixed inset-0 z-40 bg-black/40 lg:hidden"
+          aria-hidden="true"
+          onClick={() => setOpenTab(null)}
+        />
+      )}
+      <nav className="fixed bottom-0 left-0 right-0 z-50 flex lg:hidden border-t bg-sidebar pb-[env(safe-area-inset-bottom)]">
+        {mobileTabs.map((tab) => {
+          const label = mobileTabLabel(tab);
+          const isActive = label === activeTab;
+
+          if (tab.kind === "link") {
+            return (
+              <Link
+                key={label}
+                href={tab.item.href}
+                onClick={() => setOpenTab(null)}
+                className={cn(
+                  "flex flex-1 flex-col items-center gap-1 py-3 text-xs font-medium transition-colors",
+                  isActive ? "text-primary" : "text-muted-foreground",
+                )}
+              >
+                <tab.item.icon className={cn("h-5 w-5", isActive && "text-primary")} />
+                <span>{label}</span>
+              </Link>
+            );
+          }
+
+          const open = openTab === label;
+          return (
+            <div key={label} className="relative flex flex-1">
+              {open && (
+                <div className="absolute bottom-full left-1/2 z-50 mb-2 flex min-w-[10rem] -translate-x-1/2 flex-col gap-1 rounded-lg border bg-sidebar p-1 shadow-lg">
+                  {tab.children.map((child, i) =>
+                    isDivider(child) ? (
+                      <hr key={`divider-${i}`} className="my-1 border-t" />
+                    ) : (
+                      <Link
+                        key={child.href}
+                        href={child.href}
+                        onClick={() => setOpenTab(null)}
+                        className={cn(
+                          "flex items-center gap-2 whitespace-nowrap rounded-md px-3 py-2 text-sm font-medium transition-colors",
+                          child.href === active
+                            ? "bg-primary text-primary-foreground"
+                            : "text-muted-foreground hover:bg-muted hover:text-foreground",
+                        )}
+                      >
+                        <child.icon className="h-4 w-4 shrink-0" />
+                        <span>{child.label}</span>
+                      </Link>
+                    ),
+                  )}
+                </div>
+              )}
+              <button
+                type="button"
+                onClick={() => setOpenTab(open ? null : label)}
+                aria-expanded={open}
+                className={cn(
+                  "flex flex-1 flex-col items-center gap-1 py-3 text-xs font-medium transition-colors",
+                  isActive ? "text-primary" : "text-muted-foreground",
+                )}
+              >
+                <tab.icon className={cn("h-5 w-5", isActive && "text-primary")} />
+                <span>{label}</span>
+              </button>
+            </div>
+          );
+        })}
+      </nav>
+    </>
   );
 }
