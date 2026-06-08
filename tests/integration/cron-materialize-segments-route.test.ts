@@ -1,4 +1,4 @@
-import { describe, it, expect, beforeEach } from "bun:test";
+import { describe, it, expect, beforeAll, afterAll, beforeEach } from "bun:test";
 import { prisma } from "@/lib/db";
 import { POST } from "@/app/api/cron/materialize-segments/route";
 import { NextRequest } from "next/server";
@@ -10,6 +10,12 @@ function cronRequest(token: string | null): NextRequest {
 }
 
 describe("POST /api/cron/materialize-segments", () => {
+  beforeAll(() => {
+    process.env.CRON_SECRET = "test_cron_secret";
+  });
+  afterAll(() => {
+    delete process.env.CRON_SECRET;
+  });
   beforeEach(async () => {
     await prisma.cronRun.deleteMany({ where: { cronName: "materialize-segments" } });
   });
