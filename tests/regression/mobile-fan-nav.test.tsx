@@ -108,6 +108,10 @@ function pill(label: string): HTMLAnchorElement | undefined {
   return Array.from(container.querySelectorAll<HTMLAnchorElement>("a"))
     .find((el) => el.textContent?.includes(label));
 }
+function openFanPanel(): HTMLDivElement | undefined {
+  return Array.from(container.querySelectorAll<HTMLDivElement>("div"))
+    .find((el) => el.className.includes("bottom-full"));
+}
 
 describe("MobileNav fan-up popover", () => {
   it("hides a fan tab's pills until the tab is tapped", () => {
@@ -152,5 +156,45 @@ describe("MobileNav fan-up popover", () => {
     act(() => root.render(<MobileNav />));
     expect(tabButton("Audience")!.className).toContain("text-primary");
     expect(tabButton("Data")!.className).not.toContain("text-primary");
+  });
+
+  // Regression: the fan was centered on its tab (`left-1/2 -translate-x-1/2`),
+  // so the leftmost (Dashboard) and rightmost (About) fans ran off the edge of
+  // the phone viewport. Edge tabs must anchor inward; all fans cap width/height.
+  it("anchors the leftmost fan flush-left, not centered", () => {
+    act(() => root.render(<MobileNav />));
+    act(() => tabButton("Dashboard")!.click());
+    const panel = openFanPanel();
+    expect(panel).toBeDefined();
+    expect(panel!.className).toContain("left-1");
+    expect(panel!.className).not.toContain("left-1/2");
+    expect(panel!.className).not.toContain("-translate-x-1/2");
+  });
+
+  it("anchors the rightmost fan flush-right, not centered", () => {
+    act(() => root.render(<MobileNav />));
+    act(() => tabButton("About")!.click());
+    const panel = openFanPanel();
+    expect(panel).toBeDefined();
+    expect(panel!.className).toContain("right-1");
+    expect(panel!.className).not.toContain("-translate-x-1/2");
+  });
+
+  it("centers a middle fan on its tab", () => {
+    act(() => root.render(<MobileNav />));
+    act(() => tabButton("Audience")!.click());
+    const panel = openFanPanel();
+    expect(panel).toBeDefined();
+    expect(panel!.className).toContain("-translate-x-1/2");
+  });
+
+  it("caps fan width and height so it stays within the viewport", () => {
+    act(() => root.render(<MobileNav />));
+    act(() => tabButton("About")!.click());
+    const panel = openFanPanel();
+    expect(panel).toBeDefined();
+    expect(panel!.className).toContain("max-w-[calc(100vw-0.5rem)]");
+    expect(panel!.className).toContain("max-h-[70vh]");
+    expect(panel!.className).toContain("overflow-y-auto");
   });
 });

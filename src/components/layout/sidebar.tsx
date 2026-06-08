@@ -221,7 +221,7 @@ export function MobileNav() {
         />
       )}
       <nav className="fixed bottom-0 left-0 right-0 z-50 flex lg:hidden border-t bg-sidebar pb-[env(safe-area-inset-bottom)]">
-        {mobileTabs.map((tab) => {
+        {mobileTabs.map((tab, index) => {
           const label = mobileTabLabel(tab);
           const isActive = label === activeTab;
 
@@ -243,10 +243,25 @@ export function MobileNav() {
           }
 
           const open = openTab === label;
+          // Anchor the fan so it never runs off the viewport: the leftmost tab
+          // opens flush-left, the rightmost flush-right, the rest center on the
+          // tab. A width cap + scrollable max-height keep wide/tall fans (the
+          // About catch-all has the most rows) on screen on small phones.
+          const fanAlign =
+            index === 0
+              ? "left-1"
+              : index === mobileTabs.length - 1
+                ? "right-1"
+                : "left-1/2 -translate-x-1/2";
           return (
             <div key={label} className="relative flex flex-1">
               {open && (
-                <div className="absolute bottom-full left-1/2 z-50 mb-2 flex min-w-[10rem] -translate-x-1/2 flex-col gap-1 rounded-lg border bg-sidebar p-1 shadow-lg">
+                <div
+                  className={cn(
+                    "absolute bottom-full z-50 mb-2 flex max-h-[70vh] min-w-[11rem] max-w-[calc(100vw-0.5rem)] flex-col gap-1 overflow-y-auto rounded-lg border bg-sidebar p-1 shadow-lg",
+                    fanAlign,
+                  )}
+                >
                   {tab.children.map((child, i) =>
                     isDivider(child) ? (
                       <hr key={`divider-${i}`} className="my-1 border-t" />
