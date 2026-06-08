@@ -72,3 +72,65 @@ export function groupLabelForHref(href: string | undefined, tree: NavEntry[]): s
   }
   return undefined;
 }
+
+// --- Mobile bottom-nav (fan-up popover) view, derived from navTree ---------
+
+export type MobileDivider = { divider: true };
+export type MobileItem = NavItem | MobileDivider;
+export type MobileTab =
+  | { kind: "link"; item: NavItem }
+  | { kind: "fan"; label: string; icon: LucideIcon; children: MobileItem[] };
+
+export function isDivider(item: MobileItem): item is MobileDivider {
+  return "divider" in item;
+}
+
+export function mobileTabLabel(tab: MobileTab): string {
+  return tab.kind === "link" ? tab.item.label : tab.label;
+}
+
+function groupByLabel(label: string): NavGroup {
+  const entry = navTree.find((e) => isGroup(e) && e.label === label);
+  if (!entry || !isGroup(entry)) throw new Error(`navTree is missing group "${label}"`);
+  return entry;
+}
+
+function itemByHref(href: string): NavItem {
+  const item = flattenItems(navTree).find((i) => i.href === href);
+  if (!item) throw new Error(`navTree is missing item "${href}"`);
+  return item;
+}
+
+// Five mobile tabs. Four map straight to navTree groups; Agents is a direct
+// link. The desktop "Content" group and the standalone Settings item have no
+// tab of their own, so they are folded into the About fan (below a divider) to
+// keep every page reachable on mobile.
+export const mobileTabs: MobileTab[] = [
+  { kind: "fan", label: "Dashboard", icon: groupByLabel("Dashboard").icon, children: [...groupByLabel("Dashboard").children] },
+  { kind: "link", item: itemByHref("/agents") },
+  { kind: "fan", label: "Audience", icon: groupByLabel("Audience").icon, children: [...groupByLabel("Audience").children] },
+  { kind: "fan", label: "Data", icon: groupByLabel("Data").icon, children: [...groupByLabel("Data").children] },
+  {
+    kind: "fan",
+    label: "About",
+    icon: groupByLabel("About").icon,
+    children: [
+      ...groupByLabel("About").children,
+      { divider: true },
+      ...groupByLabel("Content").children,
+      itemByHref("/settings"),
+    ],
+  },
+];
+
+export function activeMobileTabLabel(pathname: string): string | undefined {
+  const href = activeHref(pathname, navTree);
+  if (!href) return undefined;
+  for (const tab of mobileTabs) {
+    if (tab.kind === "link" && tab.item.href === href) return mobileTabLabel(tab);
+    if (tab.kind === "fan" && tab.children.some((c) => !isDivider(c) && c.href === href)) {
+      return tab.label;
+    }
+  }
+  return undefined;
+}
