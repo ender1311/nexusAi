@@ -1,6 +1,9 @@
 import { parseSegmentTargeting } from "@/lib/agent-targeting";
 import type { Prisma } from "@/generated/prisma/client";
 import type { CompiledWhere } from "./compile-sql";
+import { prisma } from "@/lib/db";
+import { parseSegmentRule } from "./parse-rule";
+import { compileSegmentRule } from "./compile-sql";
 
 type AgentTargetingFields = {
   segmentTargeting: unknown;
@@ -56,4 +59,69 @@ export async function materializeSegment(
   );
 
   return { matched, deleted };
+}
+
+export type MaterializeSummary = {
+  runStart: string;
+  segmentsProcessed: number;
+  segmentsSkipped: number; // null/unparseable rule, or a rule that matches everyone
+  segmentsFailed: number; // threw during reconcile (timeout, SQL error)
+  perSegment: { name: string; matched: number; deleted: number; error?: string }[];
+};
+
+export async function materializeAllSegments(args: { runStart: Date }): Promise<MaterializeSummary> {
+  const { runStart } = args;
+
+  const agents = await prisma.agent.findMany({
+    select: { segmentTargeting: true, targetSegmentName: true },
+  });
+  const names = collectReferencedSegmentNames(agents);
+
+  const summary: MaterializeSummary = {
+    runStart: runStart.toISOString(),
+    segmentsProcessed: 0,
+    segmentsSkipped: 0,
+    segmentsFailed: 0,
+    perSegment: [],
+  };
+
+  if (names.size === 0) return summary;
+
+  const segments = await prisma.segment.findMany({
+    where: { name: { in: [...names] } },
+    select: { name: true, rule: true },
+  });
+
+  for (const segment of segments) {
+    const rule = parseSegmentRule(segment.rule);
+    if (rule === null) {
+      summary.segmentsSkipped += 1;
+      summary.perSegment.push({ name: segment.name, matched: 0, deleted: 0, error: "unparseable rule" });
+      continue;
+    }
+    const where = compileSegmentRule(rule);
+    // An empty rule compiles to "TRUE" (match every user) — refuse to materialize it.
+    if (where.sql === "TRUE") {
+      summary.segmentsSkipped += 1;
+      summary.perSegment.push({ name: segment.name, matched: 0, deleted: 0, error: "empty rule matches all users" });
+      continue;
+    }
+    try {
+      const { matched, deleted } = await prisma.$transaction((tx) =>
+        materializeSegment(tx, { segmentName: segment.name, where, runStart }),
+      );
+      summary.segmentsProcessed += 1;
+      summary.perSegment.push({ name: segment.name, matched, deleted });
+    } catch (err) {
+      summary.segmentsFailed += 1;
+      summary.perSegment.push({
+        name: segment.name,
+        matched: 0,
+        deleted: 0,
+        error: err instanceof Error ? err.message : "unknown error",
+      });
+    }
+  }
+
+  return summary;
 }
