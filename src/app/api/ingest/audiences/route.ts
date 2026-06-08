@@ -55,8 +55,8 @@ export async function POST(
         chunk.map((externalId) =>
           prisma.userSegment
             .upsert({
-              where: { externalId_segmentName: { externalId, segmentName: cohortId } },
-              create: { externalId, segmentName: cohortId, syncedAt: now },
+              where: { externalId_segmentName_source: { externalId, segmentName: cohortId, source: "hightouch" } },
+              create: { externalId, segmentName: cohortId, source: "hightouch", syncedAt: now },
               update: { syncedAt: now },
             })
             .then(() => ({ upserted: 1, skipped: 0 }))
@@ -117,8 +117,8 @@ export async function POST(
         resolvedIds.map((externalId) =>
           prisma.userSegment
             .upsert({
-              where: { externalId_segmentName: { externalId, segmentName: cohortId } },
-              create: { externalId, segmentName: cohortId, syncedAt: now },
+              where: { externalId_segmentName_source: { externalId, segmentName: cohortId, source: "hightouch" } },
+              create: { externalId, segmentName: cohortId, source: "hightouch", syncedAt: now },
               update: { syncedAt: now },
             })
             .then(() => ({ upserted: 1, skipped: 0 }))

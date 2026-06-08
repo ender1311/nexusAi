@@ -256,9 +256,13 @@ export async function linkAgentToPersona(agentId: string, personaId: string) {
   return prisma.agentPersonaTarget.create({ data: { agentId, personaId } });
 }
 
-export async function createUserSegment(externalId: string, segmentName: string) {
+export async function createUserSegment(
+  externalId: string,
+  segmentName: string,
+  source: string = "hightouch",
+) {
   return prisma.userSegment.create({
-    data: { externalId, segmentName },
+    data: { externalId, segmentName, source },
   });
 }
 

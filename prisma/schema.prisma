@@ -482,15 +482,17 @@ model DemoUserGroup {
   updatedAt DateTime @updatedAt
 }
 
-// HT audience segment membership — populated by POST /api/ingest/segments
+// HT audience segment membership (source='hightouch', append-only via POST /api/ingest/segments)
+// plus rule-segment membership (source='rule', full-replace via /api/cron/materialize-segments).
 model UserSegment {
   id          String   @id @default(cuid())
   externalId  String   // TrackedUser.externalId (no FK — same pattern as UserDecision)
   segmentName String
+  source      String   @default("hightouch") // "hightouch" | "rule"
   syncedAt    DateTime @default(now()) @updatedAt
 
-  @@unique([externalId, segmentName])
-  @@index([segmentName])  // cron segment filter
+  @@unique([externalId, segmentName, source])
+  @@index([segmentName])  // cron segment filter (queries by name alone, unions both sources)
 }
 
 // Per-user UI preferences keyed by WorkOS user id. hiddenStats is a JSON array of

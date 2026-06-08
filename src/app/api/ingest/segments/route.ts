@@ -86,8 +86,8 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
 
         if (segmentName) {
           await prisma.userSegment.upsert({
-            where: { externalId_segmentName: { externalId, segmentName } },
-            create: { externalId, segmentName, syncedAt: now },
+            where: { externalId_segmentName_source: { externalId, segmentName, source: "hightouch" } },
+            create: { externalId, segmentName, source: "hightouch", syncedAt: now },
             update: { syncedAt: now },
           });
         }
