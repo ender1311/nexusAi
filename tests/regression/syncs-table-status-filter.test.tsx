@@ -55,7 +55,7 @@ function pill(label: string): HTMLButtonElement | undefined {
 
 describe("SyncsTable status filter", () => {
   it("shows all syncs by default and renders a pill per present status with counts", () => {
-    act(() => root.render(<SyncsTable syncs={SYNCS} models={[]} destinations={[]} hasApiKey />));
+    act(() => root.render(<SyncsTable syncs={SYNCS} models={[]} destinations={[]} hasApiKey overrides={{}} />));
     const body = document.body.textContent ?? "";
     expect(body).toContain("Alpha");
     expect(body).toContain("Bravo");
@@ -67,7 +67,7 @@ describe("SyncsTable status filter", () => {
   });
 
   it("filters to only failed rows when the Failed pill is clicked", () => {
-    act(() => root.render(<SyncsTable syncs={SYNCS} models={[]} destinations={[]} hasApiKey />));
+    act(() => root.render(<SyncsTable syncs={SYNCS} models={[]} destinations={[]} hasApiKey overrides={{}} />));
     act(() => pill("Failed")!.click());
     const body = document.body.textContent ?? "";
     expect(body).toContain("Alpha");
@@ -77,7 +77,7 @@ describe("SyncsTable status filter", () => {
   });
 
   it("clears the filter when the All pill is clicked", () => {
-    act(() => root.render(<SyncsTable syncs={SYNCS} models={[]} destinations={[]} hasApiKey />));
+    act(() => root.render(<SyncsTable syncs={SYNCS} models={[]} destinations={[]} hasApiKey overrides={{}} />));
     act(() => pill("Failed")!.click());
     act(() => pill("All")!.click());
     const body = document.body.textContent ?? "";

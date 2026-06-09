@@ -10,6 +10,7 @@ import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { createHightouchClient } from "@/lib/hightouch/client";
 import type { HightouchSync } from "@/lib/hightouch/types";
+import { prisma } from "@/lib/db";
 import { HealthBanner } from "@/components/data-ingest/health-banner";
 import { SyncsTable } from "@/components/data-ingest/syncs-table";
 import { ModelsTable } from "@/components/data-ingest/models-table";
@@ -42,6 +43,15 @@ const getCachedSources = cache(() =>
 const getCachedDestinations = cache(() =>
   createHightouchClient()?.listDestinations().catch(() => []) ?? Promise.resolve([]),
 );
+
+const getCachedOverrides = cache(async (): Promise<Record<string, string>> => {
+  try {
+    const rows = await prisma.syncNameOverride.findMany({ select: { syncId: true, displayName: true } });
+    return Object.fromEntries(rows.map((r) => [r.syncId, r.displayName]));
+  } catch {
+    return {};
+  }
+});
 
 // ---------------------------------------------------------------------------
 // Skeletons
@@ -116,10 +126,11 @@ async function HealthBannerSection() {
 }
 
 async function SyncsSection() {
-  const [{ syncs, error }, models, destinations] = await Promise.all([
+  const [{ syncs, error }, models, destinations, overrides] = await Promise.all([
     getCachedSyncs(),
     getCachedModels(),
     getCachedDestinations(),
+    getCachedOverrides(),
   ]);
   return (
     <SyncsTable
@@ -128,6 +139,7 @@ async function SyncsSection() {
       destinations={destinations}
       hasApiKey={!!process.env.HIGHTOUCH_API_KEY}
       apiError={error}
+      overrides={overrides}
     />
   );
 }
@@ -155,6 +167,7 @@ export default function DataIngestPage() {
   void getCachedModels();
   void getCachedSources();
   void getCachedDestinations();
+  void getCachedOverrides();
 
   return (
     <>
