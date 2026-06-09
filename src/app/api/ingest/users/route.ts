@@ -1071,16 +1071,15 @@ export async function POST(req: NextRequest) {
 
             const creditedFlags = detectFlagConversions({
               incoming: raw,
-              stored: raw,       // current sync is post-upsert; stored used for future extension
+              // Deliberate stub: the detector's Type A/B logic only reads enrollmentFlags
+              // today. If a stored→incoming transition check is ever added to
+              // detectFlagConversions, this must become the PRE-upsert attributes.
+              stored: raw,
               enrollmentFlags,
               goals: flagGoals,
             });
 
             for (const flagName of creditedFlags) {
-              if (creditedDecisionIds.size > 0) {
-                // A decision was already credited this sync (recovery/sower/giving) —
-                // flag conversions share the same decision pool; skip to avoid double-credit.
-              }
               const flagDecision = await prisma.userDecision.findFirst({
                 where: { userId: externalId, agentId: owningAgentId, conversionAt: null },
                 orderBy: { sentAt: "desc" },
