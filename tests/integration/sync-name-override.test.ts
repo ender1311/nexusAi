@@ -17,8 +17,10 @@ mock.module("@workos-inc/authkit-nextjs", () => ({
 // Import AFTER mock.module so the auth mock takes effect.
 const { PUT, DELETE } = await import("@/app/api/hightouch/syncs/[id]/name/route");
 
-function req(method: "PUT" | "DELETE", body?: unknown): Request {
-  return new Request("http://localhost/api/hightouch/syncs/2770929/name", {
+import { NextRequest } from "next/server";
+
+function req(method: "PUT" | "DELETE", body?: unknown): NextRequest {
+  return new NextRequest("http://localhost/api/hightouch/syncs/2770929/name", {
     method,
     headers: { "Content-Type": "application/json" },
     body: body !== undefined ? JSON.stringify(body) : undefined,

@@ -8,26 +8,7 @@ import { cn, formatRelativeTime } from "@/lib/utils";
 import { TriggerSyncButton } from "./trigger-sync-button";
 import { SyncRunsDrawer } from "./sync-runs-drawer";
 import type { HightouchSync, HightouchModel, HightouchDestination } from "@/lib/hightouch/types";
-import SYNC_NAME_OVERRIDES from "@/lib/hightouch/sync-name-overrides.json";
-
-// ---------------------------------------------------------------------------
-// Utilities
-// ---------------------------------------------------------------------------
-
-const ABBREVS = new Set(["wau", "mau", "dau", "ba", "en", "us", "uk", "id", "yv"]);
-
-function humanizeSlug(slug: string): string {
-  return slug
-    .split("-")
-    .map((w) => (ABBREVS.has(w.toLowerCase()) ? w.toUpperCase() : w.charAt(0).toUpperCase() + w.slice(1)))
-    .join(" ");
-}
-
-function syncDisplayName(sync: HightouchSync): string {
-  const override = (SYNC_NAME_OVERRIDES as Record<string, string>)[String(sync.id)];
-  if (override) return override;
-  return sync.name?.trim() || humanizeSlug(sync.slug);
-}
+import { syncDisplayName } from "@/lib/hightouch/sync-display-name";
 
 const STATUS_SORT_ORDER: Record<string, number> = {
   failed: 0,
@@ -95,12 +76,13 @@ type SyncItemProps = {
   sync: HightouchSync;
   modelName: string;
   destName: string;
+  overrides: Record<string, string>;
 };
 
-function SyncCard({ sync, modelName, destName }: SyncItemProps) {
+function SyncCard({ sync, modelName, destName, overrides }: SyncItemProps) {
   const [expanded, setExpanded] = useState(false);
   const [drawerOpen, setDrawerOpen] = useState(false);
-  const displayName = syncDisplayName(sync);
+  const displayName = syncDisplayName(sync, overrides);
   const details = configDetails(sync.configuration);
 
   return (
@@ -193,9 +175,9 @@ function SyncCard({ sync, modelName, destName }: SyncItemProps) {
   );
 }
 
-function SyncTableRow({ sync, modelName, destName }: SyncItemProps) {
+function SyncTableRow({ sync, modelName, destName, overrides }: SyncItemProps) {
   const [drawerOpen, setDrawerOpen] = useState(false);
-  const displayName = syncDisplayName(sync);
+  const displayName = syncDisplayName(sync, overrides);
   return (
     <>
       <tr className="border-t hover:bg-muted/30 transition-colors">
@@ -248,11 +230,12 @@ type SyncsTableProps = {
   destinations: HightouchDestination[];
   hasApiKey: boolean;
   apiError?: string;
+  overrides: Record<string, string>;
 };
 
 type SortField = "status" | "name" | "lastRun";
 
-export function SyncsTable({ syncs, models, destinations, hasApiKey, apiError }: SyncsTableProps) {
+export function SyncsTable({ syncs, models, destinations, hasApiKey, apiError, overrides }: SyncsTableProps) {
   const [nexusOnly, setNexusOnly] = useState(true);
   const [search, setSearch] = useState("");
   const [sortField, setSortField] = useState<SortField>("status");
@@ -289,14 +272,14 @@ export function SyncsTable({ syncs, models, destinations, hasApiKey, apiError }:
     if (search.trim()) {
       const q = search.trim().toLowerCase();
       list = list.filter((s) =>
-        syncDisplayName(s).toLowerCase().includes(q) ||
+        syncDisplayName(s, overrides).toLowerCase().includes(q) ||
         s.slug.toLowerCase().includes(q) ||
         (modelMap.get(String(s.modelId))?.name ?? "").toLowerCase().includes(q) ||
         (destMap.get(String(s.destinationId))?.name ?? "").toLowerCase().includes(q),
       );
     }
     return list;
-  }, [syncs, nexusOnly, search, modelMap, destMap]);
+  }, [syncs, nexusOnly, search, modelMap, destMap, overrides]);
 
   const statusCounts = useMemo(() => {
     const counts = new Map<string, number>();
@@ -310,7 +293,7 @@ export function SyncsTable({ syncs, models, destinations, hasApiKey, apiError }:
     return [...list].sort((a, b) => {
       let cmp = 0;
       if (sortField === "status") cmp = statusSortKey(a.status) - statusSortKey(b.status);
-      else if (sortField === "name") cmp = syncDisplayName(a).localeCompare(syncDisplayName(b));
+      else if (sortField === "name") cmp = syncDisplayName(a, overrides).localeCompare(syncDisplayName(b, overrides));
       else if (sortField === "lastRun") {
         const ta = a.lastRunAt ? new Date(a.lastRunAt).getTime() : 0;
         const tb = b.lastRunAt ? new Date(b.lastRunAt).getTime() : 0;
@@ -318,7 +301,7 @@ export function SyncsTable({ syncs, models, destinations, hasApiKey, apiError }:
       }
       return sortDir === "asc" ? cmp : -cmp;
     });
-  }, [scoped, statusFilter, sortField, sortDir]);
+  }, [scoped, statusFilter, sortField, sortDir, overrides]);
 
   function toggleStatus(status: string) {
     setStatusFilter((prev) => {
@@ -440,6 +423,7 @@ export function SyncsTable({ syncs, models, destinations, hasApiKey, apiError }:
                 sync={sync}
                 modelName={modelMap.get(String(sync.modelId))?.name ?? String(sync.modelId).slice(0, 10) + "…"}
                 destName={destMap.get(String(sync.destinationId))?.name ?? String(sync.destinationId).slice(0, 10) + "…"}
+                overrides={overrides}
               />
             ))
           )}
@@ -484,6 +468,7 @@ export function SyncsTable({ syncs, models, destinations, hasApiKey, apiError }:
                   sync={sync}
                   modelName={modelMap.get(String(sync.modelId))?.name ?? String(sync.modelId).slice(0, 10) + "…"}
                   destName={destMap.get(String(sync.destinationId))?.name ?? String(sync.destinationId).slice(0, 10) + "…"}
+                  overrides={overrides}
                 />
               ))
             )}
