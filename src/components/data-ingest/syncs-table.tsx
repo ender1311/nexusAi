@@ -1,12 +1,13 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import { ChevronDown, ChevronRight, Search, X } from "lucide-react";
+import { ChevronDown, ChevronRight, History, Search, X } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { cn, formatRelativeTime } from "@/lib/utils";
 import { TriggerSyncButton } from "./trigger-sync-button";
 import { SyncRunsDrawer } from "./sync-runs-drawer";
+import { SyncNameEdit } from "./sync-name-edit";
 import type { HightouchSync, HightouchModel, HightouchDestination } from "@/lib/hightouch/types";
 import { syncDisplayName } from "@/lib/hightouch/sync-display-name";
 
@@ -104,7 +105,9 @@ function SyncCard({ sync, modelName, destName, overrides }: SyncItemProps) {
               : <ChevronRight className="h-3.5 w-3.5 text-muted-foreground" />}
           </span>
           <div className="min-w-0 flex-1">
-            <p className="text-sm font-medium truncate leading-tight">{displayName}</p>
+            <div className="text-sm font-medium leading-tight" onClick={(e) => e.stopPropagation()}>
+              <SyncNameEdit syncId={String(sync.id)} currentName={displayName} defaultName={syncDisplayName(sync, {})} />
+            </div>
             <div className="flex items-center gap-2 mt-0.5 flex-wrap">
               <Badge
                 variant="outline"
@@ -190,13 +193,9 @@ function SyncTableRow({ sync, modelName, destName, overrides }: SyncItemProps) {
           </Badge>
         </td>
         <td className="px-3 py-2">
-          <button
-            type="button"
-            className="text-xs font-medium hover:underline text-left"
-            onClick={() => setDrawerOpen(true)}
-          >
-            {displayName}
-          </button>
+          <span className="text-xs font-medium">
+            <SyncNameEdit syncId={String(sync.id)} currentName={displayName} defaultName={syncDisplayName(sync, {})} />
+          </span>
         </td>
         <td className="px-3 py-2 text-xs text-muted-foreground">{modelName}</td>
         <td className="px-3 py-2 text-xs text-muted-foreground">{destName}</td>
@@ -207,7 +206,17 @@ function SyncTableRow({ sync, modelName, destName, overrides }: SyncItemProps) {
           {formatSchedule(sync.schedule)}
         </td>
         <td className="px-3 py-2 text-right">
-          <TriggerSyncButton syncId={sync.id} syncName={displayName} />
+          <span className="inline-flex items-center gap-2">
+            <button
+              type="button"
+              aria-label="View run history"
+              onClick={() => setDrawerOpen(true)}
+              className="text-muted-foreground hover:text-foreground transition-colors"
+            >
+              <History className="h-3.5 w-3.5" />
+            </button>
+            <TriggerSyncButton syncId={sync.id} syncName={displayName} />
+          </span>
         </td>
       </tr>
       <SyncRunsDrawer
