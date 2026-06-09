@@ -215,7 +215,7 @@ export async function POST(req: NextRequest) {
         const targetStages = !seg?.includes?.length && !a.targetSegmentName && a.funnelStage
           ? new Set([a.funnelStage])
           : new Set<string>(); // segment-targeted or unfiltered agents → no stage-based cohort_exit
-        agentsById.set(a.id, { id: a.id, holdMaxDays: a.holdMaxDays, holdMaxSends: a.holdMaxSends, targetStages });
+        agentsById.set(a.id, { id: a.id, holdMaxDays: a.holdMaxDays, holdMaxSends: a.holdMaxSends, targetStages, enrollmentMode: (a.enrollmentMode ?? "fixed") as "fixed" | "continuous" });
       }
       // Load current funnelStage for the owned users (one query).
       const ownedIds = activeAssignments.map((a) => a.externalUserId);

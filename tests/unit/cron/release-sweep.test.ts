@@ -4,7 +4,7 @@ import { classifyReleases } from "@/lib/cron/release-sweep";
 const now = new Date("2026-05-31T12:00:00Z");
 const daysAgo = (n: number) => new Date(now.getTime() - n * 86_400_000);
 
-const agent = { id: "a1", holdMaxDays: 90, holdMaxSends: 24, targetStages: new Set(["lapsed_mau"]) };
+const agent = { id: "a1", holdMaxDays: 90, holdMaxSends: 24, targetStages: new Set(["lapsed_mau"]), enrollmentMode: "fixed" as const };
 
 describe("classifyReleases", () => {
   it("releases hold_cap_days at 91 days, keeps at 89", () => {
