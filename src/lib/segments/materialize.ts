@@ -27,6 +27,9 @@ export function collectReferencedSegmentNames(agents: AgentTargetingFields[]): S
 }
 
 const SEGMENT_TIMEOUT_MS = 60_000;
+// Interactive-transaction budget for the wrapper. Must exceed both the 5s Prisma
+// default (which would otherwise abort large segments) and SEGMENT_TIMEOUT_MS.
+export const MATERIALIZE_TX_TIMEOUT_MS = SEGMENT_TIMEOUT_MS + 1_000;
 
 /** Reconcile one rule-segment's membership inside a transaction:
  *  1. upsert all current matches, stamping syncedAt = runStart
@@ -107,8 +110,12 @@ export async function materializeAllSegments(args: { runStart: Date }): Promise<
       continue;
     }
     try {
-      const { matched, deleted } = await prisma.$transaction((tx) =>
-        materializeSegment(tx, { segmentName: segment.name, where, runStart }),
+      // The default interactive-transaction timeout is 5s, which fires before the
+      // 60s statement_timeout set inside materializeSegment. Raise the wrapper's
+      // budget above SEGMENT_TIMEOUT_MS so large segments aren't aborted early.
+      const { matched, deleted } = await prisma.$transaction(
+        (tx) => materializeSegment(tx, { segmentName: segment.name, where, runStart }),
+        { timeout: MATERIALIZE_TX_TIMEOUT_MS },
       );
       summary.segmentsProcessed += 1;
       summary.perSegment.push({ name: segment.name, matched, deleted });

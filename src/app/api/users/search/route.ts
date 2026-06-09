@@ -32,13 +32,19 @@ export async function GET(req: Request) {
     if (q.includes("@")) {
       // Email exact match via the expression index (User_attributes_email_idx).
       // Prisma's JSON-path filter does NOT reliably use it — see the regression test.
+      // Select first/last name too so the name falls back the same way nameOf does
+      // (the id/brazeId path below uses nameOf); otherwise this path returned a null
+      // name for users that only have first_name/last_name attributes.
       const rows = await prisma.$queryRaw<Array<{
-        externalId: string; brazeId: string | null; email: string | null; name: string | null;
+        externalId: string; brazeId: string | null; email: string | null;
+        name: string | null; firstName: string | null; lastName: string | null;
         funnelStage: string | null; personaName: string | null;
       }>>`
         SELECT u."externalId", u."brazeId",
-               u."attributes"->>'email' AS email,
-               u."attributes"->>'name'  AS name,
+               u."attributes"->>'email'      AS email,
+               u."attributes"->>'name'       AS name,
+               u."attributes"->>'first_name' AS "firstName",
+               u."attributes"->>'last_name'  AS "lastName",
                u."funnelStage",
                p."name" AS "personaName"
         FROM "User" u
@@ -46,7 +52,16 @@ export async function GET(req: Request) {
         WHERE u."attributes"->>'email' = ${q}
         LIMIT 25
       `;
-      return ok<SearchHit[]>(rows);
+      return ok<SearchHit[]>(
+        rows.map((r) => ({
+          externalId: r.externalId,
+          brazeId: r.brazeId,
+          email: r.email,
+          name: r.name || [r.firstName, r.lastName].filter(Boolean).join(" ") || null,
+          funnelStage: r.funnelStage,
+          personaName: r.personaName,
+        })),
+      );
     }
 
     // Exact identifier lookup: externalId first, then brazeId (both @unique).

@@ -28,8 +28,22 @@ export async function PUT(req: Request, { params }: { params: Promise<{ id: stri
     const rule = parseSegmentRule(body.rule);
     if (rule === null) return fail("Invalid segment rule", 400);
 
-    const clash = await prisma.userSegment.findFirst({ where: { segmentName: name }, select: { id: true } });
+    const existing = await prisma.segment.findUnique({ where: { id }, select: { rule: true } });
+    if (!existing) return fail("Segment not found", 404);
+
+    // Exclude this segment's own materialized rows from the clash check. Once the
+    // materialize cron writes source='rule' rows under segmentName, an unfiltered
+    // findFirst matches them and 409s every later edit — see the regression test.
+    // Only a 'hightouch'-imported name is a genuine cross-system collision.
+    const clash = await prisma.userSegment.findFirst({
+      where: { segmentName: name, source: { not: "rule" } },
+      select: { id: true },
+    });
     if (clash) return fail("A segment with this name already exists", 409);
+
+    // A changed rule invalidates the cached exact size (membership differs). Both
+    // sides are normalized by parseSegmentRule, so the comparison is order-stable.
+    const ruleChanged = JSON.stringify(parseSegmentRule(existing.rule)) !== JSON.stringify(rule);
 
     const updated = await prisma.segment.update({
       where: { id },
@@ -37,6 +51,7 @@ export async function PUT(req: Request, { params }: { params: Promise<{ id: stri
         name,
         description: typeof body.description === "string" ? body.description : null,
         rule: rule as unknown as Prisma.InputJsonValue,
+        ...(ruleChanged ? { sizeExact: null, sizeComputedAt: null } : {}),
       },
     });
     return ok(updated);

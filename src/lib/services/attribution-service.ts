@@ -37,14 +37,18 @@ export async function applyConversion(args: {
 
   const reward = calculateReward(conversionEvent, decision.agent.goals as unknown as Goal[], properties);
 
-  await prisma.userDecision.update({
-    where: { id: decision.id },
+  // Guard against double-crediting under concurrent retries: only the call that
+  // flips conversionAt from null wins; a racing retry sees count===0 and bails
+  // before touching arm stats / user stats / the assignment release.
+  const credited = await prisma.userDecision.updateMany({
+    where: { id: decision.id, conversionAt: null },
     data: {
       conversionEvent,
       conversionAt: occurredAt,
       reward: reward !== 0 ? reward : null,
     },
   });
+  if (credited.count === 0) return { reward };
 
   if (reward !== 0) {
     await accumulateUserStats({
