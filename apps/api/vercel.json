@@ -1,5 +1,6 @@
 {
   "framework": null,
+  "ignoreCommand": "git diff --quiet HEAD^ HEAD -- . ../../prisma",
   "installCommand": "npm install --ignore-scripts",
   "buildCommand": "npx prisma generate --config prisma.config.ts",
   "build": {
