@@ -56,6 +56,7 @@ export async function truncateAll(): Promise<void> {
   await prisma.agent.deleteMany();
   await prisma.userSegment.deleteMany().catch(() => {});
   await prisma.segment.deleteMany().catch(() => {});
+  await prisma.syncNameOverride.deleteMany().catch(() => {});
   await prisma.userPreference.deleteMany().catch(() => {});
   await prisma.trackedUser.deleteMany();
   await prisma.persona.deleteMany();

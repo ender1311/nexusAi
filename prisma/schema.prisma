@@ -547,3 +547,10 @@ model Segment {
 
   @@map("Segment")
 }
+
+model SyncNameOverride {
+  syncId      String   @id
+  displayName String
+  updatedAt   DateTime @updatedAt
+  createdAt   DateTime @default(now())
+}
