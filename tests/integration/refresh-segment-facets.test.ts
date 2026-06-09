@@ -1,8 +1,11 @@
-import { describe, expect, it, beforeEach } from "bun:test";
+import { describe, expect, it, beforeAll, afterAll, beforeEach } from "bun:test";
 import { NextRequest } from "next/server";
 import { POST } from "@/app/api/cron/refresh-segment-facets/route";
 import { truncateAll, prisma } from "../helpers/db";
 import { createUser } from "../helpers/builders";
+
+beforeAll(() => { process.env.CRON_SECRET = "test_cron_secret"; });
+afterAll(() => { delete process.env.CRON_SECRET; });
 
 function authedReq(): NextRequest {
   return new NextRequest("http://localhost/api/cron/refresh-segment-facets", {
