@@ -436,11 +436,9 @@ export async function POST(req: NextRequest) {
     const lockedIds = lockedRows.map((r) => r.externalId);
     if (lockedIds.length > 0) {
       await prisma.userAgentAssignment.createMany({
-        data: lockedRows.map(({ externalId: externalUserId, attributes }) => {
-          let attrs: Record<string, unknown> = {};
-          try { const p = JSON.parse(attributes as string); if (p && typeof p === "object" && !Array.isArray(p)) attrs = p; } catch { /* tolerant */ }
-          return { externalUserId, agentId: agent.id, startedAt: now, enrollmentFlags: snapshotEnrollmentFlags(attrs) };
-        }),
+        data: lockedRows.map(({ externalId: externalUserId, attributes }) => (
+          { externalUserId, agentId: agent.id, startedAt: now, enrollmentFlags: snapshotEnrollmentFlags(attributes) }
+        )),
         skipDuplicates: true,
       });
       for (const id of lockedIds) activeOwnerByUser.set(id, agent.id);
@@ -490,14 +488,16 @@ export async function POST(req: NextRequest) {
           ...a,
           currentStage: null as string | null, // stage irrelevant; cohort_exit won't fire (empty targetStages)
         }));
-        const releases = classifyReleases(enrichedAssigns, releaseAgentsById, now);
-        if (releases.length > 0) {
-          const releaseIds = releases.map((r) => r.id);
+        // Only act on segment_exit here — hold-cap releases are Phase −1's job
+        // (already consumed this run); writing them as segment_exit would mislabel.
+        const exits = classifyReleases(enrichedAssigns, releaseAgentsById, now)
+          .filter((r) => r.reason === "segment_exit");
+        if (exits.length > 0) {
           await prisma.userAgentAssignment.updateMany({
-            where: { id: { in: releaseIds } },
+            where: { id: { in: exits.map((r) => r.id) } },
             data: { releasedAt: now, releaseReason: "segment_exit" },
           }).catch((err) => console.error(`[cron] continuous segment_exit release failed (agent ${agent.id}):`, err));
-          for (const r of releases) activeOwnerByUser.delete(r.externalUserId);
+          for (const r of exits) activeOwnerByUser.delete(r.externalUserId);
         }
       }
 
@@ -545,18 +545,14 @@ export async function POST(req: NextRequest) {
 
           if (toCreate.length > 0) {
             await prisma.userAgentAssignment.createMany({
-              data: toCreate.map(({ externalId: externalUserId, attributes }) => {
-                let attrs: Record<string, unknown> = {};
-                try { const p = JSON.parse(attributes as string); if (p && typeof p === "object" && !Array.isArray(p)) attrs = p; } catch { /* tolerant */ }
-                return { externalUserId, agentId: agent.id, startedAt: now, enrollmentFlags: snapshotEnrollmentFlags(attrs) };
-              }),
+              data: toCreate.map(({ externalId: externalUserId, attributes }) => (
+                { externalUserId, agentId: agent.id, startedAt: now, enrollmentFlags: snapshotEnrollmentFlags(attributes) }
+              )),
             });
           }
           if (toUpsert.length > 0) {
             await runChunked(toUpsert, DB_WRITE_CONCURRENCY, ({ externalId: externalUserId, attributes }) => {
-              let attrs: Record<string, unknown> = {};
-              try { const p = JSON.parse(attributes as string); if (p && typeof p === "object" && !Array.isArray(p)) attrs = p; } catch { /* tolerant */ }
-              const enrollmentFlags = snapshotEnrollmentFlags(attrs);
+              const enrollmentFlags = snapshotEnrollmentFlags(attributes);
               return prisma.userAgentAssignment.update({
                 where: { externalUserId },
                 data: {

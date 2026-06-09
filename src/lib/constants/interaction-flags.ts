@@ -32,10 +32,24 @@ export function normalizeFlag(value: unknown): boolean {
 }
 
 /**
- * Build the enrollment-time snapshot of interaction flags from a user's stored attributes.
+ * Build the enrollment-time snapshot of interaction flags from a user's stored
+ * attributes (Json column holding either a serialized JSON string or an object).
  * Used as the Type-A baseline for first_interaction conversion detection.
+ * Tolerant of null/corrupt/non-object input → all-false baseline.
  */
-export function snapshotEnrollmentFlags(attrs: Record<string, unknown>): Record<string, boolean> {
+export function snapshotEnrollmentFlags(rawAttributes: unknown): Record<string, boolean> {
+  let attrs: Record<string, unknown> = {};
+  let candidate: unknown = rawAttributes;
+  if (typeof candidate === "string") {
+    try {
+      candidate = JSON.parse(candidate);
+    } catch {
+      candidate = null; // corrupt attributes → all-false baseline
+    }
+  }
+  if (candidate && typeof candidate === "object" && !Array.isArray(candidate)) {
+    attrs = candidate as Record<string, unknown>;
+  }
   return INTERACTION_FLAGS.reduce<Record<string, boolean>>((acc, f) => {
     acc[f] = normalizeFlag(attrs[f]);
     return acc;
