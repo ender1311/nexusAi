@@ -463,6 +463,9 @@ export async function POST(req: NextRequest) {
       // whether to run segment_exit releases. Funnel-stage-only continuous agents
       // skip segment_exit: the eligibility query is take()-limited so treating it
       // as a complete audience would wrongly release users beyond the fetch window.
+      // Accepted trade-off: owned users of a funnel-only continuous agent who drift
+      // out of stage fall out of the lottery pool but keep counting against the soft
+      // cap until hold caps release them (hold_max_days/hold_max_sends).
       const segTargetingForAgent = parseSegmentTargeting(agent.segmentTargeting);
       const hasSegmentTargeting = !!(
         (segTargetingForAgent?.includes?.length ?? 0) > 0 || agent.targetSegmentName
@@ -473,6 +476,7 @@ export async function POST(req: NextRequest) {
         where: { agentId: agent.id, releasedAt: null },
         select: { id: true, externalUserId: true, agentId: true, startedAt: true, sendCount: true },
       });
+      let exitCount = 0;
       if (activeAssigns.length > 0 && hasSegmentTargeting) {
         const releaseAgentsById = new Map([
           [agent.id, {
@@ -492,6 +496,7 @@ export async function POST(req: NextRequest) {
         // (already consumed this run); writing them as segment_exit would mislabel.
         const exits = classifyReleases(enrichedAssigns, releaseAgentsById, now)
           .filter((r) => r.reason === "segment_exit");
+        exitCount = exits.length;
         if (exits.length > 0) {
           await prisma.userAgentAssignment.updateMany({
             where: { id: { in: exits.map((r) => r.id) } },
@@ -502,11 +507,7 @@ export async function POST(req: NextRequest) {
       }
 
       // ── Step 2: count active enrollments after the release step ─────────────
-      const activeCount = activeAssigns.filter((a) => {
-        // Re-check in-memory: exclude those we just released above
-        const owner = activeOwnerByUser.get(a.externalUserId);
-        return owner === agent.id;
-      }).length;
+      const activeCount = activeAssigns.length - exitCount;
 
       // ── Step 3: enroll new members up to soft cap ────────────────────────────
       // toEnroll = audience members not already actively owned by any agent
@@ -639,12 +640,16 @@ export async function POST(req: NextRequest) {
     const { toCreate, toReset, toClose } = classification;
     for (const [uid, aid] of classification.inWindowMap) inWindowMap.set(uid, aid);
 
+    // Build externalId → attributes map for enrollment flag snapshotting (Gaps 2 & 3).
+    const explorationAttrsByUser = new Map(explorationUsers.map((u) => [u.externalId, u.attributes]));
+
     // Apply DB writes:
     // Class A — single createMany (1 round trip for any number of new users)
     if (toCreate.length > 0) {
       await prisma.userAgentAssignment.createMany({
         data: toCreate.map(({ externalUserId, agentId }) => ({
           externalUserId, agentId, sendCount: 0, windowCompletedAt: null,
+          enrollmentFlags: snapshotEnrollmentFlags(explorationAttrsByUser.get(externalUserId)),
         })),
         skipDuplicates: true,
       });
@@ -654,7 +659,10 @@ export async function POST(req: NextRequest) {
       await runChunked(toReset, DB_WRITE_CONCURRENCY, ({ externalUserId, agentId }) =>
         prisma.userAgentAssignment.update({
           where: { externalUserId },
-          data: { agentId, startedAt: now, sendCount: 0, windowCompletedAt: null },
+          data: {
+            agentId, startedAt: now, sendCount: 0, windowCompletedAt: null,
+            enrollmentFlags: snapshotEnrollmentFlags(explorationAttrsByUser.get(externalUserId)),
+          },
         })
       );
     }
@@ -1306,6 +1314,8 @@ export async function POST(req: NextRequest) {
             if (row && row.releasedAt === null && row.agentId === agent.id) continueIds.push(uid);
             else claimIds.push(uid);
           }
+          // Build attributes lookup for enrollment flag snapshot on claim rows.
+          const attributesByUser = new Map(users.map((u) => [u.externalId, u.attributes]));
           await Promise.all([
             continueIds.length > 0
               ? prisma.userAgentAssignment.updateMany({
@@ -1314,18 +1324,20 @@ export async function POST(req: NextRequest) {
                 })
               : Promise.resolve(),
             // Claims overwrite the unique externalUserId row (spec A1: fresh ownership).
-            runChunked(claimIds, DB_WRITE_CONCURRENCY, (uid) =>
-              prisma.userAgentAssignment
+            runChunked(claimIds, DB_WRITE_CONCURRENCY, (uid) => {
+              const enrollmentFlags = snapshotEnrollmentFlags(attributesByUser.get(uid));
+              return prisma.userAgentAssignment
                 .upsert({
                   where: { externalUserId: uid },
-                  create: { externalUserId: uid, agentId: agent.id, startedAt: now, sendCount: 1, lastSentAt: now },
+                  create: { externalUserId: uid, agentId: agent.id, startedAt: now, sendCount: 1, lastSentAt: now, enrollmentFlags },
                   update: {
                     agentId: agent.id, startedAt: now, sendCount: 1, lastSentAt: now,
                     windowCompletedAt: null, releasedAt: null, releaseReason: null,
+                    enrollmentFlags,
                   },
                 })
-                .catch((err) => console.error(`[cron] lottery assignment upsert failed for ${uid}:`, err)),
-            ),
+                .catch((err) => console.error(`[cron] lottery assignment upsert failed for ${uid}:`, err));
+            }),
           ]);
         }
       }

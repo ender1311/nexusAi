@@ -158,6 +158,38 @@ describe("POST /api/cron/select-and-send", () => {
     expect(sendCalls).toHaveLength(2); // ceil(55/50) = 2; all users share fallback scheduledAt → one group
   }, 20000); // 55 users × sequential DB ops against Neon
 
+  it("lottery claim path snapshots enrollmentFlags with user's interaction flags", async () => {
+    // Gap 1 regression: lottery claim upsert must write enrollmentFlags so that
+    // Type-A (first_interaction) conversion detection has a correct baseline.
+    const persona = await createPersona();
+    const agent = await createAgent({ funnelStage: "wau" });
+    const msg = await createMessage(agent.id, { brazeCampaignId: "camp_flags" });
+    await createVariant(msg.id, { brazeVariantId: "var_flags" });
+    await linkAgentToPersona(agent.id, persona.id);
+    await createSchedulingRule(agent.id);
+
+    // User has plan_subscribed_has_ever_flag: true at enrollment time.
+    await createUser("usr_flags", {
+      personaId: persona.id,
+      funnelStage: "wau",
+      attributes: { plan_subscribed_has_ever_flag: true },
+    });
+
+    const res = await POST(buildRequest("POST", undefined, CRON_AUTH) as NextRequest);
+    expect(res.status).toBe(200);
+
+    const assignment = await prisma.userAgentAssignment.findUnique({
+      where: { externalUserId: "usr_flags" },
+    });
+    expect(assignment).not.toBeNull();
+    expect(assignment!.enrollmentFlags).not.toBeNull();
+    const flags = assignment!.enrollmentFlags as Record<string, boolean>;
+    // The flag that was true at enrollment must be captured as true
+    expect(flags["plan_subscribed_has_ever_flag"]).toBe(true);
+    // A flag that was not set must be false (not absent)
+    expect(flags["votd_share_has_ever_flag"]).toBe(false);
+  });
+
   it("stamps brazeSendId on UserDecision records after a successful send", async () => {
     // Regression: the cron previously never set brazeSendId, so the analytics cron
     // (which filters WHERE brazeSendId IS NOT NULL) would always return 0 decisions

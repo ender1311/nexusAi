@@ -71,8 +71,12 @@ describe("continuous enrollment: basic open-enrollment cycle", () => {
     await giveVariant(agent.id);
     await createSchedulingRule(agent.id);
 
-    // Users A and B are in the segment
-    await createUser("cont_userA", { personaId: persona.id, funnelStage: "wau" });
+    // Users A and B are in the segment. A has a known interaction flag set true.
+    await createUser("cont_userA", {
+      personaId: persona.id,
+      funnelStage: "wau",
+      attributes: { plan_subscribed_has_ever_flag: true },
+    });
     await createUser("cont_userB", { personaId: persona.id, funnelStage: "wau" });
     await createUserSegment("cont_userA", "seg_continuous");
     await createUserSegment("cont_userB", "seg_continuous");
@@ -90,6 +94,11 @@ describe("continuous enrollment: basic open-enrollment cycle", () => {
     expect(assignA1).not.toBeNull();
     expect(assignA1!.releasedAt).toBeNull();
     expect(assignA1!.enrollmentFlags).not.toBeNull();
+    // A had plan_subscribed_has_ever_flag: true at enrollment — must be captured in snapshot
+    const flagsA = assignA1!.enrollmentFlags as Record<string, boolean>;
+    expect(flagsA["plan_subscribed_has_ever_flag"]).toBe(true);
+    // A flag that was not set should be false in the snapshot
+    expect(flagsA["votd_share_has_ever_flag"]).toBe(false);
     expect(assignB1).not.toBeNull();
     expect(assignB1!.releasedAt).toBeNull();
     expect(assignB1!.enrollmentFlags).not.toBeNull();
@@ -114,10 +123,12 @@ describe("continuous enrollment: basic open-enrollment cycle", () => {
     expect(assignB2!.releasedAt).not.toBeNull();
     expect(assignB2!.releaseReason).toBe("segment_exit");
 
-    // C: newly enrolled
+    // C: newly enrolled — snapshot must be non-null (all flags false for default user)
     expect(assignC2).not.toBeNull();
     expect(assignC2!.releasedAt).toBeNull();
     expect(assignC2!.enrollmentFlags).not.toBeNull();
+    const flagsC = assignC2!.enrollmentFlags as Record<string, boolean>;
+    expect(flagsC["plan_subscribed_has_ever_flag"]).toBe(false);
 
     // cohortAssignedAt still null after tick 2
     const refreshed2 = await prisma.agent.findUnique({ where: { id: agent.id } });
