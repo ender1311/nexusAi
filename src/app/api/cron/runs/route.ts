@@ -36,6 +36,6 @@ export async function GET(): Promise<NextResponse<{ data: CronRunData[] }>> {
       errorMsg: r.errorMsg,
     })),
   });
-  res.headers.set("Cache-Control", "public, s-maxage=15, stale-while-revalidate=30");
+  res.headers.set("Cache-Control", "private, max-age=15, stale-while-revalidate=30");
   return res;
 }

@@ -14,7 +14,7 @@ export async function GET() {
   try {
     const agents = await apiFetch<unknown[]>("/agents");
     const res = NextResponse.json(agents);
-    res.headers.set("Cache-Control", "public, s-maxage=30, stale-while-revalidate=60");
+    res.headers.set("Cache-Control", "private, max-age=30, stale-while-revalidate=60");
     return res;
   } catch (err) {
     return handleRouteError("GET /api/agents", err);

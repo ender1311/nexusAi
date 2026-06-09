@@ -28,7 +28,7 @@ agents.get("/", async (c) => {
       orderBy: { updatedAt: "desc" },
     });
     return c.json(result, 200, {
-      "Cache-Control": "public, s-maxage=30, stale-while-revalidate=60",
+      "Cache-Control": "private, max-age=30, stale-while-revalidate=60",
     });
   } catch (error) {
     console.error("GET /agents error:", error);
