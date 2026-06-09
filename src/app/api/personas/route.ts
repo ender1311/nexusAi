@@ -70,7 +70,7 @@ export async function GET() {
     });
 
     const res = NextResponse.json(personas.map(toApiPersona));
-    res.headers.set("Cache-Control", "public, s-maxage=30, stale-while-revalidate=60");
+    res.headers.set("Cache-Control", "private, max-age=30, stale-while-revalidate=60");
     return res;
   } catch (error) {
     console.error("GET /api/personas error:", error);

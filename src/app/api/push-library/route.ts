@@ -60,7 +60,7 @@ export async function GET(req: NextRequest) {
         Array.from(subMap.entries()).map(([s, vs]) => ({ category: c, subcategory: s, variants: vs })),
       );
       const res = NextResponse.json({ data });
-      res.headers.set("Cache-Control", "public, s-maxage=30, stale-while-revalidate=60");
+      res.headers.set("Cache-Control", "private, max-age=30, stale-while-revalidate=60");
       return res;
     }
 

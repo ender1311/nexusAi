@@ -35,7 +35,7 @@ export async function GET(req: NextRequest) {
     });
 
     const res = NextResponse.json(variants);
-    res.headers.set("Cache-Control", "public, s-maxage=30, stale-while-revalidate=60");
+    res.headers.set("Cache-Control", "private, max-age=30, stale-while-revalidate=60");
     return res;
   } catch (error) {
     console.error("GET /api/variants error:", error);
