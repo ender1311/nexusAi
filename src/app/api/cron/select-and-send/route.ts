@@ -45,6 +45,7 @@ import { loadVersePool } from "@/lib/cron/verse-pool";
 import { isGivingHandleStrategy, isGivingFrequency, type GivingHandleStrategy, type GivingFrequency } from "@/lib/engine/giving-link";
 import { parseMultiplier } from "@/lib/engine/giving-copy";
 import { isPushVariantComplete } from "@/lib/messages/push-completeness";
+import { snapshotEnrollmentFlags } from "@/lib/constants/interaction-flags";
 
 // Allow up to 300s execution time on Vercel
 export const maxDuration = 300;
@@ -414,6 +415,7 @@ export async function POST(req: NextRequest) {
   // (not parallel) so each agent's locks are visible to the next; the null-guarded
   // updateMany is the arbiter when two new agents contend for the same users.
   for (const agent of agents) {
+    if (agent.enrollmentMode === "continuous") continue; // continuous agents never freeze a cohort
     if (agent.cohortAssignedAt) continue;          // already materialized
     if (agent.uniqueUsersCap == null) continue;     // unlimited agents never materialize
     const pool = eligibleUsersByAgent.get(agent.id) ?? [];
@@ -425,15 +427,20 @@ export async function POST(req: NextRequest) {
       where: { externalId: { in: sample }, lockedByAgentId: null },
       data:  { lockedByAgentId: agent.id },
     });
-    // Re-read which ones we actually own now (covers concurrent contention).
+    // Re-read which ones we actually own now (covers concurrent contention),
+    // fetching attributes in the same round trip for enrollment flag snapshotting.
     const lockedRows = await prisma.trackedUser.findMany({
       where: { externalId: { in: sample }, lockedByAgentId: agent.id },
-      select: { externalId: true },
+      select: { externalId: true, attributes: true },
     });
     const lockedIds = lockedRows.map((r) => r.externalId);
     if (lockedIds.length > 0) {
       await prisma.userAgentAssignment.createMany({
-        data: lockedIds.map((externalUserId) => ({ externalUserId, agentId: agent.id, startedAt: now })),
+        data: lockedRows.map(({ externalId: externalUserId, attributes }) => {
+          let attrs: Record<string, unknown> = {};
+          try { const p = JSON.parse(attributes as string); if (p && typeof p === "object" && !Array.isArray(p)) attrs = p; } catch { /* tolerant */ }
+          return { externalUserId, agentId: agent.id, startedAt: now, enrollmentFlags: snapshotEnrollmentFlags(attrs) };
+        }),
         skipDuplicates: true,
       });
       for (const id of lockedIds) activeOwnerByUser.set(id, agent.id);
@@ -444,6 +451,140 @@ export async function POST(req: NextRequest) {
     eligibleUsersByAgent.set(agent.id, lockedIds);
   }
   // ─── End cohort materialization ───────────────────────────────────────────
+
+  // ─── Continuous open-enrollment pass ──────────────────────────────────────
+  // For each continuous agent: release users that left the segment, enroll new
+  // members up to the soft cap, and narrow the lottery pool to enrolled users only
+  // (so un-enrolled overflow can't be claimed at send time, bypassing the cap).
+  // Runs after cohort materialization so any locks from fixed agents are visible.
+  for (const agent of agents.filter((a) => a.enrollmentMode === "continuous")) {
+    try {
+      const audience = new Set(eligibleUsersByAgent.get(agent.id) ?? []);
+
+      // Determine whether this agent has real segment targeting so we can decide
+      // whether to run segment_exit releases. Funnel-stage-only continuous agents
+      // skip segment_exit: the eligibility query is take()-limited so treating it
+      // as a complete audience would wrongly release users beyond the fetch window.
+      const segTargetingForAgent = parseSegmentTargeting(agent.segmentTargeting);
+      const hasSegmentTargeting = !!(
+        (segTargetingForAgent?.includes?.length ?? 0) > 0 || agent.targetSegmentName
+      );
+
+      // ── Step 1: release segment exits (frees cap headroom this tick) ────────
+      const activeAssigns = await prisma.userAgentAssignment.findMany({
+        where: { agentId: agent.id, releasedAt: null },
+        select: { id: true, externalUserId: true, agentId: true, startedAt: true, sendCount: true },
+      });
+      if (activeAssigns.length > 0 && hasSegmentTargeting) {
+        const releaseAgentsById = new Map([
+          [agent.id, {
+            id: agent.id,
+            holdMaxDays: agent.holdMaxDays,
+            holdMaxSends: agent.holdMaxSends,
+            targetStages: new Set<string>(), // segment-targeted → no cohort_exit from stage
+            enrollmentMode: "continuous" as const,
+            audience,
+          }],
+        ]);
+        const enrichedAssigns = activeAssigns.map((a) => ({
+          ...a,
+          currentStage: null as string | null, // stage irrelevant; cohort_exit won't fire (empty targetStages)
+        }));
+        const releases = classifyReleases(enrichedAssigns, releaseAgentsById, now);
+        if (releases.length > 0) {
+          const releaseIds = releases.map((r) => r.id);
+          await prisma.userAgentAssignment.updateMany({
+            where: { id: { in: releaseIds } },
+            data: { releasedAt: now, releaseReason: "segment_exit" },
+          }).catch((err) => console.error(`[cron] continuous segment_exit release failed (agent ${agent.id}):`, err));
+          for (const r of releases) activeOwnerByUser.delete(r.externalUserId);
+        }
+      }
+
+      // ── Step 2: count active enrollments after the release step ─────────────
+      const activeCount = activeAssigns.filter((a) => {
+        // Re-check in-memory: exclude those we just released above
+        const owner = activeOwnerByUser.get(a.externalUserId);
+        return owner === agent.id;
+      }).length;
+
+      // ── Step 3: enroll new members up to soft cap ────────────────────────────
+      // toEnroll = audience members not already actively owned by any agent
+      let toEnroll = [...audience].filter((id) => activeOwnerByUser.get(id) === undefined);
+      if (agent.uniqueUsersCap != null) {
+        const headroom = Math.max(0, agent.uniqueUsersCap - activeCount);
+        toEnroll = toEnroll.slice(0, headroom);
+      }
+
+      if (toEnroll.length > 0) {
+        // Lock race-safely: only claim users not already locked by anyone else
+        await prisma.trackedUser.updateMany({
+          where: { externalId: { in: toEnroll }, lockedByAgentId: null },
+          data: { lockedByAgentId: agent.id },
+        });
+        // Re-read winners (race contention) + fetch attributes for flag snapshot in same query.
+        // Note: a previously-released user of THIS agent still has lockedByAgentId = agent.id,
+        // so the re-read picks them up correctly even though updateMany didn't touch them.
+        const winnerRows = await prisma.trackedUser.findMany({
+          where: { externalId: { in: toEnroll }, lockedByAgentId: agent.id },
+          select: { externalId: true, attributes: true },
+        });
+        const winnerIds = winnerRows.map((r) => r.externalId);
+
+        if (winnerIds.length > 0) {
+          // Partition: users with an existing (released) assignment row vs. truly new.
+          // createMany skipDuplicates would silently skip returning users because
+          // externalUserId is @unique — upsert them instead to re-activate.
+          const existingRows = await prisma.userAgentAssignment.findMany({
+            where: { externalUserId: { in: winnerIds } },
+            select: { externalUserId: true },
+          });
+          const existingSet = new Set(existingRows.map((r) => r.externalUserId));
+          const toUpsert = winnerRows.filter((r) => existingSet.has(r.externalId));
+          const toCreate = winnerRows.filter((r) => !existingSet.has(r.externalId));
+
+          if (toCreate.length > 0) {
+            await prisma.userAgentAssignment.createMany({
+              data: toCreate.map(({ externalId: externalUserId, attributes }) => {
+                let attrs: Record<string, unknown> = {};
+                try { const p = JSON.parse(attributes as string); if (p && typeof p === "object" && !Array.isArray(p)) attrs = p; } catch { /* tolerant */ }
+                return { externalUserId, agentId: agent.id, startedAt: now, enrollmentFlags: snapshotEnrollmentFlags(attrs) };
+              }),
+            });
+          }
+          if (toUpsert.length > 0) {
+            await runChunked(toUpsert, DB_WRITE_CONCURRENCY, ({ externalId: externalUserId, attributes }) => {
+              let attrs: Record<string, unknown> = {};
+              try { const p = JSON.parse(attributes as string); if (p && typeof p === "object" && !Array.isArray(p)) attrs = p; } catch { /* tolerant */ }
+              const enrollmentFlags = snapshotEnrollmentFlags(attrs);
+              return prisma.userAgentAssignment.update({
+                where: { externalUserId },
+                data: {
+                  agentId: agent.id, startedAt: now, sendCount: 0, lastSentAt: null,
+                  windowCompletedAt: null, releasedAt: null, releaseReason: null,
+                  enrollmentFlags,
+                },
+              });
+            });
+          }
+          for (const id of winnerIds) activeOwnerByUser.set(id, agent.id);
+        }
+      }
+
+      // ── Step 4: narrow lottery pool to enrolled users only ───────────────────
+      // Prevents un-enrolled audience overflow from being claimed at send time,
+      // which would bypass the soft cap.
+      const enrolledIds = [...activeOwnerByUser.entries()]
+        .filter(([, aid]) => aid === agent.id)
+        .map(([uid]) => uid)
+        .filter((uid) => audience.has(uid));
+      eligibleUsersByAgent.set(agent.id, enrolledIds);
+
+    } catch (err) {
+      console.error(`[cron] continuous enrollment pass failed for agent ${agent.id}:`, err);
+    }
+  }
+  // ─── End continuous open-enrollment pass ──────────────────────────────────
 
   const lotteryMap = buildAgentLottery(eligibleUsersByAgent);
   // lotteryMap: Map<externalUserId, agentId>  — held in memory for this run

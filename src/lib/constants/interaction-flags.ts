@@ -31,6 +31,17 @@ export function normalizeFlag(value: unknown): boolean {
   return false;
 }
 
+/**
+ * Build the enrollment-time snapshot of interaction flags from a user's stored attributes.
+ * Used as the Type-A baseline for first_interaction conversion detection.
+ */
+export function snapshotEnrollmentFlags(attrs: Record<string, unknown>): Record<string, boolean> {
+  return INTERACTION_FLAGS.reduce<Record<string, boolean>>((acc, f) => {
+    acc[f] = normalizeFlag(attrs[f]);
+    return acc;
+  }, {});
+}
+
 export const INTERACTION_FLAG_LABELS: Record<InteractionFlag, string> = {
   guided_scripture_interaction_has_ever_flag:
     "Guided Scripture (first interaction)",
