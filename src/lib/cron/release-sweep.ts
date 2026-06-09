@@ -12,7 +12,12 @@ export type ReleaseAgentInfo = {
   /** Stages this agent targets; empty set = no funnel-stage gate (never cohort_exit). */
   targetStages: Set<string>;
   enrollmentMode: "fixed" | "continuous";
-  audience?: Set<string>; // only for continuous agents: ids currently matching the segment
+  /**
+   * Only for continuous agents: externalUserIds currently matching the segment.
+   * `undefined` = orchestrator didn't compute an audience → segment_exit is skipped entirely.
+   * Empty Set = segment matched zero users → every enrolled user is released.
+   */
+  audience?: Set<string>;
 };
 
 export type ActiveAssignment = {
