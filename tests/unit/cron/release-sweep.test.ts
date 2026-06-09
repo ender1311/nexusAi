@@ -60,3 +60,40 @@ describe("classifyReleases", () => {
     expect(r).toHaveLength(0);
   });
 });
+
+describe("segment_exit (continuous enrollment)", () => {
+  const assignment = { id: "x", externalUserId: "u1", agentId: "a1", startedAt: daysAgo(1), sendCount: 0, currentStage: "lapsed_mau" };
+
+  it("releases a user no longer in the audience of a continuous agent", () => {
+    const continuous = { ...agent, enrollmentMode: "continuous" as const, audience: new Set(["u-other"]) };
+    const r = classifyReleases([assignment], new Map([["a1", continuous]]), now);
+    expect(r).toHaveLength(1);
+    expect(r[0].reason).toBe("segment_exit");
+    expect(r[0].externalUserId).toBe("u1");
+  });
+
+  it("does not release a user who is still in the audience", () => {
+    const continuous = { ...agent, enrollmentMode: "continuous" as const, audience: new Set(["u1"]) };
+    const r = classifyReleases([assignment], new Map([["a1", continuous]]), now);
+    expect(r).toHaveLength(0);
+  });
+
+  it("fixed agent never produces segment_exit even if an audience is provided", () => {
+    const fixedWithAudience = { ...agent, audience: new Set(["u-other"]) };
+    const r = classifyReleases([assignment], new Map([["a1", fixedWithAudience]]), now);
+    expect(r.some((e) => e.reason === "segment_exit")).toBe(false);
+  });
+
+  it("continuous agent with no audience set produces no segment_exit", () => {
+    const continuous = { ...agent, enrollmentMode: "continuous" as const };
+    const r = classifyReleases([assignment], new Map([["a1", continuous]]), now);
+    expect(r.some((e) => e.reason === "segment_exit")).toBe(false);
+  });
+
+  it("other release reasons still apply to users in the audience", () => {
+    const continuous = { ...agent, enrollmentMode: "continuous" as const, audience: new Set(["u1"]) };
+    const r = classifyReleases([{ ...assignment, sendCount: 24 }], new Map([["a1", continuous]]), now);
+    expect(r).toHaveLength(1);
+    expect(r[0].reason).toBe("hold_cap_sends");
+  });
+});
