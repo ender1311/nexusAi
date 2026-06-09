@@ -2,6 +2,9 @@ import { NextRequest, NextResponse } from "next/server";
 import { revalidatePath, revalidateTag } from "next/cache";
 import { prisma } from "@/lib/db";
 import { requireAdmin } from "@/lib/auth";
+import { isInteractionFlag } from "@/lib/constants/interaction-flags";
+
+const VALID_CONV_TYPES = new Set(["first_interaction", "any_interaction"]);
 
 export async function GET(_req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   try {
@@ -35,12 +38,27 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
     weightProperty?: unknown;
     weightDefault?: unknown;
     description?: unknown;
+    conversionType?: unknown;
   };
   if (typeof body.eventName !== "string" || body.eventName.trim() === "") {
     return NextResponse.json({ error: "eventName is required" }, { status: 400 });
   }
   if (typeof body.tier !== "string" || body.tier.trim() === "") {
     return NextResponse.json({ error: "tier is required" }, { status: 400 });
+  }
+  if (body.conversionType !== undefined && body.conversionType !== null) {
+    if (typeof body.conversionType !== "string" || !VALID_CONV_TYPES.has(body.conversionType)) {
+      return NextResponse.json(
+        { error: "goal.conversionType must be 'first_interaction' or 'any_interaction'" },
+        { status: 400 }
+      );
+    }
+    if (!isInteractionFlag(body.eventName.trim())) {
+      return NextResponse.json(
+        { error: "conversionType is only valid for *_has_ever_flag interaction-flag goals" },
+        { status: 400 }
+      );
+    }
   }
 
   try {
@@ -55,6 +73,7 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
         weightProperty: typeof body.weightProperty === "string" ? body.weightProperty : null,
         weightDefault: typeof body.weightDefault === "number" ? body.weightDefault : 1.0,
         description: typeof body.description === "string" ? body.description : null,
+        conversionType: typeof body.conversionType === "string" ? body.conversionType : null,
       },
     });
     revalidatePath(`/agents/${id}`);
@@ -90,12 +109,26 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
     if (typeof g !== "object" || g === null) {
       return NextResponse.json({ error: "Invalid goal entry" }, { status: 400 });
     }
-    const entry = g as { eventName?: unknown; tier?: unknown };
+    const entry = g as { eventName?: unknown; tier?: unknown; conversionType?: unknown };
     if (typeof entry.eventName !== "string" || entry.eventName.trim() === "") {
       return NextResponse.json({ error: "Each goal requires eventName" }, { status: 400 });
     }
     if (typeof entry.tier !== "string" || entry.tier.trim() === "") {
       return NextResponse.json({ error: "Each goal requires tier" }, { status: 400 });
+    }
+    if (entry.conversionType !== undefined && entry.conversionType !== null) {
+      if (typeof entry.conversionType !== "string" || !VALID_CONV_TYPES.has(entry.conversionType)) {
+        return NextResponse.json(
+          { error: "goal.conversionType must be 'first_interaction' or 'any_interaction'" },
+          { status: 400 }
+        );
+      }
+      if (!isInteractionFlag(entry.eventName.trim())) {
+        return NextResponse.json(
+          { error: "conversionType is only valid for *_has_ever_flag interaction-flag goals" },
+          { status: 400 }
+        );
+      }
     }
   }
 
@@ -107,6 +140,7 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
     weightProperty?: unknown;
     weightDefault?: unknown;
     description?: unknown;
+    conversionType?: unknown;
   }>;
 
   try {
@@ -125,6 +159,7 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
           weightProperty: typeof g.weightProperty === "string" ? g.weightProperty : null,
           weightDefault: typeof g.weightDefault === "number" ? g.weightDefault : 1.0,
           description: typeof g.description === "string" ? g.description : null,
+          conversionType: typeof g.conversionType === "string" ? g.conversionType : null,
         })),
       });
     }
