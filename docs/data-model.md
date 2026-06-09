@@ -380,12 +380,22 @@ erDiagram
         json userIds "string[]"
     }
 
+    SyncNameOverride {
+        string syncId PK "Hightouch sync id"
+        string displayName "admin-set, 1-100 chars"
+        datetime updatedAt
+        datetime createdAt
+    }
+
     PlanSet ||--o{ PlanSetMember : "contains"
 ```
 
 `PlanSet`/`PlanSetMember` back the rule-based persona classifier (mapping YouVersion plan_ids
 to persona tags). `CampaignContent` stores per-language scripture content for campaigns.
-`DemoUserGroup` holds named test-user ID sets for the Live Send Demo.
+`DemoUserGroup` holds named test-user ID sets for the Live Send Demo. `SyncNameOverride` is a
+pure `syncId → displayName` lookup that lets admins rename a Hightouch sync for display on the
+Data Ingest page; it is **display-only** and never participates in triggering (which keys purely
+off the raw sync id).
 
 ## JSON Field Schemas
 
