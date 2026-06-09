@@ -12,14 +12,27 @@ const TOP_LIMIT = 50;
 // of roughly this many rows and scale the counts back up. Tables at or below this
 // size are scanned in full (pct = 100, scale = 1), so results stay exact for small
 // datasets and integration tests.
-const SAMPLE_TARGET_ROWS = 500_000;
+//
+// The sample is deliberately small: TABLESAMPLE SYSTEM reads scattered *random* pages,
+// and on Neon (pages served from cold object storage) random reads are the slow path.
+// A larger sample doesn't improve top-value accuracy enough to justify the I/O — at
+// ~100k rows each field's aggregation runs in ~1s, so all fields finish well inside
+// the cron budget while top values and their relative order stay representative.
+const SAMPLE_TARGET_ROWS = 100_000;
 
 const COMPUTE_TIMEOUT_MS = 60_000;
 
-/** Sample percentage (1–100) needed to draw ~SAMPLE_TARGET_ROWS from a table of estRows. */
+/**
+ * Sample percentage needed to draw ~SAMPLE_TARGET_ROWS from a table of estRows.
+ * Returns 100 (full scan, exact) for tables at or below the target. Otherwise a
+ * fractional percentage in (0, 100); TABLESAMPLE SYSTEM accepts fractional args.
+ */
 export function samplePct(estRows: number): number {
   if (!Number.isFinite(estRows) || estRows <= SAMPLE_TARGET_ROWS) return 100;
-  return Math.min(100, Math.max(1, Math.ceil((SAMPLE_TARGET_ROWS / estRows) * 100)));
+  const pct = (SAMPLE_TARGET_ROWS / estRows) * 100;
+  // Round to 4 decimals for a clean TABLESAMPLE argument; never drop below a tiny
+  // floor so a gigantic table still samples *something*.
+  return Math.min(100, Math.max(0.01, Math.round(pct * 10_000) / 10_000));
 }
 
 // At pct >= 100 we omit TABLESAMPLE and scan the whole table, so small tables (and

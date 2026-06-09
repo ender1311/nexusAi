@@ -5,18 +5,19 @@ describe("samplePct", () => {
   it("returns 100 (full scan) for small or unknown tables", () => {
     expect(samplePct(0)).toBe(100);
     expect(samplePct(-1)).toBe(100);
-    expect(samplePct(500_000)).toBe(100);
+    expect(samplePct(100_000)).toBe(100); // at the target → still exact
+    expect(samplePct(50_000)).toBe(100);
     expect(samplePct(Number.NaN)).toBe(100);
   });
 
-  it("scales down to draw ~500k rows from a large table", () => {
-    // 34.75M rows → ceil(500k / 34.75M * 100) = 2
-    expect(samplePct(34_750_652)).toBe(2);
+  it("scales down to a fractional percentage to draw ~100k rows from a large table", () => {
+    // 34.75M rows → 100k / 34.75M * 100 ≈ 0.2878%
+    expect(samplePct(34_750_652)).toBeCloseTo(0.2878, 4);
   });
 
-  it("clamps to the 1..100 range", () => {
+  it("clamps to the (0, 100] range", () => {
     expect(samplePct(Number.POSITIVE_INFINITY)).toBe(100); // not finite → full scan
-    expect(samplePct(5_000_000_000)).toBe(1); // would round to 0 → clamped to 1
+    expect(samplePct(5_000_000_000)).toBe(0.01); // would round to 0.002 → floored at 0.01
   });
 });
 
