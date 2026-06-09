@@ -121,7 +121,7 @@ export interface Goal {
   weightProperty?: string | null;
   weightDefault: number;
   description?: string | null;
-  conversionType?: "first_interaction" | "any_interaction" | null;
+  conversionType?: "first_interaction" | "any_interaction";
 }
 
 export type GoalTier = "best" | "very_good" | "good" | "bad" | "very_bad" | "worst";

@@ -19,6 +19,7 @@ import { PersonaBadge } from "@/components/personas/persona-badge";
 import { GoalPresetPicker } from "@/components/agents/goal-preset-picker";
 import { TemplatePicker, type TemplatePickerHandle } from "@/components/agents/template-picker";
 import { YouVersionGoalPreset } from "@/lib/constants/youversion";
+import { isInteractionFlag } from "@/lib/constants/interaction-flags";
 import { resolveSegmentTargeting } from "@/lib/agent-targeting";
 import { AgentDeeplinkOverrideField } from "@/components/agents/agent-deeplink-override-field";
 import { VERSE_PUSH_SENTINEL } from "@/lib/verse-content";
@@ -121,6 +122,7 @@ type GoalDraft = {
   weightMode: "fixed" | "property";
   weightProperty?: string | null;
   weightDefault: number;
+  conversionType?: "first_interaction" | "any_interaction";
 }
 
 type MessageDraft = {
@@ -681,6 +683,7 @@ export function AgentWizard({
                     weightMode: "fixed" as const,
                     weightProperty: null,
                     weightDefault: 1.0,
+                    ...(isInteractionFlag(preset.eventName) ? { conversionType: "first_interaction" as const } : {}),
                   }]);
                 }
               }}

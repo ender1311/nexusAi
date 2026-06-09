@@ -70,7 +70,7 @@ export function GoalPresetPicker({ onSelect, selectedEventNames = [] }: GoalPres
         <PresetChips goals={NEGATIVE_OUTCOMES} selected={selected} onSelect={onSelect} />
       </div>
       <div>
-        <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-2">Feature Activation</p>
+        <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-2">Feature activation</p>
         <PresetChips goals={INTERACTION_GOALS} selected={selected} onSelect={onSelect} />
       </div>
     </div>
