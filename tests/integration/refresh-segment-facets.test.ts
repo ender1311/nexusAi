@@ -42,13 +42,13 @@ describe("POST /api/cron/refresh-segment-facets", () => {
   });
 
   it("computes a range facet for a numeric field", async () => {
-    await createUser("u1", { totalDecisions: 0 });
-    await createUser("u2", { totalDecisions: 10 });
-    await createUser("u3", { totalDecisions: 100 });
+    await createUser("u1", { attributes: { gift_count_lifetime: 0 } });
+    await createUser("u2", { attributes: { gift_count_lifetime: 10 } });
+    await createUser("u3", { attributes: { gift_count_lifetime: 100 } });
 
     await POST(authedReq());
 
-    const row = await prisma.segmentFieldFacet.findUnique({ where: { fieldId: "totalDecisions" } });
+    const row = await prisma.segmentFieldFacet.findUnique({ where: { fieldId: "gift_count_lifetime" } });
     expect(row?.kind).toBe("range");
     const payload = row!.payload as { min: number; max: number };
     expect(Number(payload.min)).toBe(0);

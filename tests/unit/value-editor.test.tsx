@@ -49,8 +49,8 @@ describe("ValueEditor facet dispatch", () => {
   });
 
   it("renders a range hint for a numeric facet field", () => {
-    const facetMap: FacetMap = { totalDecisions: { kind: "range", payload: { min: 0, max: 365, p50: 12, p90: 200 } } };
-    const node: Condition = { kind: "condition", fieldId: "totalDecisions", operator: "gt", value: null };
+    const facetMap: FacetMap = { days_since_last_open: { kind: "range", payload: { min: 0, max: 365, p50: 12, p90: 200 } } };
+    const node: Condition = { kind: "condition", fieldId: "days_since_last_open", operator: "gt", value: null };
     render(<RuleNodeEditor node={node} path={[]} ctx={makeCtx(facetMap, () => {})} />);
     expect(screen.getByText("In data: 0–365 · median 12")).toBeInTheDocument();
   });

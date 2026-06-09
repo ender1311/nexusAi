@@ -12,12 +12,12 @@ afterEach(async () => { await truncateAll(); });
 
 describe("segment sizing", () => {
   it("exact COUNT matches the number of users that satisfy the rule", async () => {
-    await createUser("u1", { funnelStage: "wau", totalDecisions: 10 });
-    await createUser("u2", { funnelStage: "wau", totalDecisions: 1 });
-    await createUser("u3", { funnelStage: "mau", totalDecisions: 10 });
+    await createUser("u1", { funnelStage: "wau", attributes: { gift_count_lifetime: 10 } });
+    await createUser("u2", { funnelStage: "wau", attributes: { gift_count_lifetime: 1 } });
+    await createUser("u3", { funnelStage: "mau", attributes: { gift_count_lifetime: 10 } });
     const where = compileSegmentRule(rule([
       { kind: "condition", fieldId: "funnelStage", operator: "in", value: ["wau"] },
-      { kind: "condition", fieldId: "totalDecisions", operator: "gte", value: 5 },
+      { kind: "condition", fieldId: "gift_count_lifetime", operator: "gte", value: 5 },
     ]));
     const res = await exactSegmentSize(where);
     expect(res.timedOut).toBe(false);
