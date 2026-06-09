@@ -51,6 +51,10 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
       return fail("Invalid status", 400);
     }
 
+    if (body.enrollmentMode !== undefined && body.enrollmentMode !== "fixed" && body.enrollmentMode !== "continuous") {
+      return fail('enrollmentMode must be "fixed" or "continuous"', 400);
+    }
+
     if (body.targetFilter !== undefined && body.targetFilter !== null && !isPlainObject(body.targetFilter)) {
       return fail("targetFilter must be a plain object", 400);
     }
@@ -140,7 +144,10 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
       body.status === "draft" ||
       body.targetSegmentName !== undefined ||
       body.funnelStage !== undefined ||
-      body.segmentTargeting !== undefined;
+      body.segmentTargeting !== undefined ||
+      // Mode switch needs a clean slate: fixed→continuous must re-snapshot
+      // enrollmentFlags baselines; continuous→fixed must re-materialize a cohort.
+      body.enrollmentMode !== undefined;
     if (releasesCohort) {
       await prisma.trackedUser.updateMany({
         where: { lockedByAgentId: id },
@@ -175,6 +182,7 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
         } : {}),
         ...(body.deeplinkOverride !== undefined ? { deeplinkOverride: typeof body.deeplinkOverride === "string" ? body.deeplinkOverride.trim() : null } : {}),
         ...(body.sendingPaused !== undefined ? { sendingPaused: body.sendingPaused } : {}),
+        ...(body.enrollmentMode !== undefined ? { enrollmentMode: body.enrollmentMode } : {}),
         ...(releasesCohort ? { cohortAssignedAt: null } : {}),
       },
     });

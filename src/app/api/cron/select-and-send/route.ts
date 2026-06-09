@@ -34,7 +34,7 @@ import {
 import { partitionByPreferredHour, trimToCap, resolveFetchLimit } from "@/lib/cron/caps";
 import { runChunked } from "@/lib/cron/chunk";
 import { selectCohort } from "@/lib/cron/cohort-assignment";
-import { classifyReleases, type ReleaseAgentInfo, type ActiveAssignment } from "@/lib/cron/release-sweep";
+import { classifyReleases, buildReleaseAgentInfo, type ReleaseAgentInfo, type ActiveAssignment } from "@/lib/cron/release-sweep";
 import {
   groupDecisionsByVariant,
   dispatchSendGroups,
@@ -212,11 +212,11 @@ export async function POST(req: NextRequest) {
       const agentsById = new Map<string, ReleaseAgentInfo>();
       for (const a of agents) {
         const seg = parseSegmentTargeting(a.segmentTargeting);
-        // cohort_exit only applies to funnel-stage-gated agents (no segment includes).
-        const targetStages = !seg?.includes?.length && !a.targetSegmentName && a.funnelStage
-          ? new Set([a.funnelStage])
-          : new Set<string>(); // segment-targeted or unfiltered agents → no stage-based cohort_exit
-        agentsById.set(a.id, { id: a.id, holdMaxDays: a.holdMaxDays, holdMaxSends: a.holdMaxSends, targetStages, enrollmentMode: a.enrollmentMode as "fixed" | "continuous" });
+        const hasSegmentTargeting = (seg?.includes?.length ?? 0) > 0 || !!a.targetSegmentName;
+        agentsById.set(a.id, buildReleaseAgentInfo(
+          { id: a.id, holdMaxDays: a.holdMaxDays, holdMaxSends: a.holdMaxSends, funnelStage: a.funnelStage, enrollmentMode: a.enrollmentMode as "fixed" | "continuous" },
+          hasSegmentTargeting,
+        ));
       }
       // Load current funnelStage for the owned users (one query).
       const ownedIds = activeAssignments.map((a) => a.externalUserId);
@@ -479,14 +479,11 @@ export async function POST(req: NextRequest) {
       let exitCount = 0;
       if (activeAssigns.length > 0 && hasSegmentTargeting) {
         const releaseAgentsById = new Map([
-          [agent.id, {
-            id: agent.id,
-            holdMaxDays: agent.holdMaxDays,
-            holdMaxSends: agent.holdMaxSends,
-            targetStages: new Set<string>(), // segment-targeted → no cohort_exit from stage
-            enrollmentMode: "continuous" as const,
+          [agent.id, buildReleaseAgentInfo(
+            { id: agent.id, holdMaxDays: agent.holdMaxDays, holdMaxSends: agent.holdMaxSends, funnelStage: agent.funnelStage, enrollmentMode: "continuous" },
+            hasSegmentTargeting,
             audience,
-          }],
+          )],
         ]);
         const enrichedAssigns = activeAssigns.map((a) => ({
           ...a,

@@ -121,7 +121,8 @@ export interface Goal {
   weightProperty?: string | null;
   weightDefault: number;
   description?: string | null;
-  conversionType?: "first_interaction" | "any_interaction";
+  // null on the wire for non-interaction-flag goals (DB column is nullable).
+  conversionType?: "first_interaction" | "any_interaction" | null;
 }
 
 export type GoalTier = "best" | "very_good" | "good" | "bad" | "very_bad" | "worst";

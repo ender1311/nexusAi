@@ -37,6 +37,36 @@ export type ReleaseDecision = {
   reason: ReleaseReason;
 };
 
+/**
+ * Builds the per-agent record consumed by classifyReleases. cohort_exit only
+ * applies to funnel-stage-gated agents — segment-targeted (or unfiltered)
+ * agents get an empty targetStages set so stage drift never releases them.
+ * Pass `audience` only when the orchestrator computed a complete segment
+ * audience for a continuous agent; omitting it disables segment_exit.
+ */
+export function buildReleaseAgentInfo(
+  agent: {
+    id: string;
+    holdMaxDays: number;
+    holdMaxSends: number;
+    funnelStage: string | null;
+    enrollmentMode: "fixed" | "continuous";
+  },
+  hasSegmentTargeting: boolean,
+  audience?: Set<string>,
+): ReleaseAgentInfo {
+  return {
+    id: agent.id,
+    holdMaxDays: agent.holdMaxDays,
+    holdMaxSends: agent.holdMaxSends,
+    targetStages: !hasSegmentTargeting && agent.funnelStage
+      ? new Set([agent.funnelStage])
+      : new Set<string>(),
+    enrollmentMode: agent.enrollmentMode,
+    ...(audience !== undefined ? { audience } : {}),
+  };
+}
+
 export function classifyReleases(
   assignments: ActiveAssignment[],
   agentsById: Map<string, ReleaseAgentInfo>,

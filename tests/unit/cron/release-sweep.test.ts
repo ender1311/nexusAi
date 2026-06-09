@@ -1,5 +1,5 @@
 import { describe, expect, it } from "bun:test";
-import { classifyReleases } from "@/lib/cron/release-sweep";
+import { classifyReleases, buildReleaseAgentInfo } from "@/lib/cron/release-sweep";
 
 const now = new Date("2026-05-31T12:00:00Z");
 const daysAgo = (n: number) => new Date(now.getTime() - n * 86_400_000);
@@ -95,5 +95,38 @@ describe("segment_exit (continuous enrollment)", () => {
     const r = classifyReleases([{ ...assignment, sendCount: 24 }], new Map([["a1", continuous]]), now);
     expect(r).toHaveLength(1);
     expect(r[0].reason).toBe("hold_cap_sends");
+  });
+});
+
+describe("buildReleaseAgentInfo", () => {
+  const base = { id: "a1", holdMaxDays: 90, holdMaxSends: 24, funnelStage: "lapsed_mau", enrollmentMode: "fixed" as const };
+
+  it("stage-gates a funnel-only agent (no segment targeting)", () => {
+    const info = buildReleaseAgentInfo(base, false);
+    expect(info.targetStages).toEqual(new Set(["lapsed_mau"]));
+    expect(info.enrollmentMode).toBe("fixed");
+    expect(info.audience).toBeUndefined();
+  });
+
+  it("never stage-gates a segment-targeted agent, even with a funnelStage set", () => {
+    const info = buildReleaseAgentInfo(base, true);
+    expect(info.targetStages.size).toBe(0);
+  });
+
+  it("never stage-gates an unfiltered agent (null funnelStage)", () => {
+    const info = buildReleaseAgentInfo({ ...base, funnelStage: null }, false);
+    expect(info.targetStages.size).toBe(0);
+  });
+
+  it("passes the audience through for continuous agents", () => {
+    const audience = new Set(["u1", "u2"]);
+    const info = buildReleaseAgentInfo({ ...base, enrollmentMode: "continuous" }, true, audience);
+    expect(info.audience).toBe(audience);
+    expect(info.enrollmentMode).toBe("continuous");
+  });
+
+  it("omits audience entirely when not provided, so segment_exit is skipped", () => {
+    const info = buildReleaseAgentInfo({ ...base, enrollmentMode: "continuous" }, true);
+    expect("audience" in info).toBe(false);
   });
 });
