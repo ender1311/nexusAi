@@ -27,6 +27,7 @@ model Agent {
   uniqueUsersCap   Int?        // max lifetime unique users this agent will ever target; null = unlimited
   dailySendCap     Int?        // max total sends from this agent per calendar day (UTC); null = unlimited
   cohortAssignedAt DateTime?   // set when the cron materializes this agent's fixed cohort; null = not yet materialized
+  enrollmentMode   String      @default("fixed") // "fixed" = frozen cohort; "continuous" = open enrollment + segment_exit
   languageFilter   String      @default("all") // "all" | "en" | ISO language prefix; filters by User.attributes.language_tag
   localizePush     Boolean     @default(false) // opt-in; OFF = today's EN-only push behavior
   deeplinkOverride    String?
@@ -61,6 +62,7 @@ model Goal {
   weightProperty String?
   weightDefault  Float   @default(1.0)
   description    String?
+  conversionType String?   // null = normal event goal; "first_interaction" | "any_interaction" for *_has_ever_flag goals
 
   agent Agent @relation(fields: [agentId], references: [id], onDelete: Cascade)
 
@@ -381,6 +383,7 @@ model UserAgentAssignment {
   windowCompletedAt DateTime?           // null = in exploration; non-null = window done
   releasedAt        DateTime?           // null = actively owned; non-null = released, claimable
   releaseReason     String?             // conversion | cohort_exit | hold_cap_days | hold_cap_sends | manual
+  enrollmentFlags   Json?               // snapshot of normalized interaction-flag values at enrollment (for first_interaction crediting)
 
   @@index([agentId])
   @@index([releasedAt])

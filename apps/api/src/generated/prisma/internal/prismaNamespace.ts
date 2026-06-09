@@ -413,7 +413,10 @@ export const ModelName = {
   UserSegment: 'UserSegment',
   UserPreference: 'UserPreference',
   PushCategory: 'PushCategory',
-  PushSubcategory: 'PushSubcategory'
+  PushSubcategory: 'PushSubcategory',
+  Segment: 'Segment',
+  SyncNameOverride: 'SyncNameOverride',
+  SegmentFieldFacet: 'SegmentFieldFacet'
 } as const
 
 export type ModelName = (typeof ModelName)[keyof typeof ModelName]
@@ -429,7 +432,7 @@ export type TypeMap<ExtArgs extends runtime.Types.Extensions.InternalArgs = runt
     omit: GlobalOmitOptions
   }
   meta: {
-    modelProps: "agent" | "goal" | "message" | "messageVariant" | "messageVariantTranslation" | "deeplink" | "userDecision" | "trackedUser" | "persona" | "agentPersonaTarget" | "personaArmStats" | "userArmStats" | "linUCBArm" | "schedulingRule" | "modelMetric" | "planSet" | "planSetMember" | "appSetting" | "userAgentAssignment" | "funnelTransition" | "cronRun" | "failedBrazeSend" | "processedEventId" | "ingestSyncLog" | "campaignContent" | "demoUserGroup" | "userSegment" | "userPreference" | "pushCategory" | "pushSubcategory"
+    modelProps: "agent" | "goal" | "message" | "messageVariant" | "messageVariantTranslation" | "deeplink" | "userDecision" | "trackedUser" | "persona" | "agentPersonaTarget" | "personaArmStats" | "userArmStats" | "linUCBArm" | "schedulingRule" | "modelMetric" | "planSet" | "planSetMember" | "appSetting" | "userAgentAssignment" | "funnelTransition" | "cronRun" | "failedBrazeSend" | "processedEventId" | "ingestSyncLog" | "campaignContent" | "demoUserGroup" | "userSegment" | "userPreference" | "pushCategory" | "pushSubcategory" | "segment" | "syncNameOverride" | "segmentFieldFacet"
     txIsolationLevel: TransactionIsolationLevel
   }
   model: {
@@ -2653,6 +2656,228 @@ export type TypeMap<ExtArgs extends runtime.Types.Extensions.InternalArgs = runt
         }
       }
     }
+    Segment: {
+      payload: Prisma.$SegmentPayload<ExtArgs>
+      fields: Prisma.SegmentFieldRefs
+      operations: {
+        findUnique: {
+          args: Prisma.SegmentFindUniqueArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$SegmentPayload> | null
+        }
+        findUniqueOrThrow: {
+          args: Prisma.SegmentFindUniqueOrThrowArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$SegmentPayload>
+        }
+        findFirst: {
+          args: Prisma.SegmentFindFirstArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$SegmentPayload> | null
+        }
+        findFirstOrThrow: {
+          args: Prisma.SegmentFindFirstOrThrowArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$SegmentPayload>
+        }
+        findMany: {
+          args: Prisma.SegmentFindManyArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$SegmentPayload>[]
+        }
+        create: {
+          args: Prisma.SegmentCreateArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$SegmentPayload>
+        }
+        createMany: {
+          args: Prisma.SegmentCreateManyArgs<ExtArgs>
+          result: BatchPayload
+        }
+        createManyAndReturn: {
+          args: Prisma.SegmentCreateManyAndReturnArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$SegmentPayload>[]
+        }
+        delete: {
+          args: Prisma.SegmentDeleteArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$SegmentPayload>
+        }
+        update: {
+          args: Prisma.SegmentUpdateArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$SegmentPayload>
+        }
+        deleteMany: {
+          args: Prisma.SegmentDeleteManyArgs<ExtArgs>
+          result: BatchPayload
+        }
+        updateMany: {
+          args: Prisma.SegmentUpdateManyArgs<ExtArgs>
+          result: BatchPayload
+        }
+        updateManyAndReturn: {
+          args: Prisma.SegmentUpdateManyAndReturnArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$SegmentPayload>[]
+        }
+        upsert: {
+          args: Prisma.SegmentUpsertArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$SegmentPayload>
+        }
+        aggregate: {
+          args: Prisma.SegmentAggregateArgs<ExtArgs>
+          result: runtime.Types.Utils.Optional<Prisma.AggregateSegment>
+        }
+        groupBy: {
+          args: Prisma.SegmentGroupByArgs<ExtArgs>
+          result: runtime.Types.Utils.Optional<Prisma.SegmentGroupByOutputType>[]
+        }
+        count: {
+          args: Prisma.SegmentCountArgs<ExtArgs>
+          result: runtime.Types.Utils.Optional<Prisma.SegmentCountAggregateOutputType> | number
+        }
+      }
+    }
+    SyncNameOverride: {
+      payload: Prisma.$SyncNameOverridePayload<ExtArgs>
+      fields: Prisma.SyncNameOverrideFieldRefs
+      operations: {
+        findUnique: {
+          args: Prisma.SyncNameOverrideFindUniqueArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$SyncNameOverridePayload> | null
+        }
+        findUniqueOrThrow: {
+          args: Prisma.SyncNameOverrideFindUniqueOrThrowArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$SyncNameOverridePayload>
+        }
+        findFirst: {
+          args: Prisma.SyncNameOverrideFindFirstArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$SyncNameOverridePayload> | null
+        }
+        findFirstOrThrow: {
+          args: Prisma.SyncNameOverrideFindFirstOrThrowArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$SyncNameOverridePayload>
+        }
+        findMany: {
+          args: Prisma.SyncNameOverrideFindManyArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$SyncNameOverridePayload>[]
+        }
+        create: {
+          args: Prisma.SyncNameOverrideCreateArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$SyncNameOverridePayload>
+        }
+        createMany: {
+          args: Prisma.SyncNameOverrideCreateManyArgs<ExtArgs>
+          result: BatchPayload
+        }
+        createManyAndReturn: {
+          args: Prisma.SyncNameOverrideCreateManyAndReturnArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$SyncNameOverridePayload>[]
+        }
+        delete: {
+          args: Prisma.SyncNameOverrideDeleteArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$SyncNameOverridePayload>
+        }
+        update: {
+          args: Prisma.SyncNameOverrideUpdateArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$SyncNameOverridePayload>
+        }
+        deleteMany: {
+          args: Prisma.SyncNameOverrideDeleteManyArgs<ExtArgs>
+          result: BatchPayload
+        }
+        updateMany: {
+          args: Prisma.SyncNameOverrideUpdateManyArgs<ExtArgs>
+          result: BatchPayload
+        }
+        updateManyAndReturn: {
+          args: Prisma.SyncNameOverrideUpdateManyAndReturnArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$SyncNameOverridePayload>[]
+        }
+        upsert: {
+          args: Prisma.SyncNameOverrideUpsertArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$SyncNameOverridePayload>
+        }
+        aggregate: {
+          args: Prisma.SyncNameOverrideAggregateArgs<ExtArgs>
+          result: runtime.Types.Utils.Optional<Prisma.AggregateSyncNameOverride>
+        }
+        groupBy: {
+          args: Prisma.SyncNameOverrideGroupByArgs<ExtArgs>
+          result: runtime.Types.Utils.Optional<Prisma.SyncNameOverrideGroupByOutputType>[]
+        }
+        count: {
+          args: Prisma.SyncNameOverrideCountArgs<ExtArgs>
+          result: runtime.Types.Utils.Optional<Prisma.SyncNameOverrideCountAggregateOutputType> | number
+        }
+      }
+    }
+    SegmentFieldFacet: {
+      payload: Prisma.$SegmentFieldFacetPayload<ExtArgs>
+      fields: Prisma.SegmentFieldFacetFieldRefs
+      operations: {
+        findUnique: {
+          args: Prisma.SegmentFieldFacetFindUniqueArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$SegmentFieldFacetPayload> | null
+        }
+        findUniqueOrThrow: {
+          args: Prisma.SegmentFieldFacetFindUniqueOrThrowArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$SegmentFieldFacetPayload>
+        }
+        findFirst: {
+          args: Prisma.SegmentFieldFacetFindFirstArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$SegmentFieldFacetPayload> | null
+        }
+        findFirstOrThrow: {
+          args: Prisma.SegmentFieldFacetFindFirstOrThrowArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$SegmentFieldFacetPayload>
+        }
+        findMany: {
+          args: Prisma.SegmentFieldFacetFindManyArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$SegmentFieldFacetPayload>[]
+        }
+        create: {
+          args: Prisma.SegmentFieldFacetCreateArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$SegmentFieldFacetPayload>
+        }
+        createMany: {
+          args: Prisma.SegmentFieldFacetCreateManyArgs<ExtArgs>
+          result: BatchPayload
+        }
+        createManyAndReturn: {
+          args: Prisma.SegmentFieldFacetCreateManyAndReturnArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$SegmentFieldFacetPayload>[]
+        }
+        delete: {
+          args: Prisma.SegmentFieldFacetDeleteArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$SegmentFieldFacetPayload>
+        }
+        update: {
+          args: Prisma.SegmentFieldFacetUpdateArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$SegmentFieldFacetPayload>
+        }
+        deleteMany: {
+          args: Prisma.SegmentFieldFacetDeleteManyArgs<ExtArgs>
+          result: BatchPayload
+        }
+        updateMany: {
+          args: Prisma.SegmentFieldFacetUpdateManyArgs<ExtArgs>
+          result: BatchPayload
+        }
+        updateManyAndReturn: {
+          args: Prisma.SegmentFieldFacetUpdateManyAndReturnArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$SegmentFieldFacetPayload>[]
+        }
+        upsert: {
+          args: Prisma.SegmentFieldFacetUpsertArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$SegmentFieldFacetPayload>
+        }
+        aggregate: {
+          args: Prisma.SegmentFieldFacetAggregateArgs<ExtArgs>
+          result: runtime.Types.Utils.Optional<Prisma.AggregateSegmentFieldFacet>
+        }
+        groupBy: {
+          args: Prisma.SegmentFieldFacetGroupByArgs<ExtArgs>
+          result: runtime.Types.Utils.Optional<Prisma.SegmentFieldFacetGroupByOutputType>[]
+        }
+        count: {
+          args: Prisma.SegmentFieldFacetCountArgs<ExtArgs>
+          result: runtime.Types.Utils.Optional<Prisma.SegmentFieldFacetCountAggregateOutputType> | number
+        }
+      }
+    }
   }
 } & {
   other: {
@@ -2707,6 +2932,7 @@ export const AgentScalarFieldEnum = {
   uniqueUsersCap: 'uniqueUsersCap',
   dailySendCap: 'dailySendCap',
   cohortAssignedAt: 'cohortAssignedAt',
+  enrollmentMode: 'enrollmentMode',
   languageFilter: 'languageFilter',
   localizePush: 'localizePush',
   deeplinkOverride: 'deeplinkOverride',
@@ -2732,7 +2958,8 @@ export const GoalScalarFieldEnum = {
   weightMode: 'weightMode',
   weightProperty: 'weightProperty',
   weightDefault: 'weightDefault',
-  description: 'description'
+  description: 'description',
+  conversionType: 'conversionType'
 } as const
 
 export type GoalScalarFieldEnum = (typeof GoalScalarFieldEnum)[keyof typeof GoalScalarFieldEnum]
@@ -2999,7 +3226,8 @@ export const UserAgentAssignmentScalarFieldEnum = {
   lastSentAt: 'lastSentAt',
   windowCompletedAt: 'windowCompletedAt',
   releasedAt: 'releasedAt',
-  releaseReason: 'releaseReason'
+  releaseReason: 'releaseReason',
+  enrollmentFlags: 'enrollmentFlags'
 } as const
 
 export type UserAgentAssignmentScalarFieldEnum = (typeof UserAgentAssignmentScalarFieldEnum)[keyof typeof UserAgentAssignmentScalarFieldEnum]
@@ -3104,6 +3332,7 @@ export const UserSegmentScalarFieldEnum = {
   id: 'id',
   externalId: 'externalId',
   segmentName: 'segmentName',
+  source: 'source',
   syncedAt: 'syncedAt'
 } as const
 
@@ -3145,6 +3374,41 @@ export const PushSubcategoryScalarFieldEnum = {
 } as const
 
 export type PushSubcategoryScalarFieldEnum = (typeof PushSubcategoryScalarFieldEnum)[keyof typeof PushSubcategoryScalarFieldEnum]
+
+
+export const SegmentScalarFieldEnum = {
+  id: 'id',
+  name: 'name',
+  description: 'description',
+  rule: 'rule',
+  createdAt: 'createdAt',
+  updatedAt: 'updatedAt',
+  createdBy: 'createdBy',
+  sizeExact: 'sizeExact',
+  sizeComputedAt: 'sizeComputedAt'
+} as const
+
+export type SegmentScalarFieldEnum = (typeof SegmentScalarFieldEnum)[keyof typeof SegmentScalarFieldEnum]
+
+
+export const SyncNameOverrideScalarFieldEnum = {
+  syncId: 'syncId',
+  displayName: 'displayName',
+  updatedAt: 'updatedAt',
+  createdAt: 'createdAt'
+} as const
+
+export type SyncNameOverrideScalarFieldEnum = (typeof SyncNameOverrideScalarFieldEnum)[keyof typeof SyncNameOverrideScalarFieldEnum]
+
+
+export const SegmentFieldFacetScalarFieldEnum = {
+  fieldId: 'fieldId',
+  kind: 'kind',
+  payload: 'payload',
+  computedAt: 'computedAt'
+} as const
+
+export type SegmentFieldFacetScalarFieldEnum = (typeof SegmentFieldFacetScalarFieldEnum)[keyof typeof SegmentFieldFacetScalarFieldEnum]
 
 
 export const SortOrder = {
@@ -3417,6 +3681,9 @@ export type GlobalOmitConfig = {
   userPreference?: Prisma.UserPreferenceOmit
   pushCategory?: Prisma.PushCategoryOmit
   pushSubcategory?: Prisma.PushSubcategoryOmit
+  segment?: Prisma.SegmentOmit
+  syncNameOverride?: Prisma.SyncNameOverrideOmit
+  segmentFieldFacet?: Prisma.SegmentFieldFacetOmit
 }
 
 /* Types for Logging */
