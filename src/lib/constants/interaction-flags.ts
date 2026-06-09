@@ -20,7 +20,8 @@ export function isInteractionFlag(id: string): id is InteractionFlag {
 }
 
 // Hightouch may send bool, "true"/"false" string, or 0/1 depending on the
-// warehouse column type — normalize the same way channel-preference.ts does.
+// warehouse column type. Bi-state by design: absent/unrecognized → false,
+// because conversion detection only ever acts on a confirmed true.
 export function normalizeFlag(value: unknown): boolean {
   if (value === true || value === 1) return true;
   if (typeof value === "string") {

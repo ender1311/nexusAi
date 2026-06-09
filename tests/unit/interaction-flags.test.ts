@@ -18,6 +18,8 @@ describe("interaction flags", () => {
   it("normalizes truthy variants Hightouch may send", () => {
     expect(normalizeFlag(true)).toBe(true);
     expect(normalizeFlag("true")).toBe(true);
+    expect(normalizeFlag("yes")).toBe(true);
+    expect(normalizeFlag("t")).toBe(true);
     expect(normalizeFlag(1)).toBe(true);
     expect(normalizeFlag(false)).toBe(false);
     expect(normalizeFlag("false")).toBe(false);
