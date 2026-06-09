@@ -6,6 +6,7 @@ import type { SegmentRule, Condition } from "@/types/segment";
 import { FIELD_CATALOG } from "@/lib/segments/field-catalog";
 import { addChild, removeAt, updateConditionAt, setJoinAt, emptyRule } from "@/lib/segments/rule-tree-ops";
 import { RuleNodeEditor, type EditorContext } from "./rule-node-editor";
+import type { FacetMap } from "@/lib/segments/facet-types";
 
 export type SegmentSummary = { id: string; name: string; description: string | null; updatedAt: string };
 
@@ -13,11 +14,12 @@ type Props = {
   segments: SegmentSummary[];
   personaOptions: { value: string; label: string }[];
   segmentNameOptions: string[];
+  facetMap: FacetMap;
 };
 
 const firstCondition = (): Condition => ({ kind: "condition", fieldId: FIELD_CATALOG[0].id, operator: FIELD_CATALOG[0].operators[0], value: null });
 
-export function SegmentBuilder({ segments, personaOptions, segmentNameOptions }: Props) {
+export function SegmentBuilder({ segments, personaOptions, segmentNameOptions, facetMap }: Props) {
   const router = useRouter();
   const [editingId, setEditingId] = useState<string | null>(null);
   const [name, setName] = useState("");
@@ -106,6 +108,7 @@ export function SegmentBuilder({ segments, personaOptions, segmentNameOptions }:
   const ctx: EditorContext = {
     personaOptions,
     segmentNameOptions,
+    facetMap,
     onAddCondition: useCallback((path) => setRule((r) => addChild(r, path, firstCondition())), []),
     onAddGroup: useCallback((path) => setRule((r) => addChild(r, path, { kind: "group", join: "AND", children: [] })), []),
     onRemove: useCallback((path) => setRule((r) => removeAt(r, path)), []),

@@ -3,10 +3,14 @@
 import { Trash2, Plus } from "lucide-react";
 import type { RuleNode, Condition, Operator } from "@/types/segment";
 import { FIELD_CATALOG, getField } from "@/lib/segments/field-catalog";
+import type { FacetMap } from "@/lib/segments/facet-types";
+import { ValueCombobox } from "./value-combobox";
+import { formatRangeHint } from "@/lib/segments/facet-labels";
 
 export type EditorContext = {
   personaOptions: { value: string; label: string }[];
   segmentNameOptions: string[];
+  facetMap: FacetMap;
   onAddCondition: (path: number[]) => void;
   onAddGroup: (path: number[]) => void;
   onRemove: (path: number[]) => void;
@@ -82,26 +86,61 @@ function ValueEditor({ node, path, ctx }: { node: Condition; path: number[]; ctx
 
   // Free-text for string/number/date fields.
   const isMulti = MULTI_OPS.includes(node.operator);
-  return (
-    <input
-      className={selectClass}
-      value={node.value === null ? "" : Array.isArray(node.value) ? node.value.join(",") : String(node.value)}
-      placeholder={isMulti ? "comma,separated" : "value"}
-      onChange={(e) => {
-        const raw = e.target.value;
-        let value: Condition["value"];
-        if (isMulti) {
-          value = raw.split(",").map((s) => s.trim()).filter(Boolean);
-        } else if (field.type === "number") {
-          const n = Number(raw);
-          value = raw.trim() === "" || Number.isNaN(n) ? null : n;
-        } else {
-          value = raw;
-        }
-        ctx.onChangeCondition(path, { ...node, value });
-      }}
-    />
-  );
+  function renderFreeText() {
+    return (
+      <input
+        className={selectClass}
+        value={node.value === null ? "" : Array.isArray(node.value) ? node.value.join(",") : String(node.value)}
+        placeholder={isMulti ? "comma,separated" : "value"}
+        onChange={(e) => {
+          const raw = e.target.value;
+          let value: Condition["value"];
+          if (isMulti) {
+            value = raw.split(",").map((s) => s.trim()).filter(Boolean);
+          } else if (field!.type === "number") {
+            const n = Number(raw);
+            value = raw.trim() === "" || Number.isNaN(n) ? null : n;
+          } else {
+            value = raw;
+          }
+          ctx.onChangeCondition(path, { ...node, value });
+        }}
+      />
+    );
+  }
+
+  // Data-driven value picker for categorical facet fields.
+  const facet = ctx.facetMap[field.id];
+  if (facet?.kind === "values") {
+    const isMultiOp = MULTI_OPS.includes(node.operator);
+    const selected = isMultiOp
+      ? (Array.isArray(node.value) ? node.value.map(String) : [])
+      : (typeof node.value === "string" && node.value !== "" ? [node.value] : []);
+    return (
+      <ValueCombobox
+        fieldId={field.id}
+        values={facet.payload.top}
+        multi={isMultiOp}
+        selected={selected}
+        onChange={(next) => {
+          const value = isMultiOp ? next : (next[0] ?? null);
+          ctx.onChangeCondition(path, { ...node, value });
+        }}
+      />
+    );
+  }
+
+  // Range hint for numeric/date facet fields: keep the existing input, add a hint line.
+  if (facet?.kind === "range") {
+    return (
+      <span className="inline-flex flex-col gap-0.5">
+        {renderFreeText()}
+        <span className="text-[10px] text-muted-foreground">{formatRangeHint(field.type, facet.payload)}</span>
+      </span>
+    );
+  }
+
+  return renderFreeText();
 }
 
 function ConditionRow({ node, path, ctx }: { node: Condition; path: number[]; ctx: EditorContext }) {
