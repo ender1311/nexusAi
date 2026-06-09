@@ -14,7 +14,14 @@ export type SegmentInfo = { name: string; userCount: number; assignedTo: string 
 export const getCachedSegments = unstable_cache(
   async (): Promise<SegmentInfo[]> => {
     const [rows, agents] = await Promise.all([
-      prisma.userSegment.groupBy({ by: ["segmentName"], _count: { _all: true }, orderBy: { segmentName: "asc" } }),
+      // source='hightouch' only: rule-materialized rows share segmentName and would
+      // otherwise double-count membership and surface a duplicate row in the sizes table.
+      prisma.userSegment.groupBy({
+        by: ["segmentName"],
+        where: { source: "hightouch" },
+        _count: { _all: true },
+        orderBy: { segmentName: "asc" },
+      }),
       prisma.agent.findMany({
         where: {
           OR: [

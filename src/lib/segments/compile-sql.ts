@@ -69,14 +69,21 @@ function compileCondition(c: Condition, bag: ParamBag): string {
   }
 }
 
-function compileNode(node: RuleNode, bag: ParamBag): string {
+// Independent of the parser's MAX_RULE_DEPTH (10); a forged rule that skipped the
+// parser must not be able to drive unbounded recursion here. Headroom above 10.
+const MAX_COMPILE_DEPTH = 20;
+
+function compileNode(node: RuleNode, bag: ParamBag, depth = 0): string {
+  if (depth > MAX_COMPILE_DEPTH) {
+    throw new Error(`Segment rule nesting exceeds ${MAX_COMPILE_DEPTH} levels`);
+  }
   if (node.kind === "condition") return compileCondition(node, bag);
   // `join` is the only group field spliced verbatim into SQL; whitelist it so a
   // forged rule that bypassed the parser can't inject through the join keyword.
   if (node.join !== "AND" && node.join !== "OR") {
     throw new Error(`Illegal segment join: ${String(node.join)}`);
   }
-  const parts = node.children.map((child) => compileNode(child, bag)).filter((s) => s !== "");
+  const parts = node.children.map((child) => compileNode(child, bag, depth + 1)).filter((s) => s !== "");
   if (parts.length === 0) return "";
   return `(${parts.join(` ${node.join} `)})`;
 }

@@ -64,6 +64,46 @@ describe("Segment CRUD", () => {
     expect(body.data.name).toBe("New");
   });
 
+  // Audit fix #1: the PUT name-clash guard used to query UserSegment by segmentName
+  // with no source filter. Once the materialize cron writes source='rule' rows under
+  // the segment's own name, an unfiltered findFirst matched them and 409'd every
+  // subsequent edit — making rule-segments permanently uneditable.
+  it("PUT does not 409 against the segment's own materialized rule rows", async () => {
+    const seg = await prisma.segment.create({ data: { name: "rule-seg", rule: validRule } });
+    await createUserSegment("u1", "rule-seg", "rule");
+    await createUserSegment("u2", "rule-seg", "rule");
+    const res = await putSegment(buildRequest("PUT", { name: "rule-seg", rule: validRule }), { params: Promise.resolve({ id: seg.id }) });
+    expect(res.status).toBe(200);
+  });
+
+  it("PUT still 409s when the name collides with a hightouch-imported segment", async () => {
+    const seg = await prisma.segment.create({ data: { name: "orig", rule: validRule } });
+    await createUserSegment("u1", "all-givers", "hightouch");
+    const res = await putSegment(buildRequest("PUT", { name: "all-givers", rule: validRule }), { params: Promise.resolve({ id: seg.id }) });
+    expect(res.status).toBe(409);
+  });
+
+  // Audit fix #8: a changed rule means a different membership, so the cached exact
+  // size must be invalidated; a name/description-only edit must keep it.
+  it("PUT clears cached size when the rule changes, keeps it when unchanged", async () => {
+    const seg = await prisma.segment.create({
+      data: { name: "sz", rule: validRule, sizeExact: 42, sizeComputedAt: new Date() },
+    });
+
+    const r1 = await putSegment(buildRequest("PUT", { name: "sz2", rule: validRule }), { params: Promise.resolve({ id: seg.id }) });
+    expect(r1.status).toBe(200);
+    const after1 = await prisma.segment.findUniqueOrThrow({ where: { id: seg.id } });
+    expect(after1.sizeExact).toBe(42);
+    expect(after1.sizeComputedAt).not.toBeNull();
+
+    const newRule = { kind: "group", join: "AND", children: [{ kind: "condition", fieldId: "funnelStage", operator: "in", value: ["mau"] }] };
+    const r2 = await putSegment(buildRequest("PUT", { name: "sz2", rule: newRule }), { params: Promise.resolve({ id: seg.id }) });
+    expect(r2.status).toBe(200);
+    const after2 = await prisma.segment.findUniqueOrThrow({ where: { id: seg.id } });
+    expect(after2.sizeExact).toBeNull();
+    expect(after2.sizeComputedAt).toBeNull();
+  });
+
   it("DELETE removes the segment; 404 when missing", async () => {
     const seg = await prisma.segment.create({ data: { name: "Doomed", rule: validRule } });
     const okRes = await deleteSegment(buildRequest("DELETE"), { params: Promise.resolve({ id: seg.id }) });

@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { revalidateTag } from "next/cache";
+import { constantTimeEqual } from "@/lib/constant-time-compare";
 import { prisma } from "@/lib/db";
 import { batchUpsertArmStats, batchUpsertUserArmStats } from "@/lib/arm-stats";
 import { getCachedDashboardCounts, getCachedPerformanceMetrics, getCachedVariantMetrics } from "@/lib/cache";
@@ -31,7 +32,7 @@ function verifyAuth(req: NextRequest): boolean {
   const token  = req.headers.get("authorization")?.replace("Bearer ", "");
   const secret = process.env.CRON_SECRET;
   if (!secret) return false;
-  return token === secret;
+  return token != null && constantTimeEqual(token, secret);
 }
 
 export async function POST(req: NextRequest) {

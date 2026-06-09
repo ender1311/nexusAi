@@ -1,12 +1,13 @@
 import { NextRequest, NextResponse } from "next/server";
 import { revalidateTag } from "next/cache";
+import { constantTimeEqual } from "@/lib/constant-time-compare";
 import { discoverPersonas, batchAssignPersonas } from "@/lib/services/persona-service";
 
 function verifyAuth(req: NextRequest): boolean {
   const token = req.headers.get("authorization")?.replace("Bearer ", "");
   const secret = process.env.CRON_SECRET;
   if (!secret) return false;
-  return token === secret;
+  return token != null && constantTimeEqual(token, secret);
 }
 
 export const maxDuration = 300;

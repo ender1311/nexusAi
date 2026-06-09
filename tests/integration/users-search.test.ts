@@ -51,6 +51,18 @@ describe("GET /api/users/search", () => {
     expect(body.data[0]).toMatchObject({ externalId: "ext-mail", email: "find@me.com", name: "Finder" });
   });
 
+  // Audit fix #10: the email path selected only attributes->>'name' and returned
+  // a null name for users that only have first_name/last_name — the id/brazeId path
+  // already composed the name via nameOf(). Both paths must fall back identically.
+  it("composes name from first_name/last_name on the email path when name attr is absent", async () => {
+    await createUser("ext-fl", { attributes: { email: "fl@me.com", first_name: "Ada", last_name: "Lovelace" } });
+    const res = await GET(req("fl@me.com"));
+    const body = await res.json();
+    expect(res.status).toBe(200);
+    expect(body.data).toHaveLength(1);
+    expect(body.data[0]).toMatchObject({ externalId: "ext-fl", email: "fl@me.com", name: "Ada Lovelace" });
+  });
+
   it("returns 200 with [] when nothing matches", async () => {
     const res = await GET(req("nobody-here"));
     const body = await res.json();

@@ -86,4 +86,18 @@ describe("compileSegmentRule", () => {
     const forged = { kind: "group", join: "AND) OR (1=1", children: [c("totalDecisions", "gte", 5)] } as unknown as SegmentRule;
     expect(() => compileSegmentRule(forged)).toThrow(/Illegal segment join/);
   });
+
+  // Audit fix #7: an independent compile-time depth guard so a forged rule that
+  // skipped the parser's MAX_RULE_DEPTH can't drive unbounded recursion here.
+  it("throws when nesting exceeds the compile depth guard", () => {
+    let node: unknown = c("funnelStage", "in", ["wau"]);
+    for (let i = 0; i < 25; i++) node = { kind: "group", join: "AND", children: [node] };
+    expect(() => compileSegmentRule(node as SegmentRule)).toThrow(/nesting exceeds/);
+  });
+
+  it("compiles a rule nested within the depth guard", () => {
+    let node: unknown = c("funnelStage", "in", ["wau"]);
+    for (let i = 0; i < 5; i++) node = { kind: "group", join: "AND", children: [node] };
+    expect(() => compileSegmentRule(node as SegmentRule)).not.toThrow();
+  });
 });
