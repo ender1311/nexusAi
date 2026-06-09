@@ -11,8 +11,8 @@ describe("compileSegmentRule", () => {
   });
 
   it("scalar comparison uses a bound param", () => {
-    const r = compileSegmentRule(g("AND", [c("totalDecisions", "gte", 5)]));
-    expect(r.sql).toBe(`(u."totalDecisions" >= $1)`);
+    const r = compileSegmentRule(g("AND", [c("createdAt", "gte", 5)]));
+    expect(r.sql).toBe(`(u."createdAt" >= $1)`);
     expect(r.params).toEqual([5]);
   });
 
@@ -64,14 +64,14 @@ describe("compileSegmentRule", () => {
   });
 
   it("nested groups parenthesize and number params left-to-right", () => {
-    const r = compileSegmentRule(g("AND", [c("funnelStage", "in", ["wau"]), g("OR", [c("totalDecisions", "gte", 5), c("totalConversions", "gte", 1)])]));
-    expect(r.sql).toBe(`(u."funnelStage" = ANY($1) AND (u."totalDecisions" >= $2 OR u."totalConversions" >= $3))`);
+    const r = compileSegmentRule(g("AND", [c("funnelStage", "in", ["wau"]), g("OR", [c("createdAt", "gte", 5), c("gift_count_lifetime", "gte", 1)])]));
+    expect(r.sql).toBe(`(u."funnelStage" = ANY($1) AND (u."createdAt" >= $2 OR (u."attributes"->>'gift_count_lifetime')::numeric >= $3))`);
     expect(r.params).toEqual([["wau"], 5, 1]);
   });
 
   it("empty nested group is dropped from its parent", () => {
-    const r = compileSegmentRule(g("AND", [c("totalDecisions", "gte", 5), g("OR", [])]));
-    expect(r.sql).toBe(`(u."totalDecisions" >= $1)`);
+    const r = compileSegmentRule(g("AND", [c("createdAt", "gte", 5), g("OR", [])]));
+    expect(r.sql).toBe(`(u."createdAt" >= $1)`);
     expect(r.params).toEqual([5]);
   });
 
@@ -83,7 +83,7 @@ describe("compileSegmentRule", () => {
   });
 
   it("throws on an illegal join keyword", () => {
-    const forged = { kind: "group", join: "AND) OR (1=1", children: [c("totalDecisions", "gte", 5)] } as unknown as SegmentRule;
+    const forged = { kind: "group", join: "AND) OR (1=1", children: [c("createdAt", "gte", 5)] } as unknown as SegmentRule;
     expect(() => compileSegmentRule(forged)).toThrow(/Illegal segment join/);
   });
 

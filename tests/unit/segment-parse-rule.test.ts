@@ -6,7 +6,7 @@ const group = (join: string, children: unknown[]) => ({ kind: "group", join, chi
 
 describe("parseSegmentRule", () => {
   it("accepts a valid nested tree", () => {
-    const tree = group("AND", [cond("funnelStage", "in", ["wau"]), group("OR", [cond("totalDecisions", "gte", 5)])]);
+    const tree = group("AND", [cond("funnelStage", "in", ["wau"]), group("OR", [cond("createdAt", "gte", 5)])]);
     const parsed = parseSegmentRule(tree);
     expect(parsed?.kind).toBe("group");
     expect(parsed?.children.length).toBe(2);
@@ -39,7 +39,7 @@ describe("parseSegmentRule", () => {
   });
 
   it("rejects trees deeper than MAX_RULE_DEPTH → null", () => {
-    let node: unknown = cond("totalDecisions", "gte", 1);
+    let node: unknown = cond("createdAt", "gte", 1);
     for (let i = 0; i <= MAX_RULE_DEPTH + 1; i++) node = group("AND", [node]);
     expect(parseSegmentRule(node)).toBeNull();
   });
@@ -53,7 +53,7 @@ describe("parseSegmentRule", () => {
   });
 
   it("rejects a scalar operator given an array value → null", () => {
-    expect(parseSegmentRule(group("AND", [cond("totalDecisions", "gte", [1, 2])]))).toBeNull();
+    expect(parseSegmentRule(group("AND", [cond("createdAt", "gte", [1, 2])]))).toBeNull();
     expect(parseSegmentRule(group("AND", [cond("email", "eq", ["a", "b"])]))).toBeNull();
   });
 

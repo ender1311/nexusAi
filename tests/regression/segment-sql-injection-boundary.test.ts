@@ -38,7 +38,7 @@ describe("segment SQL injection boundary", () => {
   it("every placeholder index has a matching param", () => {
     const { sql, params } = compileSegmentRule(rule([
       { kind: "condition", fieldId: "funnelStage", operator: "in", value: ["wau"] },
-      { kind: "condition", fieldId: "totalDecisions", operator: "gte", value: 3 },
+      { kind: "condition", fieldId: "createdAt", operator: "gte", value: 3 },
     ]));
     const placeholders = (sql.match(/\$\d+/g) ?? []).length;
     expect(placeholders).toBe(params.length);

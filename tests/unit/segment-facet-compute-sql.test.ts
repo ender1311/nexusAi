@@ -49,8 +49,8 @@ describe("facet compute SQL builders (sampled)", () => {
   });
 
   it("range SQL for a scalar numeric column uses min/max/percentile_disc over v", () => {
-    const sql = rangeFacetSql("totalDecisions", 2);
-    expect(sql).toContain(`u."totalDecisions" AS v`);
+    const sql = rangeFacetSql("createdAt", 2);
+    expect(sql).toContain(`u."createdAt" AS v`);
     expect(sql).toContain("MIN(v)");
     expect(sql).toContain("MAX(v)");
     expect(sql).toContain("PERCENTILE_DISC(0.5) WITHIN GROUP (ORDER BY v)");

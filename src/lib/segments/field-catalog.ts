@@ -36,8 +36,6 @@ export const FIELD_CATALOG: FieldDef[] = [
   { id: "persona", label: "Persona", category: "scalar", type: "enum", operators: ENUM_OPS, compile: { strategy: "scalar", column: "personaId" } },
   { id: "timezone", label: "Timezone", category: "scalar", type: "string", operators: STR_OPS, facet: { kind: "values" }, compile: { strategy: "scalar", column: "timezone" } },
   { id: "createdAt", label: "Created at", category: "scalar", type: "date", operators: NUM_OPS, facet: { kind: "range" }, compile: { strategy: "scalar", column: "createdAt" } },
-  { id: "totalDecisions", label: "Total decisions", category: "scalar", type: "number", operators: NUM_OPS, facet: { kind: "range" }, compile: { strategy: "scalar", column: "totalDecisions" } },
-  { id: "totalConversions", label: "Total conversions", category: "scalar", type: "number", operators: NUM_OPS, facet: { kind: "range" }, compile: { strategy: "scalar", column: "totalConversions" } },
   // attribute
   { id: "email", label: "Email", category: "attribute", type: "string", operators: STR_OPS, compile: { strategy: "attr", key: "email", cast: "text" } },
   { id: "country_latest", label: "Country", category: "attribute", type: "string", operators: STR_OPS, facet: { kind: "values" }, compile: { strategy: "attr", key: "country_latest", cast: "text" } },
