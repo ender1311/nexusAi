@@ -10,6 +10,7 @@ import { Trash2, CheckCircle2 } from "lucide-react";
 import { InfoTip } from "@/components/ui/info-tip";
 import { GoalPresetPicker } from "@/components/agents/goal-preset-picker";
 import { YouVersionGoalPreset, GoalColorGroup, goalColorGroup } from "@/lib/constants/youversion";
+import { isInteractionFlag } from "@/lib/constants/interaction-flags";
 
 const DOT_CLASSES: Record<GoalColorGroup, string> = {
   green: "bg-green-500",
@@ -23,7 +24,10 @@ const BADGE_CLASSES: Record<GoalColorGroup, string> = {
   red: "bg-red-100 text-red-700 border-red-200 dark:bg-red-900/30 dark:text-red-400 dark:border-red-800",
 };
 
-type GoalDraft = Omit<Goal, "id" | "agentId"> & { id?: string };
+type GoalDraft = Omit<Goal, "id" | "agentId" | "conversionType"> & {
+  id?: string;
+  conversionType?: "first_interaction" | "any_interaction";
+};
 
 type Props = {
   agentId: string;
@@ -31,7 +35,15 @@ type Props = {
 };
 
 export function GoalsEditor({ agentId, initialGoals }: Props) {
-  const [goals, setGoals] = useState<GoalDraft[]>(initialGoals);
+  const [goals, setGoals] = useState<GoalDraft[]>(
+    initialGoals.map((g) => ({
+      ...g,
+      conversionType:
+        isInteractionFlag(g.eventName) && !g.conversionType
+          ? "first_interaction"
+          : g.conversionType ?? undefined,
+    })),
+  );
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
 
@@ -49,8 +61,15 @@ export function GoalsEditor({ agentId, initialGoals }: Props) {
               weightProperty: null,
               weightDefault: 1.0,
               description: preset.description,
+              ...(isInteractionFlag(preset.eventName) ? { conversionType: "first_interaction" as const } : {}),
             },
           ],
+    );
+  };
+
+  const setConversionType = (index: number, value: "first_interaction" | "any_interaction") => {
+    setGoals((g) =>
+      g.map((goal, i) => (i === index ? { ...goal, conversionType: value } : goal)),
     );
   };
 
@@ -70,11 +89,22 @@ export function GoalsEditor({ agentId, initialGoals }: Props) {
           weightProperty: g.weightProperty,
           weightDefault: g.weightDefault,
           description: g.description,
+          ...(isInteractionFlag(g.eventName)
+            ? { conversionType: g.conversionType ?? "first_interaction" }
+            : {}),
         }))),
       });
       if (res.ok) {
         const updated = await res.json() as Goal[];
-        setGoals(updated);
+        setGoals(
+          updated.map((g) => ({
+            ...g,
+            conversionType:
+              isInteractionFlag(g.eventName) && !g.conversionType
+                ? "first_interaction"
+                : (g.conversionType ?? undefined),
+          })),
+        );
         setSaved(true);
         setTimeout(() => setSaved(false), 3000);
       }
@@ -115,27 +145,60 @@ export function GoalsEditor({ agentId, initialGoals }: Props) {
               {goals.map((g, i) => {
                 const group = goalColorGroup({ eventName: g.eventName, weight: g.valueWeight });
                 return (
-                  <div key={i} className="flex items-center justify-between p-3 border rounded-lg">
-                    <div className="flex items-center gap-3">
-                      <div className={cn("h-3 w-3 rounded-full", DOT_CLASSES[group])} />
-                      <div>
-                        <p className="text-sm font-medium">{g.eventName}</p>
-                        <div className="flex items-center gap-2 mt-0.5">
-                          <Badge variant="outline" className={cn("text-xs capitalize", BADGE_CLASSES[group])}>
-                            {g.tier.replace("_", " ")}
-                          </Badge>
-                          <span className="text-xs text-muted-foreground">weight: {g.valueWeight}</span>
+                  <div key={i} className="p-3 border rounded-lg">
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-3">
+                        <div className={cn("h-3 w-3 rounded-full", DOT_CLASSES[group])} />
+                        <div>
+                          <p className="text-sm font-medium">{g.eventName}</p>
+                          <div className="flex items-center gap-2 mt-0.5">
+                            <Badge variant="outline" className={cn("text-xs capitalize", BADGE_CLASSES[group])}>
+                              {g.tier.replace("_", " ")}
+                            </Badge>
+                            <span className="text-xs text-muted-foreground">weight: {g.valueWeight}</span>
+                          </div>
                         </div>
                       </div>
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => removeGoal(i)}
+                        className="h-7 w-7 p-0 text-destructive hover:text-destructive"
+                      >
+                        <Trash2 className="h-3.5 w-3.5" />
+                      </Button>
                     </div>
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      onClick={() => removeGoal(i)}
-                      className="h-7 w-7 p-0 text-destructive hover:text-destructive"
-                    >
-                      <Trash2 className="h-3.5 w-3.5" />
-                    </Button>
+                    {isInteractionFlag(g.eventName) && (
+                      <div className="mt-2 ml-6 flex items-center gap-2">
+                        <span className="text-xs text-muted-foreground">Conversion type</span>
+                        <div className="flex rounded-md border overflow-hidden text-xs">
+                          <button
+                            type="button"
+                            className={cn(
+                              "px-2.5 py-1 font-medium transition-colors",
+                              (g.conversionType ?? "first_interaction") === "first_interaction"
+                                ? "bg-primary text-primary-foreground"
+                                : "text-muted-foreground hover:text-foreground",
+                            )}
+                            onClick={() => setConversionType(i, "first_interaction")}
+                          >
+                            First interaction
+                          </button>
+                          <button
+                            type="button"
+                            className={cn(
+                              "px-2.5 py-1 font-medium transition-colors border-l",
+                              (g.conversionType ?? "first_interaction") === "any_interaction"
+                                ? "bg-primary text-primary-foreground"
+                                : "text-muted-foreground hover:text-foreground",
+                            )}
+                            onClick={() => setConversionType(i, "any_interaction")}
+                          >
+                            Any interaction
+                          </button>
+                        </div>
+                      </div>
+                    )}
                   </div>
                 );
               })}

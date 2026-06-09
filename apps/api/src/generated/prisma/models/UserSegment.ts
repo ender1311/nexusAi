@@ -28,6 +28,7 @@ export type UserSegmentMinAggregateOutputType = {
   id: string | null
   externalId: string | null
   segmentName: string | null
+  source: string | null
   syncedAt: Date | null
 }
 
@@ -35,6 +36,7 @@ export type UserSegmentMaxAggregateOutputType = {
   id: string | null
   externalId: string | null
   segmentName: string | null
+  source: string | null
   syncedAt: Date | null
 }
 
@@ -42,6 +44,7 @@ export type UserSegmentCountAggregateOutputType = {
   id: number
   externalId: number
   segmentName: number
+  source: number
   syncedAt: number
   _all: number
 }
@@ -51,6 +54,7 @@ export type UserSegmentMinAggregateInputType = {
   id?: true
   externalId?: true
   segmentName?: true
+  source?: true
   syncedAt?: true
 }
 
@@ -58,6 +62,7 @@ export type UserSegmentMaxAggregateInputType = {
   id?: true
   externalId?: true
   segmentName?: true
+  source?: true
   syncedAt?: true
 }
 
@@ -65,6 +70,7 @@ export type UserSegmentCountAggregateInputType = {
   id?: true
   externalId?: true
   segmentName?: true
+  source?: true
   syncedAt?: true
   _all?: true
 }
@@ -145,6 +151,7 @@ export type UserSegmentGroupByOutputType = {
   id: string
   externalId: string
   segmentName: string
+  source: string
   syncedAt: Date
   _count: UserSegmentCountAggregateOutputType | null
   _min: UserSegmentMinAggregateOutputType | null
@@ -173,6 +180,7 @@ export type UserSegmentWhereInput = {
   id?: Prisma.StringFilter<"UserSegment"> | string
   externalId?: Prisma.StringFilter<"UserSegment"> | string
   segmentName?: Prisma.StringFilter<"UserSegment"> | string
+  source?: Prisma.StringFilter<"UserSegment"> | string
   syncedAt?: Prisma.DateTimeFilter<"UserSegment"> | Date | string
 }
 
@@ -180,24 +188,27 @@ export type UserSegmentOrderByWithRelationInput = {
   id?: Prisma.SortOrder
   externalId?: Prisma.SortOrder
   segmentName?: Prisma.SortOrder
+  source?: Prisma.SortOrder
   syncedAt?: Prisma.SortOrder
 }
 
 export type UserSegmentWhereUniqueInput = Prisma.AtLeast<{
   id?: string
-  externalId_segmentName?: Prisma.UserSegmentExternalIdSegmentNameCompoundUniqueInput
+  externalId_segmentName_source?: Prisma.UserSegmentExternalIdSegmentNameSourceCompoundUniqueInput
   AND?: Prisma.UserSegmentWhereInput | Prisma.UserSegmentWhereInput[]
   OR?: Prisma.UserSegmentWhereInput[]
   NOT?: Prisma.UserSegmentWhereInput | Prisma.UserSegmentWhereInput[]
   externalId?: Prisma.StringFilter<"UserSegment"> | string
   segmentName?: Prisma.StringFilter<"UserSegment"> | string
+  source?: Prisma.StringFilter<"UserSegment"> | string
   syncedAt?: Prisma.DateTimeFilter<"UserSegment"> | Date | string
-}, "id" | "externalId_segmentName">
+}, "id" | "externalId_segmentName_source">
 
 export type UserSegmentOrderByWithAggregationInput = {
   id?: Prisma.SortOrder
   externalId?: Prisma.SortOrder
   segmentName?: Prisma.SortOrder
+  source?: Prisma.SortOrder
   syncedAt?: Prisma.SortOrder
   _count?: Prisma.UserSegmentCountOrderByAggregateInput
   _max?: Prisma.UserSegmentMaxOrderByAggregateInput
@@ -211,6 +222,7 @@ export type UserSegmentScalarWhereWithAggregatesInput = {
   id?: Prisma.StringWithAggregatesFilter<"UserSegment"> | string
   externalId?: Prisma.StringWithAggregatesFilter<"UserSegment"> | string
   segmentName?: Prisma.StringWithAggregatesFilter<"UserSegment"> | string
+  source?: Prisma.StringWithAggregatesFilter<"UserSegment"> | string
   syncedAt?: Prisma.DateTimeWithAggregatesFilter<"UserSegment"> | Date | string
 }
 
@@ -218,6 +230,7 @@ export type UserSegmentCreateInput = {
   id?: string
   externalId: string
   segmentName: string
+  source?: string
   syncedAt?: Date | string
 }
 
@@ -225,6 +238,7 @@ export type UserSegmentUncheckedCreateInput = {
   id?: string
   externalId: string
   segmentName: string
+  source?: string
   syncedAt?: Date | string
 }
 
@@ -232,6 +246,7 @@ export type UserSegmentUpdateInput = {
   id?: Prisma.StringFieldUpdateOperationsInput | string
   externalId?: Prisma.StringFieldUpdateOperationsInput | string
   segmentName?: Prisma.StringFieldUpdateOperationsInput | string
+  source?: Prisma.StringFieldUpdateOperationsInput | string
   syncedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
 }
 
@@ -239,6 +254,7 @@ export type UserSegmentUncheckedUpdateInput = {
   id?: Prisma.StringFieldUpdateOperationsInput | string
   externalId?: Prisma.StringFieldUpdateOperationsInput | string
   segmentName?: Prisma.StringFieldUpdateOperationsInput | string
+  source?: Prisma.StringFieldUpdateOperationsInput | string
   syncedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
 }
 
@@ -246,6 +262,7 @@ export type UserSegmentCreateManyInput = {
   id?: string
   externalId: string
   segmentName: string
+  source?: string
   syncedAt?: Date | string
 }
 
@@ -253,6 +270,7 @@ export type UserSegmentUpdateManyMutationInput = {
   id?: Prisma.StringFieldUpdateOperationsInput | string
   externalId?: Prisma.StringFieldUpdateOperationsInput | string
   segmentName?: Prisma.StringFieldUpdateOperationsInput | string
+  source?: Prisma.StringFieldUpdateOperationsInput | string
   syncedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
 }
 
@@ -260,18 +278,21 @@ export type UserSegmentUncheckedUpdateManyInput = {
   id?: Prisma.StringFieldUpdateOperationsInput | string
   externalId?: Prisma.StringFieldUpdateOperationsInput | string
   segmentName?: Prisma.StringFieldUpdateOperationsInput | string
+  source?: Prisma.StringFieldUpdateOperationsInput | string
   syncedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
 }
 
-export type UserSegmentExternalIdSegmentNameCompoundUniqueInput = {
+export type UserSegmentExternalIdSegmentNameSourceCompoundUniqueInput = {
   externalId: string
   segmentName: string
+  source: string
 }
 
 export type UserSegmentCountOrderByAggregateInput = {
   id?: Prisma.SortOrder
   externalId?: Prisma.SortOrder
   segmentName?: Prisma.SortOrder
+  source?: Prisma.SortOrder
   syncedAt?: Prisma.SortOrder
 }
 
@@ -279,6 +300,7 @@ export type UserSegmentMaxOrderByAggregateInput = {
   id?: Prisma.SortOrder
   externalId?: Prisma.SortOrder
   segmentName?: Prisma.SortOrder
+  source?: Prisma.SortOrder
   syncedAt?: Prisma.SortOrder
 }
 
@@ -286,6 +308,7 @@ export type UserSegmentMinOrderByAggregateInput = {
   id?: Prisma.SortOrder
   externalId?: Prisma.SortOrder
   segmentName?: Prisma.SortOrder
+  source?: Prisma.SortOrder
   syncedAt?: Prisma.SortOrder
 }
 
@@ -295,6 +318,7 @@ export type UserSegmentSelect<ExtArgs extends runtime.Types.Extensions.InternalA
   id?: boolean
   externalId?: boolean
   segmentName?: boolean
+  source?: boolean
   syncedAt?: boolean
 }, ExtArgs["result"]["userSegment"]>
 
@@ -302,6 +326,7 @@ export type UserSegmentSelectCreateManyAndReturn<ExtArgs extends runtime.Types.E
   id?: boolean
   externalId?: boolean
   segmentName?: boolean
+  source?: boolean
   syncedAt?: boolean
 }, ExtArgs["result"]["userSegment"]>
 
@@ -309,6 +334,7 @@ export type UserSegmentSelectUpdateManyAndReturn<ExtArgs extends runtime.Types.E
   id?: boolean
   externalId?: boolean
   segmentName?: boolean
+  source?: boolean
   syncedAt?: boolean
 }, ExtArgs["result"]["userSegment"]>
 
@@ -316,10 +342,11 @@ export type UserSegmentSelectScalar = {
   id?: boolean
   externalId?: boolean
   segmentName?: boolean
+  source?: boolean
   syncedAt?: boolean
 }
 
-export type UserSegmentOmit<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = runtime.Types.Extensions.GetOmit<"id" | "externalId" | "segmentName" | "syncedAt", ExtArgs["result"]["userSegment"]>
+export type UserSegmentOmit<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = runtime.Types.Extensions.GetOmit<"id" | "externalId" | "segmentName" | "source" | "syncedAt", ExtArgs["result"]["userSegment"]>
 
 export type $UserSegmentPayload<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
   name: "UserSegment"
@@ -328,6 +355,7 @@ export type $UserSegmentPayload<ExtArgs extends runtime.Types.Extensions.Interna
     id: string
     externalId: string
     segmentName: string
+    source: string
     syncedAt: Date
   }, ExtArgs["result"]["userSegment"]>
   composites: {}
@@ -755,6 +783,7 @@ export interface UserSegmentFieldRefs {
   readonly id: Prisma.FieldRef<"UserSegment", 'String'>
   readonly externalId: Prisma.FieldRef<"UserSegment", 'String'>
   readonly segmentName: Prisma.FieldRef<"UserSegment", 'String'>
+  readonly source: Prisma.FieldRef<"UserSegment", 'String'>
   readonly syncedAt: Prisma.FieldRef<"UserSegment", 'DateTime'>
 }
     

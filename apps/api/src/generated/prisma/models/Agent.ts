@@ -61,6 +61,7 @@ export type AgentMinAggregateOutputType = {
   uniqueUsersCap: number | null
   dailySendCap: number | null
   cohortAssignedAt: Date | null
+  enrollmentMode: string | null
   languageFilter: string | null
   localizePush: boolean | null
   deeplinkOverride: string | null
@@ -87,6 +88,7 @@ export type AgentMaxAggregateOutputType = {
   uniqueUsersCap: number | null
   dailySendCap: number | null
   cohortAssignedAt: Date | null
+  enrollmentMode: string | null
   languageFilter: string | null
   localizePush: boolean | null
   deeplinkOverride: string | null
@@ -115,6 +117,7 @@ export type AgentCountAggregateOutputType = {
   uniqueUsersCap: number
   dailySendCap: number
   cohortAssignedAt: number
+  enrollmentMode: number
   languageFilter: number
   localizePush: number
   deeplinkOverride: number
@@ -165,6 +168,7 @@ export type AgentMinAggregateInputType = {
   uniqueUsersCap?: true
   dailySendCap?: true
   cohortAssignedAt?: true
+  enrollmentMode?: true
   languageFilter?: true
   localizePush?: true
   deeplinkOverride?: true
@@ -191,6 +195,7 @@ export type AgentMaxAggregateInputType = {
   uniqueUsersCap?: true
   dailySendCap?: true
   cohortAssignedAt?: true
+  enrollmentMode?: true
   languageFilter?: true
   localizePush?: true
   deeplinkOverride?: true
@@ -219,6 +224,7 @@ export type AgentCountAggregateInputType = {
   uniqueUsersCap?: true
   dailySendCap?: true
   cohortAssignedAt?: true
+  enrollmentMode?: true
   languageFilter?: true
   localizePush?: true
   deeplinkOverride?: true
@@ -334,6 +340,7 @@ export type AgentGroupByOutputType = {
   uniqueUsersCap: number | null
   dailySendCap: number | null
   cohortAssignedAt: Date | null
+  enrollmentMode: string
   languageFilter: string
   localizePush: boolean
   deeplinkOverride: string | null
@@ -385,6 +392,7 @@ export type AgentWhereInput = {
   uniqueUsersCap?: Prisma.IntNullableFilter<"Agent"> | number | null
   dailySendCap?: Prisma.IntNullableFilter<"Agent"> | number | null
   cohortAssignedAt?: Prisma.DateTimeNullableFilter<"Agent"> | Date | string | null
+  enrollmentMode?: Prisma.StringFilter<"Agent"> | string
   languageFilter?: Prisma.StringFilter<"Agent"> | string
   localizePush?: Prisma.BoolFilter<"Agent"> | boolean
   deeplinkOverride?: Prisma.StringNullableFilter<"Agent"> | string | null
@@ -419,6 +427,7 @@ export type AgentOrderByWithRelationInput = {
   uniqueUsersCap?: Prisma.SortOrderInput | Prisma.SortOrder
   dailySendCap?: Prisma.SortOrderInput | Prisma.SortOrder
   cohortAssignedAt?: Prisma.SortOrderInput | Prisma.SortOrder
+  enrollmentMode?: Prisma.SortOrder
   languageFilter?: Prisma.SortOrder
   localizePush?: Prisma.SortOrder
   deeplinkOverride?: Prisma.SortOrderInput | Prisma.SortOrder
@@ -456,6 +465,7 @@ export type AgentWhereUniqueInput = Prisma.AtLeast<{
   uniqueUsersCap?: Prisma.IntNullableFilter<"Agent"> | number | null
   dailySendCap?: Prisma.IntNullableFilter<"Agent"> | number | null
   cohortAssignedAt?: Prisma.DateTimeNullableFilter<"Agent"> | Date | string | null
+  enrollmentMode?: Prisma.StringFilter<"Agent"> | string
   languageFilter?: Prisma.StringFilter<"Agent"> | string
   localizePush?: Prisma.BoolFilter<"Agent"> | boolean
   deeplinkOverride?: Prisma.StringNullableFilter<"Agent"> | string | null
@@ -490,6 +500,7 @@ export type AgentOrderByWithAggregationInput = {
   uniqueUsersCap?: Prisma.SortOrderInput | Prisma.SortOrder
   dailySendCap?: Prisma.SortOrderInput | Prisma.SortOrder
   cohortAssignedAt?: Prisma.SortOrderInput | Prisma.SortOrder
+  enrollmentMode?: Prisma.SortOrder
   languageFilter?: Prisma.SortOrder
   localizePush?: Prisma.SortOrder
   deeplinkOverride?: Prisma.SortOrderInput | Prisma.SortOrder
@@ -526,6 +537,7 @@ export type AgentScalarWhereWithAggregatesInput = {
   uniqueUsersCap?: Prisma.IntNullableWithAggregatesFilter<"Agent"> | number | null
   dailySendCap?: Prisma.IntNullableWithAggregatesFilter<"Agent"> | number | null
   cohortAssignedAt?: Prisma.DateTimeNullableWithAggregatesFilter<"Agent"> | Date | string | null
+  enrollmentMode?: Prisma.StringWithAggregatesFilter<"Agent"> | string
   languageFilter?: Prisma.StringWithAggregatesFilter<"Agent"> | string
   localizePush?: Prisma.BoolWithAggregatesFilter<"Agent"> | boolean
   deeplinkOverride?: Prisma.StringNullableWithAggregatesFilter<"Agent"> | string | null
@@ -554,6 +566,7 @@ export type AgentCreateInput = {
   uniqueUsersCap?: number | null
   dailySendCap?: number | null
   cohortAssignedAt?: Date | string | null
+  enrollmentMode?: string
   languageFilter?: string
   localizePush?: boolean
   deeplinkOverride?: string | null
@@ -588,6 +601,7 @@ export type AgentUncheckedCreateInput = {
   uniqueUsersCap?: number | null
   dailySendCap?: number | null
   cohortAssignedAt?: Date | string | null
+  enrollmentMode?: string
   languageFilter?: string
   localizePush?: boolean
   deeplinkOverride?: string | null
@@ -622,6 +636,7 @@ export type AgentUpdateInput = {
   uniqueUsersCap?: Prisma.NullableIntFieldUpdateOperationsInput | number | null
   dailySendCap?: Prisma.NullableIntFieldUpdateOperationsInput | number | null
   cohortAssignedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  enrollmentMode?: Prisma.StringFieldUpdateOperationsInput | string
   languageFilter?: Prisma.StringFieldUpdateOperationsInput | string
   localizePush?: Prisma.BoolFieldUpdateOperationsInput | boolean
   deeplinkOverride?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
@@ -656,6 +671,7 @@ export type AgentUncheckedUpdateInput = {
   uniqueUsersCap?: Prisma.NullableIntFieldUpdateOperationsInput | number | null
   dailySendCap?: Prisma.NullableIntFieldUpdateOperationsInput | number | null
   cohortAssignedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  enrollmentMode?: Prisma.StringFieldUpdateOperationsInput | string
   languageFilter?: Prisma.StringFieldUpdateOperationsInput | string
   localizePush?: Prisma.BoolFieldUpdateOperationsInput | boolean
   deeplinkOverride?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
@@ -690,6 +706,7 @@ export type AgentCreateManyInput = {
   uniqueUsersCap?: number | null
   dailySendCap?: number | null
   cohortAssignedAt?: Date | string | null
+  enrollmentMode?: string
   languageFilter?: string
   localizePush?: boolean
   deeplinkOverride?: string | null
@@ -718,6 +735,7 @@ export type AgentUpdateManyMutationInput = {
   uniqueUsersCap?: Prisma.NullableIntFieldUpdateOperationsInput | number | null
   dailySendCap?: Prisma.NullableIntFieldUpdateOperationsInput | number | null
   cohortAssignedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  enrollmentMode?: Prisma.StringFieldUpdateOperationsInput | string
   languageFilter?: Prisma.StringFieldUpdateOperationsInput | string
   localizePush?: Prisma.BoolFieldUpdateOperationsInput | boolean
   deeplinkOverride?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
@@ -746,6 +764,7 @@ export type AgentUncheckedUpdateManyInput = {
   uniqueUsersCap?: Prisma.NullableIntFieldUpdateOperationsInput | number | null
   dailySendCap?: Prisma.NullableIntFieldUpdateOperationsInput | number | null
   cohortAssignedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  enrollmentMode?: Prisma.StringFieldUpdateOperationsInput | string
   languageFilter?: Prisma.StringFieldUpdateOperationsInput | string
   localizePush?: Prisma.BoolFieldUpdateOperationsInput | boolean
   deeplinkOverride?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
@@ -774,6 +793,7 @@ export type AgentCountOrderByAggregateInput = {
   uniqueUsersCap?: Prisma.SortOrder
   dailySendCap?: Prisma.SortOrder
   cohortAssignedAt?: Prisma.SortOrder
+  enrollmentMode?: Prisma.SortOrder
   languageFilter?: Prisma.SortOrder
   localizePush?: Prisma.SortOrder
   deeplinkOverride?: Prisma.SortOrder
@@ -811,6 +831,7 @@ export type AgentMaxOrderByAggregateInput = {
   uniqueUsersCap?: Prisma.SortOrder
   dailySendCap?: Prisma.SortOrder
   cohortAssignedAt?: Prisma.SortOrder
+  enrollmentMode?: Prisma.SortOrder
   languageFilter?: Prisma.SortOrder
   localizePush?: Prisma.SortOrder
   deeplinkOverride?: Prisma.SortOrder
@@ -837,6 +858,7 @@ export type AgentMinOrderByAggregateInput = {
   uniqueUsersCap?: Prisma.SortOrder
   dailySendCap?: Prisma.SortOrder
   cohortAssignedAt?: Prisma.SortOrder
+  enrollmentMode?: Prisma.SortOrder
   languageFilter?: Prisma.SortOrder
   localizePush?: Prisma.SortOrder
   deeplinkOverride?: Prisma.SortOrder
@@ -1009,6 +1031,7 @@ export type AgentCreateWithoutGoalsInput = {
   uniqueUsersCap?: number | null
   dailySendCap?: number | null
   cohortAssignedAt?: Date | string | null
+  enrollmentMode?: string
   languageFilter?: string
   localizePush?: boolean
   deeplinkOverride?: string | null
@@ -1042,6 +1065,7 @@ export type AgentUncheckedCreateWithoutGoalsInput = {
   uniqueUsersCap?: number | null
   dailySendCap?: number | null
   cohortAssignedAt?: Date | string | null
+  enrollmentMode?: string
   languageFilter?: string
   localizePush?: boolean
   deeplinkOverride?: string | null
@@ -1091,6 +1115,7 @@ export type AgentUpdateWithoutGoalsInput = {
   uniqueUsersCap?: Prisma.NullableIntFieldUpdateOperationsInput | number | null
   dailySendCap?: Prisma.NullableIntFieldUpdateOperationsInput | number | null
   cohortAssignedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  enrollmentMode?: Prisma.StringFieldUpdateOperationsInput | string
   languageFilter?: Prisma.StringFieldUpdateOperationsInput | string
   localizePush?: Prisma.BoolFieldUpdateOperationsInput | boolean
   deeplinkOverride?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
@@ -1124,6 +1149,7 @@ export type AgentUncheckedUpdateWithoutGoalsInput = {
   uniqueUsersCap?: Prisma.NullableIntFieldUpdateOperationsInput | number | null
   dailySendCap?: Prisma.NullableIntFieldUpdateOperationsInput | number | null
   cohortAssignedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  enrollmentMode?: Prisma.StringFieldUpdateOperationsInput | string
   languageFilter?: Prisma.StringFieldUpdateOperationsInput | string
   localizePush?: Prisma.BoolFieldUpdateOperationsInput | boolean
   deeplinkOverride?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
@@ -1157,6 +1183,7 @@ export type AgentCreateWithoutMessagesInput = {
   uniqueUsersCap?: number | null
   dailySendCap?: number | null
   cohortAssignedAt?: Date | string | null
+  enrollmentMode?: string
   languageFilter?: string
   localizePush?: boolean
   deeplinkOverride?: string | null
@@ -1190,6 +1217,7 @@ export type AgentUncheckedCreateWithoutMessagesInput = {
   uniqueUsersCap?: number | null
   dailySendCap?: number | null
   cohortAssignedAt?: Date | string | null
+  enrollmentMode?: string
   languageFilter?: string
   localizePush?: boolean
   deeplinkOverride?: string | null
@@ -1239,6 +1267,7 @@ export type AgentUpdateWithoutMessagesInput = {
   uniqueUsersCap?: Prisma.NullableIntFieldUpdateOperationsInput | number | null
   dailySendCap?: Prisma.NullableIntFieldUpdateOperationsInput | number | null
   cohortAssignedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  enrollmentMode?: Prisma.StringFieldUpdateOperationsInput | string
   languageFilter?: Prisma.StringFieldUpdateOperationsInput | string
   localizePush?: Prisma.BoolFieldUpdateOperationsInput | boolean
   deeplinkOverride?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
@@ -1272,6 +1301,7 @@ export type AgentUncheckedUpdateWithoutMessagesInput = {
   uniqueUsersCap?: Prisma.NullableIntFieldUpdateOperationsInput | number | null
   dailySendCap?: Prisma.NullableIntFieldUpdateOperationsInput | number | null
   cohortAssignedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  enrollmentMode?: Prisma.StringFieldUpdateOperationsInput | string
   languageFilter?: Prisma.StringFieldUpdateOperationsInput | string
   localizePush?: Prisma.BoolFieldUpdateOperationsInput | boolean
   deeplinkOverride?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
@@ -1305,6 +1335,7 @@ export type AgentCreateWithoutDecisionsInput = {
   uniqueUsersCap?: number | null
   dailySendCap?: number | null
   cohortAssignedAt?: Date | string | null
+  enrollmentMode?: string
   languageFilter?: string
   localizePush?: boolean
   deeplinkOverride?: string | null
@@ -1338,6 +1369,7 @@ export type AgentUncheckedCreateWithoutDecisionsInput = {
   uniqueUsersCap?: number | null
   dailySendCap?: number | null
   cohortAssignedAt?: Date | string | null
+  enrollmentMode?: string
   languageFilter?: string
   localizePush?: boolean
   deeplinkOverride?: string | null
@@ -1387,6 +1419,7 @@ export type AgentUpdateWithoutDecisionsInput = {
   uniqueUsersCap?: Prisma.NullableIntFieldUpdateOperationsInput | number | null
   dailySendCap?: Prisma.NullableIntFieldUpdateOperationsInput | number | null
   cohortAssignedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  enrollmentMode?: Prisma.StringFieldUpdateOperationsInput | string
   languageFilter?: Prisma.StringFieldUpdateOperationsInput | string
   localizePush?: Prisma.BoolFieldUpdateOperationsInput | boolean
   deeplinkOverride?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
@@ -1420,6 +1453,7 @@ export type AgentUncheckedUpdateWithoutDecisionsInput = {
   uniqueUsersCap?: Prisma.NullableIntFieldUpdateOperationsInput | number | null
   dailySendCap?: Prisma.NullableIntFieldUpdateOperationsInput | number | null
   cohortAssignedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  enrollmentMode?: Prisma.StringFieldUpdateOperationsInput | string
   languageFilter?: Prisma.StringFieldUpdateOperationsInput | string
   localizePush?: Prisma.BoolFieldUpdateOperationsInput | boolean
   deeplinkOverride?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
@@ -1453,6 +1487,7 @@ export type AgentCreateWithoutPersonaTargetsInput = {
   uniqueUsersCap?: number | null
   dailySendCap?: number | null
   cohortAssignedAt?: Date | string | null
+  enrollmentMode?: string
   languageFilter?: string
   localizePush?: boolean
   deeplinkOverride?: string | null
@@ -1486,6 +1521,7 @@ export type AgentUncheckedCreateWithoutPersonaTargetsInput = {
   uniqueUsersCap?: number | null
   dailySendCap?: number | null
   cohortAssignedAt?: Date | string | null
+  enrollmentMode?: string
   languageFilter?: string
   localizePush?: boolean
   deeplinkOverride?: string | null
@@ -1535,6 +1571,7 @@ export type AgentUpdateWithoutPersonaTargetsInput = {
   uniqueUsersCap?: Prisma.NullableIntFieldUpdateOperationsInput | number | null
   dailySendCap?: Prisma.NullableIntFieldUpdateOperationsInput | number | null
   cohortAssignedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  enrollmentMode?: Prisma.StringFieldUpdateOperationsInput | string
   languageFilter?: Prisma.StringFieldUpdateOperationsInput | string
   localizePush?: Prisma.BoolFieldUpdateOperationsInput | boolean
   deeplinkOverride?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
@@ -1568,6 +1605,7 @@ export type AgentUncheckedUpdateWithoutPersonaTargetsInput = {
   uniqueUsersCap?: Prisma.NullableIntFieldUpdateOperationsInput | number | null
   dailySendCap?: Prisma.NullableIntFieldUpdateOperationsInput | number | null
   cohortAssignedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  enrollmentMode?: Prisma.StringFieldUpdateOperationsInput | string
   languageFilter?: Prisma.StringFieldUpdateOperationsInput | string
   localizePush?: Prisma.BoolFieldUpdateOperationsInput | boolean
   deeplinkOverride?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
@@ -1601,6 +1639,7 @@ export type AgentCreateWithoutSchedulingRuleInput = {
   uniqueUsersCap?: number | null
   dailySendCap?: number | null
   cohortAssignedAt?: Date | string | null
+  enrollmentMode?: string
   languageFilter?: string
   localizePush?: boolean
   deeplinkOverride?: string | null
@@ -1634,6 +1673,7 @@ export type AgentUncheckedCreateWithoutSchedulingRuleInput = {
   uniqueUsersCap?: number | null
   dailySendCap?: number | null
   cohortAssignedAt?: Date | string | null
+  enrollmentMode?: string
   languageFilter?: string
   localizePush?: boolean
   deeplinkOverride?: string | null
@@ -1683,6 +1723,7 @@ export type AgentUpdateWithoutSchedulingRuleInput = {
   uniqueUsersCap?: Prisma.NullableIntFieldUpdateOperationsInput | number | null
   dailySendCap?: Prisma.NullableIntFieldUpdateOperationsInput | number | null
   cohortAssignedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  enrollmentMode?: Prisma.StringFieldUpdateOperationsInput | string
   languageFilter?: Prisma.StringFieldUpdateOperationsInput | string
   localizePush?: Prisma.BoolFieldUpdateOperationsInput | boolean
   deeplinkOverride?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
@@ -1716,6 +1757,7 @@ export type AgentUncheckedUpdateWithoutSchedulingRuleInput = {
   uniqueUsersCap?: Prisma.NullableIntFieldUpdateOperationsInput | number | null
   dailySendCap?: Prisma.NullableIntFieldUpdateOperationsInput | number | null
   cohortAssignedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  enrollmentMode?: Prisma.StringFieldUpdateOperationsInput | string
   languageFilter?: Prisma.StringFieldUpdateOperationsInput | string
   localizePush?: Prisma.BoolFieldUpdateOperationsInput | boolean
   deeplinkOverride?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
@@ -1749,6 +1791,7 @@ export type AgentCreateWithoutMetricsInput = {
   uniqueUsersCap?: number | null
   dailySendCap?: number | null
   cohortAssignedAt?: Date | string | null
+  enrollmentMode?: string
   languageFilter?: string
   localizePush?: boolean
   deeplinkOverride?: string | null
@@ -1782,6 +1825,7 @@ export type AgentUncheckedCreateWithoutMetricsInput = {
   uniqueUsersCap?: number | null
   dailySendCap?: number | null
   cohortAssignedAt?: Date | string | null
+  enrollmentMode?: string
   languageFilter?: string
   localizePush?: boolean
   deeplinkOverride?: string | null
@@ -1831,6 +1875,7 @@ export type AgentUpdateWithoutMetricsInput = {
   uniqueUsersCap?: Prisma.NullableIntFieldUpdateOperationsInput | number | null
   dailySendCap?: Prisma.NullableIntFieldUpdateOperationsInput | number | null
   cohortAssignedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  enrollmentMode?: Prisma.StringFieldUpdateOperationsInput | string
   languageFilter?: Prisma.StringFieldUpdateOperationsInput | string
   localizePush?: Prisma.BoolFieldUpdateOperationsInput | boolean
   deeplinkOverride?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
@@ -1864,6 +1909,7 @@ export type AgentUncheckedUpdateWithoutMetricsInput = {
   uniqueUsersCap?: Prisma.NullableIntFieldUpdateOperationsInput | number | null
   dailySendCap?: Prisma.NullableIntFieldUpdateOperationsInput | number | null
   cohortAssignedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  enrollmentMode?: Prisma.StringFieldUpdateOperationsInput | string
   languageFilter?: Prisma.StringFieldUpdateOperationsInput | string
   localizePush?: Prisma.BoolFieldUpdateOperationsInput | boolean
   deeplinkOverride?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
@@ -1964,6 +2010,7 @@ export type AgentSelect<ExtArgs extends runtime.Types.Extensions.InternalArgs = 
   uniqueUsersCap?: boolean
   dailySendCap?: boolean
   cohortAssignedAt?: boolean
+  enrollmentMode?: boolean
   languageFilter?: boolean
   localizePush?: boolean
   deeplinkOverride?: boolean
@@ -1999,6 +2046,7 @@ export type AgentSelectCreateManyAndReturn<ExtArgs extends runtime.Types.Extensi
   uniqueUsersCap?: boolean
   dailySendCap?: boolean
   cohortAssignedAt?: boolean
+  enrollmentMode?: boolean
   languageFilter?: boolean
   localizePush?: boolean
   deeplinkOverride?: boolean
@@ -2027,6 +2075,7 @@ export type AgentSelectUpdateManyAndReturn<ExtArgs extends runtime.Types.Extensi
   uniqueUsersCap?: boolean
   dailySendCap?: boolean
   cohortAssignedAt?: boolean
+  enrollmentMode?: boolean
   languageFilter?: boolean
   localizePush?: boolean
   deeplinkOverride?: boolean
@@ -2055,6 +2104,7 @@ export type AgentSelectScalar = {
   uniqueUsersCap?: boolean
   dailySendCap?: boolean
   cohortAssignedAt?: boolean
+  enrollmentMode?: boolean
   languageFilter?: boolean
   localizePush?: boolean
   deeplinkOverride?: boolean
@@ -2068,7 +2118,7 @@ export type AgentSelectScalar = {
   updatedAt?: boolean
 }
 
-export type AgentOmit<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = runtime.Types.Extensions.GetOmit<"id" | "name" | "description" | "status" | "algorithm" | "epsilon" | "funnelStage" | "targetFilter" | "targetSegmentName" | "segmentTargeting" | "fallbackSendHour" | "uniqueUsersCap" | "dailySendCap" | "cohortAssignedAt" | "languageFilter" | "localizePush" | "deeplinkOverride" | "sendingPaused" | "staleFunnelStageDays" | "color" | "sortOrder" | "holdMaxDays" | "holdMaxSends" | "createdAt" | "updatedAt", ExtArgs["result"]["agent"]>
+export type AgentOmit<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = runtime.Types.Extensions.GetOmit<"id" | "name" | "description" | "status" | "algorithm" | "epsilon" | "funnelStage" | "targetFilter" | "targetSegmentName" | "segmentTargeting" | "fallbackSendHour" | "uniqueUsersCap" | "dailySendCap" | "cohortAssignedAt" | "enrollmentMode" | "languageFilter" | "localizePush" | "deeplinkOverride" | "sendingPaused" | "staleFunnelStageDays" | "color" | "sortOrder" | "holdMaxDays" | "holdMaxSends" | "createdAt" | "updatedAt", ExtArgs["result"]["agent"]>
 export type AgentInclude<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
   goals?: boolean | Prisma.Agent$goalsArgs<ExtArgs>
   messages?: boolean | Prisma.Agent$messagesArgs<ExtArgs>
@@ -2106,6 +2156,7 @@ export type $AgentPayload<ExtArgs extends runtime.Types.Extensions.InternalArgs 
     uniqueUsersCap: number | null
     dailySendCap: number | null
     cohortAssignedAt: Date | null
+    enrollmentMode: string
     languageFilter: string
     localizePush: boolean
     deeplinkOverride: string | null
@@ -2560,6 +2611,7 @@ export interface AgentFieldRefs {
   readonly uniqueUsersCap: Prisma.FieldRef<"Agent", 'Int'>
   readonly dailySendCap: Prisma.FieldRef<"Agent", 'Int'>
   readonly cohortAssignedAt: Prisma.FieldRef<"Agent", 'DateTime'>
+  readonly enrollmentMode: Prisma.FieldRef<"Agent", 'String'>
   readonly languageFilter: Prisma.FieldRef<"Agent", 'String'>
   readonly localizePush: Prisma.FieldRef<"Agent", 'Boolean'>
   readonly deeplinkOverride: Prisma.FieldRef<"Agent", 'String'>

@@ -167,3 +167,18 @@ export type PushCategory = Prisma.PushCategoryModel
  * 
  */
 export type PushSubcategory = Prisma.PushSubcategoryModel
+/**
+ * Model Segment
+ * 
+ */
+export type Segment = Prisma.SegmentModel
+/**
+ * Model SyncNameOverride
+ * 
+ */
+export type SyncNameOverride = Prisma.SyncNameOverrideModel
+/**
+ * Model SegmentFieldFacet
+ * 
+ */
+export type SegmentFieldFacet = Prisma.SegmentFieldFacetModel

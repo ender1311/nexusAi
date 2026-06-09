@@ -6,6 +6,7 @@ import { isNotAdmin } from "../middleware/auth";
 import { LIBRARY_AGENT_NAME, FUNNEL_STAGES } from "../lib/constants";
 import { detectTestedVariables, type MessageVariant } from "../lib/variant-diff";
 import { prismaErrorResponse } from "../lib/errors";
+import { isInteractionFlag } from "../lib/interaction-flags";
 
 const agents = new Hono();
 
@@ -14,6 +15,8 @@ function isPlainObject(value: unknown): value is Record<string, unknown> {
 }
 
 const VALID_STAGES = new Set(FUNNEL_STAGES);
+const VALID_ENROLLMENT = new Set(["fixed", "continuous"]);
+const VALID_CONV_TYPE = new Set(["first_interaction", "any_interaction"]);
 
 agents.get("/", async (c) => {
   try {
@@ -67,6 +70,7 @@ agents.post("/", async (c) => {
     targetPersonaIds,
     targetSegmentName,
     deeplinkOverride,
+    enrollmentMode,
   } = body;
   const segmentTargeting = body.segmentTargeting;
 
@@ -128,6 +132,12 @@ agents.post("/", async (c) => {
     return c.json({ error: "targetSegmentName must be null or a non-empty string" }, 400);
   }
 
+  if (enrollmentMode !== undefined && enrollmentMode !== null) {
+    if (typeof enrollmentMode !== "string" || !VALID_ENROLLMENT.has(enrollmentMode)) {
+      return c.json({ error: "enrollmentMode must be 'fixed' or 'continuous'" }, 400);
+    }
+  }
+
   if (quietDays !== undefined) {
     if (!Array.isArray(quietDays) || (quietDays as unknown[]).some((d) => !Number.isInteger(d) || (d as number) < 0 || (d as number) > 6)) {
       return c.json({ error: "quietDays must be an array of day-of-week numbers (0–6)" }, 400);
@@ -143,6 +153,14 @@ agents.post("/", async (c) => {
     }
     if (typeof g.tier !== "string" || g.tier.trim().length === 0) {
       return c.json({ error: "each goal requires a non-empty tier" }, 400);
+    }
+    if (g.conversionType !== undefined && g.conversionType !== null) {
+      if (typeof g.conversionType !== "string" || !VALID_CONV_TYPE.has(g.conversionType)) {
+        return c.json({ error: "goal.conversionType must be 'first_interaction' or 'any_interaction'" }, 400);
+      }
+      if (!isInteractionFlag(String(g.eventName).trim())) {
+        return c.json({ error: "conversionType is only valid for *_has_ever_flag interaction-flag goals" }, 400);
+      }
     }
   }
 
@@ -189,6 +207,7 @@ agents.post("/", async (c) => {
         epsilon: typeof epsilon === "number" ? epsilon : 0.1,
         status: "draft",
         funnelStage: typeof funnelStage === "string" ? funnelStage : undefined,
+        enrollmentMode: typeof enrollmentMode === "string" ? enrollmentMode : undefined,
         uniqueUsersCap: uniqueUsersCap === undefined ? 1000 : (uniqueUsersCap as number | null),
         dailySendCap: dailySendCap === undefined ? 500 : (dailySendCap as number | null),
         ...(deeplinkOverride !== undefined && deeplinkOverride !== null
@@ -215,6 +234,7 @@ agents.post("/", async (c) => {
             weightMode: typeof g.weightMode === "string" ? g.weightMode : "fixed",
             weightProperty: typeof g.weightProperty === "string" ? g.weightProperty : null,
             weightDefault: typeof g.weightDefault === "number" ? g.weightDefault : 1.0,
+            conversionType: typeof g.conversionType === "string" ? g.conversionType : null,
           })),
         },
         messages: {

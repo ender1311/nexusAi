@@ -63,6 +63,59 @@ describe("POST /api/agents/[id]/goals", () => {
     const res = await POST(req as NextRequest, { params: Promise.resolve({ id: agent.id }) });
     expect(res.status).toBe(400);
   });
+
+  it("persists conversionType when goal is a valid interaction flag", async () => {
+    const agent = await createAgent();
+    const req = buildRequest("POST", {
+      eventName: "plan_interaction_has_ever_flag",
+      tier: "best",
+      conversionType: "first_interaction",
+    });
+    const res = await POST(req as NextRequest, { params: Promise.resolve({ id: agent.id }) });
+
+    expect(res.status).toBe(201);
+    const goals = await prisma.goal.findMany({ where: { agentId: agent.id } });
+    expect(goals.length).toBe(1);
+    expect(goals[0]!.conversionType).toBe("first_interaction");
+  });
+
+  it("returns 400 when conversionType is an invalid value", async () => {
+    const agent = await createAgent();
+    const req = buildRequest("POST", {
+      eventName: "plan_interaction_has_ever_flag",
+      tier: "best",
+      conversionType: "bad_value",
+    });
+    const res = await POST(req as NextRequest, { params: Promise.resolve({ id: agent.id }) });
+
+    expect(res.status).toBe(400);
+    const body = await res.json();
+    expect(body.error).toBe("goal.conversionType must be 'first_interaction' or 'any_interaction'");
+  });
+
+  it("returns 400 when conversionType is set on a non-interaction-flag eventName", async () => {
+    const agent = await createAgent();
+    const req = buildRequest("POST", {
+      eventName: "plan_started",
+      tier: "best",
+      conversionType: "first_interaction",
+    });
+    const res = await POST(req as NextRequest, { params: Promise.resolve({ id: agent.id }) });
+
+    expect(res.status).toBe(400);
+    const body = await res.json();
+    expect(body.error).toBe("conversionType is only valid for *_has_ever_flag interaction-flag goals");
+  });
+
+  it("persists null conversionType when not provided", async () => {
+    const agent = await createAgent();
+    const req = buildRequest("POST", { eventName: "plan_started", tier: "best" });
+    const res = await POST(req as NextRequest, { params: Promise.resolve({ id: agent.id }) });
+
+    expect(res.status).toBe(201);
+    const goals = await prisma.goal.findMany({ where: { agentId: agent.id } });
+    expect(goals[0]!.conversionType).toBeNull();
+  });
 });
 
 describe("PUT /api/agents/[id]/goals", () => {
@@ -129,5 +182,78 @@ describe("PUT /api/agents/[id]/goals", () => {
 
     const goals = await prisma.goal.findMany({ where: { agentId: agent.id } });
     expect(goals.length).toBe(1);
+  });
+
+  it("persists conversionType on flag goals in PUT array", async () => {
+    const agent = await createAgent();
+
+    const req = buildRequest("PUT", [
+      {
+        eventName: "votd_interaction_has_ever_flag",
+        tier: "best",
+        conversionType: "any_interaction",
+      },
+    ]);
+    const res = await PUT(req as NextRequest, { params: Promise.resolve({ id: agent.id }) });
+
+    expect(res.status).toBe(200);
+    const goals = await prisma.goal.findMany({ where: { agentId: agent.id } });
+    expect(goals.length).toBe(1);
+    expect(goals[0]!.conversionType).toBe("any_interaction");
+  });
+
+  it("returns 400 when an entry in PUT array has invalid conversionType", async () => {
+    const agent = await createAgent();
+    await createGoal(agent.id, { eventName: "keep_me", tier: "best" });
+
+    const req = buildRequest("PUT", [
+      {
+        eventName: "votd_interaction_has_ever_flag",
+        tier: "best",
+        conversionType: "invalid_type",
+      },
+    ]);
+    const res = await PUT(req as NextRequest, { params: Promise.resolve({ id: agent.id }) });
+
+    expect(res.status).toBe(400);
+    const body = await res.json();
+    expect(body.error).toBe("goal.conversionType must be 'first_interaction' or 'any_interaction'");
+    // pre-existing goals must not have been touched
+    const goals = await prisma.goal.findMany({ where: { agentId: agent.id } });
+    expect(goals.length).toBe(1);
+    expect(goals[0]!.eventName).toBe("keep_me");
+  });
+
+  it("returns 400 when conversionType set on non-flag goal in PUT array", async () => {
+    const agent = await createAgent();
+    await createGoal(agent.id, { eventName: "keep_me", tier: "best" });
+
+    const req = buildRequest("PUT", [
+      {
+        eventName: "plan_started",
+        tier: "best",
+        conversionType: "first_interaction",
+      },
+    ]);
+    const res = await PUT(req as NextRequest, { params: Promise.resolve({ id: agent.id }) });
+
+    expect(res.status).toBe(400);
+    const body = await res.json();
+    expect(body.error).toBe("conversionType is only valid for *_has_ever_flag interaction-flag goals");
+    // pre-existing goals must not have been touched
+    const goals = await prisma.goal.findMany({ where: { agentId: agent.id } });
+    expect(goals.length).toBe(1);
+    expect(goals[0]!.eventName).toBe("keep_me");
+  });
+
+  it("persists null conversionType for goals without it in PUT array", async () => {
+    const agent = await createAgent();
+
+    const req = buildRequest("PUT", [{ eventName: "plan_started", tier: "good" }]);
+    const res = await PUT(req as NextRequest, { params: Promise.resolve({ id: agent.id }) });
+
+    expect(res.status).toBe(200);
+    const goals = await prisma.goal.findMany({ where: { agentId: agent.id } });
+    expect(goals[0]!.conversionType).toBeNull();
   });
 });

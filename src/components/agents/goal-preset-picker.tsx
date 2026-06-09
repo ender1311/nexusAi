@@ -6,6 +6,7 @@ import {
   GoalColorGroup,
   POSITIVE_GOALS,
   NEGATIVE_OUTCOMES,
+  INTERACTION_GOALS,
   goalColorGroup,
 } from "@/lib/constants/youversion";
 import { cn } from "@/lib/utils";
@@ -67,6 +68,10 @@ export function GoalPresetPicker({ onSelect, selectedEventNames = [] }: GoalPres
       <div>
         <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-2">Negative Outcomes</p>
         <PresetChips goals={NEGATIVE_OUTCOMES} selected={selected} onSelect={onSelect} />
+      </div>
+      <div>
+        <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-2">Feature activation</p>
+        <PresetChips goals={INTERACTION_GOALS} selected={selected} onSelect={onSelect} />
       </div>
     </div>
   );

@@ -11,6 +11,13 @@ export type ReleaseAgentInfo = {
   holdMaxSends: number;
   /** Stages this agent targets; empty set = no funnel-stage gate (never cohort_exit). */
   targetStages: Set<string>;
+  enrollmentMode: "fixed" | "continuous";
+  /**
+   * Only for continuous agents: externalUserIds currently matching the segment.
+   * `undefined` = orchestrator didn't compute an audience → segment_exit is skipped entirely.
+   * Empty Set = segment matched zero users → every enrolled user is released.
+   */
+  audience?: Set<string>;
 };
 
 export type ActiveAssignment = {
@@ -22,7 +29,7 @@ export type ActiveAssignment = {
   currentStage: string | null;
 };
 
-export type ReleaseReason = "cohort_exit" | "hold_cap_days" | "hold_cap_sends";
+export type ReleaseReason = "cohort_exit" | "hold_cap_days" | "hold_cap_sends" | "segment_exit";
 
 export type ReleaseDecision = {
   id: string;            // assignment id
@@ -40,6 +47,11 @@ export function classifyReleases(
     const agent = agentsById.get(a.agentId);
     if (!agent) continue; // owning agent missing (deleted/paused) — leave for manual cleanup
 
+    // segment_exit: continuous agent — user no longer matches the segment audience.
+    if (agent.enrollmentMode === "continuous" && agent.audience && !agent.audience.has(a.externalUserId)) {
+      out.push({ id: a.id, externalUserId: a.externalUserId, reason: "segment_exit" });
+      continue;
+    }
     // cohort_exit: agent has an explicit target-stage set and the user's current stage isn't in it.
     if (agent.targetStages.size > 0 && (!a.currentStage || !agent.targetStages.has(a.currentStage))) {
       out.push({ id: a.id, externalUserId: a.externalUserId, reason: "cohort_exit" });

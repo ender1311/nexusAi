@@ -46,6 +46,7 @@ export type GoalMinAggregateOutputType = {
   weightProperty: string | null
   weightDefault: number | null
   description: string | null
+  conversionType: string | null
 }
 
 export type GoalMaxAggregateOutputType = {
@@ -58,6 +59,7 @@ export type GoalMaxAggregateOutputType = {
   weightProperty: string | null
   weightDefault: number | null
   description: string | null
+  conversionType: string | null
 }
 
 export type GoalCountAggregateOutputType = {
@@ -70,6 +72,7 @@ export type GoalCountAggregateOutputType = {
   weightProperty: number
   weightDefault: number
   description: number
+  conversionType: number
   _all: number
 }
 
@@ -94,6 +97,7 @@ export type GoalMinAggregateInputType = {
   weightProperty?: true
   weightDefault?: true
   description?: true
+  conversionType?: true
 }
 
 export type GoalMaxAggregateInputType = {
@@ -106,6 +110,7 @@ export type GoalMaxAggregateInputType = {
   weightProperty?: true
   weightDefault?: true
   description?: true
+  conversionType?: true
 }
 
 export type GoalCountAggregateInputType = {
@@ -118,6 +123,7 @@ export type GoalCountAggregateInputType = {
   weightProperty?: true
   weightDefault?: true
   description?: true
+  conversionType?: true
   _all?: true
 }
 
@@ -217,6 +223,7 @@ export type GoalGroupByOutputType = {
   weightProperty: string | null
   weightDefault: number
   description: string | null
+  conversionType: string | null
   _count: GoalCountAggregateOutputType | null
   _avg: GoalAvgAggregateOutputType | null
   _sum: GoalSumAggregateOutputType | null
@@ -252,6 +259,7 @@ export type GoalWhereInput = {
   weightProperty?: Prisma.StringNullableFilter<"Goal"> | string | null
   weightDefault?: Prisma.FloatFilter<"Goal"> | number
   description?: Prisma.StringNullableFilter<"Goal"> | string | null
+  conversionType?: Prisma.StringNullableFilter<"Goal"> | string | null
   agent?: Prisma.XOR<Prisma.AgentScalarRelationFilter, Prisma.AgentWhereInput>
 }
 
@@ -265,6 +273,7 @@ export type GoalOrderByWithRelationInput = {
   weightProperty?: Prisma.SortOrderInput | Prisma.SortOrder
   weightDefault?: Prisma.SortOrder
   description?: Prisma.SortOrderInput | Prisma.SortOrder
+  conversionType?: Prisma.SortOrderInput | Prisma.SortOrder
   agent?: Prisma.AgentOrderByWithRelationInput
 }
 
@@ -281,6 +290,7 @@ export type GoalWhereUniqueInput = Prisma.AtLeast<{
   weightProperty?: Prisma.StringNullableFilter<"Goal"> | string | null
   weightDefault?: Prisma.FloatFilter<"Goal"> | number
   description?: Prisma.StringNullableFilter<"Goal"> | string | null
+  conversionType?: Prisma.StringNullableFilter<"Goal"> | string | null
   agent?: Prisma.XOR<Prisma.AgentScalarRelationFilter, Prisma.AgentWhereInput>
 }, "id">
 
@@ -294,6 +304,7 @@ export type GoalOrderByWithAggregationInput = {
   weightProperty?: Prisma.SortOrderInput | Prisma.SortOrder
   weightDefault?: Prisma.SortOrder
   description?: Prisma.SortOrderInput | Prisma.SortOrder
+  conversionType?: Prisma.SortOrderInput | Prisma.SortOrder
   _count?: Prisma.GoalCountOrderByAggregateInput
   _avg?: Prisma.GoalAvgOrderByAggregateInput
   _max?: Prisma.GoalMaxOrderByAggregateInput
@@ -314,6 +325,7 @@ export type GoalScalarWhereWithAggregatesInput = {
   weightProperty?: Prisma.StringNullableWithAggregatesFilter<"Goal"> | string | null
   weightDefault?: Prisma.FloatWithAggregatesFilter<"Goal"> | number
   description?: Prisma.StringNullableWithAggregatesFilter<"Goal"> | string | null
+  conversionType?: Prisma.StringNullableWithAggregatesFilter<"Goal"> | string | null
 }
 
 export type GoalCreateInput = {
@@ -325,6 +337,7 @@ export type GoalCreateInput = {
   weightProperty?: string | null
   weightDefault?: number
   description?: string | null
+  conversionType?: string | null
   agent: Prisma.AgentCreateNestedOneWithoutGoalsInput
 }
 
@@ -338,6 +351,7 @@ export type GoalUncheckedCreateInput = {
   weightProperty?: string | null
   weightDefault?: number
   description?: string | null
+  conversionType?: string | null
 }
 
 export type GoalUpdateInput = {
@@ -349,6 +363,7 @@ export type GoalUpdateInput = {
   weightProperty?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   weightDefault?: Prisma.FloatFieldUpdateOperationsInput | number
   description?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  conversionType?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   agent?: Prisma.AgentUpdateOneRequiredWithoutGoalsNestedInput
 }
 
@@ -362,6 +377,7 @@ export type GoalUncheckedUpdateInput = {
   weightProperty?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   weightDefault?: Prisma.FloatFieldUpdateOperationsInput | number
   description?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  conversionType?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
 }
 
 export type GoalCreateManyInput = {
@@ -374,6 +390,7 @@ export type GoalCreateManyInput = {
   weightProperty?: string | null
   weightDefault?: number
   description?: string | null
+  conversionType?: string | null
 }
 
 export type GoalUpdateManyMutationInput = {
@@ -385,6 +402,7 @@ export type GoalUpdateManyMutationInput = {
   weightProperty?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   weightDefault?: Prisma.FloatFieldUpdateOperationsInput | number
   description?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  conversionType?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
 }
 
 export type GoalUncheckedUpdateManyInput = {
@@ -397,6 +415,7 @@ export type GoalUncheckedUpdateManyInput = {
   weightProperty?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   weightDefault?: Prisma.FloatFieldUpdateOperationsInput | number
   description?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  conversionType?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
 }
 
 export type GoalListRelationFilter = {
@@ -419,6 +438,7 @@ export type GoalCountOrderByAggregateInput = {
   weightProperty?: Prisma.SortOrder
   weightDefault?: Prisma.SortOrder
   description?: Prisma.SortOrder
+  conversionType?: Prisma.SortOrder
 }
 
 export type GoalAvgOrderByAggregateInput = {
@@ -436,6 +456,7 @@ export type GoalMaxOrderByAggregateInput = {
   weightProperty?: Prisma.SortOrder
   weightDefault?: Prisma.SortOrder
   description?: Prisma.SortOrder
+  conversionType?: Prisma.SortOrder
 }
 
 export type GoalMinOrderByAggregateInput = {
@@ -448,6 +469,7 @@ export type GoalMinOrderByAggregateInput = {
   weightProperty?: Prisma.SortOrder
   weightDefault?: Prisma.SortOrder
   description?: Prisma.SortOrder
+  conversionType?: Prisma.SortOrder
 }
 
 export type GoalSumOrderByAggregateInput = {
@@ -506,6 +528,7 @@ export type GoalCreateWithoutAgentInput = {
   weightProperty?: string | null
   weightDefault?: number
   description?: string | null
+  conversionType?: string | null
 }
 
 export type GoalUncheckedCreateWithoutAgentInput = {
@@ -517,6 +540,7 @@ export type GoalUncheckedCreateWithoutAgentInput = {
   weightProperty?: string | null
   weightDefault?: number
   description?: string | null
+  conversionType?: string | null
 }
 
 export type GoalCreateOrConnectWithoutAgentInput = {
@@ -558,6 +582,7 @@ export type GoalScalarWhereInput = {
   weightProperty?: Prisma.StringNullableFilter<"Goal"> | string | null
   weightDefault?: Prisma.FloatFilter<"Goal"> | number
   description?: Prisma.StringNullableFilter<"Goal"> | string | null
+  conversionType?: Prisma.StringNullableFilter<"Goal"> | string | null
 }
 
 export type GoalCreateManyAgentInput = {
@@ -569,6 +594,7 @@ export type GoalCreateManyAgentInput = {
   weightProperty?: string | null
   weightDefault?: number
   description?: string | null
+  conversionType?: string | null
 }
 
 export type GoalUpdateWithoutAgentInput = {
@@ -580,6 +606,7 @@ export type GoalUpdateWithoutAgentInput = {
   weightProperty?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   weightDefault?: Prisma.FloatFieldUpdateOperationsInput | number
   description?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  conversionType?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
 }
 
 export type GoalUncheckedUpdateWithoutAgentInput = {
@@ -591,6 +618,7 @@ export type GoalUncheckedUpdateWithoutAgentInput = {
   weightProperty?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   weightDefault?: Prisma.FloatFieldUpdateOperationsInput | number
   description?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  conversionType?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
 }
 
 export type GoalUncheckedUpdateManyWithoutAgentInput = {
@@ -602,6 +630,7 @@ export type GoalUncheckedUpdateManyWithoutAgentInput = {
   weightProperty?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   weightDefault?: Prisma.FloatFieldUpdateOperationsInput | number
   description?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  conversionType?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
 }
 
 
@@ -616,6 +645,7 @@ export type GoalSelect<ExtArgs extends runtime.Types.Extensions.InternalArgs = r
   weightProperty?: boolean
   weightDefault?: boolean
   description?: boolean
+  conversionType?: boolean
   agent?: boolean | Prisma.AgentDefaultArgs<ExtArgs>
 }, ExtArgs["result"]["goal"]>
 
@@ -629,6 +659,7 @@ export type GoalSelectCreateManyAndReturn<ExtArgs extends runtime.Types.Extensio
   weightProperty?: boolean
   weightDefault?: boolean
   description?: boolean
+  conversionType?: boolean
   agent?: boolean | Prisma.AgentDefaultArgs<ExtArgs>
 }, ExtArgs["result"]["goal"]>
 
@@ -642,6 +673,7 @@ export type GoalSelectUpdateManyAndReturn<ExtArgs extends runtime.Types.Extensio
   weightProperty?: boolean
   weightDefault?: boolean
   description?: boolean
+  conversionType?: boolean
   agent?: boolean | Prisma.AgentDefaultArgs<ExtArgs>
 }, ExtArgs["result"]["goal"]>
 
@@ -655,9 +687,10 @@ export type GoalSelectScalar = {
   weightProperty?: boolean
   weightDefault?: boolean
   description?: boolean
+  conversionType?: boolean
 }
 
-export type GoalOmit<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = runtime.Types.Extensions.GetOmit<"id" | "agentId" | "eventName" | "tier" | "valueWeight" | "weightMode" | "weightProperty" | "weightDefault" | "description", ExtArgs["result"]["goal"]>
+export type GoalOmit<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = runtime.Types.Extensions.GetOmit<"id" | "agentId" | "eventName" | "tier" | "valueWeight" | "weightMode" | "weightProperty" | "weightDefault" | "description" | "conversionType", ExtArgs["result"]["goal"]>
 export type GoalInclude<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
   agent?: boolean | Prisma.AgentDefaultArgs<ExtArgs>
 }
@@ -683,6 +716,7 @@ export type $GoalPayload<ExtArgs extends runtime.Types.Extensions.InternalArgs =
     weightProperty: string | null
     weightDefault: number
     description: string | null
+    conversionType: string | null
   }, ExtArgs["result"]["goal"]>
   composites: {}
 }
@@ -1116,6 +1150,7 @@ export interface GoalFieldRefs {
   readonly weightProperty: Prisma.FieldRef<"Goal", 'String'>
   readonly weightDefault: Prisma.FieldRef<"Goal", 'Float'>
   readonly description: Prisma.FieldRef<"Goal", 'String'>
+  readonly conversionType: Prisma.FieldRef<"Goal", 'String'>
 }
     
 

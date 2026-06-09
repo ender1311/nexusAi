@@ -19,6 +19,7 @@ import { PersonaBadge } from "@/components/personas/persona-badge";
 import { GoalPresetPicker } from "@/components/agents/goal-preset-picker";
 import { TemplatePicker, type TemplatePickerHandle } from "@/components/agents/template-picker";
 import { YouVersionGoalPreset } from "@/lib/constants/youversion";
+import { isInteractionFlag } from "@/lib/constants/interaction-flags";
 import { resolveSegmentTargeting } from "@/lib/agent-targeting";
 import { AgentDeeplinkOverrideField } from "@/components/agents/agent-deeplink-override-field";
 import { VERSE_PUSH_SENTINEL } from "@/lib/verse-content";
@@ -121,6 +122,7 @@ type GoalDraft = {
   weightMode: "fixed" | "property";
   weightProperty?: string | null;
   weightDefault: number;
+  conversionType?: "first_interaction" | "any_interaction";
 }
 
 type MessageDraft = {
@@ -224,6 +226,7 @@ type FormData = {
   segmentIncludes: string[];
   segmentExcludes: string[];
   deeplinkOverride: string;
+  enrollmentMode: "fixed" | "continuous";
 }
 
 const defaultForm: FormData = {
@@ -248,6 +251,7 @@ const defaultForm: FormData = {
   segmentIncludes: [],
   segmentExcludes: [],
   deeplinkOverride: "",
+  enrollmentMode: "fixed",
 };
 
 const DAILY_SEND_CAP_PRESETS = [
@@ -566,6 +570,40 @@ export function AgentWizard({
                 </div>
               )}
             </div>
+            {/* Enrollment Mode */}
+            <div>
+              <label className="text-sm font-medium">Enrollment Mode</label>
+              <p className="text-xs text-muted-foreground mt-0.5 mb-2">
+                Choose how users enter and leave this agent&apos;s cohort over time.
+              </p>
+              <div className="flex rounded-md border overflow-hidden text-sm mb-2">
+                <button
+                  type="button"
+                  className={cn("flex-1 px-3 py-2 font-medium transition-colors",
+                    form.enrollmentMode === "fixed"
+                      ? "bg-primary text-primary-foreground"
+                      : "text-muted-foreground hover:text-foreground")}
+                  onClick={() => update("enrollmentMode", "fixed")}
+                >
+                  Fixed Cohort
+                </button>
+                <button
+                  type="button"
+                  className={cn("flex-1 px-3 py-2 font-medium transition-colors border-l",
+                    form.enrollmentMode === "continuous"
+                      ? "bg-primary text-primary-foreground"
+                      : "text-muted-foreground hover:text-foreground")}
+                  onClick={() => update("enrollmentMode", "continuous")}
+                >
+                  Continuous (trigger-based)
+                </button>
+              </div>
+              <p className="text-xs text-muted-foreground leading-relaxed">
+                {form.enrollmentMode === "fixed"
+                  ? "Locks a one-time group of up to your user cap. Users stay until they convert or hit hold limits. Best for one-off campaigns."
+                  : "Re-checks the segment every run: adds new matches and removes users who leave the segment. Best for always-on, behavior-triggered comms."}
+              </p>
+            </div>
             {!form.segmentMode && (
             <div>
               <label className="text-sm font-medium">Funnel Stage *</label>
@@ -645,6 +683,7 @@ export function AgentWizard({
                     weightMode: "fixed" as const,
                     weightProperty: null,
                     weightDefault: 1.0,
+                    ...(isInteractionFlag(preset.eventName) ? { conversionType: "first_interaction" as const } : {}),
                   }]);
                 }
               }}
@@ -994,9 +1033,16 @@ export function AgentWizard({
 
             <div className="border rounded-lg p-4 space-y-3">
               <div>
-                <h3 className="text-sm font-semibold">Max Unique Users</h3>
+                <h3 className="text-sm font-semibold">
+                  Max Unique Users
+                  {form.enrollmentMode === "continuous" && (
+                    <span className="ml-2 text-xs font-normal text-muted-foreground">(soft ceiling)</span>
+                  )}
+                </h3>
                 <p className="text-xs text-muted-foreground mt-0.5">
-                  Lifetime ceiling on distinct users this agent will ever target. The agent stops sending once the cap is reached. Leave unlimited for ongoing campaigns.
+                  {form.enrollmentMode === "continuous"
+                    ? "Soft ceiling on concurrent enrolled users — new eligible users can re-enter as others exit or convert."
+                    : "Lifetime ceiling on distinct users this agent will ever target. The agent stops sending once the cap is reached. Leave unlimited for ongoing campaigns."}
                 </p>
               </div>
               <div className="flex items-center gap-3">

@@ -11,6 +11,7 @@ import { NextRequest } from "next/server";
 import { truncateAll, prisma } from "../helpers/db";
 import { buildRequest } from "../helpers/request";
 import { POST } from "@/app/api/ingest/users/route";
+import { INTERACTION_FLAGS } from "@/lib/constants/interaction-flags";
 
 const AUTH = { Authorization: "Bearer test_ingest_key" };
 
@@ -38,6 +39,10 @@ afterEach(async () => {
 });
 
 describe("ingest/users preferred-channel flag fields", () => {
+  it("flag list is pinned by INTERACTION_FLAGS constant", () => {
+    expect(FLAG_FIELDS).toEqual([...INTERACTION_FLAGS]);
+  });
+
   it("stores every flag verbatim from a nested-attributes (Liquid) row", async () => {
     const attributes = Object.fromEntries(FLAG_FIELDS.map((f) => [f, true]));
     const req = buildRequest("POST", { external_user_id: "usr_nested", attributes }, AUTH);

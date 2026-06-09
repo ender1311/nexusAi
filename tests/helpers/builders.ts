@@ -133,6 +133,7 @@ export async function createGoal(
     weightMode?: string;
     weightDefault?: number;
     weightProperty?: string | null;
+    conversionType?: string | null;
   } = {}
 ) {
   return prisma.goal.create({
@@ -275,19 +276,24 @@ export async function createUserAgentAssignment(params: {
   lastSentAt?: Date | null;
   releasedAt?: Date | null;
   releaseReason?: string | null;
+  enrollmentFlags?: Record<string, unknown> | null;
 }) {
+  const { enrollmentFlags, ...rest } = params;
   const data = {
-    agentId:           params.agentId,
-    sendCount:         params.sendCount ?? 0,
-    startedAt:         params.startedAt ?? new Date(),
-    windowCompletedAt: params.windowCompletedAt ?? null,
-    lastSentAt:        params.lastSentAt ?? null,
-    releasedAt:        params.releasedAt ?? null,
-    releaseReason:     params.releaseReason ?? null,
+    agentId:           rest.agentId,
+    sendCount:         rest.sendCount ?? 0,
+    startedAt:         rest.startedAt ?? new Date(),
+    windowCompletedAt: rest.windowCompletedAt ?? null,
+    lastSentAt:        rest.lastSentAt ?? null,
+    releasedAt:        rest.releasedAt ?? null,
+    releaseReason:     rest.releaseReason ?? null,
+    ...(enrollmentFlags !== undefined
+      ? { enrollmentFlags: enrollmentFlags === null ? Prisma.JsonNull : (enrollmentFlags as Prisma.InputJsonValue) }
+      : {}),
   };
   return prisma.userAgentAssignment.upsert({
-    where: { externalUserId: params.externalUserId },
-    create: { externalUserId: params.externalUserId, ...data },
+    where: { externalUserId: rest.externalUserId },
+    create: { externalUserId: rest.externalUserId, ...data },
     update: data,
   });
 }

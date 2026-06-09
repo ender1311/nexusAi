@@ -80,7 +80,10 @@ export const ModelName = {
   UserSegment: 'UserSegment',
   UserPreference: 'UserPreference',
   PushCategory: 'PushCategory',
-  PushSubcategory: 'PushSubcategory'
+  PushSubcategory: 'PushSubcategory',
+  Segment: 'Segment',
+  SyncNameOverride: 'SyncNameOverride',
+  SegmentFieldFacet: 'SegmentFieldFacet'
 } as const
 
 export type ModelName = (typeof ModelName)[keyof typeof ModelName]
@@ -114,6 +117,7 @@ export const AgentScalarFieldEnum = {
   uniqueUsersCap: 'uniqueUsersCap',
   dailySendCap: 'dailySendCap',
   cohortAssignedAt: 'cohortAssignedAt',
+  enrollmentMode: 'enrollmentMode',
   languageFilter: 'languageFilter',
   localizePush: 'localizePush',
   deeplinkOverride: 'deeplinkOverride',
@@ -139,7 +143,8 @@ export const GoalScalarFieldEnum = {
   weightMode: 'weightMode',
   weightProperty: 'weightProperty',
   weightDefault: 'weightDefault',
-  description: 'description'
+  description: 'description',
+  conversionType: 'conversionType'
 } as const
 
 export type GoalScalarFieldEnum = (typeof GoalScalarFieldEnum)[keyof typeof GoalScalarFieldEnum]
@@ -406,7 +411,8 @@ export const UserAgentAssignmentScalarFieldEnum = {
   lastSentAt: 'lastSentAt',
   windowCompletedAt: 'windowCompletedAt',
   releasedAt: 'releasedAt',
-  releaseReason: 'releaseReason'
+  releaseReason: 'releaseReason',
+  enrollmentFlags: 'enrollmentFlags'
 } as const
 
 export type UserAgentAssignmentScalarFieldEnum = (typeof UserAgentAssignmentScalarFieldEnum)[keyof typeof UserAgentAssignmentScalarFieldEnum]
@@ -511,6 +517,7 @@ export const UserSegmentScalarFieldEnum = {
   id: 'id',
   externalId: 'externalId',
   segmentName: 'segmentName',
+  source: 'source',
   syncedAt: 'syncedAt'
 } as const
 
@@ -552,6 +559,41 @@ export const PushSubcategoryScalarFieldEnum = {
 } as const
 
 export type PushSubcategoryScalarFieldEnum = (typeof PushSubcategoryScalarFieldEnum)[keyof typeof PushSubcategoryScalarFieldEnum]
+
+
+export const SegmentScalarFieldEnum = {
+  id: 'id',
+  name: 'name',
+  description: 'description',
+  rule: 'rule',
+  createdAt: 'createdAt',
+  updatedAt: 'updatedAt',
+  createdBy: 'createdBy',
+  sizeExact: 'sizeExact',
+  sizeComputedAt: 'sizeComputedAt'
+} as const
+
+export type SegmentScalarFieldEnum = (typeof SegmentScalarFieldEnum)[keyof typeof SegmentScalarFieldEnum]
+
+
+export const SyncNameOverrideScalarFieldEnum = {
+  syncId: 'syncId',
+  displayName: 'displayName',
+  updatedAt: 'updatedAt',
+  createdAt: 'createdAt'
+} as const
+
+export type SyncNameOverrideScalarFieldEnum = (typeof SyncNameOverrideScalarFieldEnum)[keyof typeof SyncNameOverrideScalarFieldEnum]
+
+
+export const SegmentFieldFacetScalarFieldEnum = {
+  fieldId: 'fieldId',
+  kind: 'kind',
+  payload: 'payload',
+  computedAt: 'computedAt'
+} as const
+
+export type SegmentFieldFacetScalarFieldEnum = (typeof SegmentFieldFacetScalarFieldEnum)[keyof typeof SegmentFieldFacetScalarFieldEnum]
 
 
 export const SortOrder = {

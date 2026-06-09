@@ -388,3 +388,132 @@ describe("POST /agents — nested goals & messages", () => {
     expect(goalCount).toBe(1);
   });
 });
+
+describe("POST /agents — enrollmentMode", () => {
+  it("defaults enrollmentMode to 'fixed' when omitted", async () => {
+    const res = await app.request("/agents", {
+      method: "POST",
+      headers: ADMIN,
+      body: JSON.stringify({ name: "EnrollDefault", funnelStage: "wau", goals: [], messages: [] }),
+    });
+    expect(res.status).toBe(201);
+    const body = await res.json() as { enrollmentMode: string };
+    expect(body.enrollmentMode).toBe("fixed");
+  });
+
+  it("persists enrollmentMode: 'continuous' when provided", async () => {
+    const res = await app.request("/agents", {
+      method: "POST",
+      headers: ADMIN,
+      body: JSON.stringify({ name: "EnrollContinuous", funnelStage: "wau", enrollmentMode: "continuous", goals: [], messages: [] }),
+    });
+    expect(res.status).toBe(201);
+    const body = await res.json() as { enrollmentMode: string };
+    expect(body.enrollmentMode).toBe("continuous");
+  });
+
+  it("persists enrollmentMode: 'fixed' when explicitly provided", async () => {
+    const res = await app.request("/agents", {
+      method: "POST",
+      headers: ADMIN,
+      body: JSON.stringify({ name: "EnrollFixed", funnelStage: "wau", enrollmentMode: "fixed", goals: [], messages: [] }),
+    });
+    expect(res.status).toBe(201);
+    const body = await res.json() as { enrollmentMode: string };
+    expect(body.enrollmentMode).toBe("fixed");
+  });
+
+  it("returns 400 for invalid enrollmentMode value", async () => {
+    const res = await app.request("/agents", {
+      method: "POST",
+      headers: ADMIN,
+      body: JSON.stringify({ name: "EnrollBad", funnelStage: "wau", enrollmentMode: "open" }),
+    });
+    expect(res.status).toBe(400);
+    const body = await res.json() as { error: string };
+    expect(body.error).toContain("enrollmentMode");
+  });
+});
+
+describe("POST /agents — goal conversionType", () => {
+  it("persists conversionType: 'first_interaction' on a flag goal", async () => {
+    const res = await app.request("/agents", {
+      method: "POST",
+      headers: ADMIN,
+      body: JSON.stringify({
+        name: "ConvFirst",
+        funnelStage: "wau",
+        goals: [{ eventName: "plan_interaction_has_ever_flag", tier: "best", conversionType: "first_interaction" }],
+        messages: [],
+      }),
+    });
+    expect(res.status).toBe(201);
+    const agent = await res.json() as { id: string };
+    const goal = await prisma.goal.findFirst({ where: { agentId: agent.id } });
+    expect(goal?.conversionType).toBe("first_interaction");
+  });
+
+  it("persists conversionType: 'any_interaction' on a flag goal", async () => {
+    const res = await app.request("/agents", {
+      method: "POST",
+      headers: ADMIN,
+      body: JSON.stringify({
+        name: "ConvAny",
+        funnelStage: "wau",
+        goals: [{ eventName: "votd_interaction_has_ever_flag", tier: "best", conversionType: "any_interaction" }],
+        messages: [],
+      }),
+    });
+    expect(res.status).toBe(201);
+    const agent = await res.json() as { id: string };
+    const goal = await prisma.goal.findFirst({ where: { agentId: agent.id } });
+    expect(goal?.conversionType).toBe("any_interaction");
+  });
+
+  it("persists null conversionType when omitted on a non-flag goal", async () => {
+    const res = await app.request("/agents", {
+      method: "POST",
+      headers: ADMIN,
+      body: JSON.stringify({
+        name: "ConvNull",
+        funnelStage: "wau",
+        goals: [{ eventName: "gospel_share", tier: "best" }],
+        messages: [],
+      }),
+    });
+    expect(res.status).toBe(201);
+    const agent = await res.json() as { id: string };
+    const goal = await prisma.goal.findFirst({ where: { agentId: agent.id } });
+    expect(goal?.conversionType).toBeNull();
+  });
+
+  it("returns 400 for invalid conversionType value", async () => {
+    const res = await app.request("/agents", {
+      method: "POST",
+      headers: ADMIN,
+      body: JSON.stringify({
+        name: "ConvBad",
+        funnelStage: "wau",
+        goals: [{ eventName: "plan_interaction_has_ever_flag", tier: "best", conversionType: "both" }],
+      }),
+    });
+    expect(res.status).toBe(400);
+    const body = await res.json() as { error: string };
+    expect(body.error).toContain("conversionType");
+  });
+
+  it("returns 400 when conversionType is set on a non-flag eventName", async () => {
+    const res = await app.request("/agents", {
+      method: "POST",
+      headers: ADMIN,
+      body: JSON.stringify({
+        name: "ConvNonFlag",
+        funnelStage: "wau",
+        goals: [{ eventName: "gospel_share", tier: "best", conversionType: "first_interaction" }],
+      }),
+    });
+    expect(res.status).toBe(400);
+    const body = await res.json() as { error: string };
+    expect(body.error).toContain("interaction-flag");
+  });
+});

@@ -9,6 +9,8 @@ import { verifyIngestAuth } from "@/lib/ingest-auth";
 import { FEATURE_DIM } from "@/lib/engine/feature-vector";
 import { isRecovery, recoveryRank } from "@/lib/engine/funnel-recovery";
 import { applyConversion } from "@/lib/services/attribution-service";
+import { detectFlagConversions } from "@/lib/services/interaction-conversion";
+import { isInteractionFlag, normalizeFlag } from "@/lib/constants/interaction-flags";
 
 /**
  * POST /api/ingest/users
@@ -74,6 +76,27 @@ type EventRecord = {
   occurred_at: string;
   properties?: Record<string, unknown>;
 };
+
+/** Goal row shape returned by the flag-goal cache query. */
+type FlagGoalRow = { eventName: string; conversionType: string | null };
+
+/**
+ * Returns the flag-matching goals for an agent, fetching from DB on first access
+ * and caching the result for the lifetime of this request batch.
+ */
+async function getFlagGoals(
+  agentId: string,
+  cache: Map<string, FlagGoalRow[]>,
+): Promise<FlagGoalRow[]> {
+  const cached = cache.get(agentId);
+  if (cached !== undefined) return cached;
+  const rows = await prisma.goal.findMany({
+    where: { agentId },
+    select: { eventName: true, conversionType: true },
+  });
+  cache.set(agentId, rows);
+  return rows;
+}
 
 /** Flat push-open row from Hightouch column-mapping sync */
 type PushOpenRow = {
@@ -693,6 +716,11 @@ export async function POST(req: NextRequest) {
   const CHUNK = 50;
   let upserted = 0;
   let assigned = 0;
+  let unmatchedFlagConversionTotal = 0;
+
+  // Per-request goal cache keyed by agentId — avoids re-fetching goals for the
+  // same agent when multiple users in a batch are owned by the same agent.
+  const flagGoalsByAgent = new Map<string, FlagGoalRow[]>();
 
   for (let i = 0; i < deduped.length; i += CHUNK) {
     const chunk = deduped.slice(i, i + CHUNK);
@@ -1023,6 +1051,79 @@ export async function POST(req: NextRequest) {
         console.error("[ingest/users] sower synthesis failed:", err);
       }
 
+      // ── Interaction-flag conversion detection ─────────────────────────────
+      // When a *_has_ever_flag attribute arrives as true and the user is owned by
+      // an agent with a matching goal, credit the conversion.
+      //
+      // Pre-filter: skip entirely if no incoming attribute is a truthy interaction
+      // flag — avoids extra DB queries for the common case where no flags are present.
+      // Fault-isolated per-user: one failure must never abort the batch.
+      let unmatchedFlagConversions = 0;
+      try {
+        const hasTruthyFlag = Object.entries(raw).some(
+          ([k, v]) => isInteractionFlag(k) && normalizeFlag(v),
+        );
+        if (hasTruthyFlag) {
+          const flagAssignment = await prisma.userAgentAssignment.findFirst({
+            where: { externalUserId: externalId, releasedAt: null },
+            select: { agentId: true, enrollmentFlags: true },
+          });
+          if (flagAssignment) {
+            const { agentId: owningAgentId, enrollmentFlags: rawEnrollment } = flagAssignment;
+            // Tolerant parse: corrupt/missing enrollmentFlags → treat all flags as absent
+            const enrollmentFlags: Record<string, unknown> =
+              rawEnrollment !== null &&
+              typeof rawEnrollment === "object" &&
+              !Array.isArray(rawEnrollment)
+                ? (rawEnrollment as Record<string, unknown>)
+                : {};
+
+            // Goals are not cached yet for this agentId scope — fetch once per owned user.
+            // (Agents with no flag goals are skipped quickly by detectFlagConversions.)
+            const flagGoals = await getFlagGoals(owningAgentId, flagGoalsByAgent);
+
+            const creditedFlags = detectFlagConversions({
+              incoming: raw,
+              // Deliberate stub: the detector's Type A/B logic only reads enrollmentFlags
+              // today. If a stored→incoming transition check is ever added to
+              // detectFlagConversions, this must become the PRE-upsert attributes.
+              stored: raw,
+              enrollmentFlags,
+              goals: flagGoals,
+            });
+
+            // Each credited flag independently attributes to the most recent remaining
+            // unconverted decision, so two flags flipping in one sync may consume two
+            // decisions. When decisions run out, remaining flags are tallied as unmatched.
+            // Only the no-decision case is unmatched; an already-credited decision ID
+            // means this sync already consumed that slot — skip silently, don't count it.
+            for (const flagName of creditedFlags) {
+              const flagDecision = await prisma.userDecision.findFirst({
+                where: { userId: externalId, agentId: owningAgentId, conversionAt: null },
+                orderBy: { sentAt: "desc" },
+                include: { agent: { include: { goals: true } } },
+              });
+              if (flagDecision === null) {
+                // No unconverted decision exists — flag fired but there was no prior send.
+                unmatchedFlagConversions++;
+              } else if (!creditedDecisionIds.has(flagDecision.id)) {
+                await applyConversion({
+                  decision: flagDecision,
+                  conversionEvent: flagName,
+                  occurredAt: new Date(),
+                  personaId,
+                });
+                creditedDecisionIds.add(flagDecision.id);
+              }
+              // else: this decision was already credited in an earlier loop iteration —
+              // skip silently; it is not an unmatched conversion.
+            }
+          }
+        }
+      } catch (err) {
+        console.error("[ingest/users] interaction-flag conversion failed:", err);
+      }
+
       // ── Giving conversion attribution ──────────────────────────────────────
       // When Hightouch syncs gift_amount_most_recent_timestamp and it's a new
       // gift within the 30-day attribution window after a Nexus send, attribute
@@ -1141,12 +1242,13 @@ export async function POST(req: NextRequest) {
         } // end else (giftTimestampRaw is string | number)
       }
 
-      return { upserted: 1, assigned: personaId ? 1 : 0 };
+      return { upserted: 1, assigned: personaId ? 1 : 0, unmatchedFlagConversions };
     }));
 
     for (const r of results) {
       upserted += r.upserted;
       assigned += r.assigned;
+      unmatchedFlagConversionTotal += r.unmatchedFlagConversions;
     }
   }
 
@@ -1169,6 +1271,7 @@ export async function POST(req: NextRequest) {
         deduplicated: identified.length - deduped.length,
         skipped_anonymous: skippedAnon,
         persona_assigned: assigned,
+        ...(unmatchedFlagConversionTotal > 0 && { unmatched_flag_conversions: unmatchedFlagConversionTotal }),
       },
     },
   }).catch(() => {});
