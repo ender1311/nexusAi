@@ -101,6 +101,7 @@ export interface Agent {
   goals?: Goal[];
   messages?: Message[];
   schedulingRule?: SchedulingRule | null;
+  enrollmentMode?: "fixed" | "continuous" | null;
   targetPersonaIds?: string[];
   _count?: {
     goals?: number;
