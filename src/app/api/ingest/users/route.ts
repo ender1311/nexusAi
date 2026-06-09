@@ -77,6 +77,27 @@ type EventRecord = {
   properties?: Record<string, unknown>;
 };
 
+/** Goal row shape returned by the flag-goal cache query. */
+type FlagGoalRow = { eventName: string; conversionType: string | null };
+
+/**
+ * Returns the flag-matching goals for an agent, fetching from DB on first access
+ * and caching the result for the lifetime of this request batch.
+ */
+async function getFlagGoals(
+  agentId: string,
+  cache: Map<string, FlagGoalRow[]>,
+): Promise<FlagGoalRow[]> {
+  const cached = cache.get(agentId);
+  if (cached !== undefined) return cached;
+  const rows = await prisma.goal.findMany({
+    where: { agentId },
+    select: { eventName: true, conversionType: true },
+  });
+  cache.set(agentId, rows);
+  return rows;
+}
+
 /** Flat push-open row from Hightouch column-mapping sync */
 type PushOpenRow = {
   user_id?: string | null;
@@ -699,7 +720,7 @@ export async function POST(req: NextRequest) {
 
   // Per-request goal cache keyed by agentId — avoids re-fetching goals for the
   // same agent when multiple users in a batch are owned by the same agent.
-  const flagGoalsByAgent = new Map<string, { eventName: string; conversionType: string | null }[]>();
+  const flagGoalsByAgent = new Map<string, FlagGoalRow[]>();
 
   for (let i = 0; i < deduped.length; i += CHUNK) {
     const chunk = deduped.slice(i, i + CHUNK);
@@ -1059,15 +1080,7 @@ export async function POST(req: NextRequest) {
 
             // Goals are not cached yet for this agentId scope — fetch once per owned user.
             // (Agents with no flag goals are skipped quickly by detectFlagConversions.)
-            const flagGoals = flagGoalsByAgent.get(owningAgentId) ??
-              await (async () => {
-                const rows = await prisma.goal.findMany({
-                  where: { agentId: owningAgentId },
-                  select: { eventName: true, conversionType: true },
-                });
-                flagGoalsByAgent.set(owningAgentId, rows);
-                return rows;
-              })();
+            const flagGoals = await getFlagGoals(owningAgentId, flagGoalsByAgent);
 
             const creditedFlags = detectFlagConversions({
               incoming: raw,
@@ -1079,13 +1092,21 @@ export async function POST(req: NextRequest) {
               goals: flagGoals,
             });
 
+            // Each credited flag independently attributes to the most recent remaining
+            // unconverted decision, so two flags flipping in one sync may consume two
+            // decisions. When decisions run out, remaining flags are tallied as unmatched.
+            // Only the no-decision case is unmatched; an already-credited decision ID
+            // means this sync already consumed that slot — skip silently, don't count it.
             for (const flagName of creditedFlags) {
               const flagDecision = await prisma.userDecision.findFirst({
                 where: { userId: externalId, agentId: owningAgentId, conversionAt: null },
                 orderBy: { sentAt: "desc" },
                 include: { agent: { include: { goals: true } } },
               });
-              if (flagDecision && !creditedDecisionIds.has(flagDecision.id)) {
+              if (flagDecision === null) {
+                // No unconverted decision exists — flag fired but there was no prior send.
+                unmatchedFlagConversions++;
+              } else if (!creditedDecisionIds.has(flagDecision.id)) {
                 await applyConversion({
                   decision: flagDecision,
                   conversionEvent: flagName,
@@ -1093,9 +1114,9 @@ export async function POST(req: NextRequest) {
                   personaId,
                 });
                 creditedDecisionIds.add(flagDecision.id);
-              } else {
-                unmatchedFlagConversions++;
               }
+              // else: this decision was already credited in an earlier loop iteration —
+              // skip silently; it is not an unmatched conversion.
             }
           }
         }

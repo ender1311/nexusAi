@@ -70,6 +70,9 @@ describe("POST /api/ingest/users — interaction-flag conversions", () => {
     const updated = await prisma.userDecision.findUnique({ where: { id: decision.id } });
     expect(updated!.conversionAt).not.toBeNull();
     expect(updated!.conversionEvent).toBe("plan_interaction_has_ever_flag");
+    // Bandit reward path must be exercised — reward is non-null and positive
+    expect(updated!.reward).not.toBeNull();
+    expect(updated!.reward as number).toBeGreaterThan(0);
 
     // Assignment must be released with reason "conversion"
     const assignment = await prisma.userAgentAssignment.findUnique({
@@ -155,7 +158,7 @@ describe("POST /api/ingest/users — interaction-flag conversions", () => {
     expect(logs.length).toBeGreaterThan(0);
     const details = logs[0]!.details as Record<string, unknown>;
     expect(typeof details.unmatched_flag_conversions).toBe("number");
-    expect((details.unmatched_flag_conversions as number)).toBeGreaterThan(0);
+    expect(details.unmatched_flag_conversions as number).toBe(1);
   });
 
   // ── Case 4: not owned ─────────────────────────────────────────────────────
