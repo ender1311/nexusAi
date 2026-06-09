@@ -15,6 +15,8 @@ function isPlainObject(value: unknown): value is Record<string, unknown> {
 }
 
 const VALID_STAGES = new Set(FUNNEL_STAGES);
+const VALID_ENROLLMENT = new Set(["fixed", "continuous"]);
+const VALID_CONV_TYPE = new Set(["first_interaction", "any_interaction"]);
 
 agents.get("/", async (c) => {
   try {
@@ -130,7 +132,6 @@ agents.post("/", async (c) => {
     return c.json({ error: "targetSegmentName must be null or a non-empty string" }, 400);
   }
 
-  const VALID_ENROLLMENT = new Set(["fixed", "continuous"]);
   if (enrollmentMode !== undefined && enrollmentMode !== null) {
     if (typeof enrollmentMode !== "string" || !VALID_ENROLLMENT.has(enrollmentMode)) {
       return c.json({ error: "enrollmentMode must be 'fixed' or 'continuous'" }, 400);
@@ -146,7 +147,6 @@ agents.post("/", async (c) => {
   if (goals !== undefined && !Array.isArray(goals)) {
     return c.json({ error: "goals must be an array" }, 400);
   }
-  const VALID_CONV_TYPE = new Set(["first_interaction", "any_interaction"]);
   for (const g of (Array.isArray(goals) ? goals : []) as Array<Record<string, unknown>>) {
     if (typeof g.eventName !== "string" || g.eventName.trim().length === 0) {
       return c.json({ error: "each goal requires a non-empty eventName" }, 400);

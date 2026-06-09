@@ -6,6 +6,17 @@ import { isInteractionFlag } from "@/lib/constants/interaction-flags";
 
 const VALID_CONV_TYPES = new Set(["first_interaction", "any_interaction"]);
 
+function validateConversionType(conversionType: unknown, eventName: string): string | null {
+  if (conversionType === undefined || conversionType === null) return null;
+  if (typeof conversionType !== "string" || !VALID_CONV_TYPES.has(conversionType)) {
+    return "goal.conversionType must be 'first_interaction' or 'any_interaction'";
+  }
+  if (!isInteractionFlag(eventName.trim())) {
+    return "conversionType is only valid for *_has_ever_flag interaction-flag goals";
+  }
+  return null;
+}
+
 export async function GET(_req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   try {
     const { id } = await params;
@@ -46,19 +57,9 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
   if (typeof body.tier !== "string" || body.tier.trim() === "") {
     return NextResponse.json({ error: "tier is required" }, { status: 400 });
   }
-  if (body.conversionType !== undefined && body.conversionType !== null) {
-    if (typeof body.conversionType !== "string" || !VALID_CONV_TYPES.has(body.conversionType)) {
-      return NextResponse.json(
-        { error: "goal.conversionType must be 'first_interaction' or 'any_interaction'" },
-        { status: 400 }
-      );
-    }
-    if (!isInteractionFlag(body.eventName.trim())) {
-      return NextResponse.json(
-        { error: "conversionType is only valid for *_has_ever_flag interaction-flag goals" },
-        { status: 400 }
-      );
-    }
+  const convTypeError = validateConversionType(body.conversionType, body.eventName);
+  if (convTypeError !== null) {
+    return NextResponse.json({ error: convTypeError }, { status: 400 });
   }
 
   try {
@@ -116,19 +117,9 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
     if (typeof entry.tier !== "string" || entry.tier.trim() === "") {
       return NextResponse.json({ error: "Each goal requires tier" }, { status: 400 });
     }
-    if (entry.conversionType !== undefined && entry.conversionType !== null) {
-      if (typeof entry.conversionType !== "string" || !VALID_CONV_TYPES.has(entry.conversionType)) {
-        return NextResponse.json(
-          { error: "goal.conversionType must be 'first_interaction' or 'any_interaction'" },
-          { status: 400 }
-        );
-      }
-      if (!isInteractionFlag(entry.eventName.trim())) {
-        return NextResponse.json(
-          { error: "conversionType is only valid for *_has_ever_flag interaction-flag goals" },
-          { status: 400 }
-        );
-      }
+    const convTypeErr = validateConversionType(entry.conversionType, entry.eventName);
+    if (convTypeErr !== null) {
+      return NextResponse.json({ error: convTypeErr }, { status: 400 });
     }
   }
 
