@@ -12,6 +12,7 @@ import { NextRequest } from "next/server";
 import { POST as ingestBrazeAnalytics } from "@/app/api/cron/ingest-braze-analytics/route";
 import { POST as discoverPersonas } from "@/app/api/cron/discover-personas/route";
 import { GET as syncTemplateVariants } from "@/app/api/cron/sync-template-variants/route";
+import { POST as refreshSegmentFacets } from "@/app/api/cron/refresh-segment-facets/route";
 
 function cronRequest(path: string, method: "GET" | "POST", token: string | null): NextRequest {
   const headers: Record<string, string> = { "content-type": "application/json" };
@@ -36,5 +37,10 @@ describe("regression: hardened cron routes reject bad tokens (timing-safe compar
   it("sync-template-variants rejects missing and wrong tokens with 401", async () => {
     expect((await syncTemplateVariants(cronRequest("/api/cron/sync-template-variants", "GET", null))).status).toBe(401);
     expect((await syncTemplateVariants(cronRequest("/api/cron/sync-template-variants", "GET", "wrong-secret"))).status).toBe(401);
+  });
+
+  it("refresh-segment-facets rejects missing and wrong tokens with 401", async () => {
+    expect((await refreshSegmentFacets(cronRequest("/api/cron/refresh-segment-facets", "POST", null))).status).toBe(401);
+    expect((await refreshSegmentFacets(cronRequest("/api/cron/refresh-segment-facets", "POST", "wrong-secret"))).status).toBe(401);
   });
 });

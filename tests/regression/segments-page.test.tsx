@@ -5,7 +5,7 @@ import { SegmentBuilder } from "@/components/segments/segment-builder";
 describe("Audience › Segments builder", () => {
   it("renders the builder shell, not the Coming soon placeholder", () => {
     const html = renderToStaticMarkup(
-      <SegmentBuilder segments={[]} personaOptions={[]} segmentNameOptions={[]} />
+      <SegmentBuilder segments={[]} personaOptions={[]} segmentNameOptions={[]} facetMap={{}} />
     );
     expect(html).toContain("New segment");
     expect(html).not.toContain("Coming soon");
@@ -17,6 +17,7 @@ describe("Audience › Segments builder", () => {
         segments={[{ id: "s1", name: "WAU power users", description: null, updatedAt: new Date().toISOString() }]}
         personaOptions={[]}
         segmentNameOptions={[]}
+        facetMap={{}}
       />
     );
     expect(html).toContain("WAU power users");

@@ -15,12 +15,11 @@ class ParamBag {
   }
 }
 
-function leftExpr(c: Condition): { expr: string; isAttr: boolean; attrKey?: string } {
-  // The parser guarantees the field exists, but guard here too: this is the only
-  // place catalog identifiers enter the SQL string, so a forged rule that skipped
-  // the parser must never reach the column/key interpolation below.
-  const field = getField(c.fieldId);
-  if (!field) throw new Error(`Unknown segment field: ${c.fieldId}`);
+export function fieldSqlExpr(fieldId: string): { expr: string; isAttr: boolean; attrKey?: string } {
+  // The only place catalog identifiers enter the SQL string; guard against forged
+  // rules that skipped the parser.
+  const field = getField(fieldId);
+  if (!field) throw new Error(`Unknown segment field: ${fieldId}`);
   const compile = field.compile;
   switch (compile.strategy) {
     case "scalar":
@@ -37,6 +36,10 @@ function leftExpr(c: Condition): { expr: string; isAttr: boolean; attrKey?: stri
     case "segment":
       return { expr: "", isAttr: false };
   }
+}
+
+function leftExpr(c: Condition): { expr: string; isAttr: boolean; attrKey?: string } {
+  return fieldSqlExpr(c.fieldId);
 }
 
 function compileCondition(c: Condition, bag: ParamBag): string {

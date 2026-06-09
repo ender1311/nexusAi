@@ -554,3 +554,10 @@ model SyncNameOverride {
   updatedAt   DateTime @updatedAt
   createdAt   DateTime @default(now())
 }
+
+model SegmentFieldFacet {
+  fieldId    String   @id
+  kind       String
+  payload    Json
+  computedAt DateTime @updatedAt
+}

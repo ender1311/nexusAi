@@ -10,6 +10,7 @@ import type { Condition } from "@/types/segment";
 const noopCtx: EditorContext = {
   personaOptions: [{ value: "p1", label: "Night Owls" }],
   segmentNameOptions: ["VIP donors", "Lapsed WAU"],
+  facetMap: {},
   onAddCondition: () => {},
   onAddGroup: () => {},
   onRemove: () => {},
