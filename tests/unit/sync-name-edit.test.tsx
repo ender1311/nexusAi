@@ -1,4 +1,4 @@
-import { afterEach, describe, expect, it, mock, beforeEach } from "bun:test";
+import { afterEach, describe, expect, it, beforeEach } from "bun:test";
 import { render, screen, fireEvent, cleanup, waitFor } from "@testing-library/react";
 import { SyncNameEdit } from "@/components/data-ingest/sync-name-edit";
 

@@ -1,10 +1,9 @@
 // Augment bun:test with jest-dom matchers so toBeInTheDocument() etc type-check.
-// The @testing-library/jest-dom package does not export a "bun" subpath, so we
-// manually replicate what its types/bun.d.ts would do.
-import type { expect } from "bun:test";
-import type { matchers as TLMatchers } from "@testing-library/jest-dom/matchers";
+// @testing-library/jest-dom does not export a "bun" subpath, so we replicate
+// what its types/bun.d.ts would do. Matchers are registered at runtime in
+// tests/setup/bun.ts; this file only supplies the types.
 
-type JestDomMatchers<E, R> = {
+type JestDomMatchers<R> = {
   toBeInTheDocument(): R;
   toBeVisible(): R;
   toBeDisabled(): R;
@@ -32,6 +31,6 @@ type JestDomMatchers<E, R> = {
 };
 
 declare module "bun:test" {
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  interface Matchers<T = any> extends JestDomMatchers<ReturnType<typeof expect.stringContaining>, T> {}
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any, @typescript-eslint/no-empty-object-type
+  interface Matchers<T = any> extends JestDomMatchers<T> {}
 }
