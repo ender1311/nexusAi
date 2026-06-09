@@ -1,4 +1,5 @@
 import { GoalTier, PushDeeplink, TestedVariable } from "@/types/agent";
+import { INTERACTION_FLAGS, INTERACTION_FLAG_LABELS } from "@/lib/constants/interaction-flags";
 
 export interface YouVersionGoalPreset {
   eventName: string;
@@ -60,6 +61,14 @@ export const TESTED_VARIABLE_LABELS: Record<TestedVariable, string> = {
   sendDayOfWeek: "Send Day",
   frequencyCap: "Frequency Cap",
 };
+
+export const INTERACTION_GOALS: YouVersionGoalPreset[] = INTERACTION_FLAGS.map((flag) => ({
+  eventName: flag,
+  label: INTERACTION_FLAG_LABELS[flag],
+  tier: "very_good" as GoalTier,
+  weight: 5,
+  description: INTERACTION_FLAG_LABELS[flag],
+}));
 
 export const POSITIVE_GOALS = YOUVERSION_GOALS.filter((g) => g.weight > 0);
 export const NEGATIVE_OUTCOMES = YOUVERSION_GOALS.filter((g) => g.weight < 0);
