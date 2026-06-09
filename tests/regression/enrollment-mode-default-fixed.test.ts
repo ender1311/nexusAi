@@ -6,7 +6,7 @@ beforeEach(async () => { await truncateAll(); });
 afterEach(async () => { await truncateAll(); });
 
 describe("enrollmentMode default", () => {
-  it("defaults to 'fixed' so existing agents are unaffected", async () => {
+  it("new agents without an explicit enrollmentMode receive 'fixed'", async () => {
     const a = await createAgent({ name: "Legacy" });
     const row = await prisma.agent.findUnique({ where: { id: a.id } });
     expect(row?.enrollmentMode).toBe("fixed");
