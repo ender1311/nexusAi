@@ -794,3 +794,291 @@ git checkout main && git pull
 - **Spec coverage:** Part 1 (targeting) → Tasks 1+4; Part 2 (tail attribution) → Tasks 2+3; Part 3 (reporting) → Task 3 test 1's dashboard-count assertion; Part 4 (Oracle ops) → Task 5 Step 3. applyConversion release-scoping guard from the spec: verified already correct in code (attribution-service.ts:107), pinned by Task 3's "never releases agent B" test.
 - **Type consistency:** `detectTransitionedFlags(incoming, stored): InteractionFlag[]` and `FLAG_ATTRIBUTION_WINDOW_MS` defined in Task 2, consumed in Task 3 with matching signatures. `absentFalse?: boolean` defined in Task 1 catalog type and read in Task 1 compile change only.
 - **Known judgment calls baked in:** active-owner path takes precedence per flag even when it ends "unmatched" (owner existed but never sent → no credit, tail does not shop the flip to other agents); tail no-decision case is not counted in `unmatchedFlagConversions` (that tally means "owned user flipped with no send slot").
+
+---
+---
+
+# Part B — Unified Agent Settings Editing
+
+> **For agentic workers:** Same execution rules as Part A. Ship Part B as its OWN branch + MR after Part A merges (Task 9). Do not mix the two changesets.
+
+**Goal:** One edit mode for agents — every editable setting lives in a single "Settings" tab on the agent detail page (edit-in-place where settings are viewed), replacing the dual Edit-sheet / `/agents/[id]/scheduling`-page split. `uniqueUsersCap` (Max Unique Users) becomes editable.
+
+**Architecture:** A new client component `AgentSettingsEditor` merges the form sections of `agent-edit-sheet.tsx` (492 lines), `scheduling-editor.tsx` (517 lines), and `fallback-send-time-editor.tsx` (109 lines) into one sectioned, view/edit-toggled tab. It saves through the existing two routes — `PATCH /api/agents/[id]` for Agent fields and `PUT /api/agents/[id]/scheduling` for SchedulingRule fields — sending **only dirty fields** (the PATCH route change-detects cohort release, but sending only dirty fields is defense in depth per the 2026-06-09 I2 audit). The old surfaces are deleted; `/agents/[id]/scheduling` redirects to `/agents/[id]?tab=settings`.
+
+**Current state (verified 2026-06-09):**
+- Detail page `src/app/agents/[id]/page.tsx` (890 lines, Server Component): `<Tabs defaultValue="overview">` at line 138 — **client-state only, no URL param**. `AgentEditSheet` mounted at line 106. Read-only Scheduling/Send-Limits cards at lines 376–459 with "Edit these via the Edit button above" note (line ~456) and a link to `/agents/[id]/scheduling` (line 380). `FallbackSendTimeEditor` inline at line 431. Draft checklist links to `/agents/${agent.id}/scheduling` (line ~184).
+- `AgentEditSheet` edits: name, description, color, algorithm, epsilon, funnelStage / targetSegmentName (HT segment) toggle, segmentTargeting includes/excludes, dailySendCap, deeplinkOverride. Fetches `/api/segments` on open (line 210). Uses `AgentDeeplinkOverrideField` subcomponent.
+- `SchedulingEditor` (props `{ agentId, initialRule: SchedulingRule | null }`) edits: frequencyCap, quietHours (3 modes + legacy-record normalization via `resolveInitialQuietHours`), blackoutDates, smartSuppress, suppressThresh, prioritizeLastSeen. Saves via `PUT /api/agents/[id]/scheduling` (accepts exactly those 6 fields, route lines 29–108, upserts SchedulingRule).
+- `PATCH /api/agents/[id]` (route lines 45–251) accepts: name, description, algorithm, epsilon, funnelStage, status, targetFilter, targetSegmentName, segmentTargeting, fallbackSendHour, dailySendCap, languageFilter, localizePush, deeplinkOverride, sendingPaused, color, enrollmentMode. **Not** uniqueUsersCap. Cohort-release change-detection at lines 177–195; release + update atomic transaction at lines 202–241.
+- `uniqueUsersCap`: `Agent` column, nullable Int, "null = unlimited" (prisma/schema.prisma:27). Editable nowhere.
+
+**Design decisions (present to user with handoff; defaults below):**
+1. The read-only "Scheduling" tab becomes an editable **"Settings"** tab containing ALL agent settings, grouped in cards: Identity (name/description/color), Algorithm (algorithm/epsilon), Targeting (mode toggle, segments, enrollmentMode), Sending (dailySendCap, uniqueUsersCap, fallbackSendHour, deeplinkOverride, languageFilter, localizePush), Guardrails (frequencyCap, quietHours, blackout, suppression).
+2. View mode by default (current read-only presentation, now complete); a single **Edit** button flips the whole tab into form mode with a sticky Save/Cancel bar. One Save, one Cancel — no per-field modes.
+3. Header "Edit" button and `AgentEditSheet` are removed; header button becomes a link to `?tab=settings&edit=1`.
+4. `/agents/[id]/scheduling` becomes `redirect("/agents/[id]?tab=settings")` — old links/bookmarks keep working.
+5. Changing `uniqueUsersCap` does **NOT** trigger cohort release (it's a recruitment ceiling, not targeting criteria; lowering it below current enrollment just halts new recruitment).
+6. Targeting/enrollmentMode edits keep their existing destructive-change semantics (PATCH releases cohort on actual change) — the editor shows the same warning copy the sheet shows today before save when those fields are dirty.
+
+---
+
+### Task 6: `uniqueUsersCap` accepted by PATCH /api/agents/[id]
+
+**Files:**
+- Modify: `src/app/api/agents/[id]/route.ts` (validation after the dailySendCap block at lines 104–108; data spread alongside line 225)
+- Test: `tests/integration/agents-patch-unique-users-cap.test.ts` (new)
+
+- [ ] **Step 1: Write the failing tests**
+
+Create `tests/integration/agents-patch-unique-users-cap.test.ts` following the existing agents-PATCH integration test pattern (admin-auth helper + builders from `tests/helpers/builders.ts`):
+
+```ts
+// Tests:
+// 1. PATCH { uniqueUsersCap: 5000 } → 200, agent.uniqueUsersCap === 5000 in DB
+// 2. PATCH { uniqueUsersCap: null } → 200, persisted null (unlimited)
+// 3. PATCH { uniqueUsersCap: 0 } → 400
+// 4. PATCH { uniqueUsersCap: -5 } → 400
+// 5. PATCH { uniqueUsersCap: 1.5 } → 400
+// 6. PATCH { uniqueUsersCap: "5000" } → 400
+// 7. COHORT GUARD: create agent with cohortAssignedAt set + an active
+//    UserAgentAssignment (releasedAt: null) via builders; PATCH only
+//    { uniqueUsersCap: 9999 }; assert 200, assignment.releasedAt still null,
+//    agent.cohortAssignedAt unchanged (cap change must NOT release the cohort).
+```
+
+Copy the request/auth scaffolding verbatim from the nearest existing `tests/integration/agents-*.test.ts` PATCH test.
+
+- [ ] **Step 2: Run to verify failure**
+
+Run: `TEST_FILES=tests/integration/agents-patch-unique-users-cap.test.ts bun run test:int`
+Expected: tests 1–2 FAIL (cap not persisted — PATCH ignores the field), 3–6 FAIL (200 instead of 400), 7 passes vacuously or fails on persistence.
+
+- [ ] **Step 3: Implement**
+
+In `src/app/api/agents/[id]/route.ts`, insert after the `dailySendCap` validation block (after line 108):
+
+```ts
+    if (body.uniqueUsersCap !== undefined) {
+      if (body.uniqueUsersCap !== null && (!Number.isInteger(body.uniqueUsersCap) || body.uniqueUsersCap < 1)) {
+        return fail("uniqueUsersCap must be null or a positive integer", 400);
+      }
+    }
+```
+
+In the `tx.agent.update` data object, alongside the `dailySendCap` spread (line 225):
+
+```ts
+        ...(body.uniqueUsersCap !== undefined ? { uniqueUsersCap: body.uniqueUsersCap } : {}),
+```
+
+Do NOT touch the `releasesCohort` expression — uniqueUsersCap must not appear in it.
+
+- [ ] **Step 4: Run tests to verify pass**
+
+Run: `TEST_FILES=tests/integration/agents-patch-unique-users-cap.test.ts bun run test:int`
+Expected: all 7 PASS.
+
+- [ ] **Step 5: Commit**
+
+```bash
+git add src/app/api/agents/[id]/route.ts tests/integration/agents-patch-unique-users-cap.test.ts
+git commit -m "feat(agents): make uniqueUsersCap editable via PATCH, without cohort release"
+```
+
+---
+
+### Task 7: `AgentSettingsEditor` — unified Settings tab
+
+**Files:**
+- Create: `src/components/agents/agent-settings-editor.tsx`
+- Modify: `src/app/agents/[id]/page.tsx` (tab rename + content swap, lines 138–172 and 376–459; wire `searchParams`)
+- Test: `tests/unit/agent-settings-dirty-diff.test.ts` (new, for the extracted dirty-diff helper)
+- Create: `src/lib/agents/settings-diff.ts` (pure dirty-field diff helper — business logic lives in lib, not the component)
+
+- [ ] **Step 1: Write the failing test for the diff helper**
+
+`tests/unit/agent-settings-dirty-diff.test.ts`:
+
+```ts
+import { describe, expect, it } from "bun:test";
+import { diffAgentSettings } from "@/lib/agents/settings-diff";
+
+describe("diffAgentSettings", () => {
+  it("returns only changed agent fields", () => {
+    const { agentPatch, schedulingPut } = diffAgentSettings(
+      { name: "A", dailySendCap: 50000, uniqueUsersCap: 100000, frequencyCap: { maxSends: 3, period: "week" } },
+      { name: "A", dailySendCap: 60000, uniqueUsersCap: 100000, frequencyCap: { maxSends: 3, period: "week" } },
+    );
+    expect(agentPatch).toEqual({ dailySendCap: 60000 });
+    expect(schedulingPut).toBeNull();
+  });
+
+  it("routes scheduling fields to schedulingPut", () => {
+    const { agentPatch, schedulingPut } = diffAgentSettings(
+      { frequencyCap: { maxSends: 3, period: "week" } },
+      { frequencyCap: { maxSends: 5, period: "week" } },
+    );
+    expect(agentPatch).toBeNull();
+    expect(schedulingPut).toEqual({ frequencyCap: { maxSends: 5, period: "week" } });
+  });
+
+  it("deep-compares JSON fields (segmentTargeting, quietHours) instead of reference-comparing", () => {
+    const { agentPatch } = diffAgentSettings(
+      { segmentTargeting: { includes: ["a"], excludes: [] } },
+      { segmentTargeting: { includes: ["a"], excludes: [] } },
+    );
+    expect(agentPatch).toBeNull();
+  });
+
+  it("treats null vs value as a change", () => {
+    const { agentPatch } = diffAgentSettings({ uniqueUsersCap: null }, { uniqueUsersCap: 5000 });
+    expect(agentPatch).toEqual({ uniqueUsersCap: 5000 });
+  });
+});
+```
+
+`src/lib/agents/settings-diff.ts` contract: `diffAgentSettings(initial, edited)` → `{ agentPatch: object | null, schedulingPut: object | null }`. AGENT_FIELDS = name, description, color, algorithm, epsilon, funnelStage, targetSegmentName, segmentTargeting, enrollmentMode, dailySendCap, uniqueUsersCap, fallbackSendHour, deeplinkOverride, languageFilter, localizePush. SCHEDULING_FIELDS = frequencyCap, quietHours, blackoutDates, smartSuppress, suppressThresh, prioritizeLastSeen. Compare via `JSON.stringify` of normalized values (stable for these small shapes); a field appears in the output object only if changed; return null instead of `{}`.
+
+- [ ] **Step 2: Run to verify failure, implement helper, verify pass**
+
+Run: `TEST_FILES=tests/unit/agent-settings-dirty-diff.test.ts bun run test:quick` — FAIL (module missing) → implement → PASS.
+
+- [ ] **Step 3: Build `AgentSettingsEditor`**
+
+Create `src/components/agents/agent-settings-editor.tsx` (`"use client"`). This is a **relocation + composition** task — the form sections already exist and must move over verbatim (state hooks + JSX + their validation), then bind to one shared edit-mode state:
+
+- Props: `{ agent: <serialized agent incl. uniqueUsersCap>, initialRule: SchedulingRule | null, startInEditMode?: boolean }`.
+- `const [editing, setEditing] = useState(startInEditMode ?? false)` — view mode renders the current read-only card layout from `page.tsx:376–459` (move that JSX here, plus new read-only rows for the identity/algorithm/targeting/sending values the old tab never showed); edit mode renders the form sections.
+- Form sections to relocate:
+  - From `agent-edit-sheet.tsx`: name/description/color, algorithm/epsilon, targeting-mode toggle + funnelStage select + segment include/exclude pickers (incl. the `/api/segments` fetch — fetch on mount of edit mode, keep the "No segments synced yet" empty state), enrollmentMode toggle with its cohort-reset warning copy, dailySendCap input, `AgentDeeplinkOverrideField`.
+  - From `scheduling-editor.tsx`: frequencyCap slider, quiet-hours mode cards (keep `resolveInitialQuietHours` legacy normalization, `HOUR_OPTIONS`, `DAYS_OF_WEEK`, `PERIOD_LABELS`), blackout dates, smartSuppress/suppressThresh, prioritizeLastSeen.
+  - From `fallback-send-time-editor.tsx`: the fallbackSendHour select (as a plain field in the Sending card — drop its standalone save button).
+  - New: **Max Unique Users** numeric input in the Sending card: empty = unlimited (null), min 1, helper text "Lifetime ceiling on distinct users this agent will enroll. Leave blank for unlimited. Lowering it does not release already-enrolled users."
+- Save handler:
+
+```ts
+const onSave = async () => {
+  setSaving(true);
+  setError(null);
+  const { agentPatch, schedulingPut } = diffAgentSettings(initialValues, currentValues);
+  try {
+    if (agentPatch) {
+      const res = await fetch(`/api/agents/${agent.id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(agentPatch),
+      });
+      if (!res.ok) throw new Error((await res.json()).error ?? "Failed to save agent settings");
+    }
+    if (schedulingPut) {
+      const res = await fetch(`/api/agents/${agent.id}/scheduling`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(schedulingPut),
+      });
+      if (!res.ok) throw new Error((await res.json()).error ?? "Failed to save scheduling");
+    }
+    setEditing(false);
+    router.refresh(); // NOT location.reload() — respects revalidateTag caching
+  } catch (e) {
+    setError(e instanceof Error ? e.message : "Save failed");
+  } finally {
+    setSaving(false);
+  }
+};
+```
+
+- Sticky bottom bar in edit mode: `Save Changes` (disabled while saving / when nothing dirty) + `Cancel` (resets state to initial, exits edit mode). If targeting/enrollmentMode fields are dirty, show the sheet's existing cohort-release warning above the bar before save.
+- In `src/app/agents/[id]/page.tsx`: rename the tab trigger `scheduling` → `settings` (label "Settings"), replace lines 376–459 content with `<AgentSettingsEditor agent={...} initialRule={...} startInEditMode={searchParams.edit === "1"} />`, and make tabs URL-addressable: page receives `searchParams: Promise<{ tab?: string; edit?: string }>`, `<Tabs defaultValue={tab ?? "overview"}>`. Remove the now-unused `FallbackSendTimeEditor` import/usage.
+
+- [ ] **Step 4: Verify in browser**
+
+`bun run dev` → `/agents/<id>` → Settings tab: view mode shows every setting; Edit → change Max Unique Users + a quiet-hours value → Save → both persist after refresh; Cancel discards; `?tab=settings&edit=1` deep-link opens straight into edit mode. Verify a save that only touches uniqueUsersCap does not blank `cohortAssignedAt` (check DB or the detail header badge).
+
+- [ ] **Step 5: Commit**
+
+```bash
+git add src/components/agents/agent-settings-editor.tsx src/lib/agents/settings-diff.ts src/app/agents/[id]/page.tsx tests/unit/agent-settings-dirty-diff.test.ts
+git commit -m "feat(agents): unified Settings tab editing all agent + scheduling fields in place"
+```
+
+---
+
+### Task 8: Remove the old edit surfaces
+
+**Files:**
+- Delete: `src/components/agents/agent-edit-sheet.tsx`, `src/components/agents/fallback-send-time-editor.tsx`, `src/components/scheduling/scheduling-editor.tsx`
+- Modify: `src/app/agents/[id]/scheduling/page.tsx` (→ redirect), `src/app/agents/[id]/page.tsx` (header Edit button at line ~106, draft-checklist link at line ~184)
+- Test: `tests/regression/agent-settings-single-edit-surface.test.ts` (new)
+
+- [ ] **Step 1: Write the failing regression test**
+
+`tests/regression/agent-settings-single-edit-surface.test.ts` — pins the consolidation (DOM-structure style per project convention, happy-dom):
+
+```ts
+// 1. src/components/agents/agent-edit-sheet.tsx and
+//    src/components/scheduling/scheduling-editor.tsx do not exist on disk
+//    (fs.existsSync === false) — the dual edit surfaces stay dead.
+// 2. The scheduling page module's rendered output is a redirect:
+//    import the page component source (read file text) and assert it calls
+//    redirect(`/agents/${id}?tab=settings`) and renders no form.
+// 3. The detail page source contains exactly one editor entry point:
+//    text includes "AgentSettingsEditor" and does NOT include "AgentEditSheet"
+//    or a Link href ending in "/scheduling".
+```
+
+- [ ] **Step 2: Implement**
+
+`src/app/agents/[id]/scheduling/page.tsx` becomes:
+
+```tsx
+import { redirect } from "next/navigation";
+
+export default async function SchedulingRedirect({ params }: { params: Promise<{ id: string }> }) {
+  const { id } = await params;
+  redirect(`/agents/${id}?tab=settings`);
+}
+```
+
+In `src/app/agents/[id]/page.tsx`: replace the `<AgentEditSheet …/>` mount (line ~106) with a `<Link href={\`/agents/${agent.id}?tab=settings&edit=1\`}><Button variant="outline"><Pencil …/>Edit</Button></Link>`; update the draft-checklist `href` (line ~184) from `/agents/${agent.id}/scheduling` to `/agents/${agent.id}?tab=settings`. Delete the three dead component files and any now-unused imports (`AgentDeeplinkOverrideField` moves its import into the new editor). Run `grep -rn "agent-edit-sheet\|scheduling-editor\|fallback-send-time-editor" src/` — must return nothing.
+
+- [ ] **Step 3: Run tests + verify in browser**
+
+Run: `TEST_FILES=tests/regression/agent-settings-single-edit-surface.test.ts bun run test:int` → PASS.
+Browser: header Edit button lands in Settings edit mode; visiting `/agents/<id>/scheduling` redirects to the Settings tab.
+
+- [ ] **Step 4: Commit**
+
+```bash
+git add -A src/app/agents/[id] src/components/agents src/components/scheduling tests/regression/agent-settings-single-edit-surface.test.ts
+git commit -m "refactor(agents): remove edit sheet + scheduling page; Settings tab is the single edit surface"
+```
+
+---
+
+### Task 9: Full gate + ship Part B
+
+- [ ] **Step 1: Full check**
+
+Run: `bun run check` — read output text, don't trust piped exit codes.
+
+- [ ] **Step 2: Ship via MR** (after Part A's MR is merged)
+
+```bash
+git checkout -b feat/unified-agent-settings
+git push -u origin feat/unified-agent-settings
+glab mr create --title "feat: unified agent Settings tab + editable uniqueUsersCap" --description "- single edit surface on the agent detail page (Settings tab, edit-in-place)
+- uniqueUsersCap editable via PATCH (no cohort release)
+- /agents/[id]/scheduling redirects; edit sheet + scheduling editor removed" --source-branch feat/unified-agent-settings --target-branch main
+glab mr merge <MR_NUMBER> --remove-source-branch   # merge by NUMBER
+git checkout main && git pull
+```
+
+---
+
+## Part B Self-Review Notes
+
+- **Requirement coverage:** "one edit mode … same place where I can view the settings" → Tasks 7+8 (Settings tab, view/edit toggle, old surfaces deleted, old URL redirects); "max unique users editable" → Task 6 (API) + Task 7 (UI field).
+- **Cohort safety:** uniqueUsersCap excluded from `releasesCohort` (Task 6 test 7 pins it); dirty-field diffing prevents echo-save cohort releases (Task 7 helper, unit-tested); targeting/mode warnings preserved.
+- **Deferred (separate, queued task #32):** `/agents/new` creation-wizard UX overhaul — same design language as the Settings tab should be applied there afterwards.
