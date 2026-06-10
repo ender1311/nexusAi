@@ -245,10 +245,21 @@ export function AgentWizard({
     frequencyCapOverride: null,
   });
 
-  const [newMsg, setNewMsg] = useState<MessageDraft>({
-    name: "", channel: "push",
+  const makeEmptyDraft = (channel: Channel): MessageDraft => ({
+    name: "",
+    channel,
     variants: [{ ...emptyVariant(), name: "V1" }],
   });
+  // One draft per channel so switching channels never discards typed work.
+  const [draftChannel, setDraftChannel] = useState<Channel>("push");
+  const [drafts, setDrafts] = useState<Record<Channel, MessageDraft>>({
+    push: makeEmptyDraft("push"),
+    email: makeEmptyDraft("email"),
+    sms: makeEmptyDraft("sms"),
+  });
+  const newMsg = drafts[draftChannel];
+  const setNewMsg = (updater: (m: MessageDraft) => MessageDraft) =>
+    setDrafts((d) => ({ ...d, [draftChannel]: updater(d[draftChannel]) }));
   const [saving, setSaving] = useState(false);
   const [submitError, setSubmitError] = useState<string | null>(null);
   const [submitOk, setSubmitOk] = useState(false);
@@ -272,7 +283,7 @@ export function AgentWizard({
   const addMessage = () => {
     if (!newMsg.name.trim() || newMsg.variants.length === 0) return;
     update("messages", [...form.messages, { ...newMsg, variants: newMsg.variants }]);
-    setNewMsg({ name: "", channel: newMsg.channel, variants: [{ ...emptyVariant(), name: "V1" }] });
+    setDrafts((d) => ({ ...d, [draftChannel]: makeEmptyDraft(draftChannel) }));
   };
 
   // Called by TemplatePicker in draft mode (push channel wizard flow)
@@ -764,39 +775,60 @@ export function AgentWizard({
           )}
 
           {/* Push channel: use the full TemplatePicker in draft mode */}
-          {newMsg.channel === "push" ? (
-            <div className="border rounded-lg p-4 bg-muted/30">
-              <div className="flex items-center justify-between mb-4">
-                <h3 className="text-sm font-medium">Add Push Message</h3>
-                <Select value={newMsg.channel} onValueChange={(v) => setNewMsg((m) => ({ ...m, channel: v as Channel, variants: [{ ...emptyVariant(), name: "V1" }] }))}>
-                  <SelectTrigger className="w-28 h-7 text-xs">
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
+          {draftChannel === "push" ? (
+            <Card>
+              <CardHeader>
+                <div className="flex items-center justify-between">
+                  <CardTitle className="text-base">Add Push Message</CardTitle>
+                  <div className="flex rounded-md border overflow-hidden text-xs">
                     {CHANNELS.map((c) => (
-                      <SelectItem key={c} value={c}>{c.toUpperCase()}</SelectItem>
+                      <button
+                        key={c}
+                        type="button"
+                        onClick={() => setDraftChannel(c)}
+                        className={cn(
+                          "px-3 py-1.5 font-medium transition-colors border-l first:border-l-0",
+                          draftChannel === c
+                            ? "bg-primary text-primary-foreground"
+                            : "text-muted-foreground hover:text-foreground",
+                        )}
+                      >
+                        {c.toUpperCase()}
+                      </button>
                     ))}
-                  </SelectContent>
-                </Select>
-              </div>
-              <TemplatePicker ref={templatePickerRef} onAddToDraft={addMessageFromTemplate} />
-            </div>
+                  </div>
+                </div>
+              </CardHeader>
+              <CardContent>
+                <TemplatePicker ref={templatePickerRef} onAddToDraft={addMessageFromTemplate} />
+              </CardContent>
+            </Card>
           ) : (
             /* Email / SMS: manual variant form */
-            <div className="border rounded-lg p-4 space-y-3 bg-muted/30">
-              <div className="flex items-center justify-between">
-                <h3 className="text-sm font-medium">Add Message</h3>
-                <Select value={newMsg.channel} onValueChange={(v) => setNewMsg((m) => ({ ...m, channel: v as Channel, variants: [{ ...emptyVariant(), name: "V1" }] }))}>
-                  <SelectTrigger className="w-28 h-7 text-xs">
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
+            <Card>
+              <CardHeader>
+                <div className="flex items-center justify-between">
+                  <CardTitle className="text-base">Add Message</CardTitle>
+                  <div className="flex rounded-md border overflow-hidden text-xs">
                     {CHANNELS.map((c) => (
-                      <SelectItem key={c} value={c}>{c.toUpperCase()}</SelectItem>
+                      <button
+                        key={c}
+                        type="button"
+                        onClick={() => setDraftChannel(c)}
+                        className={cn(
+                          "px-3 py-1.5 font-medium transition-colors border-l first:border-l-0",
+                          draftChannel === c
+                            ? "bg-primary text-primary-foreground"
+                            : "text-muted-foreground hover:text-foreground",
+                        )}
+                      >
+                        {c.toUpperCase()}
+                      </button>
                     ))}
-                  </SelectContent>
-                </Select>
-              </div>
+                  </div>
+                </div>
+              </CardHeader>
+              <CardContent className="space-y-3">
               <Input
                 placeholder="Message name"
                 value={newMsg.name}
@@ -840,7 +872,8 @@ export function AgentWizard({
               >
                 Add Message
               </Button>
-            </div>
+              </CardContent>
+            </Card>
           )}
 
           {form.messages.map((m, i) => (
