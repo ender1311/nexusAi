@@ -4,11 +4,13 @@ import { createRoot, type Root } from "react-dom/client";
 import { AGENT_PALETTE } from "@/types/agent";
 
 // Regression: agent config editors (color picker, funnel config, audience cap,
-// fallback send time, localization, edit sheet) fired their PATCH and immediately
-// treated it as success — calling router.refresh() / showing "Saved" without
-// checking res.ok. A 409 (segment already assigned) or 400 was silently swallowed.
+// localization, settings editor) fired their PATCH and immediately treated it
+// as success — calling router.refresh() / showing "Saved" without checking
+// res.ok. A 409 (segment already assigned) or 400 was silently swallowed.
 // The fix checks res.ok, surfaces the server error inline, and only commits the
-// optimistic UI / refresh on success.
+// optimistic UI / refresh on success. Originally pinned against the legacy
+// agent edit sheet; ported to AgentSettingsEditor when the unified Settings
+// tab replaced the sheet (2026-06-09).
 
 (globalThis as unknown as { IS_REACT_ACT_ENVIRONMENT: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
 
@@ -27,7 +29,7 @@ mock.module("next/navigation", () => ({
 }));
 
 const { AgentColorPicker } = await import("@/components/agents/agent-color-picker");
-const { AgentEditSheet } = await import("@/components/agents/agent-edit-sheet");
+const { AgentSettingsEditor } = await import("@/components/agents/agent-settings-editor");
 
 let container: HTMLDivElement;
 let root: Root;
@@ -102,10 +104,14 @@ describe("AgentColorPicker error handling", () => {
   });
 });
 
-describe("AgentEditSheet segment-conflict handling", () => {
+describe("AgentSettingsEditor save error handling", () => {
+  let fetchCalls: { url: string; method: string }[] = [];
+
   function routedFetch(patchStatus: number, patchBody: object) {
+    fetchCalls = [];
     return (async (input: RequestInfo | URL, init?: RequestInit) => {
       const url = typeof input === "string" ? input : input.toString();
+      fetchCalls.push({ url, method: init?.method ?? "GET" });
       if (url.includes("/api/segments")) {
         return new Response(JSON.stringify({ data: [] }), {
           status: 200,
@@ -113,7 +119,6 @@ describe("AgentEditSheet segment-conflict handling", () => {
         });
       }
       // PATCH /api/agents/:id
-      void init;
       return new Response(JSON.stringify(patchBody), {
         status: patchStatus,
         headers: { "Content-Type": "application/json" },
@@ -121,39 +126,46 @@ describe("AgentEditSheet segment-conflict handling", () => {
     }) as unknown as typeof fetch;
   }
 
-  function renderSheet() {
+  const baseAgent = {
+    id: "a1",
+    name: "My Agent",
+    description: null,
+    color: AGENT_PALETTE[0]!,
+    algorithm: "thompson",
+    epsilon: 0.1,
+    funnelStage: "wau" as const,
+    targetSegmentName: null,
+    segmentTargeting: null,
+    enrollmentMode: "fixed" as const,
+    dailySendCap: null,
+    uniqueUsersCap: null,
+    fallbackSendHour: null,
+    deeplinkOverride: null,
+    languageFilter: "all",
+    localizePush: false,
+    hasVerseVariants: false,
+    usedColors: [],
+  };
+
+  function renderEditor() {
     act(() => {
       root.render(
-        <AgentEditSheet
-          agentId="a1"
-          initialName="My Agent"
-          initialDescription={null}
-          initialAlgorithm="thompson"
-          initialEpsilon={0.1}
-          initialFunnelStage="wau"
-          initialColor={AGENT_PALETTE[0]!}
-          usedColors={[]}
-          initialTargetSegmentName={null}
-          initialSegmentTargeting={null}
-          initialDailySendCap={null}
-          initialDeeplinkOverride={null}
-          hasVerseVariants={false}
-        />,
+        <AgentSettingsEditor agent={baseAgent} initialRule={null} startInEditMode />,
       );
     });
   }
 
-  function openSheet() {
-    // The trigger is the only button in the container before the sheet opens.
-    const trigger = container.querySelector<HTMLButtonElement>("button")!;
+  function changeName(next: string) {
+    const input = container.querySelector<HTMLInputElement>('input[placeholder="Agent name"]')!;
+    const setValue = Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, "value")!.set!;
     act(() => {
-      trigger.dispatchEvent(new MouseEvent("click", { bubbles: true }));
+      setValue.call(input, next);
+      input.dispatchEvent(new Event("input", { bubbles: true }));
     });
   }
 
   function clickSave() {
-    // Sheet content portals to document.body; find the "Save Changes" button.
-    const buttons = Array.from(document.body.querySelectorAll<HTMLButtonElement>("button"));
+    const buttons = Array.from(container.querySelectorAll<HTMLButtonElement>("button"));
     const save = buttons.find((b) => b.textContent?.includes("Save Changes"))!;
     act(() => {
       save.dispatchEvent(new MouseEvent("click", { bubbles: true }));
@@ -163,25 +175,30 @@ describe("AgentEditSheet segment-conflict handling", () => {
   it("shows the 409 conflict error and does NOT refresh when the segment is taken", async () => {
     globalThis.fetch = routedFetch(409, { error: 'Segment "VIP" is already assigned to agent "Other"' });
 
-    renderSheet();
-    openSheet();
+    renderEditor();
     await flush();
+    changeName("My Agent (renamed)");
     clickSave();
     await flush();
 
-    expect(document.body.textContent).toContain("already assigned to agent");
+    expect(container.textContent).toContain("already assigned to agent");
     expect(refreshCalls).toBe(0);
+    // The form actually fired the PATCH — guards against a vacuous pass where
+    // Save is disabled and no request happens.
+    expect(fetchCalls.filter((c) => c.method === "PATCH" && c.url === "/api/agents/a1")).toHaveLength(1);
   });
 
   it("refreshes and shows no error when the save succeeds", async () => {
-    globalThis.fetch = routedFetch(200, { id: "a1", name: "My Agent" });
+    globalThis.fetch = routedFetch(200, { id: "a1", name: "My Agent (renamed)" });
 
-    renderSheet();
-    openSheet();
+    renderEditor();
     await flush();
+    changeName("My Agent (renamed)");
     clickSave();
     await flush();
 
     expect(refreshCalls).toBe(1);
+    expect(container.querySelector('[role="alert"]')).toBeNull();
+    expect(fetchCalls.filter((c) => c.method === "PATCH" && c.url === "/api/agents/a1")).toHaveLength(1);
   });
 });

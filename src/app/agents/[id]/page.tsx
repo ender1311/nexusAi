@@ -9,7 +9,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Target, MessageSquare, Calendar, BarChart3, Settings, Users2, GitCompare, Send, LayoutDashboard, Languages } from "lucide-react";
+import { Target, MessageSquare, BarChart3, Settings, Users2, GitCompare, Send, LayoutDashboard, Languages, Sliders, Pencil } from "lucide-react";
 import { cn, formatNumber } from "@/lib/utils";
 import { TestedVariablesBadges } from "@/components/agents/tested-variables-badges";
 import { VariantDiffTable } from "@/components/agents/variant-diff-table";
@@ -24,12 +24,11 @@ import { AgentFunnelConfig } from "@/components/agents/agent-funnel-config";
 import { PersonaTargetManager } from "@/components/agents/persona-target-manager";
 import { ArmHealthSection } from "./arm-health-section";
 import { CurrentWinnerCard } from "./current-winner-card";
-import { FallbackSendTimeEditor } from "@/components/agents/fallback-send-time-editor";
 import { AgentSendsTable } from "@/components/agents/agent-sends-table";
+import { AgentSettingsEditor } from "@/components/agents/agent-settings-editor";
 import { AgentNameEditor } from "@/components/agents/agent-name-editor";
 import { AgentStatusToggle } from "@/components/agents/agent-status-toggle";
 import { AgentPauseToggle } from "@/components/agents/agent-pause-toggle";
-import { AgentEditSheet } from "@/components/agents/agent-edit-sheet";
 import { AgentDeleteButton } from "@/components/agents/agent-delete-button";
 import { ReleaseAllButton } from "@/components/agents/release-all-button";
 import { AgentLocalizationTab } from "@/components/agents/agent-localization-tab";
@@ -49,11 +48,17 @@ const algorithmLabels: Record<string, string> = {
   linucb: "LinUCB",
 };
 
-type FrequencyCap = { maxSends: number; period: string };
-type QuietHours = { start: string; end: string; timezone: string };
-
-export default async function AgentDetailPage({ params }: { params: Promise<{ id: string }> }) {
+export default async function AgentDetailPage({
+  params,
+  searchParams,
+}: {
+  params: Promise<{ id: string }>;
+  searchParams: Promise<{ tab?: string; edit?: string }>;
+}) {
   const { id } = await params;
+  const { tab: tabParam, edit: editParam } = await searchParams;
+  // Map legacy ?tab=scheduling links to the unified settings tab.
+  const activeTab = tabParam === "scheduling" ? "settings" : (tabParam ?? "overview");
 
   const [agent, allPersonas, { isAdmin }] = await Promise.all([
     getCachedAgent(id),
@@ -63,15 +68,11 @@ export default async function AgentDetailPage({ params }: { params: Promise<{ id
 
   if (!agent) notFound();
 
-  // Admin-only: colors of other agents feed the edit sheet's color picker.
-  // Non-admins never see the sheet, so skip the query entirely for them.
+  // Admin-only: colors of other agents feed the settings editor's color picker.
+  // Non-admins never see the editor, so skip the query entirely for them.
   const usedColors = isAdmin
     ? (await prisma.agent.findMany({ where: { id: { not: id } }, select: { color: true } })).map((a) => a.color)
     : [];
-
-  const freqCap = agent.schedulingRule?.frequencyCap as FrequencyCap | null;
-  const quietHours = agent.schedulingRule?.quietHours as QuietHours | null;
-  const blackoutDates = (agent.schedulingRule?.blackoutDates ?? []) as string[];
 
   // Compute arm health summary
   const activeVariants = agent.messages.flatMap((m) =>
@@ -103,23 +104,12 @@ export default async function AgentDetailPage({ params }: { params: Promise<{ id
           </div>
           <div className="flex flex-wrap gap-2">
             {isAdmin && (
-              <AgentEditSheet
-                agentId={agent.id}
-                initialName={agent.name}
-                initialDescription={agent.description ?? null}
-                initialAlgorithm={agent.algorithm}
-                initialEpsilon={agent.epsilon}
-                initialFunnelStage={agent.funnelStage as FunnelStage}
-                initialColor={agent.color ?? "#6366f1"}
-                usedColors={usedColors}
-                initialTargetSegmentName={agent.targetSegmentName ?? null}
-                initialSegmentTargeting={
-                  (agent.segmentTargeting as { includes: string[]; excludes: string[] } | null) ?? null
-                }
-                initialDailySendCap={agent.dailySendCap ?? null}
-                initialDeeplinkOverride={agent.deeplinkOverride ?? null}
-                hasVerseVariants={hasVerseVariants}
-              />
+              <Link href={`/agents/${agent.id}?tab=settings&edit=1`}>
+                <Button variant="outline" size="sm">
+                  <Pencil className="h-4 w-4 mr-1.5" />
+                  Edit
+                </Button>
+              </Link>
             )}
             {isAdmin && <AgentStatusToggle agentId={agent.id} status={agent.status} />}
             {isAdmin && (
@@ -135,7 +125,9 @@ export default async function AgentDetailPage({ params }: { params: Promise<{ id
         </div>
 
         {/* Tabs */}
-        <Tabs defaultValue="overview">
+        {/* key forces a remount on same-route ?tab= navigation (soft nav keeps
+            client state, so an uncontrolled defaultValue alone never switches). */}
+        <Tabs key={activeTab} defaultValue={activeTab}>
           <div className="overflow-x-auto -mx-4 px-4 sm:mx-0 sm:px-0">
           <TabsList className="w-max sm:w-auto">
             <TabsTrigger value="overview">
@@ -150,9 +142,9 @@ export default async function AgentDetailPage({ params }: { params: Promise<{ id
               <MessageSquare className="h-3.5 w-3.5 sm:mr-1.5" />
               <span className="hidden sm:inline">Messages</span>
             </TabsTrigger>
-            <TabsTrigger value="scheduling">
-              <Calendar className="h-3.5 w-3.5 sm:mr-1.5" />
-              <span className="hidden sm:inline">Scheduling</span>
+            <TabsTrigger value="settings">
+              <Sliders className="h-3.5 w-3.5 sm:mr-1.5" />
+              <span className="hidden sm:inline">Settings</span>
             </TabsTrigger>
             <TabsTrigger value="localization">
               <Languages className="h-3.5 w-3.5 sm:mr-1.5" />
@@ -181,7 +173,7 @@ export default async function AgentDetailPage({ params }: { params: Promise<{ id
               const steps = [
                 { label: "Add conversion goals", done: hasGoals, href: `/agents/${agent.id}/goals` },
                 { label: "Add message variants", done: hasMessages, href: `/agents/${agent.id}/messages` },
-                { label: "Configure scheduling rules", done: hasScheduling, href: `/agents/${agent.id}/scheduling` },
+                { label: "Configure scheduling rules", done: hasScheduling, href: `/agents/${agent.id}?tab=settings` },
               ];
               const nextStep = steps.find((s) => !s.done);
               return (
@@ -373,89 +365,44 @@ export default async function AgentDetailPage({ params }: { params: Promise<{ id
             </Card>
           </TabsContent>
 
-          <TabsContent value="scheduling" className="mt-4 space-y-4">
-            <Card>
-              <CardHeader className="flex flex-row items-center justify-between">
-                <CardTitle className="text-sm font-semibold">Scheduling Rules</CardTitle>
-                <Link href={`/agents/${agent.id}/scheduling`}>
-                  <Button size="sm" variant="outline">
-                    <Settings className="h-3.5 w-3.5 mr-1.5" />
-                    Edit
-                  </Button>
-                </Link>
-              </CardHeader>
-              <CardContent>
-                {freqCap && quietHours ? (
-                  <div className="space-y-3">
-                    <div className="flex justify-between py-2 border-b">
-                      <span className="text-sm text-muted-foreground">Frequency Cap</span>
-                      <span className="text-sm font-medium">
-                        {freqCap.maxSends}x per {freqCap.period}
-                      </span>
-                    </div>
-                    <div className="flex justify-between py-2 border-b">
-                      <span className="text-sm text-muted-foreground">Quiet Hours</span>
-                      <span className="text-sm font-medium">
-                        {quietHours.start}–{quietHours.end}
-                      </span>
-                    </div>
-                    <div className="flex justify-between py-2 border-b">
-                      <span className="text-sm text-muted-foreground">Timezone</span>
-                      <span className="text-sm font-medium">{quietHours.timezone}</span>
-                    </div>
-                    <div className="flex justify-between py-2 border-b">
-                      <span className="text-sm text-muted-foreground">Smart Suppression</span>
-                      <span className="text-sm font-medium">
-                        {agent.schedulingRule?.smartSuppress
-                          ? `Enabled (≥${((agent.schedulingRule.suppressThresh ?? 0.5) * 100).toFixed(0)}%)`
-                          : "Disabled"}
-                      </span>
-                    </div>
-                    <div className="flex justify-between py-2">
-                      <span className="text-sm text-muted-foreground">Blackout Dates</span>
-                      <span className="text-sm font-medium">
-                        {blackoutDates.length > 0 ? blackoutDates.join(", ") : "None"}
-                      </span>
-                    </div>
-                  </div>
-                ) : (
-                  <p className="text-sm text-muted-foreground text-center py-4">No scheduling rules configured.</p>
-                )}
-              </CardContent>
-            </Card>
-            <Card>
-              <CardHeader>
-                <CardTitle className="text-sm font-semibold">Fallback Send Time</CardTitle>
-              </CardHeader>
-              <CardContent>
-                <FallbackSendTimeEditor
-                  agentId={agent.id}
-                  fallbackSendHour={agent.fallbackSendHour}
-                />
-              </CardContent>
-            </Card>
-            <Card>
-              <CardHeader>
-                <CardTitle className="text-sm font-semibold">Send Limits</CardTitle>
-              </CardHeader>
-              <CardContent>
-                <div className="space-y-0">
-                  <div className="flex justify-between py-2.5 border-b">
-                    <span className="text-sm text-muted-foreground">Daily Send Cap</span>
-                    <span className="text-sm font-medium">
-                      {agent.dailySendCap != null ? formatNumber(agent.dailySendCap) : "Unlimited"}
-                    </span>
-                  </div>
-                  <div className="flex justify-between py-2.5">
-                    <span className="text-sm text-muted-foreground">Max Unique Users</span>
-                    <span className="text-sm font-medium">
-                      {agent.uniqueUsersCap != null ? formatNumber(agent.uniqueUsersCap) : "Unlimited"}
-                    </span>
-                  </div>
-                </div>
-                <p className="text-xs text-muted-foreground mt-3">Edit these via the Edit button above.</p>
-              </CardContent>
-            </Card>
+          <TabsContent value="settings" className="mt-4">
+            {isAdmin ? (
+              <AgentSettingsEditor
+                key={editParam === "1" ? "edit" : "view"}
+                agent={{
+                  id: agent.id,
+                  name: agent.name,
+                  description: agent.description ?? null,
+                  color: agent.color ?? "#6366f1",
+                  algorithm: agent.algorithm,
+                  epsilon: agent.epsilon,
+                  funnelStage: agent.funnelStage as FunnelStage,
+                  targetSegmentName: agent.targetSegmentName ?? null,
+                  segmentTargeting:
+                    (agent.segmentTargeting as { includes: string[]; excludes: string[] } | null) ?? null,
+                  enrollmentMode: (agent.enrollmentMode === "continuous" ? "continuous" : "fixed"),
+                  dailySendCap: agent.dailySendCap ?? null,
+                  uniqueUsersCap: agent.uniqueUsersCap ?? null,
+                  fallbackSendHour: agent.fallbackSendHour ?? null,
+                  deeplinkOverride: agent.deeplinkOverride ?? null,
+                  languageFilter: agent.languageFilter ?? "all",
+                  localizePush: agent.localizePush ?? false,
+                  hasVerseVariants,
+                  usedColors,
+                }}
+                initialRule={agent.schedulingRule ? {
+                  ...agent.schedulingRule,
+                  frequencyCap: agent.schedulingRule.frequencyCap as unknown as import("@/types/agent").FrequencyCap,
+                  quietHours: agent.schedulingRule.quietHours as unknown as import("@/types/agent").QuietHours,
+                  blackoutDates: (agent.schedulingRule.blackoutDates ?? []) as string[],
+                } : null}
+                startInEditMode={editParam === "1"}
+              />
+            ) : (
+              <p className="text-sm text-muted-foreground text-center py-8">
+                Admin access required to view or edit settings.
+              </p>
+            )}
           </TabsContent>
 
           <TabsContent value="localization" className="mt-4">

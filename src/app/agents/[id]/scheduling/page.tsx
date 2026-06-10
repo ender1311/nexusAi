@@ -1,49 +1,6 @@
-export const revalidate = 900;
+import { redirect } from "next/navigation";
 
-import { notFound } from "next/navigation";
-import { Header } from "@/components/layout/header";
-import { SchedulingEditor } from "@/components/scheduling/scheduling-editor";
-import { unstable_cache } from "next/cache";
-import { prisma } from "@/lib/db";
-import { FrequencyCap, QuietHours, SchedulingRule } from "@/types/agent";
-
-export default async function SchedulingPage({ params }: { params: Promise<{ id: string }> }) {
+export default async function SchedulingRedirect({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
-
-  const agent = await unstable_cache(
-    () =>
-      prisma.agent.findUnique({
-        where: { id },
-        select: { name: true, schedulingRule: true },
-      }),
-    ["agent-scheduling", id],
-    { tags: [`agent-${id}`], revalidate: 900 }
-  )();
-
-  if (!agent) notFound();
-
-  const schedulingRule: SchedulingRule | null = agent.schedulingRule
-    ? {
-        id: agent.schedulingRule.id,
-        agentId: agent.schedulingRule.agentId,
-        frequencyCap: agent.schedulingRule.frequencyCap as unknown as FrequencyCap,
-        quietHours: agent.schedulingRule.quietHours as unknown as QuietHours,
-        blackoutDates: agent.schedulingRule.blackoutDates as unknown as string[],
-        smartSuppress: agent.schedulingRule.smartSuppress,
-        suppressThresh: agent.schedulingRule.suppressThresh,
-        prioritizeLastSeen: agent.schedulingRule.prioritizeLastSeen,
-      }
-    : null;
-
-  return (
-    <>
-      <Header
-        title="Scheduling & Guardrails"
-        description={agent.name}
-        backHref={`/agents/${id}`}
-        backLabel={`Back to ${agent.name}`}
-      />
-      <SchedulingEditor agentId={id} initialRule={schedulingRule} />
-    </>
-  );
+  redirect(`/agents/${id}?tab=settings`);
 }
