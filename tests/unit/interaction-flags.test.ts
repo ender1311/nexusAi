@@ -103,6 +103,6 @@ describe("detectTransitionedFlags", () => {
 
 describe("FLAG_ATTRIBUTION_WINDOW_MS", () => {
   it("is 30 days", () => {
-    expect(FLAG_ATTRIBUTION_WINDOW_MS).toBe(30 * 24 * 60 * 60 * 1000);
+    expect(FLAG_ATTRIBUTION_WINDOW_MS).toBe(2_592_000_000);
   });
 });

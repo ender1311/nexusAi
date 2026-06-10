@@ -61,7 +61,7 @@ export function snapshotEnrollmentFlags(rawAttributes: unknown): Record<string, 
 export const FLAG_ATTRIBUTION_WINDOW_MS = 30 * 24 * 60 * 60 * 1000;
 
 /**
- * Pure: which canonical flags observably transitioned false/absent → true in
+ * Pure: which canonical flags observably transitioned falsy/absent → true in
  * this sync, comparing incoming payload against PRE-upsert stored attributes.
  * Used by the post-release "tail" attribution path, which deliberately requires
  * an observed transition (never credits an already-true stored flag) because
