@@ -10,13 +10,20 @@ type FlagGoal = { eventName: string; conversionType: string | null };
  *   has-ever flag that stays true re-credited the same conversion on every
  *   subsequent sync, and users already engaged before enrollment got credit
  *   the agent never earned (2026-06-09 audit, finding C2).
+ *
+ * enrollmentFlags may be null when the assignment's stored baseline is missing
+ * or corrupt. Coercing that to "all false" let Type A credit users who were
+ * already engaged before enrollment (2026-06-09 audit, I1); instead, fall back
+ * to the pre-upsert stored attributes as a conservative baseline — a flag that
+ * was already true before this sync cannot be a first interaction.
+ *
  * Returns the list of flag eventNames to credit (deduped, only those the agent
  * actually has a matching goal for).
  */
 export function detectFlagConversions(args: {
   incoming: Record<string, unknown>;
   stored: Record<string, unknown>;
-  enrollmentFlags: Record<string, unknown>;
+  enrollmentFlags: Record<string, unknown> | null;
   goals: FlagGoal[];
 }): string[] {
   const { incoming, stored, enrollmentFlags, goals } = args;
@@ -27,7 +34,8 @@ export function detectFlagConversions(args: {
     const nowTrue = normalizeFlag(incoming[g.eventName]);
     if (!nowTrue) continue;
     if (g.conversionType === "first_interaction") {
-      const baseTrue = normalizeFlag(enrollmentFlags[g.eventName]);
+      const baseline = enrollmentFlags ?? stored;
+      const baseTrue = normalizeFlag(baseline[g.eventName]);
       if (baseTrue) continue; // already interacted before enrollment — not a first interaction
     }
     if (g.conversionType === "any_interaction") {

@@ -1096,13 +1096,16 @@ export async function POST(req: NextRequest) {
           });
           if (flagAssignment) {
             const { agentId: owningAgentId, enrollmentFlags: rawEnrollment } = flagAssignment;
-            // Tolerant parse: corrupt/missing enrollmentFlags → treat all flags as absent
-            const enrollmentFlags: Record<string, unknown> =
+            // Tolerant parse: corrupt/missing enrollmentFlags → null, so Type-A
+            // detection falls back to the pre-upsert stored attributes instead of
+            // an all-false baseline that would credit pre-enrollment engagement
+            // as a "first interaction" (2026-06-09 audit, I1).
+            const enrollmentFlags: Record<string, unknown> | null =
               rawEnrollment !== null &&
               typeof rawEnrollment === "object" &&
               !Array.isArray(rawEnrollment)
                 ? (rawEnrollment as Record<string, unknown>)
-                : {};
+                : null;
 
             // Goals are not cached yet for this agentId scope — fetch once per owned user.
             // (Agents with no flag goals are skipped quickly by detectFlagConversions.)

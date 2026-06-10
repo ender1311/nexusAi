@@ -16,6 +16,7 @@ function isPlainObject(value: unknown): value is Record<string, unknown> {
 
 const VALID_STAGES = new Set(FUNNEL_STAGES);
 const VALID_ENROLLMENT = new Set(["fixed", "continuous"]);
+const VALID_ALGORITHMS = new Set(["thompson", "epsilon_greedy", "linucb"]);
 const VALID_CONV_TYPE = new Set(["first_interaction", "any_interaction"]);
 
 agents.get("/", async (c) => {
@@ -76,6 +77,17 @@ agents.post("/", async (c) => {
 
   if (typeof name !== "string" || name.trim().length === 0) {
     return c.json({ error: "name is required" }, 400);
+  }
+
+  if (algorithm !== undefined && !VALID_ALGORITHMS.has(algorithm as string)) {
+    return c.json({ error: 'algorithm must be "thompson", "epsilon_greedy", or "linucb"' }, 400);
+  }
+
+  if (
+    epsilon !== undefined &&
+    (typeof epsilon !== "number" || Number.isNaN(epsilon) || epsilon < 0 || epsilon > 1)
+  ) {
+    return c.json({ error: "epsilon must be a number between 0 and 1" }, 400);
   }
 
   if (segmentTargeting !== undefined && segmentTargeting !== null) {

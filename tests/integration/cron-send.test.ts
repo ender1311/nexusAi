@@ -521,7 +521,9 @@ describe("Phase 0: exploration window assignment", () => {
     const agent    = await createAgent({ funnelStage: "lapsed" });
     const msg      = await createMessage(agent.id, { brazeCampaignId: "camp_window" });
     await createVariant(msg.id, { brazeVariantId: "var_w1" });
-    await createUser("usr_window_send", { personaId: persona.id });
+    // funnelStage must match the agent — otherwise Phase −1 cohort_exit releases
+    // the assignment and (post-C3) a released row is never an active window.
+    await createUser("usr_window_send", { personaId: persona.id, funnelStage: "lapsed" });
     await linkAgentToPersona(agent.id, persona.id);
     await createSchedulingRule(agent.id);
     await createUserAgentAssignment({
@@ -548,7 +550,7 @@ describe("Phase 0: exploration window assignment", () => {
     const agent    = await createAgent({ funnelStage: "lapsed" });
     const msg      = await createMessage(agent.id, { brazeCampaignId: "camp_complete" });
     await createVariant(msg.id);
-    await createUser("usr_completing", { personaId: persona.id });
+    await createUser("usr_completing", { personaId: persona.id, funnelStage: "lapsed" });
     await linkAgentToPersona(agent.id, persona.id);
     await createSchedulingRule(agent.id);
     await createUserAgentAssignment({
@@ -574,7 +576,7 @@ describe("Phase 0: exploration window assignment", () => {
     const msgB        = await createMessage(agentB.id, { brazeCampaignId: "camp_b" });
     await createVariant(msgA.id, { brazeVariantId: "var_a" });
     await createVariant(msgB.id, { brazeVariantId: "var_b" });
-    await createUser("usr_exclusive", { personaId: persona.id });
+    await createUser("usr_exclusive", { personaId: persona.id, funnelStage: "lapsed" });
     await linkAgentToPersona(agentA.id, persona.id);
     await linkAgentToPersona(agentB.id, persona.id);
     await createSchedulingRule(agentA.id);
