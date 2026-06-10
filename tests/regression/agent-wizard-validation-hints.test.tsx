@@ -77,6 +77,8 @@ describe("AgentWizard step-1 validation hints", () => {
     await flush();
 
     expect(container.textContent).toContain("Enter an agent name to continue.");
+    // Guard against vacuous .every() on an empty array if the button text changes.
+    expect(nextButtons().length).toBe(2);
     expect(nextButtons().every((b) => b.disabled)).toBe(true);
 
     const nameInput = container.querySelector<HTMLInputElement>(
@@ -102,6 +104,7 @@ describe("AgentWizard step-1 validation hints", () => {
 
     clickButtonByText("Segment");
     expect(container.textContent).toContain("Select at least one include segment to continue.");
+    expect(nextButtons().length).toBe(2);
     expect(nextButtons().every((b) => b.disabled)).toBe(true);
 
     // The include SegmentCheckList renders first; its VIP row is the first match.
