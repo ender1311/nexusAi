@@ -9,6 +9,8 @@ import { Badge } from "@/components/ui/badge";
 import { Slider } from "@/components/ui/slider";
 import { Switch } from "@/components/ui/switch";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { InfoTip } from "@/components/ui/info-tip";
 import { cn, formatNumber } from "@/lib/utils";
 import { Check, ChevronRight, Bot, Target, MessageSquare, Calendar, Rocket, Pencil, AlertCircle, CheckCircle2 } from "lucide-react";
 import { GoalTier, Channel, FrequencyCap, FunnelStage, FUNNEL_STAGES, FUNNEL_STAGE_META, Algorithm } from "@/types/agent";
@@ -343,6 +345,17 @@ export function AgentWizard({
     }
   };
 
+  // Mirrors the Next-button gating; rendered as inline hint text so a disabled
+  // button always explains itself.
+  const step1Hint = !form.name.trim()
+    ? "Enter an agent name to continue."
+    : form.segmentMode && form.segmentIncludes.length === 0
+      ? "Select at least one include segment to continue."
+      : !form.segmentMode && !form.funnelStage
+        ? "Choose a funnel stage to continue."
+        : null;
+  const launchHint = !form.name.trim() ? "Enter an agent name before launching." : null;
+
   return (
     <div className="w-full max-w-3xl mx-auto lg:max-w-none">
       {/* Step indicator */}
@@ -374,29 +387,37 @@ export function AgentWizard({
       </div>
 
       {/* Top navigation */}
-      <div className="flex items-center justify-between mb-6 pb-4 border-b">
-        <Button
-          variant="outline"
-          size="sm"
-          onClick={() => setStep((s) => Math.max(1, s - 1))}
-          disabled={step === 1}
-        >
-          Back
-        </Button>
-        {step < 5 ? (
+      <div className="mb-6 pb-4 border-b">
+        <div className="flex items-center justify-between">
           <Button
+            variant="outline"
             size="sm"
-            onClick={goNext}
-            disabled={step === 1 && (!form.name.trim() || (form.segmentMode ? form.segmentIncludes.length === 0 : !form.funnelStage))}
+            onClick={() => setStep((s) => Math.max(1, s - 1))}
+            disabled={step === 1}
           >
-            Next
-            <ChevronRight className="h-4 w-4 ml-1" />
+            Back
           </Button>
-        ) : (
-          <Button size="sm" onClick={handleSubmit} disabled={saving || !form.name.trim()}>
-            {saving ? "Saving..." : "Launch Agent"}
-            <Rocket className="h-4 w-4 ml-1" />
-          </Button>
+          {step < 5 ? (
+            <Button
+              size="sm"
+              onClick={goNext}
+              disabled={step === 1 && step1Hint !== null}
+            >
+              Next
+              <ChevronRight className="h-4 w-4 ml-1" />
+            </Button>
+          ) : (
+            <Button size="sm" onClick={handleSubmit} disabled={saving || launchHint !== null}>
+              {saving ? "Saving..." : "Launch Agent"}
+              <Rocket className="h-4 w-4 ml-1" />
+            </Button>
+          )}
+        </div>
+        {step === 1 && step1Hint && (
+          <p className="mt-2 text-xs text-muted-foreground text-right">{step1Hint}</p>
+        )}
+        {step === 5 && launchHint && (
+          <p className="mt-2 text-xs text-muted-foreground text-right">{launchHint}</p>
         )}
       </div>
       <StatusAlert error={submitError} success={submitOk} />
@@ -404,28 +425,43 @@ export function AgentWizard({
       {/* Step 1: Basic Info */}
       {step === 1 && (
         <div className="space-y-4">
-          <h2 className="text-lg font-semibold">Basic Information</h2>
-          <div className="space-y-3">
-            <div>
-              <label className="text-sm font-medium">Agent Name *</label>
-              <Input
-                className="mt-1"
-                placeholder="e.g. Recommend Bible Plans"
-                value={form.name}
-                onChange={(e) => update("name", e.target.value)}
-              />
-            </div>
-            <div>
-              <label className="text-sm font-medium">Description</label>
-              <Input
-                className="mt-1"
-                placeholder="What does this agent do?"
-                value={form.description}
-                onChange={(e) => update("description", e.target.value)}
-              />
-            </div>
-            <div>
-              <label className="text-sm font-medium">Algorithm</label>
+          <Card>
+            <CardHeader>
+              <CardTitle className="text-base">Basics</CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-3">
+              <div>
+                <label className="text-sm font-medium">Agent Name *</label>
+                <Input
+                  className="mt-1"
+                  placeholder="e.g. Recommend Bible Plans"
+                  value={form.name}
+                  onChange={(e) => update("name", e.target.value)}
+                />
+              </div>
+              <div>
+                <label className="text-sm font-medium">Description</label>
+                <Input
+                  className="mt-1"
+                  placeholder="What does this agent do?"
+                  value={form.description}
+                  onChange={(e) => update("description", e.target.value)}
+                />
+              </div>
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardHeader>
+              <CardTitle className="text-base flex items-center gap-1.5">
+                Algorithm
+                <InfoTip title="Bandit Algorithm">
+                  How the agent decides which message variant each user gets. Thompson
+                  Sampling is the right default for most agents.
+                </InfoTip>
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-3">
               <Select value={form.algorithm} onValueChange={(v) => update("algorithm", v)}>
                 <SelectTrigger className="mt-1 w-full">
                   <span className="flex-1 text-left text-sm truncate">
@@ -455,27 +491,40 @@ export function AgentWizard({
                   </p>
                 ) : null;
               })()}
-            </div>
-            {form.algorithm === "epsilon_greedy" && (
-              <div>
-                <label className="text-sm font-medium">Epsilon (exploration rate): {(form.epsilon * 100).toFixed(0)}%</label>
-                <Slider
-                  className="mt-2"
-                  min={0}
-                  max={0.5}
-                  step={0.01}
-                  value={[form.epsilon]}
-                  onValueChange={(v) => update("epsilon", Array.isArray(v) ? v[0] : v)}
-                />
-              </div>
-            )}
-            {/* Targeting Mode */}
-            <div>
-              <label className="text-sm font-medium">Targeting Mode</label>
-              <p className="text-xs text-muted-foreground mt-0.5 mb-2">
-                Target users by funnel stage or by a Hightouch audience segment.
-              </p>
-              <div className="flex rounded-md border overflow-hidden text-sm mb-2">
+              {form.algorithm === "epsilon_greedy" && (
+                <div>
+                  <label className="text-sm font-medium">
+                    Epsilon (exploration rate): {(form.epsilon * 100).toFixed(0)}%
+                  </label>
+                  <Slider
+                    className="mt-2"
+                    min={0}
+                    max={0.5}
+                    step={0.01}
+                    value={[form.epsilon]}
+                    onValueChange={(v) => update("epsilon", Array.isArray(v) ? v[0] : v)}
+                  />
+                  <p className="text-xs text-muted-foreground mt-1.5">
+                    Percent of sends that explore a random variant instead of exploiting the
+                    current best performer. Higher = faster learning, more wasted sends.
+                  </p>
+                </div>
+              )}
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardHeader>
+              <CardTitle className="text-base flex items-center gap-1.5">
+                Targeting
+                <InfoTip title="Targeting">
+                  Target users by funnel stage or by Hightouch audience segments. Excludes
+                  apply in both modes.
+                </InfoTip>
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-3">
+              <div className="flex rounded-md border overflow-hidden text-sm">
                 <button
                   type="button"
                   className={cn("flex-1 px-3 py-2 font-medium transition-colors",
@@ -494,12 +543,12 @@ export function AgentWizard({
                       : "text-muted-foreground hover:text-foreground")}
                   onClick={() => update("segmentMode", true)}
                 >
-                  HT Segment
+                  Segment
                 </button>
               </div>
-              {form.segmentMode && (
-                <div className="space-y-1.5 mb-2">
-                  <label className="text-xs font-medium text-muted-foreground">Include Segments (AND)</label>
+              {form.segmentMode ? (
+                <div className="space-y-1.5">
+                  <label className="text-sm font-medium">Include Segments (AND)</label>
                   <p className="text-xs text-muted-foreground">User must be in ALL selected segments.</p>
                   <SegmentCheckList
                     segments={segments}
@@ -508,15 +557,50 @@ export function AgentWizard({
                     onChange={(v) => update("segmentIncludes", v)}
                   />
                 </div>
+              ) : (
+                <div>
+                  <label className="text-sm font-medium">Funnel Stage *</label>
+                  <Select
+                    value={form.funnelStage}
+                    onValueChange={(v) => update("funnelStage", v as FunnelStage)}
+                  >
+                    <SelectTrigger className="mt-1">
+                      <SelectValue placeholder="Select a funnel stage" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {FUNNEL_STAGES.map((stage) => (
+                        <SelectItem key={stage} value={stage}>
+                          {FUNNEL_STAGE_META[stage].label}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
               )}
-            </div>
-            {/* Enrollment Mode */}
-            <div>
-              <label className="text-sm font-medium">Enrollment Mode</label>
-              <p className="text-xs text-muted-foreground mt-0.5 mb-2">
-                Choose how users enter and leave this agent&apos;s cohort over time.
-              </p>
-              <div className="flex rounded-md border overflow-hidden text-sm mb-2">
+              <div className="space-y-1.5">
+                <label className="text-sm font-medium">Exclude Segments (optional)</label>
+                <p className="text-xs text-muted-foreground">User must NOT be in any selected segment.</p>
+                <SegmentCheckList
+                  segments={segments}
+                  selected={form.segmentExcludes}
+                  currentAgentTargetNames={[]}
+                  onChange={(v) => update("segmentExcludes", v)}
+                />
+              </div>
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardHeader>
+              <CardTitle className="text-base flex items-center gap-1.5">
+                Enrollment
+                <InfoTip title="Enrollment Mode">
+                  How users enter and leave this agent&apos;s cohort over time.
+                </InfoTip>
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-2">
+              <div className="flex rounded-md border overflow-hidden text-sm">
                 <button
                   type="button"
                   className={cn("flex-1 px-3 py-2 font-medium transition-colors",
@@ -543,41 +627,15 @@ export function AgentWizard({
                   ? "Locks a one-time group of up to your user cap. Users stay until they convert or hit hold limits. Best for one-off campaigns."
                   : "Re-checks the segment every run: adds new matches and removes users who leave the segment. Best for always-on, behavior-triggered comms."}
               </p>
-            </div>
-            {!form.segmentMode && (
-            <div>
-              <label className="text-sm font-medium">Funnel Stage *</label>
-              <Select
-                value={form.funnelStage}
-                onValueChange={(v) => update("funnelStage", v as FunnelStage)}
-              >
-                <SelectTrigger className="mt-1">
-                  <SelectValue placeholder="Select a funnel stage" />
-                </SelectTrigger>
-                <SelectContent>
-                  {FUNNEL_STAGES.map((stage) => (
-                    <SelectItem key={stage} value={stage}>
-                      {FUNNEL_STAGE_META[stage].label}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-            )}
-            {/* Exclude Segments — always show as optional */}
-            <div className="space-y-1.5">
-              <label className="text-sm font-medium">Exclude Segments (optional)</label>
-              <p className="text-xs text-muted-foreground">User must NOT be in any selected segment.</p>
-              <SegmentCheckList
-                segments={segments}
-                selected={form.segmentExcludes}
-                currentAgentTargetNames={[]}
-                onChange={(v) => update("segmentExcludes", v)}
-              />
-            </div>
-            <div>
-              <label className="text-sm font-medium">Target Personas</label>
-              <p className="text-xs text-muted-foreground mb-2 mt-0.5">
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardHeader>
+              <CardTitle className="text-base">Target Personas</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <p className="text-xs text-muted-foreground mb-2">
                 Same segments as <Link href="/personas" className="underline font-medium text-foreground">Personas</Link>.
                 Leave empty to target all users.
               </p>
@@ -597,8 +655,8 @@ export function AgentWizard({
                   onChange={(ids) => update("targetPersonaIds", ids)}
                 />
               )}
-            </div>
-          </div>
+            </CardContent>
+          </Card>
         </div>
       )}
 
@@ -1164,30 +1222,38 @@ export function AgentWizard({
       )}
 
       {/* Navigation */}
-      <div className="flex items-center justify-between mt-8 pt-4 border-t">
-        <Button
-          variant="outline"
-          onClick={() => setStep((s) => Math.max(1, s - 1))}
-          disabled={step === 1}
-        >
-          Back
-        </Button>
-        <div className="flex gap-2">
-          {step < 5 ? (
-            <Button
-              onClick={goNext}
-              disabled={step === 1 && (!form.name.trim() || (form.segmentMode ? form.segmentIncludes.length === 0 : !form.funnelStage))}
-            >
-              Next
-              <ChevronRight className="h-4 w-4 ml-1" />
-            </Button>
-          ) : (
-            <Button onClick={handleSubmit} disabled={saving || !form.name.trim()}>
-              {saving ? "Saving..." : "Launch Agent"}
-              <Rocket className="h-4 w-4 ml-1" />
-            </Button>
-          )}
+      <div className="mt-8 pt-4 border-t">
+        <div className="flex items-center justify-between">
+          <Button
+            variant="outline"
+            onClick={() => setStep((s) => Math.max(1, s - 1))}
+            disabled={step === 1}
+          >
+            Back
+          </Button>
+          <div className="flex gap-2">
+            {step < 5 ? (
+              <Button
+                onClick={goNext}
+                disabled={step === 1 && step1Hint !== null}
+              >
+                Next
+                <ChevronRight className="h-4 w-4 ml-1" />
+              </Button>
+            ) : (
+              <Button onClick={handleSubmit} disabled={saving || launchHint !== null}>
+                {saving ? "Saving..." : "Launch Agent"}
+                <Rocket className="h-4 w-4 ml-1" />
+              </Button>
+            )}
+          </div>
         </div>
+        {step === 1 && step1Hint && (
+          <p className="mt-2 text-xs text-muted-foreground text-right">{step1Hint}</p>
+        )}
+        {step === 5 && launchHint && (
+          <p className="mt-2 text-xs text-muted-foreground text-right">{launchHint}</p>
+        )}
       </div>
       <StatusAlert error={submitError} success={submitOk} />
     </div>
