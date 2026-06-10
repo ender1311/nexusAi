@@ -65,6 +65,19 @@ function StatusAlert({ error, success }: { error: string | null; success: boolea
   );
 }
 
+/**
+ * Label/value row matching the Settings tab's view mode. Deliberately duplicated
+ * from agent-settings-editor.tsx rather than coupling the wizard to its internals.
+ */
+function Row({ label, children, last }: { label: string; children: React.ReactNode; last?: boolean }) {
+  return (
+    <div className={cn("flex justify-between gap-4 py-2.5", !last && "border-b")}>
+      <span className="text-sm text-muted-foreground">{label}</span>
+      <span className="text-sm font-medium text-right">{children}</span>
+    </div>
+  );
+}
+
 const GOAL_TIERS: Array<{ value: GoalTier; label: string; color: string; weight: number }> = [
   { value: "best", label: "Best", color: "bg-green-500", weight: 10 },
   { value: "very_good", label: "Very Good", color: "bg-green-400", weight: 7 },
@@ -1212,29 +1225,35 @@ export function AgentWizard({
       {step === 5 && (
         <div className="space-y-4">
           <h2 className="text-lg font-semibold">Review & Launch</h2>
-          <div className="space-y-3">
-            <div className="border rounded-lg p-4 space-y-2">
-              <h3 className="text-sm font-semibold">Basic Info</h3>
-              <p className="text-sm"><span className="text-muted-foreground">Name:</span> {form.name || "—"}</p>
+
+          <Card>
+            <CardHeader>
+              <CardTitle className="text-base">Basics & Targeting</CardTitle>
+            </CardHeader>
+            <CardContent className="pt-0">
+              <Row label="Name">{form.name || "—"}</Row>
+              {form.description && <Row label="Description">{form.description}</Row>}
+              <Row label="Algorithm">
+                {ALGORITHM_OPTIONS.find((a) => a.value === form.algorithm)?.label ?? form.algorithm}
+              </Row>
               {form.segmentMode ? (
-                <p className="text-sm">
-                  <span className="text-muted-foreground">HT Segments:</span>{" "}
+                <Row label="Include">
                   {form.segmentIncludes.length > 0 ? form.segmentIncludes.join(", ") : "—"}
-                </p>
+                </Row>
               ) : (
-                <p className="text-sm"><span className="text-muted-foreground">Funnel Stage:</span> {form.funnelStage ? FUNNEL_STAGE_META[form.funnelStage as FunnelStage]?.label : "—"}</p>
+                <Row label="Funnel Stage">
+                  {form.funnelStage ? FUNNEL_STAGE_META[form.funnelStage as FunnelStage]?.label : "—"}
+                </Row>
               )}
-              {form.segmentExcludes.length > 0 && (
-                <p className="text-sm">
-                  <span className="text-muted-foreground">Exclude:</span>{" "}
-                  {form.segmentExcludes.join(", ")}
-                </p>
-              )}
-              <p className="text-sm"><span className="text-muted-foreground">Algorithm:</span> {ALGORITHM_OPTIONS.find((a) => a.value === form.algorithm)?.label ?? form.algorithm}</p>
-              {form.description && <p className="text-sm"><span className="text-muted-foreground">Description:</span> {form.description}</p>}
+              <Row label="Exclude">
+                {form.segmentExcludes.length > 0 ? form.segmentExcludes.join(", ") : "—"}
+              </Row>
+              <Row label="Enrollment" last={form.targetPersonaIds.length === 0}>
+                {form.enrollmentMode === "fixed" ? "Fixed Cohort" : "Continuous"}
+              </Row>
               {form.targetPersonaIds.length > 0 && (
-                <div>
-                  <p className="text-sm text-muted-foreground mb-1.5">Target Personas:</p>
+                <div className="pt-2.5">
+                  <p className="text-sm text-muted-foreground mb-1.5">Target Personas</p>
                   <div className="flex flex-wrap gap-1">
                     {form.targetPersonaIds.map((pid) => {
                       const persona = personas.find((p) => p.id === pid);
@@ -1243,46 +1262,67 @@ export function AgentWizard({
                   </div>
                 </div>
               )}
-            </div>
-            <div className="border rounded-lg p-4 space-y-2">
-              <h3 className="text-sm font-semibold">Goals ({form.goals.length})</h3>
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardHeader>
+              <CardTitle className="text-base">Goals ({form.goals.length})</CardTitle>
+            </CardHeader>
+            <CardContent className="pt-0">
               {form.goals.length === 0 ? (
-                <p className="text-xs text-muted-foreground">None configured</p>
+                <p className="text-xs text-muted-foreground py-2.5">None configured</p>
               ) : form.goals.map((g, i) => (
-                <p key={i} className="text-sm">{g.eventName} <Badge variant="outline" className="text-xs ml-1">{g.tier}</Badge></p>
+                <Row key={i} label={g.eventName} last={i === form.goals.length - 1}>
+                  <Badge variant="outline" className="text-xs">{g.tier}</Badge>
+                </Row>
               ))}
-            </div>
-            <div className="border rounded-lg p-4 space-y-2">
-              <h3 className="text-sm font-semibold">Messages ({form.messages.length})</h3>
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardHeader>
+              <CardTitle className="text-base">Messages ({form.messages.length})</CardTitle>
+            </CardHeader>
+            <CardContent className="pt-0">
               {form.messages.length === 0 ? (
-                <p className="text-xs text-muted-foreground">None configured</p>
+                <p className="text-xs text-muted-foreground py-2.5">None configured</p>
               ) : form.messages.map((m, i) => (
-                <p key={i} className="text-sm">{m.name} <Badge variant="outline" className="text-xs ml-1 capitalize">{m.channel}</Badge></p>
+                <Row key={i} label={m.name} last={i === form.messages.length - 1}>
+                  <Badge variant="outline" className="text-xs capitalize">{m.channel}</Badge>
+                  <span className="ml-1.5 text-muted-foreground">{m.variants.length} variant{m.variants.length === 1 ? "" : "s"}</span>
+                </Row>
               ))}
-            </div>
-            <div className="border rounded-lg p-4 space-y-2">
-              <h3 className="text-sm font-semibold">Scheduling</h3>
-              <p className="text-sm">Max {form.frequencyCap.maxSends} sends per {form.frequencyCap.period}</p>
-              <p className="text-sm">Quiet: {form.quietStart}–{form.quietEnd} {form.timezone}</p>
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardHeader>
+              <CardTitle className="text-base">Scheduling & Guardrails</CardTitle>
+            </CardHeader>
+            <CardContent className="pt-0">
+              <Row label="Frequency Cap">
+                Max {form.frequencyCap.maxSends} sends per {form.frequencyCap.period}
+              </Row>
+              <Row label="Quiet Hours">
+                {form.quietStart}–{form.quietEnd} {form.timezone}
+              </Row>
               {form.quietDays.length > 0 && (
-                <p className="text-sm">
-                  <span className="text-muted-foreground">Quiet days: </span>
-                  {form.quietDays
+                <Row label="Quiet Days">
+                  {[...form.quietDays]
                     .sort((a, b) => a - b)
                     .map((d) => DAYS_OF_WEEK.find((x) => x.value === d)?.label)
                     .join(", ")}
-                </p>
+                </Row>
               )}
-              <p className="text-sm">
-                <span className="text-muted-foreground">Max unique users: </span>
+              <Row label="Max Unique Users">
                 {form.uniqueUsersCap !== null ? form.uniqueUsersCap.toLocaleString() : "Unlimited"}
-              </p>
-              <p className="text-sm">
-                <span className="text-muted-foreground">Max sends per day: </span>
+              </Row>
+              <Row label="Max Sends Per Day" last>
                 {form.dailySendCap !== null ? form.dailySendCap.toLocaleString() : "Unlimited"}
-              </p>
-            </div>
-          </div>
+              </Row>
+            </CardContent>
+          </Card>
         </div>
       )}
 
