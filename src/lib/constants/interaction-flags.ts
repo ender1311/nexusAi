@@ -56,6 +56,27 @@ export function snapshotEnrollmentFlags(rawAttributes: unknown): Record<string, 
   }, {});
 }
 
+// A flag flip credits an agent for up to 30 days after that agent's last send
+// to the user, regardless of release status (spec 2026-06-09, user decision).
+export const FLAG_ATTRIBUTION_WINDOW_MS = 30 * 24 * 60 * 60 * 1000;
+
+/**
+ * Pure: which canonical flags observably transitioned falsy/absent → true in
+ * this sync, comparing incoming payload against PRE-upsert stored attributes.
+ * Used by the post-release "tail" attribution path, which deliberately requires
+ * an observed transition (never credits an already-true stored flag) because
+ * the enrollment baseline may no longer exist once the assignment row has been
+ * released or overwritten by another agent's enrollment.
+ */
+export function detectTransitionedFlags(
+  incoming: Record<string, unknown>,
+  stored: Record<string, unknown>,
+): InteractionFlag[] {
+  return INTERACTION_FLAGS.filter(
+    (f) => normalizeFlag(incoming[f]) && !normalizeFlag(stored[f]),
+  );
+}
+
 // Labels stay neutral on first-vs-any: that semantic is chosen per goal via
 // conversionType ("First interaction" / "Any interaction" toggle), so baking
 // "first time" or "first interaction" into the label would be misleading.

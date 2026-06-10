@@ -161,8 +161,12 @@ describe("POST /api/ingest/users — interaction-flag conversions", () => {
     expect(details.unmatched_flag_conversions as number).toBe(1);
   });
 
-  // ── Case 4: not owned ─────────────────────────────────────────────────────
-  it("not-owned user with flag flip: no conversion, no error", async () => {
+  // ── Case 4: not currently owned — tail attribution applies ───────────────
+  // Spec 2026-06-09: a flag flip credits the most recent unconverted decision
+  // within 30 days regardless of release / ownership status. A user with no
+  // active assignment (never enrolled, or previously released without a row)
+  // is handled by the tail path, not the active-path, and still gets credit.
+  it("not-owned user with flag flip + recent decision → tail attribution credits the decision", async () => {
     const agent = await createAgent();
     await createGoal(agent.id, {
       eventName: "plan_interaction_has_ever_flag",
@@ -181,16 +185,17 @@ describe("POST /api/ingest/users — interaction-flag conversions", () => {
       messageVariantId: variant.id,
       sentAt: new Date(Date.now() - 24 * 60 * 60 * 1000),
     });
-    // No UserAgentAssignment — user is NOT owned
+    // No UserAgentAssignment — user is NOT actively owned; tail path applies.
 
     const res = await syncUser("usr_flag_d", {
       plan_interaction_has_ever_flag: true,
     });
     expect(res.status).toBe(200);
 
-    // Decision must remain unconverted
-    const unchanged = await prisma.userDecision.findUnique({ where: { id: decision.id } });
-    expect(unchanged!.conversionAt).toBeNull();
+    // Tail path must credit the decision (spec 2026-06-09 change).
+    const updated = await prisma.userDecision.findUnique({ where: { id: decision.id } });
+    expect(updated!.conversionAt).not.toBeNull();
+    expect(updated!.conversionEvent).toBe("plan_interaction_has_ever_flag");
   });
 
   // ── Type B: any_interaction credits a false→true transition ──────────────

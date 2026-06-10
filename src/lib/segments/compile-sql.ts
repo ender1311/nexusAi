@@ -27,8 +27,11 @@ export function fieldSqlExpr(fieldId: string): { expr: string; isAttr: boolean; 
     case "attr": {
       const base = `u."attributes"->>'${compile.key}'`;
       const expr = compile.cast === "numeric" ? `(${base})::numeric`
-        : compile.cast === "boolean" ? `(${base})::boolean`
-        : base;
+        : compile.cast === "boolean"
+          ? compile.absentFalse
+            ? `COALESCE((${base})::boolean, false)`
+            : `(${base})::boolean`
+          : base;
       return { expr, isAttr: true, attrKey: compile.key };
     }
     case "channelStat":

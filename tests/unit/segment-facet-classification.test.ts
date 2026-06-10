@@ -1,9 +1,14 @@
 import { describe, expect, it } from "bun:test";
 import { FIELD_CATALOG } from "@/lib/segments/field-catalog";
+import { INTERACTION_FLAGS } from "@/lib/constants/interaction-flags";
 
 const VALUES_FIELDS = new Set(["country_latest", "language_tag", "timezone", "preferred_channel_overall_30_days"]);
 const RANGE_FIELDS = new Set(["createdAt", "days_since_last_open", "gift_count_lifetime", "push_sent", "push_converted"]);
-const EXCLUDED_FIELDS = new Set(["funnelStage", "persona", "segment_membership", "email", "has_recurring_gift", "newsletter_push_enabled", "newsletter_email_enabled"]);
+const EXCLUDED_FIELDS = new Set([
+  "funnelStage", "persona", "segment_membership", "email", "has_recurring_gift",
+  "newsletter_push_enabled", "newsletter_email_enabled",
+  ...INTERACTION_FLAGS,
+]);
 
 describe("facet classification", () => {
   it("classifies every catalog field exactly once (values | range | excluded)", () => {

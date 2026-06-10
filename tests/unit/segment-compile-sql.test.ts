@@ -28,6 +28,28 @@ describe("compileSegmentRule", () => {
     expect(r.params).toEqual([]);
   });
 
+  it("interaction-flag boolean wraps in COALESCE so absent counts as false", () => {
+    const r = compileSegmentRule(g("AND", [c("votd_interaction_has_ever_flag", "is_false", null)]));
+    expect(r.sql).toBe(
+      `(COALESCE((u."attributes"->>'votd_interaction_has_ever_flag')::boolean, false) = false)`,
+    );
+    expect(r.params).toEqual([]);
+  });
+
+  it("interaction-flag is_true also goes through COALESCE", () => {
+    const r = compileSegmentRule(g("AND", [c("plan_interaction_has_ever_flag", "is_true", null)]));
+    expect(r.sql).toBe(
+      `(COALESCE((u."attributes"->>'plan_interaction_has_ever_flag')::boolean, false) = true)`,
+    );
+    expect(r.params).toEqual([]);
+  });
+
+  it("plain boolean fields (no absentFalse) keep their exact pre-existing SQL shape", () => {
+    const r = compileSegmentRule(g("AND", [c("has_recurring_gift", "is_false", null)]));
+    expect(r.sql).toBe(`((u."attributes"->>'has_recurring_gift')::boolean = false)`);
+    expect(r.params).toEqual([]);
+  });
+
   it("attr exists uses the ? operator", () => {
     const r = compileSegmentRule(g("AND", [c("email", "exists", null)]));
     expect(r.sql).toBe(`(u."attributes" ? 'email')`);

@@ -1,6 +1,8 @@
 import { describe, expect, it } from "bun:test";
 import {
   INTERACTION_FLAGS,
+  detectTransitionedFlags,
+  FLAG_ATTRIBUTION_WINDOW_MS,
   isInteractionFlag,
   normalizeFlag,
   snapshotEnrollmentFlags,
@@ -62,5 +64,45 @@ describe("snapshotEnrollmentFlags", () => {
       expect(Object.keys(snap)).toHaveLength(9);
       expect(Object.values(snap).every((v) => v === false)).toBe(true);
     }
+  });
+});
+
+describe("detectTransitionedFlags", () => {
+  it("returns flags that flipped false/absent → true this sync", () => {
+    const res = detectTransitionedFlags(
+      { votd_interaction_has_ever_flag: true, plan_interaction_has_ever_flag: true },
+      { plan_interaction_has_ever_flag: true }, // already true — no transition
+    );
+    expect(res).toEqual(["votd_interaction_has_ever_flag"]);
+  });
+
+  it("absent incoming or false incoming is never a transition", () => {
+    expect(detectTransitionedFlags({}, {})).toEqual([]);
+    expect(detectTransitionedFlags({ votd_interaction_has_ever_flag: false }, {})).toEqual([]);
+  });
+
+  it("is type-tolerant on both sides (string/int forms)", () => {
+    expect(
+      detectTransitionedFlags(
+        { votd_interaction_has_ever_flag: "true" },
+        { votd_interaction_has_ever_flag: "false" },
+      ),
+    ).toEqual(["votd_interaction_has_ever_flag"]);
+    expect(
+      detectTransitionedFlags(
+        { votd_interaction_has_ever_flag: 1 },
+        { votd_interaction_has_ever_flag: "t" }, // stored already truthy
+      ),
+    ).toEqual([]);
+  });
+
+  it("ignores non-flag keys", () => {
+    expect(detectTransitionedFlags({ some_other_flag: true }, {})).toEqual([]);
+  });
+});
+
+describe("FLAG_ATTRIBUTION_WINDOW_MS", () => {
+  it("is 30 days", () => {
+    expect(FLAG_ATTRIBUTION_WINDOW_MS).toBe(2_592_000_000);
   });
 });

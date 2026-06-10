@@ -10,7 +10,7 @@ import { FEATURE_DIM } from "@/lib/engine/feature-vector";
 import { isRecovery, recoveryRank } from "@/lib/engine/funnel-recovery";
 import { applyConversion } from "@/lib/services/attribution-service";
 import { detectFlagConversions } from "@/lib/services/interaction-conversion";
-import { isInteractionFlag, normalizeFlag } from "@/lib/constants/interaction-flags";
+import { isInteractionFlag, normalizeFlag, detectTransitionedFlags, FLAG_ATTRIBUTION_WINDOW_MS } from "@/lib/constants/interaction-flags";
 
 /**
  * POST /api/ingest/users
@@ -1090,6 +1090,15 @@ export async function POST(req: NextRequest) {
           ([k, v]) => isInteractionFlag(k) && normalizeFlag(v),
         );
         if (hasTruthyFlag) {
+          // Hoist pre-upsert stored attributes so both the active-path and the
+          // tail path share the same snapshot (PRE-upsert, before the trackedUser
+          // upsert above overwrote them). A brand-new user has no stored row → {}.
+          const storedAttrs = storedAttributesByUser.get(externalId) ?? {};
+
+          // Track which flags the active-path has taken responsibility for so the
+          // tail path never double-fires on the same flag in the same sync.
+          const handledFlags = new Set<string>();
+
           const flagAssignment = await prisma.userAgentAssignment.findFirst({
             where: { externalUserId: externalId, releasedAt: null },
             select: { agentId: true, enrollmentFlags: true },
@@ -1116,10 +1125,23 @@ export async function POST(req: NextRequest) {
               // PRE-upsert attributes (preloaded per-chunk before the trackedUser
               // upsert above overwrote them) — any_interaction credits only on a
               // false→true transition. A brand-new user has no stored row → {}.
-              stored: storedAttributesByUser.get(externalId) ?? {},
+              stored: storedAttrs,
               enrollmentFlags,
               goals: flagGoals,
             });
+
+            // When a user is actively owned by an agent, that agent is authoritative
+            // for any flag it has a goal for — whether it credits or deliberately
+            // rejects (e.g., first_interaction blocked by an already-true baseline).
+            // Mark every transition for a flag the owner has a goal for as handled,
+            // so the tail path never second-guesses that decision. Flags with no
+            // matching owner goal are left unhandled so the tail can still credit
+            // a different agent that has a goal for that flag.
+            for (const f of detectTransitionedFlags(raw, storedAttrs)) {
+              if (flagGoals.some((g) => g.eventName === f)) {
+                handledFlags.add(f);
+              }
+            }
 
             // Each credited flag independently attributes to the most recent remaining
             // unconverted decision, so two flags flipping in one sync may consume two
@@ -1147,6 +1169,41 @@ export async function POST(req: NextRequest) {
               // else: this decision was already credited in an earlier loop iteration —
               // skip silently; it is not an unmatched conversion.
             }
+          }
+
+          // ── 30-day tail attribution ──────────────────────────────────────────
+          // A flip after release (segment_exit, hold cap, manual) — or after the
+          // assignment row was overwritten by another agent — still credits the
+          // most recent unconverted decision within FLAG_ATTRIBUTION_WINDOW_MS
+          // whose agent has a goal for that flag (most recent send wins). Requires
+          // an observed false/absent → true transition vs pre-upsert attributes:
+          // the enrollment baseline may no longer exist, so an already-true stored
+          // flag never tail-credits. applyConversion scopes release-on-conversion
+          // to the credited agentId, so a tail credit never releases a user from
+          // a different agent that currently owns them.
+          for (const flagName of detectTransitionedFlags(raw, storedAttrs)) {
+            if (handledFlags.has(flagName)) continue;
+            const tailDecision = await prisma.userDecision.findFirst({
+              where: {
+                userId: externalId,
+                conversionAt: null,
+                sentAt: { gte: new Date(Date.now() - FLAG_ATTRIBUTION_WINDOW_MS) },
+                agent: { goals: { some: { eventName: flagName, conversionType: { not: null } } } },
+              },
+              orderBy: { sentAt: "desc" },
+              include: { agent: { include: { goals: true } } },
+            });
+            if (tailDecision !== null && !creditedDecisionIds.has(tailDecision.id)) {
+              await applyConversion({
+                decision: tailDecision,
+                conversionEvent: flagName,
+                occurredAt: new Date(),
+                personaId,
+              });
+              creditedDecisionIds.add(tailDecision.id);
+            }
+            // No qualifying decision = organic flip with no recent Nexus send —
+            // intentionally not counted as "unmatched" (that tally is owner telemetry).
           }
         }
       } catch (err) {
