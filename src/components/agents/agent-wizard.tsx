@@ -280,10 +280,14 @@ export function AgentWizard({
 
   const removeGoal = (i: number) => update("goals", form.goals.filter((_, idx) => idx !== i));
 
-  const addMessage = () => {
-    if (!newMsg.name.trim() || newMsg.variants.length === 0) return;
-    update("messages", [...form.messages, { ...newMsg, variants: newMsg.variants }]);
-    setDrafts((d) => ({ ...d, [draftChannel]: makeEmptyDraft(draftChannel) }));
+  // Commits a channel's draft into form.messages and resets that draft.
+  // Uses functional setForm so multiple commits in one handler (goNext commits
+  // every qualifying channel) never clobber each other with stale closures.
+  const addMessage = (channel: Channel = draftChannel) => {
+    const draft = drafts[channel];
+    if (!draft.name.trim() || draft.variants.length === 0) return;
+    setForm((f) => ({ ...f, messages: [...f.messages, { ...draft }] }));
+    setDrafts((d) => ({ ...d, [channel]: makeEmptyDraft(channel) }));
   };
 
   // Called by TemplatePicker in draft mode (push channel wizard flow)
@@ -296,20 +300,26 @@ export function AgentWizard({
       deeplink: v.deeplink ?? "",
       sourceTemplateId: v.sourceTemplateId,
     }));
-    update("messages", [...form.messages, { name: msg.name, channel: "push", variants: variantsToSave }]);
+    setForm((f) => ({
+      ...f,
+      messages: [...f.messages, { name: msg.name, channel: "push" as const, variants: variantsToSave }],
+    }));
   };
 
   const removeMessage = (i: number) => update("messages", form.messages.filter((_, idx) => idx !== i));
 
-  // Advance a step, auto-committing any pending Step-3 message the user picked
+  // Advance a step, auto-committing any pending Step-3 messages the user picked
   // but didn't explicitly "Add" (push verses live inside TemplatePicker; email/SMS
-  // in the inline form). Without this, picked-but-uncommitted variants are lost.
+  // in the inline form). Drafts are kept per channel, so we must commit EVERY
+  // qualifying channel's draft — not just the active one — or work typed on
+  // another channel before clicking Next is silently lost.
   const goNext = () => {
     if (step === 3) {
-      if (newMsg.channel === "push") {
-        templatePickerRef.current?.commitPending();
-      } else if (newMsg.name.trim() && newMsg.variants.length > 0) {
-        addMessage();
+      // Pending push templates (no-op when the picker isn't mounted/has nothing).
+      templatePickerRef.current?.commitPending();
+      // Every qualifying non-push draft (addMessage guards name/variants itself).
+      for (const channel of CHANNELS) {
+        if (channel !== "push") addMessage(channel);
       }
     }
     setStep((s) => Math.min(5, s + 1));
@@ -867,7 +877,7 @@ export function AgentWizard({
               </Button>
               <Button
                 size="sm"
-                onClick={addMessage}
+                onClick={() => addMessage()}
                 disabled={!newMsg.name.trim() || newMsg.variants.length === 0}
               >
                 Add Message

@@ -26,7 +26,14 @@ beforeEach(() => {
         { status: 200, headers: { "Content-Type": "application/json" } },
       );
     }
-    // TemplatePicker fetches (templates/categories) — empty data is fine.
+    if (url.includes("/api/variants")) {
+      // TemplatePicker expects a bare VariantWithMessage[] array.
+      return new Response(JSON.stringify([]), {
+        status: 200,
+        headers: { "Content-Type": "application/json" },
+      });
+    }
+    // Anything else (templates/categories) — empty data is fine.
     return new Response(JSON.stringify({ data: [] }), {
       status: 200,
       headers: { "Content-Type": "application/json" },
@@ -100,5 +107,29 @@ describe("AgentWizard per-channel message drafts", () => {
 
     expect(container.querySelector<HTMLInputElement>('input[placeholder="Message name"]')!.value).toBe("Welcome email");
     expect(container.querySelector<HTMLInputElement>('input[placeholder="Body text"]')!.value).toBe("Hello there");
+  });
+
+  // Regression: goNext()'s step-3 auto-commit only committed the ACTIVE channel's
+  // draft, so an email draft typed before switching to PUSH was silently dropped
+  // from the submitted agent. Fixed 2026-06-10 by committing all qualifying drafts.
+  it("auto-commits a non-active email draft when clicking Next on step 3", async () => {
+    await goToStep3();
+
+    clickButtonByText("EMAIL");
+    typeInto(container.querySelector<HTMLInputElement>('input[placeholder="Message name"]')!, "Welcome email");
+    typeInto(container.querySelector<HTMLInputElement>('input[placeholder="Body text"]')!, "Hello there");
+
+    // Switch back to PUSH so the email draft is no longer the active channel.
+    clickButtonByText("PUSH");
+    await flush();
+
+    clickButtonByText("Next"); // -> step 4 (Scheduling); must auto-commit the email draft
+    await flush();
+    clickButtonByText("Next"); // -> step 5 (Review)
+    await flush();
+
+    // Review step renders "Messages (N)" and each committed message's name.
+    expect(container.textContent).toContain("Messages (1)");
+    expect(container.textContent).toContain("Welcome email");
   });
 });
