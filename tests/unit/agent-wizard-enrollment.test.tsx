@@ -53,9 +53,11 @@ beforeEach(() => {
 afterEach(() => cleanup());
 
 describe("AgentWizard — Enrollment Mode", () => {
-  it("renders the Enrollment Mode label in Step 1", () => {
+  it("renders the Enrollment card title in Step 1", () => {
+    // 2026-06-10 restyle: the "Enrollment Mode" section label became an
+    // "Enrollment" Card title (the full name lives in the InfoTip popup).
     render(<AgentWizard personas={[]} />);
-    expect(screen.getByText("Enrollment Mode")).toBeInTheDocument();
+    expect(screen.getByText("Enrollment")).toBeInTheDocument();
   });
 
   it("renders two enrollment option buttons — Fixed Cohort and Continuous", () => {

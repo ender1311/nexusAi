@@ -9,6 +9,8 @@ import { Badge } from "@/components/ui/badge";
 import { Slider } from "@/components/ui/slider";
 import { Switch } from "@/components/ui/switch";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { InfoTip } from "@/components/ui/info-tip";
 import { cn, formatNumber } from "@/lib/utils";
 import { Check, ChevronRight, Bot, Target, MessageSquare, Calendar, Rocket, Pencil, AlertCircle, CheckCircle2 } from "lucide-react";
 import { GoalTier, Channel, FrequencyCap, FunnelStage, FUNNEL_STAGES, FUNNEL_STAGE_META, Algorithm } from "@/types/agent";
@@ -22,6 +24,7 @@ import { YouVersionGoalPreset } from "@/lib/constants/youversion";
 import { isInteractionFlag } from "@/lib/constants/interaction-flags";
 import { resolveSegmentTargeting } from "@/lib/agent-targeting";
 import { AgentDeeplinkOverrideField } from "@/components/agents/agent-deeplink-override-field";
+import { SegmentCheckList, type SegmentOption } from "@/components/agents/segment-check-list";
 import { VERSE_PUSH_SENTINEL } from "@/lib/verse-content";
 
 const STEPS = [
@@ -58,6 +61,19 @@ function StatusAlert({ error, success }: { error: string | null; success: boolea
       <span className="min-w-0 break-words leading-relaxed">
         {isError ? error : "Agent launched successfully. Taking you to your new agent…"}
       </span>
+    </div>
+  );
+}
+
+/**
+ * Label/value row matching the Settings tab's view mode. Deliberately duplicated
+ * from agent-settings-editor.tsx rather than coupling the wizard to its internals.
+ */
+function Row({ label, children, last }: { label: string; children: React.ReactNode; last?: boolean }) {
+  return (
+    <div className={cn("flex justify-between gap-4 py-2.5", !last && "border-b")}>
+      <span className="text-sm text-muted-foreground">{label}</span>
+      <span className="text-sm font-medium text-right">{children}</span>
     </div>
   );
 }
@@ -141,67 +157,6 @@ type MessageDraft = {
     frequencyCapOverride: FrequencyCap | null;
     sourceTemplateId?: string;
   }>;
-}
-
-
-type SegmentOption = { name: string; userCount: number; assignedTo: string | null };
-
-function SegmentCheckList({
-  segments,
-  selected,
-  currentAgentTargetNames,
-  onChange,
-}: {
-  segments: SegmentOption[];
-  selected: string[];
-  currentAgentTargetNames: string[];
-  onChange: (next: string[]) => void;
-}) {
-  if (segments.length === 0) {
-    return <p className="text-sm text-muted-foreground italic">No segments synced yet — run a Hightouch segment sync first.</p>;
-  }
-  return (
-    <div className="rounded-md border overflow-hidden max-h-48 overflow-y-auto">
-      {segments.map((s) => {
-        const isSelected = selected.includes(s.name);
-        const isTaken = s.assignedTo !== null && !currentAgentTargetNames.includes(s.name);
-        const isDisabled = isTaken && !isSelected;
-        return (
-          <button
-            key={s.name}
-            type="button"
-            disabled={isDisabled}
-            onClick={() => {
-              onChange(isSelected ? selected.filter((n) => n !== s.name) : [...selected, s.name]);
-            }}
-            className={cn(
-              "w-full flex items-center gap-3 px-3 py-2.5 text-left text-sm transition-colors border-b last:border-b-0",
-              isSelected ? "bg-primary/5 text-foreground" : "hover:bg-muted/50",
-              isDisabled ? "opacity-40 cursor-not-allowed" : "cursor-pointer",
-            )}
-          >
-            <span className={cn(
-              "h-4 w-4 rounded border flex-shrink-0 flex items-center justify-center",
-              isSelected ? "bg-primary border-primary" : "border-input bg-background",
-            )}>
-              {isSelected && (
-                <svg className="h-2.5 w-2.5 text-primary-foreground" fill="none" viewBox="0 0 12 12">
-                  <path d="M2 6l3 3 5-5" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
-                </svg>
-              )}
-            </span>
-            <span className="flex-1 min-w-0">
-              <span className="block truncate font-medium">{s.name}</span>
-              <span className="block text-xs text-muted-foreground">
-                {s.userCount >= 1000 ? `${(s.userCount / 1000).toFixed(0)}K` : s.userCount} users
-                {isTaken && s.assignedTo ? ` · ${s.assignedTo}` : ""}
-              </span>
-            </span>
-          </button>
-        );
-      })}
-    </div>
-  );
 }
 
 type FormData = {
@@ -303,10 +258,21 @@ export function AgentWizard({
     frequencyCapOverride: null,
   });
 
-  const [newMsg, setNewMsg] = useState<MessageDraft>({
-    name: "", channel: "push",
+  const makeEmptyDraft = (channel: Channel): MessageDraft => ({
+    name: "",
+    channel,
     variants: [{ ...emptyVariant(), name: "V1" }],
   });
+  // One draft per channel so switching channels never discards typed work.
+  const [draftChannel, setDraftChannel] = useState<Channel>("push");
+  const [drafts, setDrafts] = useState<Record<Channel, MessageDraft>>({
+    push: makeEmptyDraft("push"),
+    email: makeEmptyDraft("email"),
+    sms: makeEmptyDraft("sms"),
+  });
+  const newMsg = drafts[draftChannel];
+  const setNewMsg = (updater: (m: MessageDraft) => MessageDraft) =>
+    setDrafts((d) => ({ ...d, [draftChannel]: updater(d[draftChannel]) }));
   const [saving, setSaving] = useState(false);
   const [submitError, setSubmitError] = useState<string | null>(null);
   const [submitOk, setSubmitOk] = useState(false);
@@ -327,10 +293,14 @@ export function AgentWizard({
 
   const removeGoal = (i: number) => update("goals", form.goals.filter((_, idx) => idx !== i));
 
-  const addMessage = () => {
-    if (!newMsg.name.trim() || newMsg.variants.length === 0) return;
-    update("messages", [...form.messages, { ...newMsg, variants: newMsg.variants }]);
-    setNewMsg({ name: "", channel: newMsg.channel, variants: [{ ...emptyVariant(), name: "V1" }] });
+  // Commits a channel's draft into form.messages and resets that draft.
+  // Uses functional setForm so multiple commits in one handler (goNext commits
+  // every qualifying channel) never clobber each other with stale closures.
+  const addMessage = (channel: Channel = draftChannel) => {
+    const draft = drafts[channel];
+    if (!draft.name.trim() || draft.variants.length === 0) return;
+    setForm((f) => ({ ...f, messages: [...f.messages, { ...draft }] }));
+    setDrafts((d) => ({ ...d, [channel]: makeEmptyDraft(channel) }));
   };
 
   // Called by TemplatePicker in draft mode (push channel wizard flow)
@@ -343,20 +313,26 @@ export function AgentWizard({
       deeplink: v.deeplink ?? "",
       sourceTemplateId: v.sourceTemplateId,
     }));
-    update("messages", [...form.messages, { name: msg.name, channel: "push", variants: variantsToSave }]);
+    setForm((f) => ({
+      ...f,
+      messages: [...f.messages, { name: msg.name, channel: "push" as const, variants: variantsToSave }],
+    }));
   };
 
   const removeMessage = (i: number) => update("messages", form.messages.filter((_, idx) => idx !== i));
 
-  // Advance a step, auto-committing any pending Step-3 message the user picked
+  // Advance a step, auto-committing any pending Step-3 messages the user picked
   // but didn't explicitly "Add" (push verses live inside TemplatePicker; email/SMS
-  // in the inline form). Without this, picked-but-uncommitted variants are lost.
+  // in the inline form). Drafts are kept per channel, so we must commit EVERY
+  // qualifying channel's draft — not just the active one — or work typed on
+  // another channel before clicking Next is silently lost.
   const goNext = () => {
     if (step === 3) {
-      if (newMsg.channel === "push") {
-        templatePickerRef.current?.commitPending();
-      } else if (newMsg.name.trim() && newMsg.variants.length > 0) {
-        addMessage();
+      // Pending push templates (no-op when the picker isn't mounted/has nothing).
+      templatePickerRef.current?.commitPending();
+      // Every qualifying non-push draft (addMessage guards name/variants itself).
+      for (const channel of CHANNELS) {
+        if (channel !== "push") addMessage(channel);
       }
     }
     setStep((s) => Math.min(5, s + 1));
@@ -403,6 +379,17 @@ export function AgentWizard({
     }
   };
 
+  // Mirrors the Next-button gating; rendered as inline hint text so a disabled
+  // button always explains itself.
+  const step1Hint = !form.name.trim()
+    ? "Enter an agent name to continue."
+    : form.segmentMode && form.segmentIncludes.length === 0
+      ? "Select at least one include segment to continue."
+      : !form.segmentMode && !form.funnelStage
+        ? "Choose a funnel stage to continue."
+        : null;
+  const launchHint = !form.name.trim() ? "Enter an agent name before launching." : null;
+
   return (
     <div className="w-full max-w-3xl mx-auto lg:max-w-none">
       {/* Step indicator */}
@@ -434,29 +421,37 @@ export function AgentWizard({
       </div>
 
       {/* Top navigation */}
-      <div className="flex items-center justify-between mb-6 pb-4 border-b">
-        <Button
-          variant="outline"
-          size="sm"
-          onClick={() => setStep((s) => Math.max(1, s - 1))}
-          disabled={step === 1}
-        >
-          Back
-        </Button>
-        {step < 5 ? (
+      <div className="mb-6 pb-4 border-b">
+        <div className="flex items-center justify-between">
           <Button
+            variant="outline"
             size="sm"
-            onClick={goNext}
-            disabled={step === 1 && (!form.name.trim() || (form.segmentMode ? form.segmentIncludes.length === 0 : !form.funnelStage))}
+            onClick={() => setStep((s) => Math.max(1, s - 1))}
+            disabled={step === 1}
           >
-            Next
-            <ChevronRight className="h-4 w-4 ml-1" />
+            Back
           </Button>
-        ) : (
-          <Button size="sm" onClick={handleSubmit} disabled={saving || !form.name.trim()}>
-            {saving ? "Saving..." : "Launch Agent"}
-            <Rocket className="h-4 w-4 ml-1" />
-          </Button>
+          {step < 5 ? (
+            <Button
+              size="sm"
+              onClick={goNext}
+              disabled={step === 1 && step1Hint !== null}
+            >
+              Next
+              <ChevronRight className="h-4 w-4 ml-1" />
+            </Button>
+          ) : (
+            <Button size="sm" onClick={handleSubmit} disabled={saving || launchHint !== null}>
+              {saving ? "Saving..." : "Launch Agent"}
+              <Rocket className="h-4 w-4 ml-1" />
+            </Button>
+          )}
+        </div>
+        {step === 1 && step1Hint && (
+          <p className="mt-2 text-xs text-muted-foreground text-right">{step1Hint}</p>
+        )}
+        {step === 5 && launchHint && (
+          <p className="mt-2 text-xs text-muted-foreground text-right">{launchHint}</p>
         )}
       </div>
       <StatusAlert error={submitError} success={submitOk} />
@@ -464,28 +459,43 @@ export function AgentWizard({
       {/* Step 1: Basic Info */}
       {step === 1 && (
         <div className="space-y-4">
-          <h2 className="text-lg font-semibold">Basic Information</h2>
-          <div className="space-y-3">
-            <div>
-              <label className="text-sm font-medium">Agent Name *</label>
-              <Input
-                className="mt-1"
-                placeholder="e.g. Recommend Bible Plans"
-                value={form.name}
-                onChange={(e) => update("name", e.target.value)}
-              />
-            </div>
-            <div>
-              <label className="text-sm font-medium">Description</label>
-              <Input
-                className="mt-1"
-                placeholder="What does this agent do?"
-                value={form.description}
-                onChange={(e) => update("description", e.target.value)}
-              />
-            </div>
-            <div>
-              <label className="text-sm font-medium">Algorithm</label>
+          <Card>
+            <CardHeader>
+              <CardTitle className="text-base">Basics</CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-3">
+              <div>
+                <label className="text-sm font-medium">Agent Name *</label>
+                <Input
+                  className="mt-1"
+                  placeholder="e.g. Recommend Bible Plans"
+                  value={form.name}
+                  onChange={(e) => update("name", e.target.value)}
+                />
+              </div>
+              <div>
+                <label className="text-sm font-medium">Description</label>
+                <Input
+                  className="mt-1"
+                  placeholder="What does this agent do?"
+                  value={form.description}
+                  onChange={(e) => update("description", e.target.value)}
+                />
+              </div>
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardHeader>
+              <CardTitle className="text-base flex items-center gap-1.5">
+                Algorithm
+                <InfoTip title="Bandit Algorithm">
+                  How the agent decides which message variant each user gets. Thompson
+                  Sampling is the right default for most agents.
+                </InfoTip>
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-3">
               <Select value={form.algorithm} onValueChange={(v) => update("algorithm", v)}>
                 <SelectTrigger className="mt-1 w-full">
                   <span className="flex-1 text-left text-sm truncate">
@@ -515,27 +525,40 @@ export function AgentWizard({
                   </p>
                 ) : null;
               })()}
-            </div>
-            {form.algorithm === "epsilon_greedy" && (
-              <div>
-                <label className="text-sm font-medium">Epsilon (exploration rate): {(form.epsilon * 100).toFixed(0)}%</label>
-                <Slider
-                  className="mt-2"
-                  min={0}
-                  max={0.5}
-                  step={0.01}
-                  value={[form.epsilon]}
-                  onValueChange={(v) => update("epsilon", Array.isArray(v) ? v[0] : v)}
-                />
-              </div>
-            )}
-            {/* Targeting Mode */}
-            <div>
-              <label className="text-sm font-medium">Targeting Mode</label>
-              <p className="text-xs text-muted-foreground mt-0.5 mb-2">
-                Target users by funnel stage or by a Hightouch audience segment.
-              </p>
-              <div className="flex rounded-md border overflow-hidden text-sm mb-2">
+              {form.algorithm === "epsilon_greedy" && (
+                <div>
+                  <label className="text-sm font-medium">
+                    Epsilon (exploration rate): {(form.epsilon * 100).toFixed(0)}%
+                  </label>
+                  <Slider
+                    className="mt-2"
+                    min={0}
+                    max={0.5}
+                    step={0.01}
+                    value={[form.epsilon]}
+                    onValueChange={(v) => update("epsilon", Array.isArray(v) ? v[0] : v)}
+                  />
+                  <p className="text-xs text-muted-foreground mt-1.5">
+                    Percent of sends that explore a random variant instead of exploiting the
+                    current best performer. Higher = faster learning, more wasted sends.
+                  </p>
+                </div>
+              )}
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardHeader>
+              <CardTitle className="text-base flex items-center gap-1.5">
+                Targeting
+                <InfoTip title="Targeting">
+                  Target users by funnel stage or by Hightouch audience segments. Excludes
+                  apply in both modes.
+                </InfoTip>
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-3">
+              <div className="flex rounded-md border overflow-hidden text-sm">
                 <button
                   type="button"
                   className={cn("flex-1 px-3 py-2 font-medium transition-colors",
@@ -554,12 +577,12 @@ export function AgentWizard({
                       : "text-muted-foreground hover:text-foreground")}
                   onClick={() => update("segmentMode", true)}
                 >
-                  HT Segment
+                  Segment
                 </button>
               </div>
-              {form.segmentMode && (
-                <div className="space-y-1.5 mb-2">
-                  <label className="text-xs font-medium text-muted-foreground">Include Segments (AND)</label>
+              {form.segmentMode ? (
+                <div className="space-y-1.5">
+                  <label className="text-sm font-medium">Include Segments (AND)</label>
                   <p className="text-xs text-muted-foreground">User must be in ALL selected segments.</p>
                   <SegmentCheckList
                     segments={segments}
@@ -568,15 +591,50 @@ export function AgentWizard({
                     onChange={(v) => update("segmentIncludes", v)}
                   />
                 </div>
+              ) : (
+                <div>
+                  <label className="text-sm font-medium">Funnel Stage *</label>
+                  <Select
+                    value={form.funnelStage}
+                    onValueChange={(v) => update("funnelStage", v as FunnelStage)}
+                  >
+                    <SelectTrigger className="mt-1">
+                      <SelectValue placeholder="Select a funnel stage" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {FUNNEL_STAGES.map((stage) => (
+                        <SelectItem key={stage} value={stage}>
+                          {FUNNEL_STAGE_META[stage].label}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
               )}
-            </div>
-            {/* Enrollment Mode */}
-            <div>
-              <label className="text-sm font-medium">Enrollment Mode</label>
-              <p className="text-xs text-muted-foreground mt-0.5 mb-2">
-                Choose how users enter and leave this agent&apos;s cohort over time.
-              </p>
-              <div className="flex rounded-md border overflow-hidden text-sm mb-2">
+              <div className="space-y-1.5">
+                <label className="text-sm font-medium">Exclude Segments (optional)</label>
+                <p className="text-xs text-muted-foreground">User must NOT be in any selected segment.</p>
+                <SegmentCheckList
+                  segments={segments}
+                  selected={form.segmentExcludes}
+                  currentAgentTargetNames={[]}
+                  onChange={(v) => update("segmentExcludes", v)}
+                />
+              </div>
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardHeader>
+              <CardTitle className="text-base flex items-center gap-1.5">
+                Enrollment
+                <InfoTip title="Enrollment Mode">
+                  How users enter and leave this agent&apos;s cohort over time.
+                </InfoTip>
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-2">
+              <div className="flex rounded-md border overflow-hidden text-sm">
                 <button
                   type="button"
                   className={cn("flex-1 px-3 py-2 font-medium transition-colors",
@@ -603,41 +661,15 @@ export function AgentWizard({
                   ? "Locks a one-time group of up to your user cap. Users stay until they convert or hit hold limits. Best for one-off campaigns."
                   : "Re-checks the segment every run: adds new matches and removes users who leave the segment. Best for always-on, behavior-triggered comms."}
               </p>
-            </div>
-            {!form.segmentMode && (
-            <div>
-              <label className="text-sm font-medium">Funnel Stage *</label>
-              <Select
-                value={form.funnelStage}
-                onValueChange={(v) => update("funnelStage", v as FunnelStage)}
-              >
-                <SelectTrigger className="mt-1">
-                  <SelectValue placeholder="Select a funnel stage" />
-                </SelectTrigger>
-                <SelectContent>
-                  {FUNNEL_STAGES.map((stage) => (
-                    <SelectItem key={stage} value={stage}>
-                      {FUNNEL_STAGE_META[stage].label}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-            )}
-            {/* Exclude Segments — always show as optional */}
-            <div className="space-y-1.5">
-              <label className="text-sm font-medium">Exclude Segments (optional)</label>
-              <p className="text-xs text-muted-foreground">User must NOT be in any selected segment.</p>
-              <SegmentCheckList
-                segments={segments}
-                selected={form.segmentExcludes}
-                currentAgentTargetNames={[]}
-                onChange={(v) => update("segmentExcludes", v)}
-              />
-            </div>
-            <div>
-              <label className="text-sm font-medium">Target Personas</label>
-              <p className="text-xs text-muted-foreground mb-2 mt-0.5">
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardHeader>
+              <CardTitle className="text-base">Target Personas</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <p className="text-xs text-muted-foreground mb-2">
                 Same segments as <Link href="/personas" className="underline font-medium text-foreground">Personas</Link>.
                 Leave empty to target all users.
               </p>
@@ -657,8 +689,8 @@ export function AgentWizard({
                   onChange={(ids) => update("targetPersonaIds", ids)}
                 />
               )}
-            </div>
-          </div>
+            </CardContent>
+          </Card>
         </div>
       )}
 
@@ -670,9 +702,12 @@ export function AgentWizard({
             Define what events to optimize for and how to tier their value.
           </p>
 
-          <div className="border rounded-lg p-4 space-y-3 bg-muted/30">
-            <h3 className="text-sm font-medium">YouVersion Presets</h3>
-            <GoalPresetPicker
+          <Card>
+            <CardHeader>
+              <CardTitle className="text-base">YouVersion Presets</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <GoalPresetPicker
               onSelect={(preset: YouVersionGoalPreset) => {
                 const exists = form.goals.some((g) => g.eventName === preset.eventName);
                 if (!exists) {
@@ -687,8 +722,9 @@ export function AgentWizard({
                   }]);
                 }
               }}
-            />
-          </div>
+              />
+            </CardContent>
+          </Card>
 
           {form.goals.length > 0 && (
             <div className="space-y-2">
@@ -766,39 +802,60 @@ export function AgentWizard({
           )}
 
           {/* Push channel: use the full TemplatePicker in draft mode */}
-          {newMsg.channel === "push" ? (
-            <div className="border rounded-lg p-4 bg-muted/30">
-              <div className="flex items-center justify-between mb-4">
-                <h3 className="text-sm font-medium">Add Push Message</h3>
-                <Select value={newMsg.channel} onValueChange={(v) => setNewMsg((m) => ({ ...m, channel: v as Channel, variants: [{ ...emptyVariant(), name: "V1" }] }))}>
-                  <SelectTrigger className="w-28 h-7 text-xs">
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
+          {draftChannel === "push" ? (
+            <Card>
+              <CardHeader>
+                <div className="flex items-center justify-between">
+                  <CardTitle className="text-base">Add Push Message</CardTitle>
+                  <div className="flex rounded-md border overflow-hidden text-xs">
                     {CHANNELS.map((c) => (
-                      <SelectItem key={c} value={c}>{c.toUpperCase()}</SelectItem>
+                      <button
+                        key={c}
+                        type="button"
+                        onClick={() => setDraftChannel(c)}
+                        className={cn(
+                          "px-3 py-1.5 font-medium transition-colors border-l first:border-l-0",
+                          draftChannel === c
+                            ? "bg-primary text-primary-foreground"
+                            : "text-muted-foreground hover:text-foreground",
+                        )}
+                      >
+                        {c.toUpperCase()}
+                      </button>
                     ))}
-                  </SelectContent>
-                </Select>
-              </div>
-              <TemplatePicker ref={templatePickerRef} onAddToDraft={addMessageFromTemplate} />
-            </div>
+                  </div>
+                </div>
+              </CardHeader>
+              <CardContent>
+                <TemplatePicker ref={templatePickerRef} onAddToDraft={addMessageFromTemplate} />
+              </CardContent>
+            </Card>
           ) : (
             /* Email / SMS: manual variant form */
-            <div className="border rounded-lg p-4 space-y-3 bg-muted/30">
-              <div className="flex items-center justify-between">
-                <h3 className="text-sm font-medium">Add Message</h3>
-                <Select value={newMsg.channel} onValueChange={(v) => setNewMsg((m) => ({ ...m, channel: v as Channel, variants: [{ ...emptyVariant(), name: "V1" }] }))}>
-                  <SelectTrigger className="w-28 h-7 text-xs">
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
+            <Card>
+              <CardHeader>
+                <div className="flex items-center justify-between">
+                  <CardTitle className="text-base">Add Message</CardTitle>
+                  <div className="flex rounded-md border overflow-hidden text-xs">
                     {CHANNELS.map((c) => (
-                      <SelectItem key={c} value={c}>{c.toUpperCase()}</SelectItem>
+                      <button
+                        key={c}
+                        type="button"
+                        onClick={() => setDraftChannel(c)}
+                        className={cn(
+                          "px-3 py-1.5 font-medium transition-colors border-l first:border-l-0",
+                          draftChannel === c
+                            ? "bg-primary text-primary-foreground"
+                            : "text-muted-foreground hover:text-foreground",
+                        )}
+                      >
+                        {c.toUpperCase()}
+                      </button>
                     ))}
-                  </SelectContent>
-                </Select>
-              </div>
+                  </div>
+                </div>
+              </CardHeader>
+              <CardContent className="space-y-3">
               <Input
                 placeholder="Message name"
                 value={newMsg.name}
@@ -837,12 +894,13 @@ export function AgentWizard({
               </Button>
               <Button
                 size="sm"
-                onClick={addMessage}
+                onClick={() => addMessage()}
                 disabled={!newMsg.name.trim() || newMsg.variants.length === 0}
               >
                 Add Message
               </Button>
-            </div>
+              </CardContent>
+            </Card>
           )}
 
           {form.messages.map((m, i) => (
@@ -891,8 +949,11 @@ export function AgentWizard({
           <h2 className="text-lg font-semibold">Scheduling & Guardrails</h2>
 
           <div className="space-y-4">
-            <div className="border rounded-lg p-4 space-y-3">
-              <h3 className="text-sm font-semibold">Frequency Cap</h3>
+            <Card>
+              <CardHeader>
+                <CardTitle className="text-base">Frequency Cap</CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-3">
               <div className="flex items-center gap-3">
                 <div className="flex-1">
                   <label className="text-xs text-muted-foreground">Max sends: {form.frequencyCap.maxSends}</label>
@@ -917,10 +978,14 @@ export function AgentWizard({
                   </SelectContent>
                 </Select>
               </div>
-            </div>
+              </CardContent>
+            </Card>
 
-            <div className="border rounded-lg p-4 space-y-3">
-              <h3 className="text-sm font-semibold">Quiet Hours</h3>
+            <Card>
+              <CardHeader>
+                <CardTitle className="text-base">Quiet Hours</CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-3">
               <div className="flex flex-col sm:flex-row sm:items-center gap-3">
                 <div>
                   <label className="text-xs text-muted-foreground">Start</label>
@@ -956,15 +1021,17 @@ export function AgentWizard({
                   </Select>
                 </div>
               </div>
-            </div>
+              </CardContent>
+            </Card>
 
-            <div className="border rounded-lg p-4 space-y-3">
-              <div>
-                <h3 className="text-sm font-semibold">Quiet Days</h3>
-                <p className="text-xs text-muted-foreground mt-0.5">
+            <Card>
+              <CardHeader>
+                <CardTitle className="text-base">Quiet Days</CardTitle>
+                <p className="text-xs text-muted-foreground">
                   No sends will be made on the selected days. Applies on top of quiet hours.
                 </p>
-              </div>
+              </CardHeader>
+              <CardContent className="space-y-3">
               <div className="flex gap-2 flex-wrap">
                 {DAYS_OF_WEEK.map((d) => {
                   const suppressed = form.quietDays.includes(d.value);
@@ -995,56 +1062,62 @@ export function AgentWizard({
               {form.quietDays.length > 0 && (
                 <p className="text-xs text-muted-foreground">
                   Suppressed:{" "}
-                  {form.quietDays
+                  {[...form.quietDays]
                     .sort((a, b) => a - b)
                     .map((d) => DAYS_OF_WEEK.find((x) => x.value === d)?.label)
                     .join(", ")}
                 </p>
               )}
-            </div>
+              </CardContent>
+            </Card>
 
-            <div className="border rounded-lg p-4 space-y-3">
-              <div className="flex items-center justify-between">
-                <div>
-                  <h3 className="text-sm font-semibold">Smart Suppression</h3>
-                  <p className="text-xs text-muted-foreground mt-0.5">
-                    Only send to users above a predicted conversion threshold
-                  </p>
-                </div>
-                <Switch
-                  checked={form.smartSuppress}
-                  onCheckedChange={(v) => update("smartSuppress", v)}
-                />
-              </div>
-              {form.smartSuppress && (
-                <div>
-                  <label className="text-xs text-muted-foreground">
-                    Threshold: {(form.suppressThresh * 100).toFixed(0)}% predicted conversion
-                  </label>
-                  <Slider
-                    min={0.1} max={0.9} step={0.05}
-                    value={[form.suppressThresh]}
-                    onValueChange={(v) => update("suppressThresh", Array.isArray(v) ? v[0] : v)}
-                    className="mt-1"
+            <Card>
+              <CardHeader>
+                <div className="flex items-center justify-between">
+                  <div>
+                    <CardTitle className="text-base">Smart Suppression</CardTitle>
+                    <p className="text-xs text-muted-foreground mt-0.5">
+                      Only send to users above a predicted conversion threshold
+                    </p>
+                  </div>
+                  <Switch
+                    checked={form.smartSuppress}
+                    onCheckedChange={(v) => update("smartSuppress", v)}
                   />
                 </div>
+              </CardHeader>
+              {form.smartSuppress && (
+                <CardContent className="space-y-3">
+                  <div>
+                    <label className="text-xs text-muted-foreground">
+                      Threshold: {(form.suppressThresh * 100).toFixed(0)}% predicted conversion
+                    </label>
+                    <Slider
+                      min={0.1} max={0.9} step={0.05}
+                      value={[form.suppressThresh]}
+                      onValueChange={(v) => update("suppressThresh", Array.isArray(v) ? v[0] : v)}
+                      className="mt-1"
+                    />
+                  </div>
+                </CardContent>
               )}
-            </div>
+            </Card>
 
-            <div className="border rounded-lg p-4 space-y-3">
-              <div>
-                <h3 className="text-sm font-semibold">
+            <Card>
+              <CardHeader>
+                <CardTitle className="text-base">
                   Max Unique Users
                   {form.enrollmentMode === "continuous" && (
                     <span className="ml-2 text-xs font-normal text-muted-foreground">(soft ceiling)</span>
                   )}
-                </h3>
-                <p className="text-xs text-muted-foreground mt-0.5">
+                </CardTitle>
+                <p className="text-xs text-muted-foreground">
                   {form.enrollmentMode === "continuous"
                     ? "Soft ceiling on concurrent enrolled users — new eligible users can re-enter as others exit or convert."
                     : "Lifetime ceiling on distinct users this agent will ever target. The agent stops sending once the cap is reached. Leave unlimited for ongoing campaigns."}
                 </p>
-              </div>
+              </CardHeader>
+              <CardContent className="space-y-3">
               <div className="flex items-center gap-3">
                 <Select
                   value={uniqueUsersPreset}
@@ -1088,15 +1161,17 @@ export function AgentWizard({
                   </span>
                 )}
               </div>
-            </div>
+              </CardContent>
+            </Card>
 
-            <div className="border rounded-lg p-4 space-y-3">
-              <div>
-                <h3 className="text-sm font-semibold">Max Sends Per Day</h3>
-                <p className="text-xs text-muted-foreground mt-0.5">
+            <Card>
+              <CardHeader>
+                <CardTitle className="text-base">Max Sends Per Day</CardTitle>
+                <p className="text-xs text-muted-foreground">
                   Total sends this agent can make per calendar day (UTC). Caps the daily send volume across all users. Leave unlimited for no daily ceiling.
                 </p>
-              </div>
+              </CardHeader>
+              <CardContent className="space-y-3">
               <div className="flex items-center gap-3">
                 <Select
                   value={dailySendCapPreset}
@@ -1140,7 +1215,8 @@ export function AgentWizard({
                   </span>
                 )}
               </div>
-            </div>
+              </CardContent>
+            </Card>
           </div>
         </div>
       )}
@@ -1149,29 +1225,35 @@ export function AgentWizard({
       {step === 5 && (
         <div className="space-y-4">
           <h2 className="text-lg font-semibold">Review & Launch</h2>
-          <div className="space-y-3">
-            <div className="border rounded-lg p-4 space-y-2">
-              <h3 className="text-sm font-semibold">Basic Info</h3>
-              <p className="text-sm"><span className="text-muted-foreground">Name:</span> {form.name || "—"}</p>
+
+          <Card>
+            <CardHeader>
+              <CardTitle className="text-base">Basics & Targeting</CardTitle>
+            </CardHeader>
+            <CardContent className="pt-0">
+              <Row label="Name">{form.name || "—"}</Row>
+              {form.description && <Row label="Description">{form.description}</Row>}
+              <Row label="Algorithm">
+                {ALGORITHM_OPTIONS.find((a) => a.value === form.algorithm)?.label ?? form.algorithm}
+              </Row>
               {form.segmentMode ? (
-                <p className="text-sm">
-                  <span className="text-muted-foreground">HT Segments:</span>{" "}
+                <Row label="Include">
                   {form.segmentIncludes.length > 0 ? form.segmentIncludes.join(", ") : "—"}
-                </p>
+                </Row>
               ) : (
-                <p className="text-sm"><span className="text-muted-foreground">Funnel Stage:</span> {form.funnelStage ? FUNNEL_STAGE_META[form.funnelStage as FunnelStage]?.label : "—"}</p>
+                <Row label="Funnel Stage">
+                  {form.funnelStage ? FUNNEL_STAGE_META[form.funnelStage as FunnelStage]?.label : "—"}
+                </Row>
               )}
-              {form.segmentExcludes.length > 0 && (
-                <p className="text-sm">
-                  <span className="text-muted-foreground">Exclude:</span>{" "}
-                  {form.segmentExcludes.join(", ")}
-                </p>
-              )}
-              <p className="text-sm"><span className="text-muted-foreground">Algorithm:</span> {ALGORITHM_OPTIONS.find((a) => a.value === form.algorithm)?.label ?? form.algorithm}</p>
-              {form.description && <p className="text-sm"><span className="text-muted-foreground">Description:</span> {form.description}</p>}
+              <Row label="Exclude">
+                {form.segmentExcludes.length > 0 ? form.segmentExcludes.join(", ") : "—"}
+              </Row>
+              <Row label="Enrollment" last={form.targetPersonaIds.length === 0}>
+                {form.enrollmentMode === "fixed" ? "Fixed Cohort" : "Continuous"}
+              </Row>
               {form.targetPersonaIds.length > 0 && (
-                <div>
-                  <p className="text-sm text-muted-foreground mb-1.5">Target Personas:</p>
+                <div className="pt-2.5">
+                  <p className="text-sm text-muted-foreground mb-1.5">Target Personas</p>
                   <div className="flex flex-wrap gap-1">
                     {form.targetPersonaIds.map((pid) => {
                       const persona = personas.find((p) => p.id === pid);
@@ -1180,74 +1262,105 @@ export function AgentWizard({
                   </div>
                 </div>
               )}
-            </div>
-            <div className="border rounded-lg p-4 space-y-2">
-              <h3 className="text-sm font-semibold">Goals ({form.goals.length})</h3>
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardHeader>
+              <CardTitle className="text-base">Goals ({form.goals.length})</CardTitle>
+            </CardHeader>
+            <CardContent className="pt-0">
               {form.goals.length === 0 ? (
-                <p className="text-xs text-muted-foreground">None configured</p>
+                <p className="text-xs text-muted-foreground py-2.5">None configured</p>
               ) : form.goals.map((g, i) => (
-                <p key={i} className="text-sm">{g.eventName} <Badge variant="outline" className="text-xs ml-1">{g.tier}</Badge></p>
+                <Row key={i} label={g.eventName} last={i === form.goals.length - 1}>
+                  <Badge variant="outline" className="text-xs">{g.tier}</Badge>
+                </Row>
               ))}
-            </div>
-            <div className="border rounded-lg p-4 space-y-2">
-              <h3 className="text-sm font-semibold">Messages ({form.messages.length})</h3>
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardHeader>
+              <CardTitle className="text-base">Messages ({form.messages.length})</CardTitle>
+            </CardHeader>
+            <CardContent className="pt-0">
               {form.messages.length === 0 ? (
-                <p className="text-xs text-muted-foreground">None configured</p>
+                <p className="text-xs text-muted-foreground py-2.5">None configured</p>
               ) : form.messages.map((m, i) => (
-                <p key={i} className="text-sm">{m.name} <Badge variant="outline" className="text-xs ml-1 capitalize">{m.channel}</Badge></p>
+                <Row key={i} label={m.name} last={i === form.messages.length - 1}>
+                  <span className="inline-flex items-center gap-1.5">
+                    <Badge variant="outline" className="text-xs capitalize">{m.channel}</Badge>
+                    <span className="text-muted-foreground">{m.variants.length} variant{m.variants.length === 1 ? "" : "s"}</span>
+                  </span>
+                </Row>
               ))}
-            </div>
-            <div className="border rounded-lg p-4 space-y-2">
-              <h3 className="text-sm font-semibold">Scheduling</h3>
-              <p className="text-sm">Max {form.frequencyCap.maxSends} sends per {form.frequencyCap.period}</p>
-              <p className="text-sm">Quiet: {form.quietStart}–{form.quietEnd} {form.timezone}</p>
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardHeader>
+              <CardTitle className="text-base">Scheduling & Guardrails</CardTitle>
+            </CardHeader>
+            <CardContent className="pt-0">
+              <Row label="Frequency Cap">
+                Max {form.frequencyCap.maxSends} sends per {form.frequencyCap.period}
+              </Row>
+              <Row label="Quiet Hours">
+                {form.quietStart}–{form.quietEnd} {form.timezone}
+              </Row>
               {form.quietDays.length > 0 && (
-                <p className="text-sm">
-                  <span className="text-muted-foreground">Quiet days: </span>
-                  {form.quietDays
+                <Row label="Quiet Days">
+                  {[...form.quietDays]
                     .sort((a, b) => a - b)
                     .map((d) => DAYS_OF_WEEK.find((x) => x.value === d)?.label)
                     .join(", ")}
-                </p>
+                </Row>
               )}
-              <p className="text-sm">
-                <span className="text-muted-foreground">Max unique users: </span>
+              <Row label="Max Unique Users">
                 {form.uniqueUsersCap !== null ? form.uniqueUsersCap.toLocaleString() : "Unlimited"}
-              </p>
-              <p className="text-sm">
-                <span className="text-muted-foreground">Max sends per day: </span>
+              </Row>
+              <Row label="Max Sends Per Day" last>
                 {form.dailySendCap !== null ? form.dailySendCap.toLocaleString() : "Unlimited"}
-              </p>
-            </div>
-          </div>
+              </Row>
+            </CardContent>
+          </Card>
         </div>
       )}
 
       {/* Navigation */}
-      <div className="flex items-center justify-between mt-8 pt-4 border-t">
-        <Button
-          variant="outline"
-          onClick={() => setStep((s) => Math.max(1, s - 1))}
-          disabled={step === 1}
-        >
-          Back
-        </Button>
-        <div className="flex gap-2">
-          {step < 5 ? (
-            <Button
-              onClick={goNext}
-              disabled={step === 1 && (!form.name.trim() || (form.segmentMode ? form.segmentIncludes.length === 0 : !form.funnelStage))}
-            >
-              Next
-              <ChevronRight className="h-4 w-4 ml-1" />
-            </Button>
-          ) : (
-            <Button onClick={handleSubmit} disabled={saving || !form.name.trim()}>
-              {saving ? "Saving..." : "Launch Agent"}
-              <Rocket className="h-4 w-4 ml-1" />
-            </Button>
-          )}
+      <div className="mt-8 pt-4 border-t">
+        <div className="flex items-center justify-between">
+          <Button
+            variant="outline"
+            onClick={() => setStep((s) => Math.max(1, s - 1))}
+            disabled={step === 1}
+          >
+            Back
+          </Button>
+          <div className="flex gap-2">
+            {step < 5 ? (
+              <Button
+                onClick={goNext}
+                disabled={step === 1 && step1Hint !== null}
+              >
+                Next
+                <ChevronRight className="h-4 w-4 ml-1" />
+              </Button>
+            ) : (
+              <Button onClick={handleSubmit} disabled={saving || launchHint !== null}>
+                {saving ? "Saving..." : "Launch Agent"}
+                <Rocket className="h-4 w-4 ml-1" />
+              </Button>
+            )}
+          </div>
         </div>
+        {step === 1 && step1Hint && (
+          <p className="mt-2 text-xs text-muted-foreground text-right">{step1Hint}</p>
+        )}
+        {step === 5 && launchHint && (
+          <p className="mt-2 text-xs text-muted-foreground text-right">{launchHint}</p>
+        )}
       </div>
       <StatusAlert error={submitError} success={submitOk} />
     </div>
