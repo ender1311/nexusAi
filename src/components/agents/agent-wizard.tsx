@@ -689,9 +689,12 @@ export function AgentWizard({
             Define what events to optimize for and how to tier their value.
           </p>
 
-          <div className="border rounded-lg p-4 space-y-3 bg-muted/30">
-            <h3 className="text-sm font-medium">YouVersion Presets</h3>
-            <GoalPresetPicker
+          <Card>
+            <CardHeader>
+              <CardTitle className="text-base">YouVersion Presets</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <GoalPresetPicker
               onSelect={(preset: YouVersionGoalPreset) => {
                 const exists = form.goals.some((g) => g.eventName === preset.eventName);
                 if (!exists) {
@@ -706,8 +709,9 @@ export function AgentWizard({
                   }]);
                 }
               }}
-            />
-          </div>
+              />
+            </CardContent>
+          </Card>
 
           {form.goals.length > 0 && (
             <div className="space-y-2">
@@ -932,8 +936,11 @@ export function AgentWizard({
           <h2 className="text-lg font-semibold">Scheduling & Guardrails</h2>
 
           <div className="space-y-4">
-            <div className="border rounded-lg p-4 space-y-3">
-              <h3 className="text-sm font-semibold">Frequency Cap</h3>
+            <Card>
+              <CardHeader>
+                <CardTitle className="text-base">Frequency Cap</CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-3">
               <div className="flex items-center gap-3">
                 <div className="flex-1">
                   <label className="text-xs text-muted-foreground">Max sends: {form.frequencyCap.maxSends}</label>
@@ -958,10 +965,14 @@ export function AgentWizard({
                   </SelectContent>
                 </Select>
               </div>
-            </div>
+              </CardContent>
+            </Card>
 
-            <div className="border rounded-lg p-4 space-y-3">
-              <h3 className="text-sm font-semibold">Quiet Hours</h3>
+            <Card>
+              <CardHeader>
+                <CardTitle className="text-base">Quiet Hours</CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-3">
               <div className="flex flex-col sm:flex-row sm:items-center gap-3">
                 <div>
                   <label className="text-xs text-muted-foreground">Start</label>
@@ -997,15 +1008,17 @@ export function AgentWizard({
                   </Select>
                 </div>
               </div>
-            </div>
+              </CardContent>
+            </Card>
 
-            <div className="border rounded-lg p-4 space-y-3">
-              <div>
-                <h3 className="text-sm font-semibold">Quiet Days</h3>
-                <p className="text-xs text-muted-foreground mt-0.5">
+            <Card>
+              <CardHeader>
+                <CardTitle className="text-base">Quiet Days</CardTitle>
+                <p className="text-xs text-muted-foreground">
                   No sends will be made on the selected days. Applies on top of quiet hours.
                 </p>
-              </div>
+              </CardHeader>
+              <CardContent className="space-y-3">
               <div className="flex gap-2 flex-wrap">
                 {DAYS_OF_WEEK.map((d) => {
                   const suppressed = form.quietDays.includes(d.value);
@@ -1042,21 +1055,25 @@ export function AgentWizard({
                     .join(", ")}
                 </p>
               )}
-            </div>
+              </CardContent>
+            </Card>
 
-            <div className="border rounded-lg p-4 space-y-3">
-              <div className="flex items-center justify-between">
-                <div>
-                  <h3 className="text-sm font-semibold">Smart Suppression</h3>
-                  <p className="text-xs text-muted-foreground mt-0.5">
-                    Only send to users above a predicted conversion threshold
-                  </p>
+            <Card>
+              <CardHeader>
+                <div className="flex items-center justify-between">
+                  <div>
+                    <CardTitle className="text-base">Smart Suppression</CardTitle>
+                    <p className="text-xs text-muted-foreground mt-0.5">
+                      Only send to users above a predicted conversion threshold
+                    </p>
+                  </div>
+                  <Switch
+                    checked={form.smartSuppress}
+                    onCheckedChange={(v) => update("smartSuppress", v)}
+                  />
                 </div>
-                <Switch
-                  checked={form.smartSuppress}
-                  onCheckedChange={(v) => update("smartSuppress", v)}
-                />
-              </div>
+              </CardHeader>
+              <CardContent className="space-y-3">
               {form.smartSuppress && (
                 <div>
                   <label className="text-xs text-muted-foreground">
@@ -1070,22 +1087,24 @@ export function AgentWizard({
                   />
                 </div>
               )}
-            </div>
+              </CardContent>
+            </Card>
 
-            <div className="border rounded-lg p-4 space-y-3">
-              <div>
-                <h3 className="text-sm font-semibold">
+            <Card>
+              <CardHeader>
+                <CardTitle className="text-base">
                   Max Unique Users
                   {form.enrollmentMode === "continuous" && (
                     <span className="ml-2 text-xs font-normal text-muted-foreground">(soft ceiling)</span>
                   )}
-                </h3>
-                <p className="text-xs text-muted-foreground mt-0.5">
+                </CardTitle>
+                <p className="text-xs text-muted-foreground">
                   {form.enrollmentMode === "continuous"
                     ? "Soft ceiling on concurrent enrolled users — new eligible users can re-enter as others exit or convert."
                     : "Lifetime ceiling on distinct users this agent will ever target. The agent stops sending once the cap is reached. Leave unlimited for ongoing campaigns."}
                 </p>
-              </div>
+              </CardHeader>
+              <CardContent className="space-y-3">
               <div className="flex items-center gap-3">
                 <Select
                   value={uniqueUsersPreset}
@@ -1129,15 +1148,17 @@ export function AgentWizard({
                   </span>
                 )}
               </div>
-            </div>
+              </CardContent>
+            </Card>
 
-            <div className="border rounded-lg p-4 space-y-3">
-              <div>
-                <h3 className="text-sm font-semibold">Max Sends Per Day</h3>
-                <p className="text-xs text-muted-foreground mt-0.5">
+            <Card>
+              <CardHeader>
+                <CardTitle className="text-base">Max Sends Per Day</CardTitle>
+                <p className="text-xs text-muted-foreground">
                   Total sends this agent can make per calendar day (UTC). Caps the daily send volume across all users. Leave unlimited for no daily ceiling.
                 </p>
-              </div>
+              </CardHeader>
+              <CardContent className="space-y-3">
               <div className="flex items-center gap-3">
                 <Select
                   value={dailySendCapPreset}
@@ -1181,7 +1202,8 @@ export function AgentWizard({
                   </span>
                 )}
               </div>
-            </div>
+              </CardContent>
+            </Card>
           </div>
         </div>
       )}
