@@ -26,6 +26,10 @@ export type FieldDef = {
 const NUM_OPS: Operator[] = ["eq", "neq", "gt", "gte", "lt", "lte", "exists", "nexists"];
 const STR_OPS: Operator[] = ["eq", "neq", "in", "nin", "contains", "exists", "nexists"];
 const BOOL_OPS: Operator[] = ["is_true", "is_false", "exists", "nexists"];
+// Interaction flags treat absent attributes as false (absentFalse compile contract), so
+// key-presence operators (exists/nexists) would mislead: a user absent the flag is
+// indistinguishable from one explicitly synced false. Restrict to value-only operators.
+const FLAG_OPS: Operator[] = ["is_true", "is_false"];
 const ENUM_OPS: Operator[] = ["in", "nin", "exists", "nexists"];
 const SEG_OPS: Operator[] = ["in_segment", "not_in_segment"];
 
@@ -39,7 +43,7 @@ const INTERACTION_FLAG_FIELDS: FieldDef[] = INTERACTION_FLAGS.map((flag) => ({
   label: INTERACTION_FLAG_LABELS[flag],
   category: "attribute",
   type: "boolean",
-  operators: BOOL_OPS,
+  operators: FLAG_OPS,
   compile: { strategy: "attr", key: flag, cast: "boolean", absentFalse: true },
 }));
 

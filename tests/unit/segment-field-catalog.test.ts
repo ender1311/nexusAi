@@ -45,7 +45,7 @@ describe("interaction-flag fields", () => {
       expect(f!.label).toBe(INTERACTION_FLAG_LABELS[flag]);
       expect(f!.category).toBe("attribute");
       expect(f!.type).toBe("boolean");
-      expect(f!.operators).toEqual(["is_true", "is_false", "exists", "nexists"]);
+      expect(f!.operators).toEqual(["is_true", "is_false"]);
       expect(f!.compile).toEqual({ strategy: "attr", key: flag, cast: "boolean", absentFalse: true });
     }
   });
