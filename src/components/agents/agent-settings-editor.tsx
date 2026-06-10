@@ -36,8 +36,8 @@ import {
   SettingsSnapshot,
 } from "@/lib/agents/settings-diff";
 
-// ---- Helpers copied verbatim from scheduling-editor.tsx (not exported there).
-// Keep until the legacy file is deleted in the next task.
+// ---- Helpers originally from the legacy scheduling editor (now deleted;
+// this file is the single edit surface).
 
 const PERIOD_LABELS: Record<string, string> = {
   day: "per day",
@@ -101,7 +101,7 @@ const MODE_OPTIONS: { value: QuietHoursMode; label: string; description: string 
   { value: "schedule", label: "Schedule", description: "Braze queues all sends to fire at a fixed local hour." },
 ];
 
-// ---- Segment-pick checkbox list (copied from agent-edit-sheet) -------------
+// ---- Segment-pick checkbox list (from the legacy agent edit sheet) ----------
 
 type SegmentOption = { name: string; userCount: number; assignedTo: string | null };
 
@@ -228,7 +228,7 @@ export function AgentSettingsEditor({ agent, initialRule, startInEditMode }: Pro
   const [enrollmentMode, setEnrollmentMode] = useState<"fixed" | "continuous">(agent.enrollmentMode);
   // Sending
   // Daily cap: preset dropdown + optional custom number. Mirrors the legacy
-  // agent-edit-sheet pattern so users can pick common values quickly.
+  // edit-sheet pattern so users can pick common values quickly.
   const initialCapPreset = useMemo(() => {
     if (agent.dailySendCap === null) return "none";
     return DAILY_CAP_PRESETS.find((o) => o.value === String(agent.dailySendCap))

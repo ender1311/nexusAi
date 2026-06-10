@@ -9,7 +9,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Target, MessageSquare, BarChart3, Settings, Users2, GitCompare, Send, LayoutDashboard, Languages, Sliders } from "lucide-react";
+import { Target, MessageSquare, BarChart3, Settings, Users2, GitCompare, Send, LayoutDashboard, Languages, Sliders, Pencil } from "lucide-react";
 import { cn, formatNumber } from "@/lib/utils";
 import { TestedVariablesBadges } from "@/components/agents/tested-variables-badges";
 import { VariantDiffTable } from "@/components/agents/variant-diff-table";
@@ -29,7 +29,6 @@ import { AgentSettingsEditor } from "@/components/agents/agent-settings-editor";
 import { AgentNameEditor } from "@/components/agents/agent-name-editor";
 import { AgentStatusToggle } from "@/components/agents/agent-status-toggle";
 import { AgentPauseToggle } from "@/components/agents/agent-pause-toggle";
-import { AgentEditSheet } from "@/components/agents/agent-edit-sheet";
 import { AgentDeleteButton } from "@/components/agents/agent-delete-button";
 import { ReleaseAllButton } from "@/components/agents/release-all-button";
 import { AgentLocalizationTab } from "@/components/agents/agent-localization-tab";
@@ -69,8 +68,8 @@ export default async function AgentDetailPage({
 
   if (!agent) notFound();
 
-  // Admin-only: colors of other agents feed the edit sheet's color picker.
-  // Non-admins never see the sheet, so skip the query entirely for them.
+  // Admin-only: colors of other agents feed the settings editor's color picker.
+  // Non-admins never see the editor, so skip the query entirely for them.
   const usedColors = isAdmin
     ? (await prisma.agent.findMany({ where: { id: { not: id } }, select: { color: true } })).map((a) => a.color)
     : [];
@@ -105,23 +104,12 @@ export default async function AgentDetailPage({
           </div>
           <div className="flex flex-wrap gap-2">
             {isAdmin && (
-              <AgentEditSheet
-                agentId={agent.id}
-                initialName={agent.name}
-                initialDescription={agent.description ?? null}
-                initialAlgorithm={agent.algorithm}
-                initialEpsilon={agent.epsilon}
-                initialFunnelStage={agent.funnelStage as FunnelStage}
-                initialColor={agent.color ?? "#6366f1"}
-                usedColors={usedColors}
-                initialTargetSegmentName={agent.targetSegmentName ?? null}
-                initialSegmentTargeting={
-                  (agent.segmentTargeting as { includes: string[]; excludes: string[] } | null) ?? null
-                }
-                initialDailySendCap={agent.dailySendCap ?? null}
-                initialDeeplinkOverride={agent.deeplinkOverride ?? null}
-                hasVerseVariants={hasVerseVariants}
-              />
+              <Link href={`/agents/${agent.id}?tab=settings&edit=1`}>
+                <Button variant="outline" size="sm">
+                  <Pencil className="h-4 w-4 mr-1.5" />
+                  Edit
+                </Button>
+              </Link>
             )}
             {isAdmin && <AgentStatusToggle agentId={agent.id} status={agent.status} />}
             {isAdmin && (
@@ -183,7 +171,7 @@ export default async function AgentDetailPage({
               const steps = [
                 { label: "Add conversion goals", done: hasGoals, href: `/agents/${agent.id}/goals` },
                 { label: "Add message variants", done: hasMessages, href: `/agents/${agent.id}/messages` },
-                { label: "Configure scheduling rules", done: hasScheduling, href: `/agents/${agent.id}/scheduling` },
+                { label: "Configure scheduling rules", done: hasScheduling, href: `/agents/${agent.id}?tab=settings` },
               ];
               const nextStep = steps.find((s) => !s.done);
               return (
