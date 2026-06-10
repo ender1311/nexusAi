@@ -1073,21 +1073,21 @@ export function AgentWizard({
                   />
                 </div>
               </CardHeader>
-              <CardContent className="space-y-3">
               {form.smartSuppress && (
-                <div>
-                  <label className="text-xs text-muted-foreground">
-                    Threshold: {(form.suppressThresh * 100).toFixed(0)}% predicted conversion
-                  </label>
-                  <Slider
-                    min={0.1} max={0.9} step={0.05}
-                    value={[form.suppressThresh]}
-                    onValueChange={(v) => update("suppressThresh", Array.isArray(v) ? v[0] : v)}
-                    className="mt-1"
-                  />
-                </div>
+                <CardContent className="space-y-3">
+                  <div>
+                    <label className="text-xs text-muted-foreground">
+                      Threshold: {(form.suppressThresh * 100).toFixed(0)}% predicted conversion
+                    </label>
+                    <Slider
+                      min={0.1} max={0.9} step={0.05}
+                      value={[form.suppressThresh]}
+                      onValueChange={(v) => update("suppressThresh", Array.isArray(v) ? v[0] : v)}
+                      className="mt-1"
+                    />
+                  </div>
+                </CardContent>
               )}
-              </CardContent>
             </Card>
 
             <Card>
