@@ -228,14 +228,18 @@ describe("POST /agents — targetSegmentName", () => {
     expect(body.targetSegmentName).toBe("vip-users");
   });
 
-  it("returns 409 when targetSegmentName is already assigned to another agent", async () => {
-    await createAgent({ name: "Owner", targetSegmentName: "exclusive-seg" });
+  // Segments are shareable across agents — per-user exclusivity is enforced by
+  // lockedByAgentId at recruitment time, not by a per-segment claim.
+  it("allows two agents to target the same segment", async () => {
+    await createAgent({ name: "Owner", targetSegmentName: "shared-seg" });
     const res = await app.request("/agents", {
       method: "POST",
       headers: ADMIN,
-      body: JSON.stringify({ name: "Seg B", funnelStage: "wau", targetSegmentName: "exclusive-seg" }),
+      body: JSON.stringify({ name: "Seg B", funnelStage: "wau", targetSegmentName: "shared-seg", goals: [], messages: [] }),
     });
-    expect(res.status).toBe(409);
+    expect(res.status).toBe(201);
+    const body = await res.json() as { targetSegmentName: string | null };
+    expect(body.targetSegmentName).toBe("shared-seg");
   });
 
   it("returns 400 when targetSegmentName is an empty string", async () => {
@@ -278,7 +282,7 @@ describe("POST /agents — segmentTargeting", () => {
     expect(res.status).toBe(400);
   });
 
-  it("returns 409 when an include segment is exclusively held by another agent", async () => {
+  it("allows an include segment that another agent already targets via targetSegmentName", async () => {
     await createAgent({ name: "Holder", targetSegmentName: "held-seg" });
     const res = await app.request("/agents", {
       method: "POST",
@@ -286,9 +290,13 @@ describe("POST /agents — segmentTargeting", () => {
       body: JSON.stringify({
         name: "MultiSeg C",
         segmentTargeting: { includes: ["held-seg"], excludes: [] },
+        goals: [],
+        messages: [],
       }),
     });
-    expect(res.status).toBe(409);
+    expect(res.status).toBe(201);
+    const body = await res.json() as { segmentTargeting: { includes: string[] } };
+    expect(body.segmentTargeting.includes).toEqual(["held-seg"]);
   });
 
   it("returns 400 for a non-string include entry", async () => {

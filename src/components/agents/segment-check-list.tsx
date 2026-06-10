@@ -23,20 +23,16 @@ export function SegmentCheckList({
       <div className="max-h-72 overflow-y-auto">
         {segments.map((s) => {
           const isSelected = selected.includes(s.name);
-          const isTaken = s.assignedTo !== null && !currentAgentTargetNames.includes(s.name);
-          const isDisabled = isTaken && !isSelected;
           return (
             <button
               key={s.name}
               type="button"
-              disabled={isDisabled}
               onClick={() => {
                 onChange(isSelected ? selected.filter((n) => n !== s.name) : [...selected, s.name]);
               }}
               className={cn(
-                "w-full flex items-center gap-3 px-3 py-2.5 text-left text-sm transition-colors border-b last:border-b-0",
+                "w-full flex items-center gap-3 px-3 py-2.5 text-left text-sm transition-colors border-b last:border-b-0 cursor-pointer",
                 isSelected ? "bg-primary/5 text-foreground" : "hover:bg-muted/50",
-                isDisabled ? "opacity-40 cursor-not-allowed" : "cursor-pointer",
               )}
             >
               <span className={cn(
@@ -53,7 +49,9 @@ export function SegmentCheckList({
                 <span className="block truncate font-medium">{s.name}</span>
                 <span className="block text-xs text-muted-foreground">
                   {s.userCount >= 1000 ? `${(s.userCount / 1000).toFixed(0)}K` : s.userCount} users
-                  {isTaken && s.assignedTo ? ` · ${s.assignedTo}` : ""}
+                  {s.assignedTo && !currentAgentTargetNames.includes(s.name)
+                    ? ` · also targeted by ${s.assignedTo}`
+                    : ""}
                 </span>
               </span>
             </button>
