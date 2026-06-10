@@ -463,7 +463,7 @@ export function AgentSettingsEditor({ agent, initialRule, startInEditMode }: Pro
           throw new Error(body.error ?? "Failed to save scheduling rules");
         }
       }
-      setEditing(false);
+      exitEditMode();
       router.refresh();
     } catch (e) {
       const msg = e instanceof Error ? e.message : "Save failed";
@@ -494,6 +494,13 @@ export function AgentSettingsEditor({ agent, initialRule, startInEditMode }: Pro
     } finally {
       setSaving(false);
     }
+  }
+
+  function exitEditMode() {
+    setEditing(false);
+    // Strip ?edit=1 so the header Edit link (keyed on the param) can re-enter
+    // edit mode after a save or cancel without a full reload.
+    router.replace(`/agents/${agent.id}?tab=settings`, { scroll: false });
   }
 
   function addBlackout() {
@@ -1102,7 +1109,7 @@ export function AgentSettingsEditor({ agent, initialRule, startInEditMode }: Pro
         )}
         {error && <p className="text-sm text-destructive" role="alert">{error}</p>}
         <div className="flex gap-2 max-w-2xl ml-auto justify-end">
-          <Button variant="outline" disabled={saving} onClick={() => { resetForm(); setEditing(false); }}>
+          <Button variant="outline" disabled={saving} onClick={() => { resetForm(); exitEditMode(); }}>
             Cancel
           </Button>
           <Button

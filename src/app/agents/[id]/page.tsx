@@ -125,7 +125,9 @@ export default async function AgentDetailPage({
         </div>
 
         {/* Tabs */}
-        <Tabs defaultValue={activeTab}>
+        {/* key forces a remount on same-route ?tab= navigation (soft nav keeps
+            client state, so an uncontrolled defaultValue alone never switches). */}
+        <Tabs key={activeTab} defaultValue={activeTab}>
           <div className="overflow-x-auto -mx-4 px-4 sm:mx-0 sm:px-0">
           <TabsList className="w-max sm:w-auto">
             <TabsTrigger value="overview">
@@ -366,6 +368,7 @@ export default async function AgentDetailPage({
           <TabsContent value="settings" className="mt-4">
             {isAdmin ? (
               <AgentSettingsEditor
+                key={editParam === "1" ? "edit" : "view"}
                 agent={{
                   id: agent.id,
                   name: agent.name,

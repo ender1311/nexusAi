@@ -105,9 +105,13 @@ describe("AgentColorPicker error handling", () => {
 });
 
 describe("AgentSettingsEditor save error handling", () => {
+  let fetchCalls: { url: string; method: string }[] = [];
+
   function routedFetch(patchStatus: number, patchBody: object) {
+    fetchCalls = [];
     return (async (input: RequestInfo | URL, init?: RequestInit) => {
       const url = typeof input === "string" ? input : input.toString();
+      fetchCalls.push({ url, method: init?.method ?? "GET" });
       if (url.includes("/api/segments")) {
         return new Response(JSON.stringify({ data: [] }), {
           status: 200,
@@ -115,7 +119,6 @@ describe("AgentSettingsEditor save error handling", () => {
         });
       }
       // PATCH /api/agents/:id
-      void init;
       return new Response(JSON.stringify(patchBody), {
         status: patchStatus,
         headers: { "Content-Type": "application/json" },
@@ -180,6 +183,9 @@ describe("AgentSettingsEditor save error handling", () => {
 
     expect(container.textContent).toContain("already assigned to agent");
     expect(refreshCalls).toBe(0);
+    // The form actually fired the PATCH — guards against a vacuous pass where
+    // Save is disabled and no request happens.
+    expect(fetchCalls.filter((c) => c.method === "PATCH" && c.url === "/api/agents/a1")).toHaveLength(1);
   });
 
   it("refreshes and shows no error when the save succeeds", async () => {
@@ -193,5 +199,6 @@ describe("AgentSettingsEditor save error handling", () => {
 
     expect(refreshCalls).toBe(1);
     expect(container.querySelector('[role="alert"]')).toBeNull();
+    expect(fetchCalls.filter((c) => c.method === "PATCH" && c.url === "/api/agents/a1")).toHaveLength(1);
   });
 });
