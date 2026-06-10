@@ -67,7 +67,7 @@ export const INTERACTION_GOALS: YouVersionGoalPreset[] = INTERACTION_FLAGS.map((
   label: INTERACTION_FLAG_LABELS[flag],
   tier: "very_good" as GoalTier,
   weight: 5,
-  description: INTERACTION_FLAG_LABELS[flag],
+  description: `${INTERACTION_FLAG_LABELS[flag]} — detected via has-ever flag. Set First interaction (only counts if the user had never done it before enrollment) or Any interaction (counts whenever the flag flips true while owned) on the goal.`,
 }));
 
 export const POSITIVE_GOALS = YOUVERSION_GOALS.filter((g) => g.weight > 0);

@@ -51,8 +51,8 @@ describe("AgentWizard — interaction-flag goal conversionType", () => {
     fillStep1Required();
     clickNext(); // → Step 2 (Goals)
 
-    // "Guided Scripture (first interaction)" is an INTERACTION_GOALS preset
-    const interactionBtn = screen.getByRole("button", { name: "Guided Scripture (first interaction)" });
+    // "Guided Scripture Interaction" is an INTERACTION_GOALS preset
+    const interactionBtn = screen.getByRole("button", { name: "Guided Scripture Interaction" });
     fireEvent.click(interactionBtn);
 
     clickNext(); // → Step 3

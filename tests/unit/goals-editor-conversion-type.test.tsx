@@ -31,7 +31,7 @@ const INTERACTION_GOAL: Goal = {
   weightMode: "fixed",
   weightProperty: null,
   weightDefault: 1.0,
-  description: "Plan Subscribed (first time)",
+  description: "Plan Subscription",
 };
 
 const REGULAR_GOAL: Goal = {
