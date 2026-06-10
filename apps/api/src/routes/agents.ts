@@ -197,23 +197,8 @@ agents.post("/", async (c) => {
       return c.json({ error: `An agent named "${trimmedName}" already exists` }, 409);
     }
 
-    if (targetSegmentName && typeof targetSegmentName === "string") {
-      const trimmed = (targetSegmentName as string).trim();
-      const conflict = await prisma.agent.findFirst({ where: { targetSegmentName: trimmed }, select: { name: true } });
-      if (conflict) {
-        return c.json({ error: `Segment "${trimmed}" is already assigned to agent "${conflict.name}"` }, 409);
-      }
-    }
-    if (hasSegmentIncludes) {
-      const includeSegs = (segmentTargeting as { includes: string[] }).includes;
-      for (const seg of includeSegs) {
-        const conflict = await prisma.agent.findFirst({ where: { targetSegmentName: seg }, select: { name: true } });
-        if (conflict) {
-          return c.json({ error: `Segment "${seg}" is exclusively assigned to agent "${conflict.name}"` }, 409);
-        }
-      }
-    }
-
+    // Segments are shareable across agents — exclusivity is enforced per USER
+    // via lockedByAgentId during recruitment, not per segment.
     const goalList = Array.isArray(goals) ? (goals as Array<Record<string, unknown>>) : [];
     const messageList = Array.isArray(messages) ? (messages as Array<Record<string, unknown>>) : [];
     const personaIds = Array.isArray(targetPersonaIds) ? (targetPersonaIds as string[]) : [];
