@@ -107,6 +107,12 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
       }
     }
 
+    if (body.uniqueUsersCap !== undefined) {
+      if (body.uniqueUsersCap !== null && (!Number.isInteger(body.uniqueUsersCap) || body.uniqueUsersCap < 1)) {
+        return fail("uniqueUsersCap must be null or a positive integer", 400);
+      }
+    }
+
     if (body.languageFilter !== undefined && body.languageFilter !== null) {
       if (typeof body.languageFilter !== "string" || body.languageFilter.trim() === "") {
         return fail("languageFilter must be a non-empty string or null", 400);
@@ -223,6 +229,7 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
         ...(body.targetFilter !== undefined ? { targetFilter: body.targetFilter } : {}),
         ...(body.fallbackSendHour !== undefined ? { fallbackSendHour: body.fallbackSendHour } : {}),
         ...(body.dailySendCap !== undefined ? { dailySendCap: body.dailySendCap } : {}),
+        ...(body.uniqueUsersCap !== undefined ? { uniqueUsersCap: body.uniqueUsersCap } : {}),
         ...(body.languageFilter !== undefined ? { languageFilter: body.languageFilter } : {}),
         ...(body.localizePush !== undefined ? { localizePush: body.localizePush } : {}),
         ...(body.color !== undefined ? { color: body.color } : {}),
