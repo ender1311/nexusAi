@@ -1062,7 +1062,7 @@ export function AgentWizard({
               {form.quietDays.length > 0 && (
                 <p className="text-xs text-muted-foreground">
                   Suppressed:{" "}
-                  {form.quietDays
+                  {[...form.quietDays]
                     .sort((a, b) => a - b)
                     .map((d) => DAYS_OF_WEEK.find((x) => x.value === d)?.label)
                     .join(", ")}
