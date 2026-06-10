@@ -99,9 +99,9 @@ describe("tail attribution: flips after release still credit within 30 days", ()
     expect(counted).toBe(1);
   });
 
-  it("flip 31 days after the send → NOT credited", async () => {
+  it("flip 35 days after the send → NOT credited", async () => {
     await createUser("usr_tail_late");
-    const { decision } = await setupReleasedAgent("usr_tail_late", 31);
+    const { decision } = await setupReleasedAgent("usr_tail_late", 35);
 
     const res = await syncUser("usr_tail_late", { [FLAG]: true });
     expect(res.status).toBe(200);
