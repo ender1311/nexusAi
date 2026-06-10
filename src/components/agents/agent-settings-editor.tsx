@@ -10,6 +10,7 @@ import { Slider } from "@/components/ui/slider";
 import { Switch } from "@/components/ui/switch";
 import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
+import { InfoTip } from "@/components/ui/info-tip";
 import {
   Select,
   SelectContent,
@@ -79,6 +80,19 @@ const ALGORITHM_OPTIONS = [
   { value: "thompson", label: "Thompson Sampling" },
   { value: "epsilon_greedy", label: "Epsilon-Greedy" },
   { value: "linucb", label: "LinUCB" },
+];
+
+const DAILY_CAP_PRESETS = [
+  { label: "No cap", value: "none" },
+  { label: "100", value: "100" },
+  { label: "250", value: "250" },
+  { label: "500", value: "500" },
+  { label: "1,000", value: "1000" },
+  { label: "2,500", value: "2500" },
+  { label: "5,000", value: "5000" },
+  { label: "10,000", value: "10000" },
+  { label: "50,000", value: "50000" },
+  { label: "Custom…", value: "custom" },
 ];
 
 const MODE_OPTIONS: { value: QuietHoursMode; label: string; description: string }[] = [
@@ -213,7 +227,18 @@ export function AgentSettingsEditor({ agent, initialRule, startInEditMode }: Pro
   const [segmentExcludes, setSegmentExcludes] = useState<string[]>(initialExcludes);
   const [enrollmentMode, setEnrollmentMode] = useState<"fixed" | "continuous">(agent.enrollmentMode);
   // Sending
-  const [dailySendCap, setDailySendCap] = useState<number | null>(agent.dailySendCap);
+  // Daily cap: preset dropdown + optional custom number. Mirrors the legacy
+  // agent-edit-sheet pattern so users can pick common values quickly.
+  const initialCapPreset = useMemo(() => {
+    if (agent.dailySendCap === null) return "none";
+    return DAILY_CAP_PRESETS.find((o) => o.value === String(agent.dailySendCap))
+      ? String(agent.dailySendCap)
+      : "custom";
+  }, [agent.dailySendCap]);
+  const [capPreset, setCapPreset] = useState(initialCapPreset);
+  const [capCustom, setCapCustom] = useState(
+    agent.dailySendCap !== null && initialCapPreset === "custom" ? String(agent.dailySendCap) : "",
+  );
   const [uniqueUsersCapInput, setUniqueUsersCapInput] = useState<string>(
     agent.uniqueUsersCap == null ? "" : String(agent.uniqueUsersCap),
   );
@@ -245,22 +270,52 @@ export function AgentSettingsEditor({ agent, initialRule, startInEditMode }: Pro
   const [error, setError] = useState<string | null>(null);
 
   // ---- snapshot builders -------------------------------------------------
-  const uniqueUsersCapResolved: number | null = useMemo(() => {
+  // Validate uniqueUsersCap input: empty → null (unlimited, valid); otherwise
+  // must parse to integer ≥ 1. Show inline error + block Save when invalid;
+  // don't silently coerce "0" / "-3" / "abc" to "unlimited".
+  const uniqueUsersCapValidation: { value: number | null; error: string | null } = useMemo(() => {
     const trimmed = uniqueUsersCapInput.trim();
-    if (trimmed === "") return null;
-    const n = parseInt(trimmed, 10);
-    if (Number.isNaN(n) || n < 1) return null;
-    return n;
+    if (trimmed === "") return { value: null, error: null };
+    const n = Number(trimmed);
+    if (!Number.isFinite(n) || !Number.isInteger(n) || n < 1) {
+      return { value: null, error: "Must be a positive whole number, or blank for unlimited." };
+    }
+    return { value: n, error: null };
   }, [uniqueUsersCapInput]);
 
-  const initialSnapshot: SettingsSnapshot = useMemo(() => ({
+  // Daily cap: preset "none" → null; numeric preset → that number; "custom" →
+  // capCustom must be ≥ 1, otherwise inline error blocks save.
+  const dailyCapValidation: { value: number | null; error: string | null } = useMemo(() => {
+    if (capPreset === "none") return { value: null, error: null };
+    if (capPreset === "custom") {
+      const trimmed = capCustom.trim();
+      if (trimmed === "") return { value: null, error: "Enter a positive whole number, or pick 'No cap'." };
+      const n = Number(trimmed);
+      if (!Number.isFinite(n) || !Number.isInteger(n) || n < 1) {
+        return { value: null, error: "Must be a positive whole number." };
+      }
+      return { value: n, error: null };
+    }
+    const n = parseInt(capPreset, 10);
+    return { value: n, error: null };
+  }, [capPreset, capCustom]);
+
+  // color saves out-of-band via AgentColorPicker; localizePush has no input in
+  // this form. Both are intentionally excluded from snapshots so this form's
+  // PATCH can never accidentally clobber them. Preserve agent.targetSegmentName
+  // verbatim so a no-op save never triggers releasesCohort on legacy agents.
+  //
+  // Stored in state (not just useMemo) so that on a partial save failure (PATCH
+  // succeeded but PUT failed) we can advance the agent-side baseline to the
+  // just-saved values; the recomputed diff then only contains scheduling and
+  // the retry doesn't re-PATCH already-saved fields.
+  const buildInitialSnapshot = (): SettingsSnapshot => ({
     name: agent.name,
     description: agent.description,
-    color: agent.color,
     algorithm: agent.algorithm,
     epsilon: agent.epsilon,
     funnelStage: agent.funnelStage,
-    targetSegmentName: null, // we always clear legacy when using the new UI
+    targetSegmentName: agent.targetSegmentName,
     segmentTargeting: initialSegmentMode
       ? { includes: initialIncludes, excludes: initialExcludes }
       : null,
@@ -270,31 +325,29 @@ export function AgentSettingsEditor({ agent, initialRule, startInEditMode }: Pro
     fallbackSendHour: agent.fallbackSendHour,
     deeplinkOverride: agent.deeplinkOverride,
     languageFilter: agent.languageFilter,
-    localizePush: agent.localizePush,
     frequencyCap: initialFreqCap,
     quietHours: initialQuiet,
     blackoutDates: initialBlackout,
     smartSuppress: initialSmartSuppress,
     suppressThresh: initialSuppressThresh,
     prioritizeLastSeen: initialPrioritizeLastSeen,
-  }), [agent, initialSegmentMode, initialIncludes, initialExcludes, initialFreqCap, initialQuiet, initialBlackout, initialSmartSuppress, initialSuppressThresh, initialPrioritizeLastSeen]);
+  });
+  const [initialSnapshot, setInitialSnapshot] = useState<SettingsSnapshot>(buildInitialSnapshot);
 
   const currentSnapshot: SettingsSnapshot = useMemo(() => ({
     name: name.trim(),
     description: description.trim() === "" ? null : description.trim(),
-    color: agent.color, // managed by AgentColorPicker (self-saves)
     algorithm,
     epsilon,
     funnelStage,
-    targetSegmentName: null,
+    targetSegmentName: agent.targetSegmentName,
     segmentTargeting: resolveSegmentTargeting(segmentMode, segmentIncludes, segmentExcludes),
     enrollmentMode,
-    dailySendCap,
-    uniqueUsersCap: uniqueUsersCapResolved,
+    dailySendCap: dailyCapValidation.value,
+    uniqueUsersCap: uniqueUsersCapValidation.value,
     fallbackSendHour,
     deeplinkOverride: deeplinkOverride.trim() === "" ? null : deeplinkOverride.trim(),
     languageFilter: agent.languageFilter, // not yet editable in this tab; preserve
-    localizePush: agent.localizePush,
     frequencyCap: freqCap,
     quietHours,
     blackoutDates,
@@ -302,10 +355,11 @@ export function AgentSettingsEditor({ agent, initialRule, startInEditMode }: Pro
     suppressThresh,
     prioritizeLastSeen,
   }), [
-    name, description, agent.color, algorithm, epsilon, funnelStage,
+    name, description, algorithm, epsilon, funnelStage,
+    agent.targetSegmentName,
     segmentMode, segmentIncludes, segmentExcludes, enrollmentMode,
-    dailySendCap, uniqueUsersCapResolved, fallbackSendHour, deeplinkOverride,
-    agent.languageFilter, agent.localizePush,
+    dailyCapValidation.value, uniqueUsersCapValidation.value, fallbackSendHour, deeplinkOverride,
+    agent.languageFilter,
     freqCap, quietHours, blackoutDates, smartSuppress, suppressThresh, prioritizeLastSeen,
   ]);
 
@@ -349,7 +403,8 @@ export function AgentSettingsEditor({ agent, initialRule, startInEditMode }: Pro
     setSegmentIncludes(initialIncludes);
     setSegmentExcludes(initialExcludes);
     setEnrollmentMode(agent.enrollmentMode);
-    setDailySendCap(agent.dailySendCap);
+    setCapPreset(initialCapPreset);
+    setCapCustom(agent.dailySendCap !== null && initialCapPreset === "custom" ? String(agent.dailySendCap) : "");
     setUniqueUsersCapInput(agent.uniqueUsersCap == null ? "" : String(agent.uniqueUsersCap));
     setFallbackSendHour(agent.fallbackSendHour ?? 8);
     setDeeplinkOverride(agent.deeplinkOverride ?? "");
@@ -360,12 +415,14 @@ export function AgentSettingsEditor({ agent, initialRule, startInEditMode }: Pro
     setSmartSuppress(initialSmartSuppress);
     setSuppressThresh(initialSuppressThresh);
     setPrioritizeLastSeen(initialPrioritizeLastSeen);
+    setInitialSnapshot(buildInitialSnapshot());
     setError(null);
   }
 
   async function onSave() {
     setSaving(true);
     setError(null);
+    let patchSucceeded = false;
     try {
       if (diff.agentPatch) {
         const res = await fetch(`/api/agents/${agent.id}`, {
@@ -377,6 +434,7 @@ export function AgentSettingsEditor({ agent, initialRule, startInEditMode }: Pro
           const body = (await res.json().catch(() => ({}))) as { error?: string };
           throw new Error(body.error ?? "Failed to save agent settings");
         }
+        patchSucceeded = true;
       }
       if (diff.schedulingPut) {
         // The PUT route validates required fields strictly (frequencyCap,
@@ -403,7 +461,31 @@ export function AgentSettingsEditor({ agent, initialRule, startInEditMode }: Pro
       setEditing(false);
       router.refresh();
     } catch (e) {
-      setError(e instanceof Error ? e.message : "Save failed");
+      const msg = e instanceof Error ? e.message : "Save failed";
+      if (patchSucceeded) {
+        // Agent fields are persisted; only scheduling failed. Advance the
+        // agent-side baseline to the just-saved values so retry only sends the
+        // scheduling PUT (no redundant PATCH).
+        setInitialSnapshot((prev) => ({
+          ...prev,
+          name: currentSnapshot.name,
+          description: currentSnapshot.description,
+          algorithm: currentSnapshot.algorithm,
+          epsilon: currentSnapshot.epsilon,
+          funnelStage: currentSnapshot.funnelStage,
+          targetSegmentName: currentSnapshot.targetSegmentName,
+          segmentTargeting: currentSnapshot.segmentTargeting,
+          enrollmentMode: currentSnapshot.enrollmentMode,
+          dailySendCap: currentSnapshot.dailySendCap,
+          uniqueUsersCap: currentSnapshot.uniqueUsersCap,
+          fallbackSendHour: currentSnapshot.fallbackSendHour,
+          deeplinkOverride: currentSnapshot.deeplinkOverride,
+          languageFilter: currentSnapshot.languageFilter,
+        }));
+        setError(`Agent settings saved, but scheduling failed: ${msg}. Click Save Changes to retry just the scheduling update.`);
+      } else {
+        setError(msg);
+      }
     } finally {
       setSaving(false);
     }
@@ -661,19 +743,30 @@ export function AgentSettingsEditor({ agent, initialRule, startInEditMode }: Pro
         <CardContent className="space-y-4">
           <div className="space-y-1.5">
             <label className="text-sm font-medium">Daily Send Cap</label>
-            <Input
-              type="number"
-              min={1}
-              placeholder="Unlimited"
-              value={dailySendCap == null ? "" : String(dailySendCap)}
-              onChange={(e) => {
-                const t = e.target.value.trim();
-                if (t === "") return setDailySendCap(null);
-                const n = parseInt(t, 10);
-                setDailySendCap(Number.isNaN(n) || n < 1 ? null : n);
-              }}
-            />
-            <p className="text-xs text-muted-foreground">Maximum total sends per 24-hour UTC window. Leave blank for unlimited.</p>
+            <div className="flex items-center gap-2">
+              <Select value={capPreset} onValueChange={(v) => { if (v) setCapPreset(v); }}>
+                <SelectTrigger className="w-36"><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  {DAILY_CAP_PRESETS.map((opt) => (
+                    <SelectItem key={opt.value} value={opt.value}>{opt.label}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              {capPreset === "custom" && (
+                <Input
+                  type="number"
+                  min={1}
+                  className="w-32"
+                  placeholder="e.g. 750"
+                  value={capCustom}
+                  onChange={(e) => setCapCustom(e.target.value)}
+                />
+              )}
+            </div>
+            {dailyCapValidation.error && (
+              <p className="text-xs text-destructive" role="alert">{dailyCapValidation.error}</p>
+            )}
+            <p className="text-xs text-muted-foreground">Maximum total sends per 24-hour UTC window.</p>
           </div>
 
           <div className="space-y-1.5">
@@ -684,7 +777,11 @@ export function AgentSettingsEditor({ agent, initialRule, startInEditMode }: Pro
               placeholder="Unlimited"
               value={uniqueUsersCapInput}
               onChange={(e) => setUniqueUsersCapInput(e.target.value)}
+              aria-invalid={uniqueUsersCapValidation.error !== null}
             />
+            {uniqueUsersCapValidation.error && (
+              <p className="text-xs text-destructive" role="alert">{uniqueUsersCapValidation.error}</p>
+            )}
             <p className="text-xs text-muted-foreground">
               Lifetime ceiling on distinct users this agent will enroll. Leave blank for unlimited.
               Lowering it does not release already-enrolled users.
@@ -716,7 +813,16 @@ export function AgentSettingsEditor({ agent, initialRule, startInEditMode }: Pro
 
       {/* Guardrails */}
       <Card>
-        <CardHeader><CardTitle className="text-sm font-semibold">Frequency Cap</CardTitle></CardHeader>
+        <CardHeader>
+          <CardTitle className="text-sm font-semibold flex items-center gap-1.5">
+            Frequency Cap
+            <InfoTip title="Frequency Cap">
+              <p>Limits how many messages a user can receive from this agent in a rolling time window — regardless of how many cron runs fire.</p>
+              <p className="mt-1">The window is <strong>rolling</strong>, not calendar-based. 3 per week means the user hasn&apos;t received a message in the last 7 days more than 3 times.</p>
+              <p className="mt-1">Set this conservatively. Over-messaging drives unsubscribes and negative rewards that hurt your bandit&apos;s arm statistics.</p>
+            </InfoTip>
+          </CardTitle>
+        </CardHeader>
         <CardContent className="space-y-3">
           <div className="flex flex-wrap items-end gap-4">
             <div className="flex-1 min-w-[12rem]">
@@ -749,7 +855,16 @@ export function AgentSettingsEditor({ agent, initialRule, startInEditMode }: Pro
       </Card>
 
       <Card>
-        <CardHeader><CardTitle className="text-sm font-semibold">Quiet Hours</CardTitle></CardHeader>
+        <CardHeader>
+          <CardTitle className="text-sm font-semibold flex items-center gap-1.5">
+            Quiet Hours
+            <InfoTip title="Quiet Hours">
+              <p><strong>Off</strong> — No enforcement. Nexus picks the best behavioral hour per user; users without data use Braze&apos;s in-local-time fallback.</p>
+              <p className="mt-1"><strong>Suppress</strong> — Server-side window check at send time. If a user&apos;s local time (from Hightouch) is inside the window, they&apos;re skipped for that cron run entirely. Good when some users missing a send is acceptable.</p>
+              <p className="mt-1"><strong>Schedule</strong> — Braze queues all messages and delivers at your chosen hour in each user&apos;s own timezone via <code>in_local_time</code>. No one is suppressed — delivery is just delayed to a reasonable hour. Requires Braze to have good timezone coverage.</p>
+            </InfoTip>
+          </CardTitle>
+        </CardHeader>
         <CardContent className="space-y-3">
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
             {MODE_OPTIONS.map((opt) => {
@@ -851,6 +966,16 @@ export function AgentSettingsEditor({ agent, initialRule, startInEditMode }: Pro
                     );
                   })}
                 </div>
+                {(quietHours.quietDays ?? []).length > 0 && (
+                  <p className="text-xs text-muted-foreground">
+                    No sends on:{" "}
+                    {(quietHours.quietDays ?? [])
+                      .slice()
+                      .sort((a, b) => a - b)
+                      .map((d) => DAYS_OF_WEEK.find((x) => x.value === d)?.label)
+                      .join(", ")}
+                  </p>
+                )}
               </div>
             </>
           )}
@@ -875,7 +1000,15 @@ export function AgentSettingsEditor({ agent, initialRule, startInEditMode }: Pro
       </Card>
 
       <Card>
-        <CardHeader><CardTitle className="text-sm font-semibold">Blackout Dates</CardTitle></CardHeader>
+        <CardHeader>
+          <CardTitle className="text-sm font-semibold flex items-center gap-1.5">
+            Blackout Dates
+            <InfoTip title="Blackout Dates">
+              <p>Specific calendar dates on which <strong>no messages are sent</strong> from this agent, regardless of any other scheduling rules.</p>
+              <p className="mt-1">Use for major holidays, company-wide communication freezes, or any date where messaging would be insensitive or unwanted. Dates apply globally to all users of this agent.</p>
+            </InfoTip>
+          </CardTitle>
+        </CardHeader>
         <CardContent className="space-y-3">
           <div className="flex gap-2">
             <Input
@@ -904,7 +1037,14 @@ export function AgentSettingsEditor({ agent, initialRule, startInEditMode }: Pro
       <Card>
         <CardHeader>
           <div className="flex items-center justify-between">
-            <CardTitle className="text-sm font-semibold">Low-Probability Suppression</CardTitle>
+            <CardTitle className="text-sm font-semibold flex items-center gap-1.5">
+              Low-Probability Suppression
+              <InfoTip title="Low-Probability Suppression">
+                <p>Skips users whose historical engagement predicts a very low probability of converting. This concentrates sends on users more likely to respond, improving your overall conversion rate.</p>
+                <p className="mt-1">The threshold is compared against the user&apos;s <strong>average reward</strong> across their last 5+ decisions with this agent. Only activates once a user has enough history.</p>
+                <p className="mt-1">A threshold of 20% means users whose predicted conversion is below 20% are skipped for this run. They can still receive messages in future runs if their behavior changes.</p>
+              </InfoTip>
+            </CardTitle>
             <Switch checked={smartSuppress} onCheckedChange={setSmartSuppress} />
           </div>
         </CardHeader>
@@ -926,7 +1066,14 @@ export function AgentSettingsEditor({ agent, initialRule, startInEditMode }: Pro
       <Card>
         <CardHeader>
           <div className="flex items-center justify-between">
-            <CardTitle className="text-sm font-semibold">Last-Seen Timing</CardTitle>
+            <CardTitle className="text-sm font-semibold flex items-center gap-1.5">
+              Last-Seen Timing
+              <InfoTip title="Last-Seen Timing">
+                <p>When enabled, the audience cap fills with users whose last-seen activity time matches the current hour first — then falls back to users with no timing data.</p>
+                <p className="mt-1">This distributes sends throughout the day at each user&apos;s natural engagement time rather than clustering at the fallback hour. Users without last-seen data are still included once time-matched slots are filled.</p>
+                <p className="mt-1">When disabled, the audience cap is filled randomly (original lottery behavior) and sends fire at the fallback hour for all users.</p>
+              </InfoTip>
+            </CardTitle>
             <Switch checked={prioritizeLastSeen} onCheckedChange={setPrioritizeLastSeen} />
           </div>
         </CardHeader>
@@ -954,7 +1101,14 @@ export function AgentSettingsEditor({ agent, initialRule, startInEditMode }: Pro
             Cancel
           </Button>
           <Button
-            disabled={saving || !isDirty || !name.trim() || (segmentMode && segmentIncludes.length === 0)}
+            disabled={
+              saving ||
+              !isDirty ||
+              !name.trim() ||
+              (segmentMode && segmentIncludes.length === 0) ||
+              uniqueUsersCapValidation.error !== null ||
+              dailyCapValidation.error !== null
+            }
             onClick={() => void onSave()}
           >
             {saving ? "Saving…" : "Save Changes"}
