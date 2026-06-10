@@ -244,6 +244,24 @@ export async function POST(req: NextRequest) {
           data: { releasedAt: now, releaseReason: reason },
         }).catch((err) => console.error(`[cron] release sweep (${reason}) failed:`, err));
       }
+      // Clear the owning agent's user lock so released users are actually
+      // claimable again — eligibility queries require lockedByAgentId null/own,
+      // so a retained lock would exclude the user from every other agent forever.
+      const agentByAssignment = new Map(enriched.map((a) => [a.id, a.agentId]));
+      const releasedUsersByAgent = new Map<string, string[]>();
+      for (const r of releases) {
+        const agentId = agentByAssignment.get(r.id);
+        if (!agentId) continue;
+        const list = releasedUsersByAgent.get(agentId) ?? [];
+        list.push(r.externalUserId);
+        releasedUsersByAgent.set(agentId, list);
+      }
+      for (const [agentId, userIds] of releasedUsersByAgent) {
+        await prisma.trackedUser.updateMany({
+          where: { externalId: { in: userIds }, lockedByAgentId: agentId },
+          data:  { lockedByAgentId: null },
+        }).catch((err) => console.error(`[cron] release sweep lock clear (agent ${agentId}) failed:`, err));
+      }
     }
   }
   // ─── End Phase −1 ─────────────────────────────────────────────────────────
@@ -499,6 +517,10 @@ export async function POST(req: NextRequest) {
             where: { id: { in: exits.map((r) => r.id) } },
             data: { releasedAt: now, releaseReason: "segment_exit" },
           }).catch((err) => console.error(`[cron] continuous segment_exit release failed (agent ${agent.id}):`, err));
+          await prisma.trackedUser.updateMany({
+            where: { externalId: { in: exits.map((r) => r.externalUserId) }, lockedByAgentId: agent.id },
+            data:  { lockedByAgentId: null },
+          }).catch((err) => console.error(`[cron] continuous segment_exit lock clear failed (agent ${agent.id}):`, err));
           for (const r of exits) activeOwnerByUser.delete(r.externalUserId);
         }
       }
@@ -521,8 +543,8 @@ export async function POST(req: NextRequest) {
           data: { lockedByAgentId: agent.id },
         });
         // Re-read winners (race contention) + fetch attributes for flag snapshot in same query.
-        // Note: a previously-released user of THIS agent still has lockedByAgentId = agent.id,
-        // so the re-read picks them up correctly even though updateMany didn't touch them.
+        // Released users have their lock cleared at release time, so returning
+        // segment members are re-claimed by the updateMany above like new users.
         const winnerRows = await prisma.trackedUser.findMany({
           where: { externalId: { in: toEnroll }, lockedByAgentId: agent.id },
           select: { externalId: true, attributes: true },

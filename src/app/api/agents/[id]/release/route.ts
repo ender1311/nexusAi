@@ -31,14 +31,23 @@ export async function POST(
     const agent = await prisma.agent.findUnique({ where: { id }, select: { id: true } });
     if (!agent) return fail("Agent not found", 404);
 
-    const result = await prisma.userAgentAssignment.updateMany({
-      where: {
-        agentId: id,
-        releasedAt: null,
-        ...(userId ? { externalUserId: userId } : {}),
-      },
-      data: { releasedAt: new Date(), releaseReason: "manual" },
-    });
+    // Clear the user lock alongside the release — eligibility queries require
+    // lockedByAgentId null/own, so a retained lock would keep the released user
+    // out of every other agent's pool forever.
+    const [result] = await prisma.$transaction([
+      prisma.userAgentAssignment.updateMany({
+        where: {
+          agentId: id,
+          releasedAt: null,
+          ...(userId ? { externalUserId: userId } : {}),
+        },
+        data: { releasedAt: new Date(), releaseReason: "manual" },
+      }),
+      prisma.trackedUser.updateMany({
+        where: { lockedByAgentId: id, ...(userId ? { externalId: userId } : {}) },
+        data: { lockedByAgentId: null },
+      }),
+    ]);
     return ok({ released: result.count });
   } catch (err) {
     return handleRouteError(`POST /api/agents/${id}/release`, err);

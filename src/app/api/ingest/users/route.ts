@@ -810,6 +810,32 @@ export async function POST(req: NextRequest) {
       if (!sowerDecisionByUser.has(row.userId)) sowerDecisionByUser.set(row.userId, row);
     }
 
+    // Pre-load PRE-upsert attributes for users whose incoming payload carries a
+    // truthy interaction flag — any_interaction credits only on a false→true
+    // transition, so the detector needs the stored value from BEFORE this sync's
+    // upsert overwrites it. Scoped to flag carriers to keep the query payload small.
+    const flagCarrierIds = [...new Set(
+      chunk
+        .filter((u) => Object.entries((u.attributes ?? {}) as Record<string, unknown>)
+          .some(([k, v]) => isInteractionFlag(k) && normalizeFlag(v)))
+        .map((u) => u.external_user_id?.trim() || u.braze_id?.trim())
+        .filter((id): id is string => Boolean(id)),
+    )];
+    const storedAttrRows = flagCarrierIds.length > 0
+      ? await prisma.trackedUser.findMany({
+          where: { externalId: { in: flagCarrierIds } },
+          select: { externalId: true, attributes: true },
+        })
+      : [];
+    const storedAttributesByUser = new Map<string, Record<string, unknown>>(
+      storedAttrRows.map((r) => [
+        r.externalId,
+        r.attributes !== null && typeof r.attributes === "object" && !Array.isArray(r.attributes)
+          ? (r.attributes as Record<string, unknown>)
+          : {},
+      ]),
+    );
+
     // Pre-resolve identity records for the whole chunk in two queries instead of
     // a 3×findUnique fan-out per user. Only users that arrive with both a real
     // external_user_id and a differing braze_id need identity reconciliation.
@@ -1084,10 +1110,10 @@ export async function POST(req: NextRequest) {
 
             const creditedFlags = detectFlagConversions({
               incoming: raw,
-              // Deliberate stub: the detector's Type A/B logic only reads enrollmentFlags
-              // today. If a stored→incoming transition check is ever added to
-              // detectFlagConversions, this must become the PRE-upsert attributes.
-              stored: raw,
+              // PRE-upsert attributes (preloaded per-chunk before the trackedUser
+              // upsert above overwrote them) — any_interaction credits only on a
+              // false→true transition. A brand-new user has no stored row → {}.
+              stored: storedAttributesByUser.get(externalId) ?? {},
               enrollmentFlags,
               goals: flagGoals,
             });

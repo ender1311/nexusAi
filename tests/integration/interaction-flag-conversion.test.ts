@@ -193,8 +193,8 @@ describe("POST /api/ingest/users — interaction-flag conversions", () => {
     expect(unchanged!.conversionAt).toBeNull();
   });
 
-  // ── Type B: any_interaction credits regardless of baseline ────────────────
-  it("Type B: any_interaction credits when flag is true (enrollment baseline irrelevant)", async () => {
+  // ── Type B: any_interaction credits a false→true transition ──────────────
+  it("Type B: any_interaction credits a false→true transition during ownership", async () => {
     const agent = await createAgent();
     await createGoal(agent.id, {
       eventName: "votd_interaction_has_ever_flag",
@@ -206,18 +206,19 @@ describe("POST /api/ingest/users — interaction-flag conversions", () => {
     });
     const msg = await createMessage(agent.id);
     const variant = await createVariant(msg.id);
-    await createUser("usr_flag_e");
+    await createUser("usr_flag_e", {
+      attributes: { votd_interaction_has_ever_flag: false },
+    });
     const decision = await createUserDecision({
       agentId: agent.id,
       userId: "usr_flag_e",
       messageVariantId: variant.id,
       sentAt: new Date(Date.now() - 24 * 60 * 60 * 1000),
     });
-    // Enrollment baseline already true — Type B still credits
     await createUserAgentAssignment({
       externalUserId: "usr_flag_e",
       agentId: agent.id,
-      enrollmentFlags: { votd_interaction_has_ever_flag: true },
+      enrollmentFlags: { votd_interaction_has_ever_flag: false },
     });
 
     const res = await syncUser("usr_flag_e", {
@@ -234,5 +235,51 @@ describe("POST /api/ingest/users — interaction-flag conversions", () => {
     });
     expect(assignment!.releasedAt).not.toBeNull();
     expect(assignment!.releaseReason).toBe("conversion");
+  });
+
+  // ── Type B regression (2026-06-09 audit, C2): stored-true must not credit ──
+  // Before the transition gate, a has-ever flag that stayed true re-credited
+  // the same conversion on every sync, and users already engaged before
+  // enrollment were credited on their first post-enroll sync.
+  it("Type B: does NOT credit when the stored flag was already true before this sync", async () => {
+    const agent = await createAgent();
+    await createGoal(agent.id, {
+      eventName: "votd_interaction_has_ever_flag",
+      tier: "good",
+      valueWeight: 5,
+      weightMode: "fixed",
+      weightDefault: 5,
+      conversionType: "any_interaction",
+    });
+    const msg = await createMessage(agent.id);
+    const variant = await createVariant(msg.id);
+    // Flag already true in stored attributes — no transition this sync
+    await createUser("usr_flag_f", {
+      attributes: { votd_interaction_has_ever_flag: true },
+    });
+    const decision = await createUserDecision({
+      agentId: agent.id,
+      userId: "usr_flag_f",
+      messageVariantId: variant.id,
+      sentAt: new Date(Date.now() - 24 * 60 * 60 * 1000),
+    });
+    await createUserAgentAssignment({
+      externalUserId: "usr_flag_f",
+      agentId: agent.id,
+      enrollmentFlags: { votd_interaction_has_ever_flag: true },
+    });
+
+    const res = await syncUser("usr_flag_f", {
+      votd_interaction_has_ever_flag: true,
+    });
+    expect(res.status).toBe(200);
+
+    const unchanged = await prisma.userDecision.findUnique({ where: { id: decision.id } });
+    expect(unchanged!.conversionAt).toBeNull();
+
+    const assignment = await prisma.userAgentAssignment.findUnique({
+      where: { externalUserId: "usr_flag_f" },
+    });
+    expect(assignment!.releasedAt).toBeNull();
   });
 });

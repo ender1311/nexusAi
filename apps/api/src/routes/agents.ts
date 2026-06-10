@@ -177,6 +177,14 @@ agents.post("/", async (c) => {
   }
 
   try {
+    // Duplicate-name guard: a client retry after a proxy timeout would
+    // otherwise create a second identical agent (2026-06-09 audit, A3).
+    const trimmedName = name.trim();
+    const dupe = await prisma.agent.findFirst({ where: { name: trimmedName }, select: { id: true } });
+    if (dupe) {
+      return c.json({ error: `An agent named "${trimmedName}" already exists` }, 409);
+    }
+
     if (targetSegmentName && typeof targetSegmentName === "string") {
       const trimmed = (targetSegmentName as string).trim();
       const conflict = await prisma.agent.findFirst({ where: { targetSegmentName: trimmed }, select: { name: true } });
@@ -199,9 +207,13 @@ agents.post("/", async (c) => {
     const personaIds = Array.isArray(targetPersonaIds) ? (targetPersonaIds as string[]) : [];
     const qDays = Array.isArray(quietDays) ? (quietDays as number[]) : [];
 
-    const agent = await prisma.agent.create({
+    // Atomic create: agent (with nested goals/messages/scheduling) and persona
+    // targets commit together — a failure on persona targets must not leave a
+    // half-configured agent behind (2026-06-09 audit, A3).
+    const agent = await prisma.$transaction(async (tx) => {
+      const created = await tx.agent.create({
       data: {
-        name: name.trim(),
+        name: trimmedName,
         description: typeof description === "string" ? description : undefined,
         algorithm: typeof algorithm === "string" ? algorithm : "thompson",
         epsilon: typeof epsilon === "number" ? epsilon : 0.1,
@@ -278,16 +290,19 @@ agents.post("/", async (c) => {
           },
         },
       },
+      });
+
+      if (personaIds.length > 0) {
+        await tx.agentPersonaTarget.createMany({
+          data: personaIds.map((personaId) => ({ agentId: created.id, personaId })),
+          skipDuplicates: true,
+        });
+      }
+
+      return created;
     });
 
     void revalidate("agents");
-
-    if (personaIds.length > 0) {
-      await prisma.agentPersonaTarget.createMany({
-        data: personaIds.map((personaId) => ({ agentId: agent.id, personaId })),
-        skipDuplicates: true,
-      });
-    }
 
     return c.json(agent, 201);
   } catch (error) {
