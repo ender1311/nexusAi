@@ -56,15 +56,17 @@ export function snapshotEnrollmentFlags(rawAttributes: unknown): Record<string, 
   }, {});
 }
 
+// Labels stay neutral on first-vs-any: that semantic is chosen per goal via
+// conversionType ("First interaction" / "Any interaction" toggle), so baking
+// "first time" or "first interaction" into the label would be misleading.
 export const INTERACTION_FLAG_LABELS: Record<InteractionFlag, string> = {
-  guided_scripture_interaction_has_ever_flag:
-    "Guided Scripture (first interaction)",
-  guided_prayer_interaction_has_ever_flag: "Guided Prayer (first interaction)",
-  plan_audio_interaction_has_ever_flag: "Plan Audio (first interaction)",
-  plan_interaction_has_ever_flag: "Plan (first interaction)",
-  plan_subscribed_has_ever_flag: "Plan Subscribed (first time)",
-  plan_day_completion_has_ever_flag: "Plan Day Completed (first time)",
-  pmt_participation_has_ever_flag: "PMT Participation (first time)",
-  votd_interaction_has_ever_flag: "Verse of the Day (first interaction)",
-  votd_share_has_ever_flag: "Verse of the Day Share (first time)",
+  guided_scripture_interaction_has_ever_flag: "Guided Scripture Interaction",
+  guided_prayer_interaction_has_ever_flag: "Guided Prayer Interaction",
+  plan_audio_interaction_has_ever_flag: "Plan Audio Interaction",
+  plan_interaction_has_ever_flag: "Plan Interaction",
+  plan_subscribed_has_ever_flag: "Plan Subscription",
+  plan_day_completion_has_ever_flag: "Plan Day Completion",
+  pmt_participation_has_ever_flag: "PMT Participation",
+  votd_interaction_has_ever_flag: "Verse of the Day Interaction",
+  votd_share_has_ever_flag: "Verse of the Day Share",
 };
