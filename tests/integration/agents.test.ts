@@ -237,39 +237,8 @@ describe("PATCH /api/agents/[id] — targetSegmentName", () => {
 });
 
 describe("PATCH /api/agents/[id] — uniqueUsersCap", () => {
-  it("silently ignores uniqueUsersCap in PATCH (read-only after creation)", async () => {
-    const agent = await prisma.agent.create({
-      data: { name: "Cap Agent", algorithm: "thompson", epsilon: 0.1, uniqueUsersCap: 1000 },
-    });
-    const req = buildRequest("PATCH", { uniqueUsersCap: 500 });
-    const res = await patchAgent(req as NextRequest, { params: Promise.resolve({ id: agent.id }) });
-    expect(res.status).toBe(200);
-
-    // Field must remain unchanged — PATCH does not update uniqueUsersCap
-    const persisted = await prisma.agent.findUnique({ where: { id: agent.id } });
-    expect(persisted!.uniqueUsersCap).toBe(1000);
-  });
-
-  it("silently ignores uniqueUsersCap: null in PATCH", async () => {
-    const agent = await prisma.agent.create({
-      data: { name: "Cap Agent", algorithm: "thompson", epsilon: 0.1, uniqueUsersCap: 200 },
-    });
-    const req = buildRequest("PATCH", { uniqueUsersCap: null });
-    const res = await patchAgent(req as NextRequest, { params: Promise.resolve({ id: agent.id }) });
-    expect(res.status).toBe(200);
-
-    const persisted = await prisma.agent.findUnique({ where: { id: agent.id } });
-    expect(persisted!.uniqueUsersCap).toBe(200);
-  });
-
-  it("silently ignores invalid uniqueUsersCap values in PATCH (no 400)", async () => {
-    const agent = await prisma.agent.create({ data: { name: "Cap Agent", algorithm: "thompson", epsilon: 0.1 } });
-    for (const val of [0, -1, 1.5]) {
-      const req = buildRequest("PATCH", { uniqueUsersCap: val });
-      const res = await patchAgent(req as NextRequest, { params: Promise.resolve({ id: agent.id }) });
-      expect(res.status).toBe(200);
-    }
-  });
+  // uniqueUsersCap became editable via PATCH (unified agent settings, 2026-06);
+  // full coverage lives in tests/integration/agents-patch-unique-users-cap.test.ts.
 
   it("GET response includes uniqueUsersCap field", async () => {
     const agent = await prisma.agent.create({

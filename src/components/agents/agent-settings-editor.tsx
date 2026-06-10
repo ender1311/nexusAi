@@ -319,14 +319,18 @@ export function AgentSettingsEditor({ agent, initialRule, startInEditMode }: Pro
     epsilon: agent.epsilon,
     funnelStage: agent.funnelStage,
     targetSegmentName: agent.targetSegmentName,
-    segmentTargeting: initialSegmentMode
-      ? { includes: initialIncludes, excludes: initialExcludes }
-      : null,
+    // Same resolver as currentSnapshot — funnel-stage agents can carry
+    // standalone excludes ({includes:[], excludes}), and building this by hand
+    // made every such agent permanently "dirty" with a false cohort warning.
+    segmentTargeting: resolveSegmentTargeting(initialSegmentMode, initialIncludes, initialExcludes),
     enrollmentMode: agent.enrollmentMode,
     dailySendCap: agent.dailySendCap,
     uniqueUsersCap: agent.uniqueUsersCap,
     fallbackSendHour: agent.fallbackSendHour ?? 8,
-    deeplinkOverride: agent.deeplinkOverride,
+    deeplinkOverride:
+      agent.deeplinkOverride && agent.deeplinkOverride.trim() !== ""
+        ? agent.deeplinkOverride.trim()
+        : null,
     languageFilter: agent.languageFilter,
     frequencyCap: initialFreqCap,
     quietHours: initialQuiet,
@@ -550,13 +554,11 @@ export function AgentSettingsEditor({ agent, initialRule, startInEditMode }: Pro
           <CardContent>
             <Row label="Mode">{initialSegmentMode ? "Hightouch Segment(s)" : "Funnel Stage"}</Row>
             {initialSegmentMode ? (
-              <>
-                <Row label="Include">{initialIncludes.length > 0 ? initialIncludes.join(", ") : <span className="text-muted-foreground">—</span>}</Row>
-                <Row label="Exclude">{initialExcludes.length > 0 ? initialExcludes.join(", ") : <span className="text-muted-foreground">—</span>}</Row>
-              </>
+              <Row label="Include">{initialIncludes.length > 0 ? initialIncludes.join(", ") : <span className="text-muted-foreground">—</span>}</Row>
             ) : (
               <Row label="Funnel Stage">{FUNNEL_STAGE_META[agent.funnelStage]?.label ?? agent.funnelStage}</Row>
             )}
+            <Row label="Exclude">{initialExcludes.length > 0 ? initialExcludes.join(", ") : <span className="text-muted-foreground">—</span>}</Row>
             <Row label="Enrollment Mode" last>{agent.enrollmentMode === "fixed" ? "Fixed Cohort" : "Continuous (trigger-based)"}</Row>
           </CardContent>
         </Card>
@@ -696,29 +698,30 @@ export function AgentSettingsEditor({ agent, initialRule, startInEditMode }: Pro
               </Select>
             </div>
           ) : (
-            <>
-              <div className="space-y-1.5">
-                <label className="text-sm font-medium">Include Segments (AND)</label>
-                <p className="text-xs text-muted-foreground">User must be in ALL selected segments.</p>
-                <SegmentCheckList
-                  segments={segments}
-                  selected={segmentIncludes}
-                  currentAgentTargetNames={initialIncludes}
-                  onChange={setSegmentIncludes}
-                />
-              </div>
-              <div className="space-y-1.5">
-                <label className="text-sm font-medium">Exclude Segments (optional)</label>
-                <p className="text-xs text-muted-foreground">User must NOT be in any selected segment.</p>
-                <SegmentCheckList
-                  segments={segments}
-                  selected={segmentExcludes}
-                  currentAgentTargetNames={[]}
-                  onChange={setSegmentExcludes}
-                />
-              </div>
-            </>
+            <div className="space-y-1.5">
+              <label className="text-sm font-medium">Include Segments (AND)</label>
+              <p className="text-xs text-muted-foreground">User must be in ALL selected segments.</p>
+              <SegmentCheckList
+                segments={segments}
+                selected={segmentIncludes}
+                currentAgentTargetNames={initialIncludes}
+                onChange={setSegmentIncludes}
+              />
+            </div>
           )}
+
+          {/* Excludes apply in BOTH modes — funnel-stage agents can carry
+              standalone excludes (matches the create wizard and the old sheet). */}
+          <div className="space-y-1.5">
+            <label className="text-sm font-medium">Exclude Segments (optional)</label>
+            <p className="text-xs text-muted-foreground">User must NOT be in any selected segment.</p>
+            <SegmentCheckList
+              segments={segments}
+              selected={segmentExcludes}
+              currentAgentTargetNames={[]}
+              onChange={setSegmentExcludes}
+            />
+          </div>
 
           <div className="space-y-1.5">
             <label className="text-sm font-medium">Enrollment Mode</label>
@@ -797,6 +800,7 @@ export function AgentSettingsEditor({ agent, initialRule, startInEditMode }: Pro
             <p className="text-xs text-muted-foreground">
               Lifetime ceiling on distinct users this agent will enroll. Leave blank for unlimited.
               Lowering it does not release already-enrolled users.
+              {enrollmentMode === "fixed" && " On a fixed cohort, changes take effect only when the cohort is next re-materialized."}
             </p>
           </div>
 
