@@ -32,6 +32,7 @@ export type ExistingAssignment = {
   agentId: string;
   startedAt: Date;
   windowCompletedAt: Date | null;
+  releasedAt: Date | null;
 };
 
 /**
@@ -122,6 +123,29 @@ export function classifyExplorationWindows(
       const agentId = pickAgent(eligible);
       toCreate.push({ externalUserId: user.externalId, agentId });
       inWindowMap.set(user.externalId, agentId);
+    } else if (assignment.releasedAt !== null) {
+      // Released assignment is never an active window: the release sweep (or a
+      // manual release) ended this user's ownership, so classifying it Class B
+      // would keep sending after release (2026-06-09 audit, C3). Treat the
+      // release like a completed window — re-enter via a fresh window only
+      // after the cooldown has elapsed since the release.
+      const timeSinceRelease = now.getTime() - assignment.releasedAt.getTime();
+      if (timeSinceRelease > cooldownMs) {
+        const eligible = eligibleAgentsByUser.get(user.externalId) ?? [];
+        if (eligible.length === 0) continue;
+        const agentId = pickAgent(eligible);
+        toReset.push({ externalUserId: user.externalId, agentId });
+        inWindowMap.set(user.externalId, agentId);
+      } else if (
+        assignment.windowCompletedAt === null &&
+        now.getTime() - assignment.startedAt.getTime() > windowMs
+      ) {
+        // Bookkeeping: an expired window is closed even when the row was also
+        // released (e.g. same-run cohort_exit). The release still governs
+        // re-entry (cooldown from releasedAt) — closing just records that the
+        // window ran its course instead of leaving it dangling open forever.
+        toClose.push(assignment.id);
+      }
     } else if (assignment.windowCompletedAt === null) {
       const age = now.getTime() - assignment.startedAt.getTime();
       if (age <= windowMs) {

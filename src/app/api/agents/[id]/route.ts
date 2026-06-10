@@ -3,11 +3,23 @@ import { revalidatePath, revalidateTag } from "next/cache";
 import { prisma } from "@/lib/db";
 import { FUNNEL_STAGES } from "@/types/agent";
 import { isPlainObject } from "@/lib/utils";
+import { parseSegmentTargeting } from "@/lib/agent-targeting";
 import { requireAdmin } from "@/lib/auth";
 import { fail, handleRouteError } from "@/lib/api/respond";
 
 const VALID_STAGES = new Set(FUNNEL_STAGES);
 const VALID_STATUSES = new Set(["draft", "active", "paused"]);
+const VALID_ALGORITHMS = new Set(["thompson", "epsilon_greedy", "linucb"]);
+
+/** Canonical form for change comparison: trimmed+sorted arrays, null when empty/invalid. */
+function normalizeSegmentTargeting(value: unknown): string | null {
+  const parsed = parseSegmentTargeting(value);
+  if (!parsed) return null;
+  return JSON.stringify({
+    includes: parsed.includes.map((s) => s.trim()).sort(),
+    excludes: parsed.excludes.map((s) => s.trim()).sort(),
+  });
+}
 
 export async function GET(_req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
@@ -49,6 +61,25 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
 
     if (body.status !== undefined && !VALID_STATUSES.has(body.status)) {
       return fail("Invalid status", 400);
+    }
+
+    if (body.name !== undefined && (typeof body.name !== "string" || body.name.trim() === "")) {
+      return fail("name must be a non-empty string", 400);
+    }
+
+    if (body.description !== undefined && body.description !== null && typeof body.description !== "string") {
+      return fail("description must be a string or null", 400);
+    }
+
+    if (body.algorithm !== undefined && !VALID_ALGORITHMS.has(body.algorithm)) {
+      return fail('algorithm must be "thompson", "epsilon_greedy", or "linucb"', 400);
+    }
+
+    if (
+      body.epsilon !== undefined &&
+      (typeof body.epsilon !== "number" || Number.isNaN(body.epsilon) || body.epsilon < 0 || body.epsilon > 1)
+    ) {
+      return fail("epsilon must be a number between 0 and 1", 400);
     }
 
     if (body.enrollmentMode !== undefined && body.enrollmentMode !== "fixed" && body.enrollmentMode !== "continuous") {
@@ -135,33 +166,54 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
       }
     }
 
-    // Release user locks when agent is stopped, paused, or targeting criteria change.
-    // The cohort is tied to those locks, so also release this agent's active
-    // assignments and clear cohortAssignedAt → it re-materializes a fresh cohort
-    // on the next active cron tick.
+    // Release user locks when the agent is stopped/paused or targeting criteria
+    // actually CHANGE. The cohort is tied to those locks, so also release this
+    // agent's active assignments and clear cohortAssignedAt → it re-materializes
+    // a fresh cohort on the next active cron tick.
+    //
+    // Change-detection matters: full-object form saves echo every field back, so
+    // keying off key PRESENCE released the whole cohort on every save even when
+    // nothing changed (2026-06-09 audit, I2).
+    const current = await prisma.agent.findUnique({
+      where: { id },
+      select: { status: true, funnelStage: true, targetSegmentName: true, segmentTargeting: true, enrollmentMode: true },
+    });
+    if (!current) return fail("Not found", 404);
+
+    const bodySegmentName =
+      body.targetSegmentName === undefined
+        ? undefined
+        : typeof body.targetSegmentName === "string" ? body.targetSegmentName.trim() : null;
     const releasesCohort =
-      body.status === "paused" ||
-      body.status === "draft" ||
-      body.targetSegmentName !== undefined ||
-      body.funnelStage !== undefined ||
-      body.segmentTargeting !== undefined ||
+      ((body.status === "paused" || body.status === "draft") && body.status !== current.status) ||
+      (bodySegmentName !== undefined && bodySegmentName !== current.targetSegmentName) ||
+      (body.funnelStage !== undefined && body.funnelStage !== current.funnelStage) ||
+      (body.segmentTargeting !== undefined &&
+        normalizeSegmentTargeting(body.segmentTargeting) !== normalizeSegmentTargeting(current.segmentTargeting)) ||
       // Mode switch needs a clean slate: fixed→continuous must re-snapshot
       // enrollmentFlags baselines; continuous→fixed must re-materialize a cohort.
-      body.enrollmentMode !== undefined;
-    if (releasesCohort) {
-      await prisma.trackedUser.updateMany({
-        where: { lockedByAgentId: id },
-        data:  { lockedByAgentId: null },
-      });
-      await prisma.userAgentAssignment.updateMany({
-        where: { agentId: id, releasedAt: null },
-        data:  { releasedAt: new Date(), releaseReason: "manual" },
-      });
-    }
+      (body.enrollmentMode !== undefined && body.enrollmentMode !== current.enrollmentMode);
 
-    const agent = await prisma.agent.update({
-      where: { id },
-      data: {
+    // Atomic: the release writes and the agent update commit together, so a
+    // crash mid-PATCH can't leave locks cleared while the agent still has its
+    // old targeting (2026-06-09 audit, I3). A concurrent cron run may still
+    // enroll against the OLD config until this commits — that race is bounded
+    // to one tick, and the next tick's release sweep corrects it.
+    const agent = await prisma.$transaction(async (tx) => {
+      if (releasesCohort) {
+        await tx.trackedUser.updateMany({
+          where: { lockedByAgentId: id },
+          data:  { lockedByAgentId: null },
+        });
+        await tx.userAgentAssignment.updateMany({
+          where: { agentId: id, releasedAt: null },
+          data:  { releasedAt: new Date(), releaseReason: "manual" },
+        });
+      }
+
+      return tx.agent.update({
+        where: { id },
+        data: {
         name: body.name,
         description: body.description,
         status: body.status,
@@ -184,7 +236,8 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
         ...(body.sendingPaused !== undefined ? { sendingPaused: body.sendingPaused } : {}),
         ...(body.enrollmentMode !== undefined ? { enrollmentMode: body.enrollmentMode } : {}),
         ...(releasesCohort ? { cohortAssignedAt: null } : {}),
-      },
+        },
+      });
     });
     revalidatePath(`/agents/${id}`);
     revalidatePath("/agents");

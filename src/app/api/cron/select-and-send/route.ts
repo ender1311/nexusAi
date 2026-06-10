@@ -202,6 +202,14 @@ export async function POST(req: NextRequest) {
   // ─── Phase −1: Release sweep ──────────────────────────────────────────────
   // Runs first so freed users are claimable in the same run. Per-assignment
   // failures are caught/logged; one bad row never aborts the sweep.
+  //
+  // releasedThisRun: externalUserId → the agent that released them in THIS run.
+  // Freed users stay claimable by *other* agents same-run (by design), but the
+  // releasing agent itself must not re-recruit them: hold-cap releases would
+  // otherwise be undone immediately by the lottery, with the re-claim upsert
+  // resetting sendCount — hold caps would never stop an uncapped agent
+  // (2026-06-09 audit, R1).
+  const releasedThisRun = new Map<string, string>();
   {
     const activeAssignments = await prisma.userAgentAssignment.findMany({
       where: { releasedAt: null },
@@ -255,6 +263,7 @@ export async function POST(req: NextRequest) {
         const list = releasedUsersByAgent.get(agentId) ?? [];
         list.push(r.externalUserId);
         releasedUsersByAgent.set(agentId, list);
+        releasedThisRun.set(r.externalUserId, agentId);
       }
       for (const [agentId, userIds] of releasedUsersByAgent) {
         await prisma.trackedUser.updateMany({
@@ -371,7 +380,8 @@ export async function POST(req: NextRequest) {
           });
           const ownEligible = rows.filter((r) => {
             const owner = activeOwnerByUser.get(r.externalId);
-            return owner === undefined || owner === agent.id; // unowned, released, or owned by us
+            if (owner !== undefined && owner !== agent.id) return false; // actively owned elsewhere
+            return releasedThisRun.get(r.externalId) !== agent.id; // no same-run re-recruit by the releaser (R1)
           });
           eligibleUsersByAgent.set(agent.id, ownEligible.map((r) => r.externalId));
           preferredHourByAgent.set(
@@ -406,7 +416,8 @@ export async function POST(req: NextRequest) {
           }
           const ownEligible = rows.filter((r) => {
             const owner = activeOwnerByUser.get(r.externalId);
-            return owner === undefined || owner === agent.id; // unowned, released, or owned by us
+            if (owner !== undefined && owner !== agent.id) return false; // actively owned elsewhere
+            return releasedThisRun.get(r.externalId) !== agent.id; // no same-run re-recruit by the releaser (R1)
           });
           eligibleUsersByAgent.set(agent.id, ownEligible.map((r) => r.externalId));
           preferredHourByAgent.set(
@@ -453,12 +464,37 @@ export async function POST(req: NextRequest) {
     });
     const lockedIds = lockedRows.map((r) => r.externalId);
     if (lockedIds.length > 0) {
-      await prisma.userAgentAssignment.createMany({
-        data: lockedRows.map(({ externalId: externalUserId, attributes }) => (
-          { externalUserId, agentId: agent.id, startedAt: now, enrollmentFlags: snapshotEnrollmentFlags(attributes) }
-        )),
-        skipDuplicates: true,
+      // Partition: users with an existing (released) assignment row vs. truly new.
+      // externalUserId is globally @unique, so createMany skipDuplicates would
+      // silently skip returning users and never re-activate their row — the user
+      // would be locked into the cohort but invisible to ownership/conversion
+      // logic (2026-06-09 audit, M1). Mirror the continuous pass: upsert them.
+      const existingCohortRows = await prisma.userAgentAssignment.findMany({
+        where: { externalUserId: { in: lockedIds } },
+        select: { externalUserId: true },
       });
+      const existingCohortSet = new Set(existingCohortRows.map((r) => r.externalUserId));
+      const cohortToCreate = lockedRows.filter((r) => !existingCohortSet.has(r.externalId));
+      const cohortToUpsert = lockedRows.filter((r) => existingCohortSet.has(r.externalId));
+      if (cohortToCreate.length > 0) {
+        await prisma.userAgentAssignment.createMany({
+          data: cohortToCreate.map(({ externalId: externalUserId, attributes }) => (
+            { externalUserId, agentId: agent.id, startedAt: now, enrollmentFlags: snapshotEnrollmentFlags(attributes) }
+          )),
+        });
+      }
+      if (cohortToUpsert.length > 0) {
+        await runChunked(cohortToUpsert, DB_WRITE_CONCURRENCY, ({ externalId: externalUserId, attributes }) =>
+          prisma.userAgentAssignment.update({
+            where: { externalUserId },
+            data: {
+              agentId: agent.id, startedAt: now, sendCount: 0, lastSentAt: null,
+              windowCompletedAt: null, releasedAt: null, releaseReason: null,
+              enrollmentFlags: snapshotEnrollmentFlags(attributes),
+            },
+          })
+        );
+      }
       for (const id of lockedIds) activeOwnerByUser.set(id, agent.id);
     }
     await prisma.agent.update({ where: { id: agent.id }, data: { cohortAssignedAt: now } });
@@ -649,9 +685,20 @@ export async function POST(req: NextRequest) {
     ]);
     const assignmentByUser = new Map(existingAssignments.map((a) => [a.externalUserId, a]));
 
-    const eligibleAgentsByUser = buildEligibleAgentsByUser(explorationAgents, explorationUsers, pushTargetingMode);
+    // Users actively owned by a NON-exploration agent must not enter a window:
+    // they'd classify as Class A (their assignment row belongs to another agent,
+    // so it isn't in assignmentByUser), the createMany would silently skip on
+    // the unique externalUserId, but inWindowMap would still route them sends
+    // from the exploration agent (2026-06-09 audit, C3).
+    const explorationAgentIds = new Set(explorationAgents.map((a) => a.id));
+    const explorationCandidates = explorationUsers.filter((u) => {
+      const owner = activeOwnerByUser.get(u.externalId);
+      return owner === undefined || explorationAgentIds.has(owner);
+    });
+
+    const eligibleAgentsByUser = buildEligibleAgentsByUser(explorationAgents, explorationCandidates, pushTargetingMode);
     const classification = classifyExplorationWindows(
-      explorationUsers,
+      explorationCandidates,
       assignmentByUser,
       eligibleAgentsByUser,
       { now, windowMs, cooldownMs },
@@ -680,6 +727,8 @@ export async function POST(req: NextRequest) {
           where: { externalUserId },
           data: {
             agentId, startedAt: now, sendCount: 0, windowCompletedAt: null,
+            // A reset starts a fresh window, so any prior release is over (C3).
+            releasedAt: null, releaseReason: null,
             enrollmentFlags: snapshotEnrollmentFlags(explorationAttrsByUser.get(externalUserId)),
           },
         })
@@ -747,21 +796,13 @@ export async function POST(req: NextRequest) {
       suppress.dailyCap += trimmed.suppressed;
     }
 
-    // Lifetime unique users cap — stop sends when the agent has reached its ceiling of
-    // distinct users ever reached. Counts only confirmed sends (brazeSendId set):
-    // lottery UserDecision rows are inserted before the Braze dispatch, so counting
-    // all rows would include never-sent and Braze-failed attempts and trip the cap
-    // early. Mirrors the dailyCap brazeSendId filter above.
-    if (agent.uniqueUsersCap != null) {
-      const rows = await prisma.$queryRaw<[{ n: bigint }]>`
-        SELECT COUNT(DISTINCT "userId")::bigint AS n FROM "UserDecision"
-        WHERE "agentId" = ${agent.id} AND "brazeSendId" IS NOT NULL
-      `;
-      const alreadyReached = Number(rows[0]?.n ?? 0);
-      const trimmed = trimToCap(lotteryUserIds, agent.uniqueUsersCap - alreadyReached);
-      lotteryUserIds = trimmed.kept;
-      suppress.uniqueUsersCap += trimmed.suppressed;
-    }
+    // uniqueUsersCap is enforced at ENROLLMENT, not here: fixed agents cap their
+    // cohort at materialization, continuous agents cap concurrent enrollment via
+    // headroom (cap − active). The lottery pool is already restricted to enrolled
+    // users, so it can never exceed the cap. The old lifetime distinct-sent trim
+    // here contradicted those concurrent semantics: it permanently blocked repeat
+    // sends once `cap` distinct users had ever been reached, and choked fresh
+    // cohorts after re-materialization (2026-06-09 audit, I4).
 
     // Lock lottery users to this agent — prevents other agents from grabbing them
     // in subsequent cron runs. Locks are released when the agent is paused or deleted.
@@ -1486,7 +1527,56 @@ export async function POST(req: NextRequest) {
         return isTimingMatch(hourlyStats, dailyStats, assignment.sendCount, currentHourET, currentDayET);
       });
 
-      const quietWindowUsers = eligibleWindowUsers;
+      // Same eligibility gate chain as the lottery path. In-window sends used to
+      // skip opt-out / preferred-channel / language / targetFilter / quiet-hours
+      // entirely, so e.g. a user who opted out of push mid-window kept receiving
+      // pushes for the rest of the window (2026-06-09 audit, I5).
+      const windowHasPush = agent.messages.some((m) => m.channel === "push");
+      const windowHasEmail = agent.messages.some((m) => m.channel === "email");
+      const windowEffectiveLang =
+        agent.languageFilter && agent.languageFilter !== "all"
+          ? agent.languageFilter
+          : (windowHasPush && !localizeEnabled) ? "en" : null;
+      const quietWindowUsers = eligibleWindowUsers.filter((u) => {
+        const attrs = (u.attributes as Record<string, unknown>) ?? {};
+        if (
+          (windowHasPush && isNewsletterOptedOut(attrs, "push")) ||
+          (windowHasEmail && isNewsletterOptedOut(attrs, "email")) ||
+          (windowHasPush && !isPushPreferred(attrs, u.channelStats, u.funnelStage, pushTargetingMode))
+        ) {
+          totalSuppressed++;
+          suppress.targetFilter++;
+          return false;
+        }
+        if (windowEffectiveLang) {
+          const lang = attrs.language_tag as string | undefined;
+          if (lang?.startsWith(windowEffectiveLang) !== true) {
+            totalSuppressed++;
+            suppress.targetFilter++;
+            return false;
+          }
+        }
+        if (
+          agent.targetFilter &&
+          !evaluateTargetFilter(agent.targetFilter as Record<string, unknown>, {
+            attributes: attrs,
+            computed: buildComputedKeys(u),
+          })
+        ) {
+          totalSuppressed++;
+          suppress.targetFilter++;
+          return false;
+        }
+        if (quietHoursConfig?.start && quietHoursConfig?.end) {
+          const userTz = typeof attrs.timezone === "string" ? attrs.timezone : (quietHoursConfig.timezone ?? "UTC");
+          if (isInQuietHours(quietHoursConfig.start, quietHoursConfig.end, userTz, now)) {
+            totalSuppressed++;
+            suppress.quietHours++;
+            return false;
+          }
+        }
+        return true;
+      });
 
       // Batch-decide for in-window users: load arm stats once, select variant in-memory,
       // then bulk-create all UserDecision records in a single createMany call.

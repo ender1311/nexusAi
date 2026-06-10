@@ -17,6 +17,9 @@ export async function GET() {
     res.headers.set("Cache-Control", "private, max-age=30, stale-while-revalidate=60");
     return res;
   } catch (err) {
+    // Preserve backend detail instead of collapsing everything to 500 (audit A5).
+    if (err instanceof ApiError) return fail(err.message, err.status);
+    if (isTimeout(err)) return fail("The agent service took too long to respond. Please try again.", 504);
     return handleRouteError("GET /api/agents", err);
   }
 }

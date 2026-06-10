@@ -25,6 +25,30 @@ describe("detectFlagConversions", () => {
     expect(out).toEqual([]);
   });
 
+  // 2026-06-09 audit, I1: a missing/corrupt enrollment baseline used to be
+  // coerced to {} (all-false), letting Type A credit users who were already
+  // engaged before enrollment. With a null baseline, Type A must fall back to
+  // the pre-upsert stored attributes as a conservative baseline.
+  it("Type A with null enrollmentFlags falls back to stored — already-true flag gets no credit", () => {
+    const out = detectFlagConversions({
+      incoming: { plan_interaction_has_ever_flag: true },
+      stored: { plan_interaction_has_ever_flag: true }, // engaged before this sync
+      enrollmentFlags: null,
+      goals: [goal("plan_interaction_has_ever_flag", "first_interaction")],
+    });
+    expect(out).toEqual([]);
+  });
+
+  it("Type A with null enrollmentFlags still credits a stored false→true transition", () => {
+    const out = detectFlagConversions({
+      incoming: { plan_interaction_has_ever_flag: true },
+      stored: { plan_interaction_has_ever_flag: false },
+      enrollmentFlags: null,
+      goals: [goal("plan_interaction_has_ever_flag", "first_interaction")],
+    });
+    expect(out).toEqual(["plan_interaction_has_ever_flag"]);
+  });
+
   it("Type B credits a false→true transition during ownership", () => {
     const out = detectFlagConversions({
       incoming: { votd_share_has_ever_flag: true },

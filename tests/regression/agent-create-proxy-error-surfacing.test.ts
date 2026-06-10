@@ -30,7 +30,7 @@ mock.module("@/lib/api-client", () => ({
   ApiError,
 }));
 
-const { POST } = await import("@/app/api/agents/route");
+const { GET, POST } = await import("@/app/api/agents/route");
 
 function createReq(body: unknown = { name: "Apoc", funnelStage: "wau" }) {
   return buildRequest("POST", body) as unknown as Parameters<typeof POST>[0];
@@ -38,6 +38,51 @@ function createReq(body: unknown = { name: "Apoc", funnelStage: "wau" }) {
 
 afterEach(() => {
   behavior = async () => ({ id: "a1", name: "Apoc" });
+});
+
+// 2026-06-09 audit, A5: GET /api/agents collapsed every proxy failure into a
+// blanket 500 while POST already mapped ApiError/timeout. The fix gives GET the
+// same mapping, so a backend 401/503 (or a slow agent service) surfaces with
+// its real status instead of "Internal server error".
+describe("GET /api/agents — proxy error surfacing (A5)", () => {
+  it("returns the agent list on success", async () => {
+    behavior = async () => [{ id: "a1", name: "Apoc" }];
+    const res = await GET();
+    expect(res.status).toBe(200);
+    const body = await res.json();
+    expect(body).toEqual([{ id: "a1", name: "Apoc" }]);
+  });
+
+  it("preserves a backend ApiError's status and message (does NOT collapse to 500)", async () => {
+    behavior = async () => {
+      throw new ApiError(503, "Agent service unavailable");
+    };
+    const res = await GET();
+    expect(res.status).toBe(503);
+    const body = await res.json();
+    expect(body.error).toBe("Agent service unavailable");
+  });
+
+  it("maps an AbortSignal.timeout rejection to a friendly 504", async () => {
+    behavior = async () => {
+      throw new DOMException("The operation timed out.", "TimeoutError");
+    };
+    const res = await GET();
+    expect(res.status).toBe(504);
+    const body = await res.json();
+    expect(body.error).toContain("took too long");
+  });
+
+  it("falls back to a generic 500 for unexpected throws (no internal detail leaked)", async () => {
+    behavior = async () => {
+      throw new Error("ECONNREFUSED 10.0.0.1:5432");
+    };
+    const res = await GET();
+    expect(res.status).toBe(500);
+    const body = await res.json();
+    expect(body.error).toBe("Internal server error");
+    expect(body.error).not.toContain("ECONNREFUSED");
+  });
 });
 
 describe("POST /api/agents — proxy error surfacing", () => {
