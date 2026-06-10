@@ -20,7 +20,7 @@ describe("SegmentCheckList single source", () => {
   it("wizard and settings editor import it instead of re-declaring it", () => {
     for (const file of ["agent-wizard.tsx", "agent-settings-editor.tsx"]) {
       const src = readFileSync(join(componentsDir, file), "utf8");
-      expect(src).not.toContain("function SegmentCheckList");
+      expect(src).not.toMatch(/(?:function|const|let|var)\s+SegmentCheckList\b/);
       expect(src).toMatch(/from "(\.\/|@\/components\/agents\/)segment-check-list"/);
     }
   });
