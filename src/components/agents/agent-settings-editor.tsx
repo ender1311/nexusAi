@@ -309,9 +309,12 @@ export function AgentSettingsEditor({ agent, initialRule, startInEditMode }: Pro
   // succeeded but PUT failed) we can advance the agent-side baseline to the
   // just-saved values; the recomputed diff then only contains scheduling and
   // the retry doesn't re-PATCH already-saved fields.
+  // Each field here must use the SAME normalization as currentSnapshot
+  // (trim, null-for-empty, ?? defaults) or a no-op open-and-save would
+  // produce a phantom diff and silently PATCH untouched fields.
   const buildInitialSnapshot = (): SettingsSnapshot => ({
-    name: agent.name,
-    description: agent.description,
+    name: agent.name.trim(),
+    description: agent.description && agent.description.trim() !== "" ? agent.description.trim() : null,
     algorithm: agent.algorithm,
     epsilon: agent.epsilon,
     funnelStage: agent.funnelStage,
@@ -322,7 +325,7 @@ export function AgentSettingsEditor({ agent, initialRule, startInEditMode }: Pro
     enrollmentMode: agent.enrollmentMode,
     dailySendCap: agent.dailySendCap,
     uniqueUsersCap: agent.uniqueUsersCap,
-    fallbackSendHour: agent.fallbackSendHour,
+    fallbackSendHour: agent.fallbackSendHour ?? 8,
     deeplinkOverride: agent.deeplinkOverride,
     languageFilter: agent.languageFilter,
     frequencyCap: initialFreqCap,
@@ -340,7 +343,9 @@ export function AgentSettingsEditor({ agent, initialRule, startInEditMode }: Pro
     algorithm,
     epsilon,
     funnelStage,
-    targetSegmentName: agent.targetSegmentName,
+    // Deliberate funnel<->segment mode switch clears the legacy field; same-mode
+    // edits preserve it verbatim so a no-op save never triggers releasesCohort.
+    targetSegmentName: segmentMode === initialSegmentMode ? agent.targetSegmentName : null,
     segmentTargeting: resolveSegmentTargeting(segmentMode, segmentIncludes, segmentExcludes),
     enrollmentMode,
     dailySendCap: dailyCapValidation.value,
@@ -356,7 +361,7 @@ export function AgentSettingsEditor({ agent, initialRule, startInEditMode }: Pro
     prioritizeLastSeen,
   }), [
     name, description, algorithm, epsilon, funnelStage,
-    agent.targetSegmentName,
+    agent.targetSegmentName, initialSegmentMode,
     segmentMode, segmentIncludes, segmentExcludes, enrollmentMode,
     dailyCapValidation.value, uniqueUsersCapValidation.value, fallbackSendHour, deeplinkOverride,
     agent.languageFilter,
