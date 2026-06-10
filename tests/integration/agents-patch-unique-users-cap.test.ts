@@ -48,6 +48,18 @@ describe("PATCH /agents/[id] — uniqueUsersCap", () => {
     expect(reloaded?.uniqueUsersCap).toBeNull();
   });
 
+  it("2b. accepts uniqueUsersCap of 1 (boundary)", async () => {
+    const agent = await createAgent({ status: "active" });
+
+    const res = await patchAgent(buildRequest({ uniqueUsersCap: 1 }), {
+      params: Promise.resolve({ id: agent.id }),
+    });
+    expect(res.status).toBe(200);
+
+    const reloaded = await prisma.agent.findUnique({ where: { id: agent.id } });
+    expect(reloaded?.uniqueUsersCap).toBe(1);
+  });
+
   it("3. rejects uniqueUsersCap of 0 with 400", async () => {
     const agent = await createAgent({ status: "active" });
 
