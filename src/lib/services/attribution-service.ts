@@ -100,10 +100,22 @@ export async function applyConversion(args: {
   }
 
   // Release-on-conversion: only if the credited agent currently owns the user.
-  await prisma.userAgentAssignment.updateMany({
-    where: { externalUserId: decision.userId, agentId: decision.agentId, releasedAt: null },
-    data: { releasedAt: occurredAt, releaseReason: "conversion" },
-  }).catch((err) => console.error("[attribution] release-on-conversion failed:", err));
+  // Also clear the user lock so the converted user re-enters other agents' pools
+  // (eligibility queries require lockedByAgentId null/own).
+  try {
+    const released = await prisma.userAgentAssignment.updateMany({
+      where: { externalUserId: decision.userId, agentId: decision.agentId, releasedAt: null },
+      data: { releasedAt: occurredAt, releaseReason: "conversion" },
+    });
+    if (released.count > 0) {
+      await prisma.trackedUser.updateMany({
+        where: { externalId: decision.userId, lockedByAgentId: decision.agentId },
+        data: { lockedByAgentId: null },
+      });
+    }
+  } catch (err) {
+    console.error("[attribution] release-on-conversion failed:", err);
+  }
 
   return { reward };
 }
