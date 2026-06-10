@@ -1289,8 +1289,10 @@ export function AgentWizard({
                 <p className="text-xs text-muted-foreground py-2.5">None configured</p>
               ) : form.messages.map((m, i) => (
                 <Row key={i} label={m.name} last={i === form.messages.length - 1}>
-                  <Badge variant="outline" className="text-xs capitalize">{m.channel}</Badge>
-                  <span className="ml-1.5 text-muted-foreground">{m.variants.length} variant{m.variants.length === 1 ? "" : "s"}</span>
+                  <span className="inline-flex items-center gap-1.5">
+                    <Badge variant="outline" className="text-xs capitalize">{m.channel}</Badge>
+                    <span className="text-muted-foreground">{m.variants.length} variant{m.variants.length === 1 ? "" : "s"}</span>
+                  </span>
                 </Row>
               ))}
             </CardContent>
