@@ -1,5 +1,10 @@
-export const revalidate = 60;
-export const maxDuration = 30;
+// force-dynamic: this page must NOT be prerendered at build time. Static
+// generation runs the per-persona TrackedUser counts against the production
+// DB during `next build`; on a cold 2-CU Neon compute that exceeds the 60s
+// page-build limit and fails the whole deploy. Runtime caching is handled by
+// unstable_cache below (15 min, tag "personas").
+export const dynamic = "force-dynamic";
+export const maxDuration = 60;
 
 import { Suspense } from "react";
 import { Header } from "@/components/layout/header";
