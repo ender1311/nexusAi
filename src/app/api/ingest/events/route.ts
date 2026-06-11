@@ -5,6 +5,7 @@ import { accumulateUserStats } from "@/lib/services/user-stats-service";
 import { upsertArmStats, upsertUserArmStats } from "@/lib/arm-stats";
 import { applyConversion } from "@/lib/services/attribution-service";
 import { verifyIngestAuth } from "@/lib/ingest-auth";
+import { bumpUserIngestMarker } from "@/lib/segments/ingest-marker";
 
 /**
  * POST /api/ingest/events
@@ -229,6 +230,14 @@ export async function POST(req: NextRequest) {
   if (matched.length > 0) {
     revalidateTag("dashboard-stats", "max");
     revalidateTag("performance", "max");
+
+    // Matched events update User.channelStats (accumulateUserStats), which the
+    // push_sent / push_converted segment fields compile from — so event ingest
+    // is user-data drift for the materialize skip predicate too. Non-fatal: a
+    // failed bump only risks one extra full scan window, never staleness.
+    await bumpUserIngestMarker().catch((err) => {
+      console.error("[ingest/events] Failed to bump last_user_ingest_at:", err);
+    });
   }
 
   // Persist aggregate throughput without emitting one billable Vercel log event

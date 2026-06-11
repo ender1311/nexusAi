@@ -11,6 +11,7 @@ import { isRecovery, recoveryRank } from "@/lib/engine/funnel-recovery";
 import { applyConversion } from "@/lib/services/attribution-service";
 import { detectFlagConversions } from "@/lib/services/interaction-conversion";
 import { isInteractionFlag, normalizeFlag, detectTransitionedFlags, FLAG_ATTRIBUTION_WINDOW_MS } from "@/lib/constants/interaction-flags";
+import { bumpUserIngestMarker } from "@/lib/segments/ingest-marker";
 
 /**
  * POST /api/ingest/users
@@ -1336,6 +1337,14 @@ export async function POST(req: NextRequest) {
       assigned += r.assigned;
       unmatchedFlagConversionTotal += r.unmatchedFlagConversions;
     }
+  }
+
+  if (upserted > 0) {
+    // Drift marker for materialize-segments' skip predicate. Non-fatal: a
+    // failed bump only risks one extra full scan window, never data loss.
+    await bumpUserIngestMarker().catch((err) => {
+      console.error("[ingest/users] Failed to bump last_user_ingest_at:", err);
+    });
   }
 
   const responseBody = {

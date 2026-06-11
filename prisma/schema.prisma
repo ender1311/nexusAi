@@ -547,6 +547,7 @@ model Segment {
   createdBy      String?
   sizeExact      Int?
   sizeComputedAt DateTime?
+  materializedAt DateTime?
 
   @@map("Segment")
 }

@@ -1226,3 +1226,25 @@ describe("canvas exact attribution via canvas_step_id", () => {
     expect(decisions).toHaveLength(1); // only one synthetic decision
   });
 });
+
+// ── user-ingest marker ─────────────────────────────────────────────────────
+describe("user-ingest marker", () => {
+  it("bumps last_user_ingest_at after upserting users", async () => {
+    const req = buildRequest("POST", { external_user_id: "usr_marker", attributes: {} }, AUTH);
+    const res = await POST(req as NextRequest);
+    expect(res.status).toBe(200);
+
+    const row = await prisma.appSetting.findUnique({ where: { key: "last_user_ingest_at" } });
+    expect(row).toBeTruthy();
+    expect(Number.isNaN(Date.parse(row!.value))).toBe(false);
+  });
+
+  it("does not create the marker when nothing was upserted", async () => {
+    const req = buildRequest("POST", { users: [] }, AUTH);
+    const res = await POST(req as NextRequest);
+    expect(res.status).toBe(200);
+
+    const row = await prisma.appSetting.findUnique({ where: { key: "last_user_ingest_at" } });
+    expect(row).toBeNull();
+  });
+});

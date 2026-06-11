@@ -4,6 +4,8 @@ import type { CompiledWhere } from "./compile-sql";
 import { prisma } from "@/lib/db";
 import { parseSegmentRule } from "./parse-rule";
 import { compileSegmentRule } from "./compile-sql";
+import { readUserIngestMarker } from "./ingest-marker";
+import { shouldSkipMaterialization } from "./materialize-skip";
 
 type AgentTargetingFields = {
   segmentTargeting: unknown;
@@ -68,8 +70,9 @@ export type MaterializeSummary = {
   runStart: string;
   segmentsProcessed: number;
   segmentsSkipped: number; // null/unparseable rule, or a rule that matches everyone
+  segmentsSkippedFresh: number; // nothing changed since the last materialization
   segmentsFailed: number; // threw during reconcile (timeout, SQL error)
-  perSegment: { name: string; matched: number; deleted: number; error?: string }[];
+  perSegment: { name: string; matched: number; deleted: number; error?: string; skipped?: "fresh" }[];
 };
 
 export async function materializeAllSegments(args: { runStart: Date }): Promise<MaterializeSummary> {
@@ -84,18 +87,34 @@ export async function materializeAllSegments(args: { runStart: Date }): Promise<
     runStart: runStart.toISOString(),
     segmentsProcessed: 0,
     segmentsSkipped: 0,
+    segmentsSkippedFresh: 0,
     segmentsFailed: 0,
     perSegment: [],
   };
 
   if (names.size === 0) return summary;
 
+  // Read once per run, not per segment. Fail-open: missing marker reads as
+  // `runStart`, which disables skipping for this run.
+  const lastUserIngestAt = await readUserIngestMarker(runStart);
+
   const segments = await prisma.segment.findMany({
     where: { name: { in: [...names] } },
-    select: { name: true, rule: true },
+    select: { name: true, rule: true, updatedAt: true, materializedAt: true },
   });
 
   for (const segment of segments) {
+    if (
+      shouldSkipMaterialization({
+        materializedAt: segment.materializedAt,
+        updatedAt: segment.updatedAt,
+        lastUserIngestAt,
+      })
+    ) {
+      summary.segmentsSkippedFresh += 1;
+      summary.perSegment.push({ name: segment.name, matched: 0, deleted: 0, skipped: "fresh" });
+      continue;
+    }
     const rule = parseSegmentRule(segment.rule);
     if (rule === null) {
       summary.segmentsSkipped += 1;
@@ -117,6 +136,9 @@ export async function materializeAllSegments(args: { runStart: Date }): Promise<
         (tx) => materializeSegment(tx, { segmentName: segment.name, where, runStart }),
         { timeout: MATERIALIZE_TX_TIMEOUT_MS },
       );
+      // Raw SQL on purpose: prisma.segment.update would bump @updatedAt past
+      // runStart and the skip predicate would never pass again.
+      await prisma.$executeRaw`UPDATE "Segment" SET "materializedAt" = ${runStart} WHERE "name" = ${segment.name}`;
       summary.segmentsProcessed += 1;
       summary.perSegment.push({ name: segment.name, matched, deleted });
     } catch (err) {
