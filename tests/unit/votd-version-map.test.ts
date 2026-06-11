@@ -11,6 +11,13 @@ describe("contentLanguageFor", () => {
     expect(contentLanguageFor("es-ES")).toBe("es");
     expect(contentLanguageFor("pt-BR")).toBe("pt");
   });
+  it("resolves sr-cyrillic to the uppercase-normalized map key", () => {
+    // normalizePushLocaleTag uppercases the subtag, so the map key must be
+    // sr_CYRILLIC — a lowercase sr_cyrillic key would be unreachable.
+    expect(contentLanguageFor("sr-cyrillic")).toBe("sr_CYRILLIC");
+    expect(contentLanguageFor("sr_cyrillic")).toBe("sr_CYRILLIC");
+    expect(versionForLanguage("sr_CYRILLIC")).toBe(1969);
+  });
   it("falls back to en for unknown, blank, and null tags", () => {
     expect(contentLanguageFor("zz")).toBe("en");
     expect(contentLanguageFor("")).toBe("en");

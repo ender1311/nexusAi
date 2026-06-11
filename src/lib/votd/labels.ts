@@ -3,7 +3,7 @@ export type GuidedLabels = { guidedScripture: string; guidedPrayer: string };
 
 /** "Today's Guided Scripture" / "Today's Guided Prayer" per content language.
  *  Keyed by primary subtags plus the regional keys that exist in VERSION_MAP
- *  (zh_CN, zh_TW, sr_cyrillic, ku_IQ). en_GB resolves via primary "en". */
+ *  (zh_CN, zh_TW, sr_CYRILLIC, ku_IQ). en_GB resolves via primary "en". */
 const LABELS: Record<string, GuidedLabels> = {
   af: { guidedScripture: "Vandag se Begeleide Skriflesing", guidedPrayer: "Vandag se Begeleide Gebed" },
   am: { guidedScripture: "የዛሬ የተመራ ቅዱስ ጽሑፍ", guidedPrayer: "የዛሬ የተመራ ጸሎት" },
@@ -56,7 +56,7 @@ const LABELS: Record<string, GuidedLabels> = {
   sn: { guidedScripture: "Rugwaro rwakatungamirirwa rwanhasi", guidedPrayer: "Munyengetero wakatungamirirwa wanhasi" },
   sq: { guidedScripture: "Shkrimi i udhëhequr i sotëm", guidedPrayer: "Lutja e udhëhequr e sotme" },
   sr: { guidedScripture: "Današnje vođeno Pismo", guidedPrayer: "Današnja vođena molitva" },
-  sr_cyrillic: { guidedScripture: "Данашње вођено Писмо", guidedPrayer: "Данашња вођена молитва" },
+  sr_CYRILLIC: { guidedScripture: "Данашње вођено Писмо", guidedPrayer: "Данашња вођена молитва" },
   sw: { guidedScripture: "Maandiko ya Kuongozwa ya Leo", guidedPrayer: "Maombi ya Kuongozwa ya Leo" },
   ta: { guidedScripture: "இன்றைய வழிகாட்டப்பட்ட வேதாகமம்", guidedPrayer: "இன்றைய வழிகாட்டப்பட்ட ஜெபம்" },
   te: { guidedScripture: "నేటి మార్గదర్శక లేఖనం", guidedPrayer: "నేటి మార్గదర్శక ప్రార్థన" },

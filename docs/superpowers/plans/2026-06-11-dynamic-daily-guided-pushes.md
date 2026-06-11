@@ -156,6 +156,13 @@ describe("contentLanguageFor", () => {
     expect(contentLanguageFor("es-ES")).toBe("es");
     expect(contentLanguageFor("pt-BR")).toBe("pt");
   });
+  it("resolves sr-cyrillic to the uppercase-normalized map key", () => {
+    // normalizePushLocaleTag uppercases the subtag, so the map key must be
+    // sr_CYRILLIC — a lowercase sr_cyrillic key would be unreachable.
+    expect(contentLanguageFor("sr-cyrillic")).toBe("sr_CYRILLIC");
+    expect(contentLanguageFor("sr_cyrillic")).toBe("sr_CYRILLIC");
+    expect(versionForLanguage("sr_CYRILLIC")).toBe(1969);
+  });
   it("falls back to en for unknown, blank, and null tags", () => {
     expect(contentLanguageFor("zz")).toBe("en");
     expect(contentLanguageFor("")).toBe("en");
@@ -205,7 +212,7 @@ export const VERSION_MAP: Record<string, number> = {
   is: 2359, it: 123, ja: 81, ka: 2202, km: 85, kn: 1692, ko: 88, ku_IQ: 503,
   ln: 1964, lt: 321, lv: 318, mg: 396, mn: 369, mr: 1686, ms: 402, my: 386,
   ne: 1483, nl: 75, no: 102, pa: 2013, pl: 132, pt: 211, ro: 191, ru: 400,
-  sl: 376, sn: 32, sq: 292, sr: 202, sr_cyrillic: 1969, sw: 74, ta: 339,
+  sl: 376, sn: 32, sq: 292, sr: 202, sr_CYRILLIC: 1969, sw: 74, ta: 339,
   te: 1787, th: 174, tl: 399, tr: 170, uk: 186, ur: 187, uz: 1939, ve: 280,
   vi: 151, xh: 282, yo: 911, zh_CN: 48, zh_TW: 46, zu: 286,
 };
@@ -294,7 +301,7 @@ export type GuidedLabels = { guidedScripture: string; guidedPrayer: string };
 
 /** "Today's Guided Scripture" / "Today's Guided Prayer" per content language.
  *  Keyed by primary subtags plus the regional keys that exist in VERSION_MAP
- *  (zh_CN, zh_TW, sr_cyrillic, ku_IQ). en_GB resolves via primary "en". */
+ *  (zh_CN, zh_TW, sr_CYRILLIC, ku_IQ). en_GB resolves via primary "en". */
 const LABELS: Record<string, GuidedLabels> = {
   af: { guidedScripture: "Vandag se Begeleide Skriflesing", guidedPrayer: "Vandag se Begeleide Gebed" },
   am: { guidedScripture: "የዛሬ የተመራ ቅዱስ ጽሑፍ", guidedPrayer: "የዛሬ የተመራ ጸሎት" },
@@ -347,7 +354,7 @@ const LABELS: Record<string, GuidedLabels> = {
   sn: { guidedScripture: "Rugwaro rwakatungamirirwa rwanhasi", guidedPrayer: "Munyengetero wakatungamirirwa wanhasi" },
   sq: { guidedScripture: "Shkrimi i udhëhequr i sotëm", guidedPrayer: "Lutja e udhëhequr e sotme" },
   sr: { guidedScripture: "Današnje vođeno Pismo", guidedPrayer: "Današnja vođena molitva" },
-  sr_cyrillic: { guidedScripture: "Данашње вођено Писмо", guidedPrayer: "Данашња вођена молитва" },
+  sr_CYRILLIC: { guidedScripture: "Данашње вођено Писмо", guidedPrayer: "Данашња вођена молитва" },
   sw: { guidedScripture: "Maandiko ya Kuongozwa ya Leo", guidedPrayer: "Maombi ya Kuongozwa ya Leo" },
   ta: { guidedScripture: "இன்றைய வழிகாட்டப்பட்ட வேதாகமம்", guidedPrayer: "இன்றைய வழிகாட்டப்பட்ட ஜெபம்" },
   te: { guidedScripture: "నేటి మార్గదర్శక లేఖనం", guidedPrayer: "నేటి మార్గదర్శక ప్రార్థన" },

@@ -13,7 +13,7 @@ export const VERSION_MAP: Record<string, number> = {
   is: 2359, it: 123, ja: 81, ka: 2202, km: 85, kn: 1692, ko: 88, ku_IQ: 503,
   ln: 1964, lt: 321, lv: 318, mg: 396, mn: 369, mr: 1686, ms: 402, my: 386,
   ne: 1483, nl: 75, no: 102, pa: 2013, pl: 132, pt: 211, ro: 191, ru: 400,
-  sl: 376, sn: 32, sq: 292, sr: 202, sr_cyrillic: 1969, sw: 74, ta: 339,
+  sl: 376, sn: 32, sq: 292, sr: 202, sr_CYRILLIC: 1969, sw: 74, ta: 339,
   te: 1787, th: 174, tl: 399, tr: 170, uk: 186, ur: 187, uz: 1939, ve: 280,
   vi: 151, xh: 282, yo: 911, zh_CN: 48, zh_TW: 46, zu: 286,
 };
