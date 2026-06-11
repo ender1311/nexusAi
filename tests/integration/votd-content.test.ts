@@ -128,6 +128,36 @@ describe("prepareVotdContent", () => {
     expect(fetchCalls.length).toBe(3);
   });
 
+  it("isolates a failing language — other (date, lang) pairs still resolve", async () => {
+    // es (version 149) verse fetch fails; en (version 111) succeeds.
+    globalThis.fetch = (async (input: RequestInfo | URL) => {
+      const url = String(input);
+      fetchCalls.push(url);
+      if (url.includes("moments.youversionapi.com")) {
+        return Response.json({ votd: [{ day: 162, usfm: ["JHN.3.16"], image_id: 77058 }] });
+      }
+      if (url.includes("bible.youversionapi.com")) {
+        if (url.includes("id=149")) return new Response("err", { status: 500 });
+        return Response.json({
+          verses: [{ content: "For God so loved the world", reference: { human: "John 3:16" } }],
+        });
+      }
+      if (url.includes("images.youversionapi.com")) {
+        return Response.json({ items: [{ urls: { regular: "//imgs.youversion.com/{w}x{h}/a.jpg" } }] });
+      }
+      throw new Error(`unexpected fetch: ${url}`);
+    }) as unknown as typeof fetch;
+
+    const at = new Date("2026-06-11T15:00:00Z");
+    const inputs = [
+      { user: { attributes: { language_tag: "en", timezone: "America/Chicago" } }, variantId: "v1", scheduledAt: at },
+      { user: { attributes: { language_tag: "es", timezone: "America/Chicago" } }, variantId: "v1", scheduledAt: at },
+    ];
+    const map = await prepareVotdContent(prisma, inputs, new Set(["v1"]));
+    expect(map.has(votdContentKey("2026-06-11", "en"))).toBe(true);
+    expect(map.has(votdContentKey("2026-06-11", "es"))).toBe(false);
+  });
+
   it("returns an empty map when no VOTD variants exist (zero fetches)", async () => {
     globalThis.fetch = (async () => { throw new Error("must not fetch"); }) as unknown as typeof fetch;
     const map = await prepareVotdContent(prisma, [], new Set());
