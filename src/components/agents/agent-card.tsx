@@ -102,22 +102,45 @@ export function AgentCard({ agent, convergenceState, hiddenStats = [], isAdmin =
         <Link href={`/agents/${agent.id}`} className="block h-full">
           <Card className="hover:shadow-md hover:border-primary/30 transition-shadow cursor-pointer h-full">
             <CardHeader className="pb-3">
-              <div className="flex items-start justify-between gap-2">
-                <div className="flex items-start gap-2.5 flex-1 min-w-0">
-                  <div
-                    className="h-8 w-8 rounded-lg flex items-center justify-center shrink-0 mt-0.5"
-                    style={{ backgroundColor: `${agent.color}20` }}
-                  >
-                    <Bot className="h-4 w-4" style={{ color: agent.color }} />
-                  </div>
-                  <div className="flex-1 min-w-0">
-                    <p className="font-semibold text-sm truncate">{agent.name}</p>
-                    {agent.description && (
-                      <p className="text-xs text-muted-foreground mt-0.5 line-clamp-2">{agent.description}</p>
-                    )}
-                  </div>
+              {/* Name row: only the small delete button competes with the name.
+                  The control cluster (convergence + status + pause) used to sit
+                  here with shrink-0, and on narrow cards (3-col desktop grid)
+                  its max-content width crushed the flex-1 name column down to a
+                  single character. Controls now live on their own row below. */}
+              <div className="flex items-start gap-2.5">
+                <div
+                  className="h-8 w-8 rounded-lg flex items-center justify-center shrink-0 mt-0.5"
+                  style={{ backgroundColor: `${agent.color}20` }}
+                >
+                  <Bot className="h-4 w-4" style={{ color: agent.color }} />
                 </div>
-                <div className="flex items-center gap-1 shrink-0 flex-wrap justify-end">
+                <div className="flex-1 min-w-0">
+                  <p className="font-semibold text-sm truncate">{agent.name}</p>
+                  {agent.description && (
+                    <p className="text-xs text-muted-foreground mt-0.5 line-clamp-2">{agent.description}</p>
+                  )}
+                </div>
+                <button
+                  className="h-6 w-6 flex items-center justify-center rounded-md shrink-0 text-muted-foreground/40 hover:text-destructive hover:bg-destructive/10 transition-colors"
+                  aria-label="Delete agent"
+                  onClick={(e: React.MouseEvent) => {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    setShowDeleteDialog(true);
+                  }}
+                >
+                  <Trash2 className="h-3.5 w-3.5" />
+                </button>
+              </div>
+              {/* Full-width row: keeps the funnel stage legible regardless of
+                  how wide the controls are (see name-row comment above). */}
+              <Badge variant="secondary" className="mt-1 w-fit max-w-full truncate text-xs font-normal">
+                {agentTargetingLabel(agent)}
+              </Badge>
+              {/* Controls row: flex-wrap lets the pause toggle drop to its own
+                  line on the narrowest cards instead of crushing siblings. */}
+              <div className="flex items-center justify-between gap-x-2 gap-y-1 flex-wrap mt-1">
+                <div className="flex items-center gap-2">
                   {convergenceState && !hide("agent.convergence") && (() => {
                     const cfg = CONVERGENCE_CONFIG[convergenceState];
                     return (
@@ -128,35 +151,18 @@ export function AgentCard({ agent, convergenceState, hiddenStats = [], isAdmin =
                     );
                   })()}
                   <AgentStatusBadge status={agent.status} />
-                  {isAdmin && (
-                    <span onClick={(e) => { e.preventDefault(); e.stopPropagation(); }}>
-                      <AgentPauseToggle
-                        agentId={agent.id}
-                        agentName={agent.name}
-                        sendingPaused={agent.sendingPaused}
-                        killSwitchOn={killSwitchOn}
-                      />
-                    </span>
-                  )}
-                  <button
-                    className="h-6 w-6 flex items-center justify-center rounded-md text-muted-foreground/40 hover:text-destructive hover:bg-destructive/10 transition-colors"
-                    aria-label="Delete agent"
-                    onClick={(e: React.MouseEvent) => {
-                      e.preventDefault();
-                      e.stopPropagation();
-                      setShowDeleteDialog(true);
-                    }}
-                  >
-                    <Trash2 className="h-3.5 w-3.5" />
-                  </button>
                 </div>
+                {isAdmin && (
+                  <span onClick={(e) => { e.preventDefault(); e.stopPropagation(); }}>
+                    <AgentPauseToggle
+                      agentId={agent.id}
+                      agentName={agent.name}
+                      sendingPaused={agent.sendingPaused}
+                      killSwitchOn={killSwitchOn}
+                    />
+                  </span>
+                )}
               </div>
-              {/* Full-width row: on mobile the header controls crush the name
-                  column, which truncated this targeting badge to a single
-                  letter. Its own grid row keeps the funnel stage legible. */}
-              <Badge variant="secondary" className="mt-1 w-fit max-w-full truncate text-xs font-normal">
-                {agentTargetingLabel(agent)}
-              </Badge>
             </CardHeader>
             <CardContent className="pt-0 space-y-3">
               {/* Counts row */}
