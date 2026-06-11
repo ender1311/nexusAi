@@ -24,7 +24,7 @@
     },
     {
       "path": "/api/cron/materialize-segments",
-      "schedule": "45 * * * *"
+      "schedule": "10 * * * *"
     },
     {
       "path": "/api/cron/refresh-segment-facets",
