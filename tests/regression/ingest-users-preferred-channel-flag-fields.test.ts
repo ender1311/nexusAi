@@ -19,6 +19,7 @@ const AUTH = { Authorization: "Bearer test_ingest_key" };
 const FLAG_FIELDS = [
   "guided_scripture_interaction_has_ever_flag",
   "guided_prayer_interaction_has_ever_flag",
+  "audio_bible_interaction_has_ever_flag",
   "plan_audio_interaction_has_ever_flag",
   "plan_interaction_has_ever_flag",
   "plan_subscribed_has_ever_flag",

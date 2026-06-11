@@ -3,6 +3,7 @@
 export const INTERACTION_FLAGS = [
   "guided_scripture_interaction_has_ever_flag",
   "guided_prayer_interaction_has_ever_flag",
+  "audio_bible_interaction_has_ever_flag",
   "plan_audio_interaction_has_ever_flag",
   "plan_interaction_has_ever_flag",
   "plan_subscribed_has_ever_flag",
@@ -83,6 +84,7 @@ export function detectTransitionedFlags(
 export const INTERACTION_FLAG_LABELS: Record<InteractionFlag, string> = {
   guided_scripture_interaction_has_ever_flag: "Guided Scripture Interaction",
   guided_prayer_interaction_has_ever_flag: "Guided Prayer Interaction",
+  audio_bible_interaction_has_ever_flag: "Audio Bible Interaction",
   plan_audio_interaction_has_ever_flag: "Plan Audio Interaction",
   plan_interaction_has_ever_flag: "Plan Interaction",
   plan_subscribed_has_ever_flag: "Plan Subscription",
