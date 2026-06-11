@@ -48,6 +48,7 @@ export const PUSH_CATEGORIES: PushCategory[] = [
     subcategories: [
       { value: "guided-prayer", label: "Guided Prayer" },
       { value: "prayer-list", label: "Prayer List" },
+      { value: "votd-dynamic", label: "Daily Verse (Dynamic)" },
     ],
   },
   {
