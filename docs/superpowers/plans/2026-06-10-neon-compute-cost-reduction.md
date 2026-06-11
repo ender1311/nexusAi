@@ -36,13 +36,15 @@ In `prisma/schema.prisma`, inside `model Segment` (after `sizeComputedAt DateTim
   materializedAt DateTime?
 ```
 
-- [ ] **Step 2: Run the migration (against prod — additive only)**
+- [x] **Step 2: Apply the column to prod (additive only)**
+
+> **Execution note (2026-06-10):** `prisma migrate dev --create-only` was aborted — the prod DB has migration drift (two applied migrations missing locally, plus a dropped FK) and Prisma demanded a full schema **reset**. Never accept that. The column was applied directly instead:
 
 ```bash
-npx prisma migrate dev --name segment_materialized_at
+echo 'ALTER TABLE "Segment" ADD COLUMN IF NOT EXISTS "materializedAt" TIMESTAMP(3);' | npx prisma db execute --stdin
 ```
 
-Expected: migration applies cleanly; generated SQL is exactly one `ALTER TABLE "Segment" ADD COLUMN "materializedAt" TIMESTAMP(3);`. **Inspect the generated migration.sql before it applies if prompted; abort if it contains anything destructive.** Then:
+Expected: `Script executed successfully.` Then:
 
 ```bash
 npx prisma generate
