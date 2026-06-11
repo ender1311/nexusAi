@@ -4,6 +4,7 @@
 export const INTERACTION_FLAGS = [
   "guided_scripture_interaction_has_ever_flag",
   "guided_prayer_interaction_has_ever_flag",
+  "audio_bible_interaction_has_ever_flag",
   "plan_audio_interaction_has_ever_flag",
   "plan_interaction_has_ever_flag",
   "plan_subscribed_has_ever_flag",

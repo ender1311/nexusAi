@@ -3,8 +3,8 @@ import { INTERACTION_FLAGS, INTERACTION_FLAG_LABELS } from "@/lib/constants/inte
 import { INTERACTION_GOALS } from "@/lib/constants/youversion";
 
 describe("INTERACTION_GOALS presets", () => {
-  it("has exactly one preset per interaction flag (9 total)", () => {
-    expect(INTERACTION_GOALS).toHaveLength(9);
+  it("has exactly one preset per interaction flag", () => {
+    expect(INTERACTION_GOALS).toHaveLength(INTERACTION_FLAGS.length);
   });
 
   it("eventName matches each INTERACTION_FLAG exactly", () => {

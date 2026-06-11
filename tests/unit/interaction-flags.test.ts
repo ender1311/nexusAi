@@ -9,9 +9,10 @@ import {
 } from "@/lib/constants/interaction-flags";
 
 describe("interaction flags", () => {
-  it("lists exactly the 9 has_ever flags", () => {
-    expect(INTERACTION_FLAGS).toHaveLength(9);
+  it("lists exactly the 10 has_ever flags", () => {
+    expect(INTERACTION_FLAGS).toHaveLength(10);
     expect(INTERACTION_FLAGS).toContain("plan_interaction_has_ever_flag");
+    expect(INTERACTION_FLAGS).toContain("audio_bible_interaction_has_ever_flag");
     expect(INTERACTION_FLAGS.every((f) => f.endsWith("_flag"))).toBe(true);
   });
   it("recognizes a flag name", () => {
@@ -33,7 +34,7 @@ describe("interaction flags", () => {
 });
 
 describe("snapshotEnrollmentFlags", () => {
-  it("always contains all 9 flags, defaulting to false", () => {
+  it("always contains all flags, defaulting to false", () => {
     const snap = snapshotEnrollmentFlags("{}");
     expect(Object.keys(snap).sort()).toEqual([...INTERACTION_FLAGS].sort());
     expect(Object.values(snap).every((v) => v === false)).toBe(true);
@@ -61,7 +62,7 @@ describe("snapshotEnrollmentFlags", () => {
   it("degrades corrupt, null, or non-object input to an all-false baseline", () => {
     for (const bad of ["{not json", null, undefined, 42, ["a"], JSON.stringify(["a"])]) {
       const snap = snapshotEnrollmentFlags(bad);
-      expect(Object.keys(snap)).toHaveLength(9);
+      expect(Object.keys(snap)).toHaveLength(INTERACTION_FLAGS.length);
       expect(Object.values(snap).every((v) => v === false)).toBe(true);
     }
   });
