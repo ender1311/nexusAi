@@ -5,6 +5,11 @@ import { prisma } from "@/lib/db";
 import { createBrazeClient } from "@/lib/braze/client";
 import { PayloadFactory } from "@/lib/braze/payload-factory";
 import { randomUUID } from "crypto";
+import { hasVotdTags, substituteVotdTags } from "@/lib/votd/votd-tags";
+import { guidedLabels } from "@/lib/votd/labels";
+import { resolveVotdUserKey } from "@/lib/votd/votd-user-key";
+import { getVotdContent } from "@/lib/votd/votd-content";
+import { VERSE_IMAGE_SENTINEL } from "@/lib/verse-image";
 
 type SendResult = {
   userId: string;
@@ -60,16 +65,63 @@ export async function POST(req: NextRequest) {
 
         const variant = await prisma.messageVariant.findUnique({
           where: { id: decision.messageVariantId },
-          select: { name: true, title: true, body: true, deeplink: true },
+          select: {
+            name: true,
+            title: true,
+            body: true,
+            deeplink: true,
+            iconImageUrl: true,
+          },
         });
         if (!variant) return { userId, status: "failed", reason: "variant not found" };
+
+        let title = variant.title ?? "";
+        let body = variant.body;
+        let iosImageUrl: string | undefined;
+        let androidImageUrl: string | undefined;
+
+        if (hasVotdTags(variant.title, variant.body)) {
+          const trackedUser = await prisma.trackedUser.findUnique({
+            where: { externalId: userId },
+            select: { attributes: true },
+          });
+          const key = resolveVotdUserKey(trackedUser?.attributes ?? {}, new Date());
+          const content = await getVotdContent(prisma, key.date, key.languageTag);
+          if (!content) {
+            return {
+              userId,
+              status: "failed" as const,
+              variantName: variant.name,
+              reason: "VOTD content unavailable",
+            };
+          }
+          const labels = guidedLabels(content.languageTag);
+          const subs = {
+            guidedScriptureLabel: labels.guidedScripture,
+            guidedPrayerLabel: labels.guidedPrayer,
+            votdReference: content.reference,
+            votdText: content.verseText,
+          };
+          title = substituteVotdTags(title, subs);
+          body = substituteVotdTags(body, subs);
+          if (variant.iconImageUrl === VERSE_IMAGE_SENTINEL) {
+            iosImageUrl = content.imageUrlIos ?? undefined;
+            androidImageUrl = content.imageUrlAndroid ?? undefined;
+          }
+        }
 
         if (!brazeClient || !factory) {
           return { userId, status: "failed", reason: "Braze not configured", variantName: variant.name };
         }
 
         const payload = factory.buildPushPayload(
-          { title: variant.title ?? "", body: variant.body, deeplink: variant.deeplink ?? undefined },
+          {
+            title,
+            body,
+            deeplink: variant.deeplink ?? undefined,
+            iosImageUrl,
+            androidImageUrl,
+          },
           { externalUserIds: [userId] },
           campaignId,
           decision.brazeVariantId ?? undefined,
