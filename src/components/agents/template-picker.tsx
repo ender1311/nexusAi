@@ -13,6 +13,7 @@ import {
   type SpecificVerseDeeplinkMode,
 } from "@/lib/push-deeplinks";
 import { PUSH_CATEGORIES } from "@/lib/push-categories";
+import { VERSE_IMAGE_SENTINEL } from "@/lib/verse-image";
 
 // ─── Category / subcategory catalogue ────────────────────────────────────────
 
@@ -29,7 +30,7 @@ type FetchState =
 type DraftMessage = {
   name: string;
   channel: "push";
-  variants: Array<{ name: string; title?: string; body: string; deeplink?: string; sourceTemplateId: string }>;
+  variants: Array<{ name: string; title?: string; body: string; deeplink?: string; iconImageUrl?: string; sourceTemplateId: string }>;
 };
 
 export type TemplatePickerProps =
@@ -177,6 +178,7 @@ export const TemplatePicker = forwardRef<TemplatePickerHandle, TemplatePickerPro
         deeplink: selectedSubcategory === "specific-verse"
           ? resolveSpecificVerseDeeplink(v.deeplink, specificVerseDeeplinkMode)
           : (v.deeplink ?? undefined),
+        iconImageUrl: v.iconImageUrl ?? undefined,
         sourceTemplateId: v.id,
       })),
     };
@@ -440,6 +442,9 @@ export const TemplatePicker = forwardRef<TemplatePickerHandle, TemplatePickerPro
                   <p className="text-xs leading-snug text-muted-foreground line-clamp-1">
                     {v.body}
                   </p>
+                  {v.iconImageUrl === VERSE_IMAGE_SENTINEL && (
+                    <p className="text-xs text-muted-foreground">+ today&apos;s verse image</p>
+                  )}
                 </div>
               );
             })}
