@@ -534,7 +534,7 @@ export function AgentSettingsEditor({ agent, initialRule, startInEditMode }: Pro
 
   // ----- Edit mode --------------------------------------------------------
   return (
-    <div className="space-y-4 pb-32">
+    <div className="space-y-4 pb-48 lg:pb-32">
       <div className="flex justify-end gap-2">
         <span className="text-xs text-muted-foreground self-center">Editing — unsaved changes will be lost on Cancel.</span>
       </div>
@@ -1041,8 +1041,10 @@ export function AgentSettingsEditor({ agent, initialRule, startInEditMode }: Pro
         )}
       </Card>
 
-      {/* Sticky save bar */}
-      <div className="fixed bottom-0 left-0 right-0 z-30 border-t bg-background/95 backdrop-blur px-4 sm:px-6 py-3 space-y-2 shadow-md">
+      {/* Sticky save bar. Below lg the bottom mobile nav (sidebar.tsx, fixed
+          bottom-0 z-50, 4rem tall + safe-area inset) would cover a bottom-0
+          bar entirely, so offset by the nav's height on small screens. */}
+      <div className="fixed bottom-[calc(4rem+env(safe-area-inset-bottom))] lg:bottom-0 left-0 right-0 z-30 border-t bg-background/95 backdrop-blur px-4 sm:px-6 py-3 space-y-2 shadow-md">
         {willReleaseCohort && (
           <p className="text-xs text-amber-700 dark:text-amber-400 bg-amber-50 dark:bg-amber-900/20 rounded px-2 py-1.5">
             ⚠ Targeting or enrollment-mode change detected. Saving will release this agent&apos;s

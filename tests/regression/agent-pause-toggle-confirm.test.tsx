@@ -42,13 +42,22 @@ function findButton(text: string): HTMLButtonElement | undefined {
     .find((el) => el.textContent?.includes(text));
 }
 
+function findDialogButton(text: string): HTMLButtonElement | undefined {
+  const dialog = document.querySelector('[role="alertdialog"]');
+  if (!dialog) return undefined;
+  return Array.from(dialog.querySelectorAll<HTMLButtonElement>("button"))
+    .find((el) => el.textContent?.includes(text));
+}
+
 describe("AgentPauseToggle confirmation", () => {
   it("opens a confirmation dialog on Pause instead of PATCHing immediately", () => {
     act(() => {
       root.render(<AgentPauseToggle agentId="a1" agentName="Trinity" sendingPaused={false} />);
     });
 
-    const pauseBtn = findButton("Pause");
+    // Trigger must say "Pause sending" — a bare "Pause" label was ambiguous
+    // next to the cohort-releasing status toggle on the agent detail page.
+    const pauseBtn = findButton("Pause sending");
     expect(pauseBtn).toBeDefined();
 
     act(() => pauseBtn!.click());
@@ -56,7 +65,7 @@ describe("AgentPauseToggle confirmation", () => {
     // The PATCH must NOT have fired yet — only the confirmation should be open.
     expect(fetchMock).not.toHaveBeenCalled();
     expect(document.body.textContent).toContain("Pause \"Trinity\"?");
-    expect(findButton("Pause sending")).toBeDefined();
+    expect(findDialogButton("Pause sending")).toBeDefined();
   });
 
   it("fires the PATCH (sendingPaused:true) only after the user confirms", async () => {
@@ -64,9 +73,9 @@ describe("AgentPauseToggle confirmation", () => {
       root.render(<AgentPauseToggle agentId="a1" agentName="Trinity" sendingPaused={false} />);
     });
 
-    act(() => findButton("Pause")!.click());
+    act(() => findButton("Pause sending")!.click());
     await act(async () => {
-      findButton("Pause sending")!.click();
+      findDialogButton("Pause sending")!.click();
     });
 
     expect(fetchMock).toHaveBeenCalledTimes(1);
@@ -81,13 +90,13 @@ describe("AgentPauseToggle confirmation", () => {
       root.render(<AgentPauseToggle agentId="a1" agentName="Trinity" sendingPaused={true} />);
     });
 
-    const resumeBtn = findButton("Resume");
+    const resumeBtn = findButton("Resume sending");
     expect(resumeBtn).toBeDefined();
 
     act(() => resumeBtn!.click());
 
     expect(fetchMock).not.toHaveBeenCalled();
     expect(document.body.textContent).toContain("Resume \"Trinity\"?");
-    expect(findButton("Resume sending")).toBeDefined();
+    expect(findDialogButton("Resume sending")).toBeDefined();
   });
 });

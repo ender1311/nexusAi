@@ -58,7 +58,7 @@ export function AgentPauseToggle({
   const trigger = sendingPaused ? (
     <Button size="sm" variant="outline" disabled={loading}>
       <Play className="h-3.5 w-3.5 mr-1.5" />
-      {loading ? "Resuming…" : "Resume"}
+      {loading ? "Resuming…" : "Resume sending"}
     </Button>
   ) : (
     <Button
@@ -69,7 +69,7 @@ export function AgentPauseToggle({
       className="hover:bg-amber-500/10 hover:text-amber-600 hover:border-amber-500/30"
     >
       <Pause className="h-3.5 w-3.5 mr-1.5" />
-      {loading ? "Pausing…" : "Pause"}
+      {loading ? "Pausing…" : "Pause sending"}
     </Button>
   );
 

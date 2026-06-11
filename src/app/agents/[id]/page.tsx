@@ -111,7 +111,7 @@ export default async function AgentDetailPage({
                 </Button>
               </Link>
             )}
-            {isAdmin && <AgentStatusToggle agentId={agent.id} status={agent.status} />}
+            {isAdmin && <AgentStatusToggle agentId={agent.id} agentName={agent.name} status={agent.status} />}
             {isAdmin && (
               <AgentPauseToggle
                 agentId={agent.id}
