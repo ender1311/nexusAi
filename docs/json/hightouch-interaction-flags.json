@@ -1,0 +1,22 @@
+{
+  "_comment": "Interaction *_has_ever_flag attributes for Hightouch → POST /api/ingest/users. Canonical list: src/lib/constants/interaction-flags.ts (pinned by tests/regression/ingest-users-preferred-channel-flag-fields.test.ts). Paste _template into the JSON editor, or merge the attributes block into an existing user-profile sync.",
+  "_notes": [
+    "Hightouch source column names match the Nexus attribute keys (snake_case) — map row['<flag>'] directly.",
+    "Booleans render as raw true/false (no quotes). Do not use | json on boolean fields.",
+    "Absent/null warehouse values default to false via | default: false.",
+    "These flags drive interaction-flag agent goals (first_interaction / any_interaction conversion types)."
+  ],
+  "_flags": [
+    { "attribute": "guided_scripture_interaction_has_ever_flag", "label": "Guided Scripture Interaction" },
+    { "attribute": "guided_prayer_interaction_has_ever_flag", "label": "Guided Prayer Interaction" },
+    { "attribute": "audio_bible_interaction_has_ever_flag", "label": "Audio Bible Interaction" },
+    { "attribute": "plan_audio_interaction_has_ever_flag", "label": "Plan Audio Interaction" },
+    { "attribute": "plan_interaction_has_ever_flag", "label": "Plan Interaction" },
+    { "attribute": "plan_subscribed_has_ever_flag", "label": "Plan Subscription" },
+    { "attribute": "plan_day_completion_has_ever_flag", "label": "Plan Day Completion" },
+    { "attribute": "pmt_participation_has_ever_flag", "label": "PMT Participation" },
+    { "attribute": "votd_interaction_has_ever_flag", "label": "Verse of the Day Interaction" },
+    { "attribute": "votd_share_has_ever_flag", "label": "Verse of the Day Share" }
+  ],
+  "_template": "{\n  \"users\": [\n    {% for row in rows %}\n    {\n      \"external_user_id\": \"{{ row['user_id'] | default: '' }}\",\n      \"braze_id\": \"{{ row['braze_user_id_latest'] | default: '' }}\",\n      \"attributes\": {\n        \"guided_scripture_interaction_has_ever_flag\": {{ row['guided_scripture_interaction_has_ever_flag'] | default: false }},\n        \"guided_prayer_interaction_has_ever_flag\": {{ row['guided_prayer_interaction_has_ever_flag'] | default: false }},\n        \"audio_bible_interaction_has_ever_flag\": {{ row['audio_bible_interaction_has_ever_flag'] | default: false }},\n        \"plan_audio_interaction_has_ever_flag\": {{ row['plan_audio_interaction_has_ever_flag'] | default: false }},\n        \"plan_interaction_has_ever_flag\": {{ row['plan_interaction_has_ever_flag'] | default: false }},\n        \"plan_subscribed_has_ever_flag\": {{ row['plan_subscribed_has_ever_flag'] | default: false }},\n        \"plan_day_completion_has_ever_flag\": {{ row['plan_day_completion_has_ever_flag'] | default: false }},\n        \"pmt_participation_has_ever_flag\": {{ row['pmt_participation_has_ever_flag'] | default: false }},\n        \"votd_interaction_has_ever_flag\": {{ row['votd_interaction_has_ever_flag'] | default: false }},\n        \"votd_share_has_ever_flag\": {{ row['votd_share_has_ever_flag'] | default: false }}\n      }\n    }{% unless forloop.last %},{% endunless %}\n    {% endfor %}\n  ]\n}"
+}
