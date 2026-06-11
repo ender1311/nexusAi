@@ -570,7 +570,8 @@ export const SegmentScalarFieldEnum = {
   updatedAt: 'updatedAt',
   createdBy: 'createdBy',
   sizeExact: 'sizeExact',
-  sizeComputedAt: 'sizeComputedAt'
+  sizeComputedAt: 'sizeComputedAt',
+  materializedAt: 'materializedAt'
 } as const
 
 export type SegmentScalarFieldEnum = (typeof SegmentScalarFieldEnum)[keyof typeof SegmentScalarFieldEnum]

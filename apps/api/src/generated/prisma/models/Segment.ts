@@ -43,6 +43,7 @@ export type SegmentMinAggregateOutputType = {
   createdBy: string | null
   sizeExact: number | null
   sizeComputedAt: Date | null
+  materializedAt: Date | null
 }
 
 export type SegmentMaxAggregateOutputType = {
@@ -54,6 +55,7 @@ export type SegmentMaxAggregateOutputType = {
   createdBy: string | null
   sizeExact: number | null
   sizeComputedAt: Date | null
+  materializedAt: Date | null
 }
 
 export type SegmentCountAggregateOutputType = {
@@ -66,6 +68,7 @@ export type SegmentCountAggregateOutputType = {
   createdBy: number
   sizeExact: number
   sizeComputedAt: number
+  materializedAt: number
   _all: number
 }
 
@@ -87,6 +90,7 @@ export type SegmentMinAggregateInputType = {
   createdBy?: true
   sizeExact?: true
   sizeComputedAt?: true
+  materializedAt?: true
 }
 
 export type SegmentMaxAggregateInputType = {
@@ -98,6 +102,7 @@ export type SegmentMaxAggregateInputType = {
   createdBy?: true
   sizeExact?: true
   sizeComputedAt?: true
+  materializedAt?: true
 }
 
 export type SegmentCountAggregateInputType = {
@@ -110,6 +115,7 @@ export type SegmentCountAggregateInputType = {
   createdBy?: true
   sizeExact?: true
   sizeComputedAt?: true
+  materializedAt?: true
   _all?: true
 }
 
@@ -209,6 +215,7 @@ export type SegmentGroupByOutputType = {
   createdBy: string | null
   sizeExact: number | null
   sizeComputedAt: Date | null
+  materializedAt: Date | null
   _count: SegmentCountAggregateOutputType | null
   _avg: SegmentAvgAggregateOutputType | null
   _sum: SegmentSumAggregateOutputType | null
@@ -244,6 +251,7 @@ export type SegmentWhereInput = {
   createdBy?: Prisma.StringNullableFilter<"Segment"> | string | null
   sizeExact?: Prisma.IntNullableFilter<"Segment"> | number | null
   sizeComputedAt?: Prisma.DateTimeNullableFilter<"Segment"> | Date | string | null
+  materializedAt?: Prisma.DateTimeNullableFilter<"Segment"> | Date | string | null
 }
 
 export type SegmentOrderByWithRelationInput = {
@@ -256,6 +264,7 @@ export type SegmentOrderByWithRelationInput = {
   createdBy?: Prisma.SortOrderInput | Prisma.SortOrder
   sizeExact?: Prisma.SortOrderInput | Prisma.SortOrder
   sizeComputedAt?: Prisma.SortOrderInput | Prisma.SortOrder
+  materializedAt?: Prisma.SortOrderInput | Prisma.SortOrder
 }
 
 export type SegmentWhereUniqueInput = Prisma.AtLeast<{
@@ -271,6 +280,7 @@ export type SegmentWhereUniqueInput = Prisma.AtLeast<{
   createdBy?: Prisma.StringNullableFilter<"Segment"> | string | null
   sizeExact?: Prisma.IntNullableFilter<"Segment"> | number | null
   sizeComputedAt?: Prisma.DateTimeNullableFilter<"Segment"> | Date | string | null
+  materializedAt?: Prisma.DateTimeNullableFilter<"Segment"> | Date | string | null
 }, "id" | "name">
 
 export type SegmentOrderByWithAggregationInput = {
@@ -283,6 +293,7 @@ export type SegmentOrderByWithAggregationInput = {
   createdBy?: Prisma.SortOrderInput | Prisma.SortOrder
   sizeExact?: Prisma.SortOrderInput | Prisma.SortOrder
   sizeComputedAt?: Prisma.SortOrderInput | Prisma.SortOrder
+  materializedAt?: Prisma.SortOrderInput | Prisma.SortOrder
   _count?: Prisma.SegmentCountOrderByAggregateInput
   _avg?: Prisma.SegmentAvgOrderByAggregateInput
   _max?: Prisma.SegmentMaxOrderByAggregateInput
@@ -303,6 +314,7 @@ export type SegmentScalarWhereWithAggregatesInput = {
   createdBy?: Prisma.StringNullableWithAggregatesFilter<"Segment"> | string | null
   sizeExact?: Prisma.IntNullableWithAggregatesFilter<"Segment"> | number | null
   sizeComputedAt?: Prisma.DateTimeNullableWithAggregatesFilter<"Segment"> | Date | string | null
+  materializedAt?: Prisma.DateTimeNullableWithAggregatesFilter<"Segment"> | Date | string | null
 }
 
 export type SegmentCreateInput = {
@@ -315,6 +327,7 @@ export type SegmentCreateInput = {
   createdBy?: string | null
   sizeExact?: number | null
   sizeComputedAt?: Date | string | null
+  materializedAt?: Date | string | null
 }
 
 export type SegmentUncheckedCreateInput = {
@@ -327,6 +340,7 @@ export type SegmentUncheckedCreateInput = {
   createdBy?: string | null
   sizeExact?: number | null
   sizeComputedAt?: Date | string | null
+  materializedAt?: Date | string | null
 }
 
 export type SegmentUpdateInput = {
@@ -339,6 +353,7 @@ export type SegmentUpdateInput = {
   createdBy?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   sizeExact?: Prisma.NullableIntFieldUpdateOperationsInput | number | null
   sizeComputedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  materializedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
 }
 
 export type SegmentUncheckedUpdateInput = {
@@ -351,6 +366,7 @@ export type SegmentUncheckedUpdateInput = {
   createdBy?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   sizeExact?: Prisma.NullableIntFieldUpdateOperationsInput | number | null
   sizeComputedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  materializedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
 }
 
 export type SegmentCreateManyInput = {
@@ -363,6 +379,7 @@ export type SegmentCreateManyInput = {
   createdBy?: string | null
   sizeExact?: number | null
   sizeComputedAt?: Date | string | null
+  materializedAt?: Date | string | null
 }
 
 export type SegmentUpdateManyMutationInput = {
@@ -375,6 +392,7 @@ export type SegmentUpdateManyMutationInput = {
   createdBy?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   sizeExact?: Prisma.NullableIntFieldUpdateOperationsInput | number | null
   sizeComputedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  materializedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
 }
 
 export type SegmentUncheckedUpdateManyInput = {
@@ -387,6 +405,7 @@ export type SegmentUncheckedUpdateManyInput = {
   createdBy?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   sizeExact?: Prisma.NullableIntFieldUpdateOperationsInput | number | null
   sizeComputedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  materializedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
 }
 
 export type SegmentCountOrderByAggregateInput = {
@@ -399,6 +418,7 @@ export type SegmentCountOrderByAggregateInput = {
   createdBy?: Prisma.SortOrder
   sizeExact?: Prisma.SortOrder
   sizeComputedAt?: Prisma.SortOrder
+  materializedAt?: Prisma.SortOrder
 }
 
 export type SegmentAvgOrderByAggregateInput = {
@@ -414,6 +434,7 @@ export type SegmentMaxOrderByAggregateInput = {
   createdBy?: Prisma.SortOrder
   sizeExact?: Prisma.SortOrder
   sizeComputedAt?: Prisma.SortOrder
+  materializedAt?: Prisma.SortOrder
 }
 
 export type SegmentMinOrderByAggregateInput = {
@@ -425,6 +446,7 @@ export type SegmentMinOrderByAggregateInput = {
   createdBy?: Prisma.SortOrder
   sizeExact?: Prisma.SortOrder
   sizeComputedAt?: Prisma.SortOrder
+  materializedAt?: Prisma.SortOrder
 }
 
 export type SegmentSumOrderByAggregateInput = {
@@ -443,6 +465,7 @@ export type SegmentSelect<ExtArgs extends runtime.Types.Extensions.InternalArgs 
   createdBy?: boolean
   sizeExact?: boolean
   sizeComputedAt?: boolean
+  materializedAt?: boolean
 }, ExtArgs["result"]["segment"]>
 
 export type SegmentSelectCreateManyAndReturn<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = runtime.Types.Extensions.GetSelect<{
@@ -455,6 +478,7 @@ export type SegmentSelectCreateManyAndReturn<ExtArgs extends runtime.Types.Exten
   createdBy?: boolean
   sizeExact?: boolean
   sizeComputedAt?: boolean
+  materializedAt?: boolean
 }, ExtArgs["result"]["segment"]>
 
 export type SegmentSelectUpdateManyAndReturn<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = runtime.Types.Extensions.GetSelect<{
@@ -467,6 +491,7 @@ export type SegmentSelectUpdateManyAndReturn<ExtArgs extends runtime.Types.Exten
   createdBy?: boolean
   sizeExact?: boolean
   sizeComputedAt?: boolean
+  materializedAt?: boolean
 }, ExtArgs["result"]["segment"]>
 
 export type SegmentSelectScalar = {
@@ -479,9 +504,10 @@ export type SegmentSelectScalar = {
   createdBy?: boolean
   sizeExact?: boolean
   sizeComputedAt?: boolean
+  materializedAt?: boolean
 }
 
-export type SegmentOmit<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = runtime.Types.Extensions.GetOmit<"id" | "name" | "description" | "rule" | "createdAt" | "updatedAt" | "createdBy" | "sizeExact" | "sizeComputedAt", ExtArgs["result"]["segment"]>
+export type SegmentOmit<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = runtime.Types.Extensions.GetOmit<"id" | "name" | "description" | "rule" | "createdAt" | "updatedAt" | "createdBy" | "sizeExact" | "sizeComputedAt" | "materializedAt", ExtArgs["result"]["segment"]>
 
 export type $SegmentPayload<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
   name: "Segment"
@@ -496,6 +522,7 @@ export type $SegmentPayload<ExtArgs extends runtime.Types.Extensions.InternalArg
     createdBy: string | null
     sizeExact: number | null
     sizeComputedAt: Date | null
+    materializedAt: Date | null
   }, ExtArgs["result"]["segment"]>
   composites: {}
 }
@@ -928,6 +955,7 @@ export interface SegmentFieldRefs {
   readonly createdBy: Prisma.FieldRef<"Segment", 'String'>
   readonly sizeExact: Prisma.FieldRef<"Segment", 'Int'>
   readonly sizeComputedAt: Prisma.FieldRef<"Segment", 'DateTime'>
+  readonly materializedAt: Prisma.FieldRef<"Segment", 'DateTime'>
 }
     
 
