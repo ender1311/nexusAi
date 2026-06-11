@@ -212,3 +212,40 @@ describe("push_disabled event", () => {
     expect(betaAfterFirst).toBe(betaAfterSecond); // no additional penalty
   });
 });
+
+describe("user-ingest marker", () => {
+  it("bumps last_user_ingest_at after a matched event (channelStats drift)", async () => {
+    const agent = await createAgent();
+    await createGoal(agent.id, { eventName: "plan_started", tier: "best", valueWeight: 1.0 });
+    const msg = await createMessage(agent.id);
+    const variant = await createVariant(msg.id);
+    const sentAt = new Date(Date.now() - 2 * 60 * 60 * 1000);
+    await createUserDecision({ agentId: agent.id, userId: "usr_marker", messageVariantId: variant.id, channel: "push", sentAt });
+
+    const req = buildRequest("POST", {
+      event_id: "e_marker", event_name: "plan_started",
+      external_user_id: "usr_marker", occurred_at: new Date().toISOString(),
+    }, AUTH);
+    const res = await POST(req as NextRequest);
+    const body = await res.json();
+    expect(body.matched).toBe(1);
+
+    const marker = await prisma.appSetting.findUnique({ where: { key: "last_user_ingest_at" } });
+    expect(marker).not.toBeNull();
+    expect(Number.isNaN(Date.parse(marker!.value))).toBe(false);
+  });
+
+  it("does not create the marker when no events matched", async () => {
+    const req = buildRequest("POST", {
+      event_id: "e_unmatched", event_name: "plan_started",
+      external_user_id: "usr_nobody", occurred_at: new Date().toISOString(),
+    }, AUTH);
+    const res = await POST(req as NextRequest);
+    const body = await res.json();
+    expect(body.matched).toBe(0);
+    expect(body.unmatched).toBe(1);
+
+    const marker = await prisma.appSetting.findUnique({ where: { key: "last_user_ingest_at" } });
+    expect(marker).toBeNull();
+  });
+});
