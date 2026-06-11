@@ -28,6 +28,7 @@ export async function GET(req: NextRequest) {
         category: true,
         subcategory: true,
         sourceTemplateId: true,
+        iconImageUrl: true,
         message: { select: { channel: true, name: true } },
       },
       orderBy: { createdAt: "asc" },

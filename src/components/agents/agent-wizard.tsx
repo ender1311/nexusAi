@@ -304,13 +304,14 @@ export function AgentWizard({
   };
 
   // Called by TemplatePicker in draft mode (push channel wizard flow)
-  const addMessageFromTemplate = (msg: { name: string; channel: "push"; variants: Array<{ name: string; title?: string; body: string; deeplink?: string; sourceTemplateId: string }> }) => {
+  const addMessageFromTemplate = (msg: { name: string; channel: "push"; variants: Array<{ name: string; title?: string; body: string; deeplink?: string; iconImageUrl?: string; sourceTemplateId: string }> }) => {
     const variantsToSave = msg.variants.map((v) => ({
       ...emptyVariant(),
       name: v.name,
       title: v.title ?? "",
       body: v.body,
       deeplink: v.deeplink ?? "",
+      iconImageUrl: v.iconImageUrl ?? "",
       sourceTemplateId: v.sourceTemplateId,
     }));
     setForm((f) => ({

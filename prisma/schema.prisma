@@ -565,3 +565,19 @@ model SegmentFieldFacet {
   payload    Json
   computedAt DateTime @updatedAt
 }
+
+/// Immutable per-day, per-language VOTD cache. A given day's VOTD never changes.
+model VotdDailyContent {
+  id              String   @id @default(cuid())
+  date            String // "YYYY-MM-DD" — user-local calendar date
+  languageTag     String // normalized content language, e.g. "en", "es", "zh_CN"
+  usfm            String // e.g. "JHN.3.16" (multi-verse joined with "+")
+  reference       String // localized human reference, e.g. "Juan 3:16"
+  verseText       String
+  versionId       Int // Bible version id used for this language
+  imageUrlIos     String? // rendered 320x320
+  imageUrlAndroid String? // rendered 1024x512
+  createdAt       DateTime @default(now())
+
+  @@unique([date, languageTag])
+}

@@ -14,6 +14,10 @@ import { computeBibles, substituteGivingCopy, DEFAULT_DOLLARS_TO_BIBLES } from "
 import { resolvePushLocaleStrict, type LocalizedCopy } from "@/lib/push-locale";
 import { VERSE_PUSH_SENTINEL, pickVerse, resolveVerseCopy, type VersePool, type VerseStrategy } from "@/lib/verse-content";
 import { VERSE_IMAGE_SENTINEL, DEFAULT_VERSE_IMAGE_ID, buildVerseImageUrls } from "@/lib/verse-image";
+import { substituteVotdTags } from "@/lib/votd/votd-tags";
+import { guidedLabels } from "@/lib/votd/labels";
+import { resolveVotdUserKey, votdContentKey } from "@/lib/votd/votd-user-key";
+import type { VotdContent } from "@/lib/votd/votd-content";
 
 export type VariantSendGroup = {
   variantId: string;
@@ -70,6 +74,10 @@ export function groupDecisionsByVariant(
     translationsByVariant: Map<string, Map<string, LocalizedCopy>>;
     versePool?: VersePool;
     strategyByVariant?: Map<string, VerseStrategy>;
+    /** Push variants whose title/body contain {{votd_*}} liquid tags. */
+    votdVariantIds?: Set<string>;
+    /** Pre-fetched VOTD rows keyed by votdContentKey(date, languageTag). */
+    votdContent?: Map<string, VotdContent>;
   },
   givingMultiplier?: number,
 ): Record<string, VariantSendGroup> {
@@ -88,6 +96,7 @@ export function groupDecisionsByVariant(
     let resolvedDeeplink: string | null;
     let copyKeyed: boolean;
     let verseImageId: string | undefined;
+    let votdImage: { ios: string | null; android: string | null } | undefined;
 
     if (meta.givingHandleStrategy != null) {
       // Dynamic giving handle: resolve a per-user ask amount + impact figure, then
@@ -108,12 +117,31 @@ export function groupDecisionsByVariant(
         ? buildGivingDeeplink(attrs, "blend", meta.givingFrequency ?? "monthly")
         : meta.deeplink;
 
-      // Verse-push arms (body sentinel) resolve a rotated, localized verse at send
-      // time; otherwise fall back to the standard translation path.
+      // VOTD liquid-tag arms resolve today's (user-local) localized verse from
+      // the pre-fetched content map; verse-push arms (body sentinel) resolve a
+      // rotated verse; otherwise fall back to the standard translation path.
+      const isVotd = (localization?.votdVariantIds?.has(variantId) ?? false) && meta.channel === "push";
       const verseStrategy = localization?.strategyByVariant?.get(variantId);
       const isVerse =
-        meta.body === VERSE_PUSH_SENTINEL && verseStrategy != null && localization?.versePool != null;
-      if (isVerse) {
+        !isVotd && meta.body === VERSE_PUSH_SENTINEL && verseStrategy != null && localization?.versePool != null;
+      if (isVotd) {
+        const key = resolveVotdUserKey(user.attributes, scheduledAt);
+        const content = localization?.votdContent?.get(votdContentKey(key.date, key.languageTag));
+        // Missing content → skip rather than deliver raw liquid tags.
+        if (!content) continue;
+        const labels = guidedLabels(content.languageTag);
+        const subs = {
+          guidedScriptureLabel: labels.guidedScripture,
+          guidedPrayerLabel: labels.guidedPrayer,
+          votdReference: content.reference,
+          votdText: content.verseText,
+        };
+        copy = {
+          title: meta.title != null ? substituteVotdTags(meta.title, subs) : null,
+          body: substituteVotdTags(meta.body, subs),
+        };
+        votdImage = { ios: content.imageUrlIos, android: content.imageUrlAndroid };
+      } else if (isVerse) {
         const dateBucket = scheduledAt.toISOString().slice(0, 10);
         const verse = pickVerse(localization!.versePool!, user.externalId, dateBucket);
         // Empty pool → skip rather than deliver the raw sentinel as a push body.
@@ -131,16 +159,20 @@ export function groupDecisionsByVariant(
         if (!localized) continue;
         copy = localized;
       }
-      copyKeyed = meta.channel === "push" && (isVerse || (localization?.enabled ?? false));
+      copyKeyed = meta.channel === "push" && (isVotd || isVerse || (localization?.enabled ?? false));
     }
 
     // Resolve per-platform image URLs (payload-determining → folded into the group key).
     let iosImageUrl: string | null = null;
     let androidImageUrl: string | null = null;
     if (meta.iconImageUrl === VERSE_IMAGE_SENTINEL) {
-      // Sentinel only resolves on a verse arm (we have a chosen verse). On a
-      // non-verse arm the sentinel is meaningless → no image.
-      if (meta.body === VERSE_PUSH_SENTINEL && meta.channel === "push") {
+      if (votdImage && meta.channel === "push") {
+        // VOTD arm: today's localized verse image (nullable → text-only send).
+        iosImageUrl = votdImage.ios;
+        androidImageUrl = votdImage.android;
+      } else if (meta.body === VERSE_PUSH_SENTINEL && meta.channel === "push") {
+        // Sentinel only resolves on a verse arm (we have a chosen verse). On a
+        // non-verse arm the sentinel is meaningless → no image.
         const { ios, android } = buildVerseImageUrls(verseImageId ?? DEFAULT_VERSE_IMAGE_ID);
         iosImageUrl = ios;
         androidImageUrl = android;

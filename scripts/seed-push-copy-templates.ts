@@ -33,6 +33,7 @@
  */
 
 import { prisma } from "../src/lib/db";
+import { VERSE_IMAGE_SENTINEL } from "@/lib/verse-image";
 
 const LIBRARY_AGENT_NAME = "Push Copy Library";
 
@@ -43,6 +44,7 @@ type VariantDef = {
   body: string;
   deeplink: string;
   cta: string;
+  iconImageUrl?: string;
   actionFeatures: {
     tone: "empathy" | "urgency" | "question" | "milestone";
     hasPersonalization: boolean;
@@ -598,6 +600,64 @@ const CATEGORIES: CategoryDef[] = [
         cta: "Open Guided Scripture",
         actionFeatures: { tone: "urgency", hasPersonalization: false, ctaType: "deeplink", messageLengthBucket: "short", sourceFile: "2025-06-guided-scripture-beatitudes-PUSH-en.json" },
       },
+      // --- Dynamic VOTD variants (liquid tags resolved at send time) ---
+      {
+        subcategory: null,
+        name: "VOTD: Label + Reference",
+        title: "{{guided_scripture_label}}",
+        body: "{{votd_reference}}",
+        deeplink: "https://www.bible.com/stories",
+        cta: "Open Guided Scripture",
+        actionFeatures: { tone: "empathy", hasPersonalization: true, ctaType: "deeplink", messageLengthBucket: "short", sourceFile: "dynamic-votd" },
+      },
+      {
+        subcategory: null,
+        name: "VOTD: Label + Reference (Verse Image)",
+        title: "{{guided_scripture_label}}",
+        body: "{{votd_reference}}",
+        deeplink: "https://www.bible.com/stories",
+        cta: "Open Guided Scripture",
+        iconImageUrl: VERSE_IMAGE_SENTINEL,
+        actionFeatures: { tone: "empathy", hasPersonalization: true, ctaType: "deeplink", messageLengthBucket: "short", sourceFile: "dynamic-votd" },
+      },
+      {
+        subcategory: null,
+        name: "VOTD: Label + Verse Text",
+        title: "{{guided_scripture_label}}",
+        body: "{{votd_text}}",
+        deeplink: "https://www.bible.com/stories",
+        cta: "Open Guided Scripture",
+        actionFeatures: { tone: "empathy", hasPersonalization: true, ctaType: "deeplink", messageLengthBucket: "medium", sourceFile: "dynamic-votd" },
+      },
+      {
+        subcategory: null,
+        name: "VOTD: Label + Verse Text (Verse Image)",
+        title: "{{guided_scripture_label}}",
+        body: "{{votd_text}}",
+        deeplink: "https://www.bible.com/stories",
+        cta: "Open Guided Scripture",
+        iconImageUrl: VERSE_IMAGE_SENTINEL,
+        actionFeatures: { tone: "empathy", hasPersonalization: true, ctaType: "deeplink", messageLengthBucket: "medium", sourceFile: "dynamic-votd" },
+      },
+      {
+        subcategory: null,
+        name: "VOTD: Reference + Label",
+        title: "{{votd_reference}}",
+        body: "{{guided_scripture_label}}",
+        deeplink: "https://www.bible.com/stories",
+        cta: "Open Guided Scripture",
+        actionFeatures: { tone: "empathy", hasPersonalization: true, ctaType: "deeplink", messageLengthBucket: "short", sourceFile: "dynamic-votd" },
+      },
+      {
+        subcategory: null,
+        name: "VOTD: Reference + Label (Verse Image)",
+        title: "{{votd_reference}}",
+        body: "{{guided_scripture_label}}",
+        deeplink: "https://www.bible.com/stories",
+        cta: "Open Guided Scripture",
+        iconImageUrl: VERSE_IMAGE_SENTINEL,
+        actionFeatures: { tone: "empathy", hasPersonalization: true, ctaType: "deeplink", messageLengthBucket: "short", sourceFile: "dynamic-votd" },
+      },
     ],
   },
 
@@ -698,6 +758,64 @@ const CATEGORIES: CategoryDef[] = [
         cta: "Open Prayer",
         actionFeatures: { tone: "empathy", hasPersonalization: false, ctaType: "deeplink", messageLengthBucket: "medium", sourceFile: "2025-09-prayer-nurture-workflow-PUSH-17-int.json" },
       },
+      // --- Dynamic VOTD variants (liquid tags resolved at send time) ---
+      {
+        subcategory: "votd-dynamic",
+        name: "VOTD: Label + Reference",
+        title: "{{guided_prayer_label}}",
+        body: "{{votd_reference}}",
+        deeplink: "https://www.bible.com/guides/1",
+        cta: "Open Guided Prayer",
+        actionFeatures: { tone: "empathy", hasPersonalization: true, ctaType: "deeplink", messageLengthBucket: "short", sourceFile: "dynamic-votd" },
+      },
+      {
+        subcategory: "votd-dynamic",
+        name: "VOTD: Label + Reference (Verse Image)",
+        title: "{{guided_prayer_label}}",
+        body: "{{votd_reference}}",
+        deeplink: "https://www.bible.com/guides/1",
+        cta: "Open Guided Prayer",
+        iconImageUrl: VERSE_IMAGE_SENTINEL,
+        actionFeatures: { tone: "empathy", hasPersonalization: true, ctaType: "deeplink", messageLengthBucket: "short", sourceFile: "dynamic-votd" },
+      },
+      {
+        subcategory: "votd-dynamic",
+        name: "VOTD: Label + Verse Text",
+        title: "{{guided_prayer_label}}",
+        body: "{{votd_text}}",
+        deeplink: "https://www.bible.com/guides/1",
+        cta: "Open Guided Prayer",
+        actionFeatures: { tone: "empathy", hasPersonalization: true, ctaType: "deeplink", messageLengthBucket: "medium", sourceFile: "dynamic-votd" },
+      },
+      {
+        subcategory: "votd-dynamic",
+        name: "VOTD: Label + Verse Text (Verse Image)",
+        title: "{{guided_prayer_label}}",
+        body: "{{votd_text}}",
+        deeplink: "https://www.bible.com/guides/1",
+        cta: "Open Guided Prayer",
+        iconImageUrl: VERSE_IMAGE_SENTINEL,
+        actionFeatures: { tone: "empathy", hasPersonalization: true, ctaType: "deeplink", messageLengthBucket: "medium", sourceFile: "dynamic-votd" },
+      },
+      {
+        subcategory: "votd-dynamic",
+        name: "VOTD: Reference + Label",
+        title: "{{votd_reference}}",
+        body: "{{guided_prayer_label}}",
+        deeplink: "https://www.bible.com/guides/1",
+        cta: "Open Guided Prayer",
+        actionFeatures: { tone: "empathy", hasPersonalization: true, ctaType: "deeplink", messageLengthBucket: "short", sourceFile: "dynamic-votd" },
+      },
+      {
+        subcategory: "votd-dynamic",
+        name: "VOTD: Reference + Label (Verse Image)",
+        title: "{{votd_reference}}",
+        body: "{{guided_prayer_label}}",
+        deeplink: "https://www.bible.com/guides/1",
+        cta: "Open Guided Prayer",
+        iconImageUrl: VERSE_IMAGE_SENTINEL,
+        actionFeatures: { tone: "empathy", hasPersonalization: true, ctaType: "deeplink", messageLengthBucket: "short", sourceFile: "dynamic-votd" },
+      },
     ],
   },
 ];
@@ -748,6 +866,7 @@ async function main() {
           cta: v.cta,
           category: cat.category,
           subcategory: v.subcategory,
+          iconImageUrl: v.iconImageUrl ?? null,
           status: isRewardVariant(v) ? "paused" : "active",
           actionFeatures: v.actionFeatures,
         },

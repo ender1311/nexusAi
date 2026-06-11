@@ -204,3 +204,8 @@ export type SyncNameOverride = Prisma.SyncNameOverrideModel
  * 
  */
 export type SegmentFieldFacet = Prisma.SegmentFieldFacetModel
+/**
+ * Model VotdDailyContent
+ * Immutable per-day, per-language VOTD cache. A given day's VOTD never changes.
+ */
+export type VotdDailyContent = Prisma.VotdDailyContentModel

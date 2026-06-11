@@ -83,7 +83,8 @@ export const ModelName = {
   PushSubcategory: 'PushSubcategory',
   Segment: 'Segment',
   SyncNameOverride: 'SyncNameOverride',
-  SegmentFieldFacet: 'SegmentFieldFacet'
+  SegmentFieldFacet: 'SegmentFieldFacet',
+  VotdDailyContent: 'VotdDailyContent'
 } as const
 
 export type ModelName = (typeof ModelName)[keyof typeof ModelName]
@@ -595,6 +596,22 @@ export const SegmentFieldFacetScalarFieldEnum = {
 } as const
 
 export type SegmentFieldFacetScalarFieldEnum = (typeof SegmentFieldFacetScalarFieldEnum)[keyof typeof SegmentFieldFacetScalarFieldEnum]
+
+
+export const VotdDailyContentScalarFieldEnum = {
+  id: 'id',
+  date: 'date',
+  languageTag: 'languageTag',
+  usfm: 'usfm',
+  reference: 'reference',
+  verseText: 'verseText',
+  versionId: 'versionId',
+  imageUrlIos: 'imageUrlIos',
+  imageUrlAndroid: 'imageUrlAndroid',
+  createdAt: 'createdAt'
+} as const
+
+export type VotdDailyContentScalarFieldEnum = (typeof VotdDailyContentScalarFieldEnum)[keyof typeof VotdDailyContentScalarFieldEnum]
 
 
 export const SortOrder = {

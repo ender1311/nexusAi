@@ -416,7 +416,8 @@ export const ModelName = {
   PushSubcategory: 'PushSubcategory',
   Segment: 'Segment',
   SyncNameOverride: 'SyncNameOverride',
-  SegmentFieldFacet: 'SegmentFieldFacet'
+  SegmentFieldFacet: 'SegmentFieldFacet',
+  VotdDailyContent: 'VotdDailyContent'
 } as const
 
 export type ModelName = (typeof ModelName)[keyof typeof ModelName]
@@ -432,7 +433,7 @@ export type TypeMap<ExtArgs extends runtime.Types.Extensions.InternalArgs = runt
     omit: GlobalOmitOptions
   }
   meta: {
-    modelProps: "agent" | "goal" | "message" | "messageVariant" | "messageVariantTranslation" | "deeplink" | "userDecision" | "trackedUser" | "persona" | "agentPersonaTarget" | "personaArmStats" | "userArmStats" | "linUCBArm" | "schedulingRule" | "modelMetric" | "planSet" | "planSetMember" | "appSetting" | "userAgentAssignment" | "funnelTransition" | "cronRun" | "failedBrazeSend" | "processedEventId" | "ingestSyncLog" | "campaignContent" | "demoUserGroup" | "userSegment" | "userPreference" | "pushCategory" | "pushSubcategory" | "segment" | "syncNameOverride" | "segmentFieldFacet"
+    modelProps: "agent" | "goal" | "message" | "messageVariant" | "messageVariantTranslation" | "deeplink" | "userDecision" | "trackedUser" | "persona" | "agentPersonaTarget" | "personaArmStats" | "userArmStats" | "linUCBArm" | "schedulingRule" | "modelMetric" | "planSet" | "planSetMember" | "appSetting" | "userAgentAssignment" | "funnelTransition" | "cronRun" | "failedBrazeSend" | "processedEventId" | "ingestSyncLog" | "campaignContent" | "demoUserGroup" | "userSegment" | "userPreference" | "pushCategory" | "pushSubcategory" | "segment" | "syncNameOverride" | "segmentFieldFacet" | "votdDailyContent"
     txIsolationLevel: TransactionIsolationLevel
   }
   model: {
@@ -2878,6 +2879,80 @@ export type TypeMap<ExtArgs extends runtime.Types.Extensions.InternalArgs = runt
         }
       }
     }
+    VotdDailyContent: {
+      payload: Prisma.$VotdDailyContentPayload<ExtArgs>
+      fields: Prisma.VotdDailyContentFieldRefs
+      operations: {
+        findUnique: {
+          args: Prisma.VotdDailyContentFindUniqueArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$VotdDailyContentPayload> | null
+        }
+        findUniqueOrThrow: {
+          args: Prisma.VotdDailyContentFindUniqueOrThrowArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$VotdDailyContentPayload>
+        }
+        findFirst: {
+          args: Prisma.VotdDailyContentFindFirstArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$VotdDailyContentPayload> | null
+        }
+        findFirstOrThrow: {
+          args: Prisma.VotdDailyContentFindFirstOrThrowArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$VotdDailyContentPayload>
+        }
+        findMany: {
+          args: Prisma.VotdDailyContentFindManyArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$VotdDailyContentPayload>[]
+        }
+        create: {
+          args: Prisma.VotdDailyContentCreateArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$VotdDailyContentPayload>
+        }
+        createMany: {
+          args: Prisma.VotdDailyContentCreateManyArgs<ExtArgs>
+          result: BatchPayload
+        }
+        createManyAndReturn: {
+          args: Prisma.VotdDailyContentCreateManyAndReturnArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$VotdDailyContentPayload>[]
+        }
+        delete: {
+          args: Prisma.VotdDailyContentDeleteArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$VotdDailyContentPayload>
+        }
+        update: {
+          args: Prisma.VotdDailyContentUpdateArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$VotdDailyContentPayload>
+        }
+        deleteMany: {
+          args: Prisma.VotdDailyContentDeleteManyArgs<ExtArgs>
+          result: BatchPayload
+        }
+        updateMany: {
+          args: Prisma.VotdDailyContentUpdateManyArgs<ExtArgs>
+          result: BatchPayload
+        }
+        updateManyAndReturn: {
+          args: Prisma.VotdDailyContentUpdateManyAndReturnArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$VotdDailyContentPayload>[]
+        }
+        upsert: {
+          args: Prisma.VotdDailyContentUpsertArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$VotdDailyContentPayload>
+        }
+        aggregate: {
+          args: Prisma.VotdDailyContentAggregateArgs<ExtArgs>
+          result: runtime.Types.Utils.Optional<Prisma.AggregateVotdDailyContent>
+        }
+        groupBy: {
+          args: Prisma.VotdDailyContentGroupByArgs<ExtArgs>
+          result: runtime.Types.Utils.Optional<Prisma.VotdDailyContentGroupByOutputType>[]
+        }
+        count: {
+          args: Prisma.VotdDailyContentCountArgs<ExtArgs>
+          result: runtime.Types.Utils.Optional<Prisma.VotdDailyContentCountAggregateOutputType> | number
+        }
+      }
+    }
   }
 } & {
   other: {
@@ -3412,6 +3487,22 @@ export const SegmentFieldFacetScalarFieldEnum = {
 export type SegmentFieldFacetScalarFieldEnum = (typeof SegmentFieldFacetScalarFieldEnum)[keyof typeof SegmentFieldFacetScalarFieldEnum]
 
 
+export const VotdDailyContentScalarFieldEnum = {
+  id: 'id',
+  date: 'date',
+  languageTag: 'languageTag',
+  usfm: 'usfm',
+  reference: 'reference',
+  verseText: 'verseText',
+  versionId: 'versionId',
+  imageUrlIos: 'imageUrlIos',
+  imageUrlAndroid: 'imageUrlAndroid',
+  createdAt: 'createdAt'
+} as const
+
+export type VotdDailyContentScalarFieldEnum = (typeof VotdDailyContentScalarFieldEnum)[keyof typeof VotdDailyContentScalarFieldEnum]
+
+
 export const SortOrder = {
   asc: 'asc',
   desc: 'desc'
@@ -3685,6 +3776,7 @@ export type GlobalOmitConfig = {
   segment?: Prisma.SegmentOmit
   syncNameOverride?: Prisma.SyncNameOverrideOmit
   segmentFieldFacet?: Prisma.SegmentFieldFacetOmit
+  votdDailyContent?: Prisma.VotdDailyContentOmit
 }
 
 /* Types for Logging */
