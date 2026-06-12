@@ -5,6 +5,7 @@
 import { unstable_cache } from "next/cache";
 import { prisma } from "@/lib/db";
 import { LIBRARY_AGENT_NAME } from "@/lib/engine/template-sync";
+import { EMAIL_LIBRARY_AGENT_NAME } from "@/lib/email-categories";
 import { TTL } from "./ttl";
 
 /** Per-agent send/conversion aggregates for the last 30 days. */
@@ -15,7 +16,7 @@ export const getCachedPerformanceMetrics = unstable_cache(
     // single index scan on @@index([sentAt]), same returned shape for consumers.
     const [agents, rows] = await Promise.all([
       prisma.agent.findMany({
-        where: { name: { not: LIBRARY_AGENT_NAME } },
+        where: { name: { notIn: [LIBRARY_AGENT_NAME, EMAIL_LIBRARY_AGENT_NAME] } },
         select: { id: true, name: true, status: true, targetSegmentName: true },
         orderBy: { updatedAt: "desc" },
       }),

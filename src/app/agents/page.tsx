@@ -14,6 +14,7 @@ import { prisma } from "@/lib/db";
 import { getAuth } from "@/lib/auth";
 import { getHiddenStatsForCurrentUser } from "@/lib/user-preferences";
 import { LIBRARY_AGENT_NAME } from "@/lib/engine/template-sync";
+import { EMAIL_LIBRARY_AGENT_NAME } from "@/lib/email-categories";
 import { getCachedAgentConvergenceStates, getCachedAgentCardStats, getCachedKillSwitchSetting } from "@/lib/cache";
 
 const PAGE_SIZE = 20;
@@ -39,7 +40,7 @@ export default async function AgentsPage({
       : undefined;
 
   const where = {
-    name: { not: LIBRARY_AGENT_NAME },
+    name: { notIn: [LIBRARY_AGENT_NAME, EMAIL_LIBRARY_AGENT_NAME] },
     ...(search
       ? {
           OR: [
