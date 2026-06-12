@@ -570,6 +570,14 @@ model SegmentFieldFacet {
 }
 
 /// Immutable per-day, per-language VOTD cache. A given day's VOTD never changes.
+model GuidedPrayerDailyContent {
+  date      String   @id // "YYYY-MM-DD" UTC calendar date
+  usfm      String // first usfm_text module reference, e.g. "PSA.23.1"
+  reference String // human-readable reference, e.g. "Psalm 23:1"
+  verseText String
+  createdAt DateTime @default(now())
+}
+
 model VotdDailyContent {
   id              String   @id @default(cuid())
   date            String // "YYYY-MM-DD" — user-local calendar date

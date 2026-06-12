@@ -42,8 +42,9 @@ import {
 } from "@/lib/cron/send-grouping";
 import { VERSE_PUSH_SENTINEL, isVerseStrategy, type VersePool, type VerseStrategy } from "@/lib/verse-content";
 import { loadVersePool } from "@/lib/cron/verse-pool";
-import { hasVotdTags } from "@/lib/votd/votd-tags";
+import { hasVotdTags, hasGpTags } from "@/lib/votd/votd-tags";
 import { prepareVotdContent } from "@/lib/votd/votd-content";
+import { prepareGpContent } from "@/lib/votd/guided-prayer-content";
 import { isGivingHandleStrategy, isGivingFrequency, type GivingHandleStrategy, type GivingFrequency } from "@/lib/engine/giving-link";
 import { parseMultiplier } from "@/lib/engine/giving-copy";
 import { isPushVariantComplete } from "@/lib/messages/push-completeness";
@@ -901,13 +902,16 @@ export async function POST(req: NextRequest) {
     if (strategyByVariant.size > 0) versePool = await loadVersePool(prisma);
     // VOTD dynamic variants: liquid-tag copy resolved per user-local date + language.
     const votdVariantIds = new Set<string>();
+    // Guided Prayer dynamic variants: resolved from prayer.youversionapi.com per UTC date.
+    const gpVariantIds = new Set<string>();
     for (const msg of agent.messages) {
       if (msg.channel !== "push") continue;
       for (const v of msg.variants) {
         if (hasVotdTags(v.title ?? null, v.body)) votdVariantIds.add(v.id);
+        if (hasGpTags(v.title ?? null, v.body)) gpVariantIds.add(v.id);
       }
     }
-    const localization = { enabled: localizeEnabled, translationsByVariant, versePool, strategyByVariant, votdVariantIds };
+    const localization = { enabled: localizeEnabled, translationsByVariant, versePool, strategyByVariant, votdVariantIds, gpVariantIds };
     const initialAlpha = agent.algorithm !== "linucb" ? 1 : 0;
     const initialBeta  = agent.algorithm !== "linucb" ? 30 : 0;
     await runChunked(
@@ -1356,7 +1360,8 @@ export async function POST(req: NextRequest) {
 
           // Group by variant + scheduled time for batch sending
           const votdContent = await prepareVotdContent(prisma, lotteryDecisionInputs, votdVariantIds);
-          byVariant = groupDecisionsByVariant(lotteryDecisionInputs, variantMeta, lotteryDecisionIdByUser, { ...localization, votdContent }, givingMultiplier);
+          const gpContent = await prepareGpContent(prisma, lotteryDecisionInputs, gpVariantIds);
+          byVariant = groupDecisionsByVariant(lotteryDecisionInputs, variantMeta, lotteryDecisionIdByUser, { ...localization, votdContent, gpContent }, givingMultiplier);
         }
       }
 
@@ -1803,7 +1808,8 @@ export async function POST(req: NextRequest) {
 
         // Group by variant + scheduled time for batch sending
         const windowVotdContent = await prepareVotdContent(prisma, decisionInputs, votdVariantIds);
-        windowByVariant = groupDecisionsByVariant(decisionInputs, variantMeta, decisionIdByUser, { ...localization, votdContent: windowVotdContent }, givingMultiplier);
+        const windowGpContent = await prepareGpContent(prisma, decisionInputs, gpVariantIds);
+        windowByVariant = groupDecisionsByVariant(decisionInputs, variantMeta, decisionIdByUser, { ...localization, votdContent: windowVotdContent, gpContent: windowGpContent }, givingMultiplier);
       }
 
       // Send all window variant groups in parallel batches
