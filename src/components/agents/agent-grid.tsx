@@ -19,7 +19,7 @@ import {
   arrayMove,
 } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
-import { Bot, Columns2, GripVertical, LayoutGrid, List, Trash2 } from "lucide-react";
+import { ArrowUpDown, Bot, Columns2, GripVertical, LayoutGrid, List, Trash2 } from "lucide-react";
 import { cn, formatNumber } from "@/lib/utils";
 import { Agent, agentTargetingLabel } from "@/types/agent";
 import type { StatKey } from "@/lib/stat-visibility";
@@ -38,7 +38,15 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 
-type SortMode = "custom" | "alpha" | "decisions" | "cap";
+type SortMode =
+  | "custom"
+  | "alpha" | "alpha-desc"
+  | "status"
+  | "decisions" | "decisions-asc"
+  | "cap" | "cap-desc"
+  | "assigned" | "assigned-asc"
+  | "created-desc" | "created-asc"
+  | "updated-desc" | "updated-asc";
 type ViewMode = "grid" | "list";
 type ConvergenceState = "exploring" | "learning" | "converging" | "confident";
 
@@ -147,25 +155,39 @@ function renderListCell(
 // ─── Existing grid helpers ─────────────────────────────────────────────────────
 
 const SORT_OPTIONS: { value: SortMode; label: string }[] = [
-  { value: "custom",    label: "Custom" },
-  { value: "alpha",     label: "Name A–Z" },
-  { value: "decisions", label: "Most Decisions" },
-  { value: "cap",       label: "Daily cap ↑" },
+  { value: "custom",        label: "Custom order" },
+  { value: "alpha",         label: "Name A–Z" },
+  { value: "alpha-desc",    label: "Name Z–A" },
+  { value: "status",        label: "Active first" },
+  { value: "decisions",     label: "Most decisions" },
+  { value: "decisions-asc", label: "Fewest decisions" },
+  { value: "cap",           label: "Daily cap ↑" },
+  { value: "cap-desc",      label: "Daily cap ↓" },
+  { value: "assigned",      label: "Most assigned" },
+  { value: "assigned-asc",  label: "Fewest assigned" },
+  { value: "created-desc",  label: "Newest created" },
+  { value: "created-asc",   label: "Oldest created" },
+  { value: "updated-desc",  label: "Recently updated" },
+  { value: "updated-asc",   label: "Least recently updated" },
 ];
 
 function sortAgents(agents: Agent[], mode: SortMode): Agent[] {
   if (mode === "custom") return agents;
   const copy = [...agents];
-  if (mode === "alpha") {
-    copy.sort((a, b) => a.name.localeCompare(b.name));
-  } else if (mode === "decisions") {
-    copy.sort((a, b) => (b._count?.decisions ?? 0) - (a._count?.decisions ?? 0));
-  } else if (mode === "cap") {
-    copy.sort((a, b) => {
-      const capA = a.dailySendCap ?? Infinity;
-      const capB = b.dailySendCap ?? Infinity;
-      return capA - capB;
-    });
+  switch (mode) {
+    case "alpha":         copy.sort((a, b) => a.name.localeCompare(b.name)); break;
+    case "alpha-desc":    copy.sort((a, b) => b.name.localeCompare(a.name)); break;
+    case "status":        copy.sort((a, b) => (a.status === b.status ? 0 : a.status === "active" ? -1 : 1)); break;
+    case "decisions":     copy.sort((a, b) => (b._count?.decisions ?? 0) - (a._count?.decisions ?? 0)); break;
+    case "decisions-asc": copy.sort((a, b) => (a._count?.decisions ?? 0) - (b._count?.decisions ?? 0)); break;
+    case "cap":           copy.sort((a, b) => (a.dailySendCap ?? Infinity) - (b.dailySendCap ?? Infinity)); break;
+    case "cap-desc":      copy.sort((a, b) => (b.dailySendCap ?? -Infinity) - (a.dailySendCap ?? -Infinity)); break;
+    case "assigned":      copy.sort((a, b) => (b.assigned ?? 0) - (a.assigned ?? 0)); break;
+    case "assigned-asc":  copy.sort((a, b) => (a.assigned ?? 0) - (b.assigned ?? 0)); break;
+    case "created-desc":  copy.sort((a, b) => b.createdAt.localeCompare(a.createdAt)); break;
+    case "created-asc":   copy.sort((a, b) => a.createdAt.localeCompare(b.createdAt)); break;
+    case "updated-desc":  copy.sort((a, b) => b.updatedAt.localeCompare(a.updatedAt)); break;
+    case "updated-asc":   copy.sort((a, b) => a.updatedAt.localeCompare(b.updatedAt)); break;
   }
   return copy;
 }
@@ -243,7 +265,9 @@ export function AgentGrid({
   const [viewMode, setViewMode]     = useState<ViewMode>("grid");
   const [hiddenCols, setHiddenCols] = useState<Set<ColumnKey>>(new Set());
   const [colsOpen, setColsOpen]     = useState(false);
+  const [sortOpen, setSortOpen]     = useState(false);
   const colsRef = useRef<HTMLDivElement>(null);
+  const sortRef = useRef<HTMLDivElement>(null);
 
   // Pending delete confirmation for list view
   const [pendingDelete, setPendingDelete] = useState<{ id: string; name: string } | null>(null);
@@ -261,7 +285,7 @@ export function AgentGrid({
 
   useEffect(() => { localStorage.setItem(LS_VIEW, viewMode); }, [viewMode]);
 
-  // Close columns dropdown on outside click
+  // Close dropdowns on outside click
   useEffect(() => {
     if (!colsOpen) return;
     function onDown(e: MouseEvent) {
@@ -270,6 +294,15 @@ export function AgentGrid({
     document.addEventListener("mousedown", onDown);
     return () => document.removeEventListener("mousedown", onDown);
   }, [colsOpen]);
+
+  useEffect(() => {
+    if (!sortOpen) return;
+    function onDown(e: MouseEvent) {
+      if (sortRef.current && !sortRef.current.contains(e.target as Node)) setSortOpen(false);
+    }
+    document.addEventListener("mousedown", onDown);
+    return () => document.removeEventListener("mousedown", onDown);
+  }, [sortOpen]);
 
   function toggleCol(key: ColumnKey) {
     setHiddenCols((prev) => {
@@ -347,22 +380,40 @@ export function AgentGrid({
     <div className="space-y-4">
       {/* Toolbar */}
       <div className="flex items-center justify-between gap-2 flex-wrap">
-        {/* Sort pills */}
-        <div className="flex items-center gap-2 flex-wrap">
-          {SORT_OPTIONS.map((opt) => (
-            <button
-              key={opt.value}
-              onClick={() => setSortMode(opt.value)}
-              className={cn(
-                "px-3 py-1 rounded-full text-xs font-medium transition-colors border",
-                sortMode === opt.value
+        {/* Sort dropdown */}
+        <div className="relative" ref={sortRef}>
+          <button
+            onClick={() => setSortOpen((v) => !v)}
+            className={cn(
+              "flex items-center gap-1.5 h-8 px-3 rounded-md border text-xs font-medium transition-colors",
+              sortMode !== "custom"
+                ? "bg-primary text-primary-foreground border-primary"
+                : sortOpen
                   ? "bg-primary text-primary-foreground border-primary"
-                  : "bg-transparent text-muted-foreground border-border hover:border-foreground/30 hover:text-foreground",
-              )}
-            >
-              {opt.label}
-            </button>
-          ))}
+                  : "bg-background text-muted-foreground border-border hover:text-foreground hover:border-foreground/40",
+            )}
+          >
+            <ArrowUpDown className="h-3.5 w-3.5" />
+            Sort: {SORT_OPTIONS.find((o) => o.value === sortMode)?.label ?? "Custom order"}
+          </button>
+
+          {sortOpen && (
+            <div className="absolute left-0 top-full mt-1.5 z-30 bg-background border rounded-lg shadow-lg py-1.5 min-w-[200px]">
+              {SORT_OPTIONS.map((opt) => (
+                <button
+                  key={opt.value}
+                  onClick={() => { setSortMode(opt.value); setSortOpen(false); }}
+                  className={cn(
+                    "flex items-center justify-between w-full px-3 py-1.5 text-xs hover:bg-muted transition-colors",
+                    sortMode === opt.value ? "text-primary font-semibold" : "text-foreground",
+                  )}
+                >
+                  {opt.label}
+                  {sortMode === opt.value && <span className="text-primary">✓</span>}
+                </button>
+              ))}
+            </div>
+          )}
         </div>
 
         {/* Right-side controls */}
