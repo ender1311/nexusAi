@@ -61,7 +61,8 @@ async function fetchGpUsfm(doy: number): Promise<string | null> {
     for (const m of modules) {
       if (!m || typeof m !== "object") continue;
       const mod = m as Record<string, unknown>;
-      const kind = mod.kind ?? mod.type ?? mod.module_type;
+      // API uses _type (underscore prefix) per docs; fall back to kind/type for resilience
+      const kind = mod._type ?? mod.kind ?? mod.type ?? mod.module_type;
       if (kind !== "usfm_text") continue;
       const refs = mod.references ?? mod.reference ?? mod.usfm;
       if (Array.isArray(refs) && typeof refs[0] === "string") return refs[0];
