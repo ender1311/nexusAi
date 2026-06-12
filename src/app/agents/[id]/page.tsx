@@ -60,18 +60,20 @@ export default async function AgentDetailPage({
   // Map legacy ?tab=scheduling links to the unified settings tab.
   const activeTab = tabParam === "scheduling" ? "settings" : (tabParam ?? "overview");
 
-  const [agent, allPersonas, { isAdmin }] = await Promise.all([
+  const [agent, allPersonas, { isAdmin }, otherAgentColors] = await Promise.all([
     getCachedAgent(id),
     getCachedActivePersonas(),
     getAuth(),
+    // Fetch eagerly; only used by the admin settings editor — cost is a tiny
+    // index-only scan on a ≤20-row Agent table so it's free to parallelize.
+    prisma.agent.findMany({ where: { id: { not: id } }, select: { color: true } }),
   ]);
 
   if (!agent) notFound();
 
   // Admin-only: colors of other agents feed the settings editor's color picker.
-  // Non-admins never see the editor, so skip the query entirely for them.
   const usedColors = isAdmin
-    ? (await prisma.agent.findMany({ where: { id: { not: id } }, select: { color: true } })).map((a) => a.color)
+    ? otherAgentColors.map((a) => a.color)
     : [];
 
   // Compute arm health summary

@@ -1,12 +1,14 @@
 export const revalidate = 60;
 export const maxDuration = 20;
 
+import { Suspense } from "react";
 import Link from "next/link";
 import { Header } from "@/components/layout/header";
 import { AgentGrid } from "@/components/agents/agent-grid";
 import { AgentFilters } from "@/components/agents/agent-filters";
 import { KillSwitchToggle } from "@/components/control-tower/kill-switch-toggle";
 import { Button } from "@/components/ui/button";
+import { Skeleton } from "@/components/ui/skeleton";
 import { AgentStatus, FunnelStage, FUNNEL_STAGES, Agent } from "@/types/agent";
 import { Bot, Plus, Search } from "lucide-react";
 import { unstable_cache } from "next/cache";
@@ -20,23 +22,17 @@ const PAGE_SIZE = 20;
 const VALID_STATUSES = new Set<AgentStatus>(["active", "paused", "draft"]);
 const VALID_STAGES = new Set<FunnelStage>(FUNNEL_STAGES);
 
-export default async function AgentsPage({
-  searchParams,
+async function AgentsContent({
+  search,
+  safeStatus,
+  safeStage,
+  hasFilters,
 }: {
-  searchParams: Promise<{ search?: string; status?: string; stage?: string }>;
+  search: string;
+  safeStatus: AgentStatus | undefined;
+  safeStage: FunnelStage | undefined;
+  hasFilters: boolean;
 }) {
-  const { search = "", status = "all", stage } = await searchParams;
-
-  const safeStatus: AgentStatus | undefined =
-    status !== "all" && VALID_STATUSES.has(status as AgentStatus)
-      ? (status as AgentStatus)
-      : undefined;
-
-  const safeStage: FunnelStage | undefined =
-    stage !== undefined && VALID_STAGES.has(stage as FunnelStage)
-      ? (stage as FunnelStage)
-      : undefined;
-
   const where = {
     ...(search
       ? {
@@ -50,36 +46,31 @@ export default async function AgentsPage({
     ...(safeStage ? { funnelStage: safeStage } : {}),
   };
 
-  // Parallelize WorkOS auth check, agent list, convergence states, unique user counts,
-  // and per-agent push open rate (sends + opens from local UserDecision rows — mirrors
-  // the per-agent performance page so the card stat is consistent).
   const [{ isAdmin }, hiddenStats, { dbAgents }, convergenceStates, cardStats, killSwitchSetting] = await Promise.all([
     getAuth(),
     getHiddenStatsForCurrentUser(),
     unstable_cache(
-    async () => {
-      const agents = await prisma.agent.findMany({
-        where,
-        include: {
-          _count: { select: { goals: true, messages: true, decisions: true } },
-          messages: { select: { _count: { select: { variants: true } } } },
-        },
-        orderBy: [{ sortOrder: "asc" }, { updatedAt: "desc" }],
-        take: PAGE_SIZE,
-      });
-      // Pre-serialize dates — unstable_cache uses JSON.stringify internally so
-      // Date objects become strings on deserialization; doing it here keeps types correct.
-      return {
-        dbAgents: agents.map((a) => ({
-          ...a,
-          createdAt: a.createdAt.toISOString(),
-          updatedAt: a.updatedAt.toISOString(),
-        })),
-      };
-    },
-    ["agents-list", search, safeStatus ?? "", safeStage ?? ""],
-    { tags: ["agents"], revalidate: 900 },
-  )(),
+      async () => {
+        const agents = await prisma.agent.findMany({
+          where,
+          include: {
+            _count: { select: { goals: true, messages: true, decisions: true } },
+            messages: { select: { _count: { select: { variants: true } } } },
+          },
+          orderBy: [{ sortOrder: "asc" }, { updatedAt: "desc" }],
+          take: PAGE_SIZE,
+        });
+        return {
+          dbAgents: agents.map((a) => ({
+            ...a,
+            createdAt: a.createdAt.toISOString(),
+            updatedAt: a.updatedAt.toISOString(),
+          })),
+        };
+      },
+      ["agents-list", search, safeStatus ?? "", safeStage ?? ""],
+      { tags: ["agents"], revalidate: 900 },
+    )(),
     getCachedAgentConvergenceStates(),
     getCachedAgentCardStats(),
     getCachedKillSwitchSetting(),
@@ -93,10 +84,6 @@ export default async function AgentsPage({
     cardStats.pushStats.map((r) => [r.agentId, { sends: r.sends, opens: r.opens }]),
   );
 
-  // Determine whether any filters are active (for empty-state messaging)
-  const hasFilters = search !== "" || status !== "all" || stage !== undefined;
-
-  // Map Prisma records to the shared Agent type
   const agents: Agent[] = dbAgents.map((a) => ({
     id: a.id,
     name: a.name,
@@ -132,57 +119,113 @@ export default async function AgentsPage({
 
   return (
     <>
-      <Header title="Agents" description="Manage your Nexus agents" />
-      <div className="p-4 sm:p-6 space-y-4">
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-          <AgentFilters search={search} status={status} stage={safeStage} />
-          {isAdmin && (
-            <div className="flex items-center gap-2">
-              <KillSwitchToggle initialOn={killSwitchOn} />
-              <Link href="/agents/new">
+      {isAdmin && (
+        <div className="flex items-center justify-end gap-2">
+          <KillSwitchToggle initialOn={killSwitchOn} />
+          <Link href="/agents/new">
+            <Button size="sm">
+              <Plus className="h-4 w-4 mr-1" />
+              New Agent
+            </Button>
+          </Link>
+        </div>
+      )}
+
+      {agents.length === 0 ? (
+        hasFilters ? (
+          <div className="flex flex-col items-center justify-center py-16 text-center border-2 border-dashed rounded-xl text-muted-foreground">
+            <Search className="h-10 w-10 mx-auto mb-3 opacity-40" />
+            <p className="font-medium">No matching agents</p>
+            <p className="text-sm text-muted-foreground mt-1">
+              Try adjusting your search or filter criteria.
+            </p>
+            <Link href="/agents">
+              <Button variant="ghost" size="sm" className="mt-4">
+                Clear filters
+              </Button>
+            </Link>
+          </div>
+        ) : (
+          <div className="flex flex-col items-center justify-center py-16 text-center border-2 border-dashed rounded-xl text-muted-foreground">
+            <Bot className="h-10 w-10 mx-auto mb-3 opacity-40" />
+            <p className="font-medium">No agents yet</p>
+            <p className="text-sm text-muted-foreground mt-1">
+              Create your first Nexus agent to start optimizing message performance.
+            </p>
+            {isAdmin && (
+              <Link href="/agents/new" className="mt-4">
                 <Button size="sm">
                   <Plus className="h-4 w-4 mr-1" />
-                  New Agent
+                  Create Agent
                 </Button>
               </Link>
-            </div>
-          )}
-        </div>
+            )}
+          </div>
+        )
+      ) : (
+        <AgentGrid
+          agents={agents}
+          convergenceStates={convergenceStates}
+          hiddenStats={hiddenStats}
+          isAdmin={isAdmin}
+          killSwitchOn={killSwitchOn}
+        />
+      )}
+    </>
+  );
+}
 
-        {agents.length === 0 ? (
-          hasFilters ? (
-            <div className="flex flex-col items-center justify-center py-16 text-center border-2 border-dashed rounded-xl text-muted-foreground">
-              <Search className="h-10 w-10 mx-auto mb-3 opacity-40" />
-              <p className="font-medium">No matching agents</p>
-              <p className="text-sm text-muted-foreground mt-1">
-                Try adjusting your search or filter criteria.
-              </p>
-              <Link href="/agents">
-                <Button variant="ghost" size="sm" className="mt-4">
-                  Clear filters
-                </Button>
-              </Link>
-            </div>
-          ) : (
-            <div className="flex flex-col items-center justify-center py-16 text-center border-2 border-dashed rounded-xl text-muted-foreground">
-              <Bot className="h-10 w-10 mx-auto mb-3 opacity-40" />
-              <p className="font-medium">No agents yet</p>
-              <p className="text-sm text-muted-foreground mt-1">
-                Create your first Nexus agent to start optimizing message performance.
-              </p>
-              {isAdmin && (
-                <Link href="/agents/new" className="mt-4">
-                  <Button size="sm">
-                    <Plus className="h-4 w-4 mr-1" />
-                    Create Agent
-                  </Button>
-                </Link>
-              )}
-            </div>
-          )
-        ) : (
-          <AgentGrid agents={agents} convergenceStates={convergenceStates} hiddenStats={hiddenStats} isAdmin={isAdmin} killSwitchOn={killSwitchOn} />
-        )}
+function AgentsContentSkeleton() {
+  return (
+    <div className="space-y-4">
+      <div className="flex items-center justify-end gap-2">
+        <Skeleton className="h-8 w-28" />
+        <Skeleton className="h-8 w-28" />
+      </div>
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+        {[1, 2, 3, 4, 5, 6].map((i) => (
+          <Skeleton key={i} className="h-36 rounded-xl" />
+        ))}
+      </div>
+    </div>
+  );
+}
+
+export default async function AgentsPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ search?: string; status?: string; stage?: string }>;
+}) {
+  const { search = "", status = "all", stage } = await searchParams;
+
+  const safeStatus: AgentStatus | undefined =
+    status !== "all" && VALID_STATUSES.has(status as AgentStatus)
+      ? (status as AgentStatus)
+      : undefined;
+
+  const safeStage: FunnelStage | undefined =
+    stage !== undefined && VALID_STAGES.has(stage as FunnelStage)
+      ? (stage as FunnelStage)
+      : undefined;
+
+  const hasFilters = search !== "" || status !== "all" || stage !== undefined;
+
+  return (
+    <>
+      <Header title="Agents" description="Manage your Nexus agents" />
+      <div className="p-4 sm:p-6 space-y-4">
+        {/* Filter row renders immediately — client component reads URL via useSearchParams */}
+        <AgentFilters search={search} status={status} stage={safeStage} />
+
+        {/* Auth + DB content streams in behind a skeleton */}
+        <Suspense fallback={<AgentsContentSkeleton />}>
+          <AgentsContent
+            search={search}
+            safeStatus={safeStatus}
+            safeStage={safeStage}
+            hasFilters={hasFilters}
+          />
+        </Suspense>
       </div>
     </>
   );
