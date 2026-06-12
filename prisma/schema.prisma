@@ -110,6 +110,7 @@ model MessageVariant {
   // { tone: "empathy"|"urgency"|"question"|"milestone", hasPersonalization: bool,
   //   ctaType: "button"|"link"|"deeplink", messageLengthBucket: "short"|"medium"|"long" }
   actionFeatures       Json?
+  htmlBody             String?   // full HTML template (email channel only)
   createdAt            DateTime  @default(now())
 
   message       Message        @relation(fields: [messageId], references: [id], onDelete: Cascade)
@@ -128,7 +129,9 @@ model MessageVariantTranslation {
   messageVariantId  String
   language          String   // canonical code: es, pt, fr, zh_CN, zh_TW, ... (never "en")
   title             String?
+  subject           String?  // email subject line (email channel only)
   body              String
+  htmlBody          String?  // full HTML template (email channel only)
   bodyPersonal      String?  // push_message_personal — stored for future personalization wiring
   status            String   @default("active")
   source            String?  // "import:dropbox" | "upload" | "manual"

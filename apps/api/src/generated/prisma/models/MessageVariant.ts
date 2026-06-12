@@ -58,6 +58,7 @@ export type MessageVariantMinAggregateOutputType = {
   subcategory: string | null
   sortOrder: number | null
   sourceTemplateId: string | null
+  htmlBody: string | null
   createdAt: Date | null
 }
 
@@ -81,6 +82,7 @@ export type MessageVariantMaxAggregateOutputType = {
   subcategory: string | null
   sortOrder: number | null
   sourceTemplateId: string | null
+  htmlBody: string | null
   createdAt: Date | null
 }
 
@@ -106,6 +108,7 @@ export type MessageVariantCountAggregateOutputType = {
   sortOrder: number
   sourceTemplateId: number
   actionFeatures: number
+  htmlBody: number
   createdAt: number
   _all: number
 }
@@ -143,6 +146,7 @@ export type MessageVariantMinAggregateInputType = {
   subcategory?: true
   sortOrder?: true
   sourceTemplateId?: true
+  htmlBody?: true
   createdAt?: true
 }
 
@@ -166,6 +170,7 @@ export type MessageVariantMaxAggregateInputType = {
   subcategory?: true
   sortOrder?: true
   sourceTemplateId?: true
+  htmlBody?: true
   createdAt?: true
 }
 
@@ -191,6 +196,7 @@ export type MessageVariantCountAggregateInputType = {
   sortOrder?: true
   sourceTemplateId?: true
   actionFeatures?: true
+  htmlBody?: true
   createdAt?: true
   _all?: true
 }
@@ -303,6 +309,7 @@ export type MessageVariantGroupByOutputType = {
   sortOrder: number
   sourceTemplateId: string | null
   actionFeatures: runtime.JsonValue | null
+  htmlBody: string | null
   createdAt: Date
   _count: MessageVariantCountAggregateOutputType | null
   _avg: MessageVariantAvgAggregateOutputType | null
@@ -351,6 +358,7 @@ export type MessageVariantWhereInput = {
   sortOrder?: Prisma.IntFilter<"MessageVariant"> | number
   sourceTemplateId?: Prisma.StringNullableFilter<"MessageVariant"> | string | null
   actionFeatures?: Prisma.JsonNullableFilter<"MessageVariant">
+  htmlBody?: Prisma.StringNullableFilter<"MessageVariant"> | string | null
   createdAt?: Prisma.DateTimeFilter<"MessageVariant"> | Date | string
   message?: Prisma.XOR<Prisma.MessageScalarRelationFilter, Prisma.MessageWhereInput>
   sourceTemplate?: Prisma.XOR<Prisma.MessageVariantNullableScalarRelationFilter, Prisma.MessageVariantWhereInput> | null
@@ -381,6 +389,7 @@ export type MessageVariantOrderByWithRelationInput = {
   sortOrder?: Prisma.SortOrder
   sourceTemplateId?: Prisma.SortOrderInput | Prisma.SortOrder
   actionFeatures?: Prisma.SortOrderInput | Prisma.SortOrder
+  htmlBody?: Prisma.SortOrderInput | Prisma.SortOrder
   createdAt?: Prisma.SortOrder
   message?: Prisma.MessageOrderByWithRelationInput
   sourceTemplate?: Prisma.MessageVariantOrderByWithRelationInput
@@ -414,6 +423,7 @@ export type MessageVariantWhereUniqueInput = Prisma.AtLeast<{
   sortOrder?: Prisma.IntFilter<"MessageVariant"> | number
   sourceTemplateId?: Prisma.StringNullableFilter<"MessageVariant"> | string | null
   actionFeatures?: Prisma.JsonNullableFilter<"MessageVariant">
+  htmlBody?: Prisma.StringNullableFilter<"MessageVariant"> | string | null
   createdAt?: Prisma.DateTimeFilter<"MessageVariant"> | Date | string
   message?: Prisma.XOR<Prisma.MessageScalarRelationFilter, Prisma.MessageWhereInput>
   sourceTemplate?: Prisma.XOR<Prisma.MessageVariantNullableScalarRelationFilter, Prisma.MessageVariantWhereInput> | null
@@ -444,6 +454,7 @@ export type MessageVariantOrderByWithAggregationInput = {
   sortOrder?: Prisma.SortOrder
   sourceTemplateId?: Prisma.SortOrderInput | Prisma.SortOrder
   actionFeatures?: Prisma.SortOrderInput | Prisma.SortOrder
+  htmlBody?: Prisma.SortOrderInput | Prisma.SortOrder
   createdAt?: Prisma.SortOrder
   _count?: Prisma.MessageVariantCountOrderByAggregateInput
   _avg?: Prisma.MessageVariantAvgOrderByAggregateInput
@@ -477,6 +488,7 @@ export type MessageVariantScalarWhereWithAggregatesInput = {
   sortOrder?: Prisma.IntWithAggregatesFilter<"MessageVariant"> | number
   sourceTemplateId?: Prisma.StringNullableWithAggregatesFilter<"MessageVariant"> | string | null
   actionFeatures?: Prisma.JsonNullableWithAggregatesFilter<"MessageVariant">
+  htmlBody?: Prisma.StringNullableWithAggregatesFilter<"MessageVariant"> | string | null
   createdAt?: Prisma.DateTimeWithAggregatesFilter<"MessageVariant"> | Date | string
 }
 
@@ -500,6 +512,7 @@ export type MessageVariantCreateInput = {
   subcategory?: string | null
   sortOrder?: number
   actionFeatures?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
+  htmlBody?: string | null
   createdAt?: Date | string
   message: Prisma.MessageCreateNestedOneWithoutVariantsInput
   sourceTemplate?: Prisma.MessageVariantCreateNestedOneWithoutClonesInput
@@ -530,6 +543,7 @@ export type MessageVariantUncheckedCreateInput = {
   sortOrder?: number
   sourceTemplateId?: string | null
   actionFeatures?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
+  htmlBody?: string | null
   createdAt?: Date | string
   clones?: Prisma.MessageVariantUncheckedCreateNestedManyWithoutSourceTemplateInput
   decisions?: Prisma.UserDecisionUncheckedCreateNestedManyWithoutVariantInput
@@ -556,6 +570,7 @@ export type MessageVariantUpdateInput = {
   subcategory?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   sortOrder?: Prisma.IntFieldUpdateOperationsInput | number
   actionFeatures?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
+  htmlBody?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   message?: Prisma.MessageUpdateOneRequiredWithoutVariantsNestedInput
   sourceTemplate?: Prisma.MessageVariantUpdateOneWithoutClonesNestedInput
@@ -586,6 +601,7 @@ export type MessageVariantUncheckedUpdateInput = {
   sortOrder?: Prisma.IntFieldUpdateOperationsInput | number
   sourceTemplateId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   actionFeatures?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
+  htmlBody?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   clones?: Prisma.MessageVariantUncheckedUpdateManyWithoutSourceTemplateNestedInput
   decisions?: Prisma.UserDecisionUncheckedUpdateManyWithoutVariantNestedInput
@@ -614,6 +630,7 @@ export type MessageVariantCreateManyInput = {
   sortOrder?: number
   sourceTemplateId?: string | null
   actionFeatures?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
+  htmlBody?: string | null
   createdAt?: Date | string
 }
 
@@ -637,6 +654,7 @@ export type MessageVariantUpdateManyMutationInput = {
   subcategory?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   sortOrder?: Prisma.IntFieldUpdateOperationsInput | number
   actionFeatures?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
+  htmlBody?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
 }
 
@@ -662,6 +680,7 @@ export type MessageVariantUncheckedUpdateManyInput = {
   sortOrder?: Prisma.IntFieldUpdateOperationsInput | number
   sourceTemplateId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   actionFeatures?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
+  htmlBody?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
 }
 
@@ -702,6 +721,7 @@ export type MessageVariantCountOrderByAggregateInput = {
   sortOrder?: Prisma.SortOrder
   sourceTemplateId?: Prisma.SortOrder
   actionFeatures?: Prisma.SortOrder
+  htmlBody?: Prisma.SortOrder
   createdAt?: Prisma.SortOrder
 }
 
@@ -731,6 +751,7 @@ export type MessageVariantMaxOrderByAggregateInput = {
   subcategory?: Prisma.SortOrder
   sortOrder?: Prisma.SortOrder
   sourceTemplateId?: Prisma.SortOrder
+  htmlBody?: Prisma.SortOrder
   createdAt?: Prisma.SortOrder
 }
 
@@ -754,6 +775,7 @@ export type MessageVariantMinOrderByAggregateInput = {
   subcategory?: Prisma.SortOrder
   sortOrder?: Prisma.SortOrder
   sourceTemplateId?: Prisma.SortOrder
+  htmlBody?: Prisma.SortOrder
   createdAt?: Prisma.SortOrder
 }
 
@@ -918,6 +940,7 @@ export type MessageVariantCreateWithoutMessageInput = {
   subcategory?: string | null
   sortOrder?: number
   actionFeatures?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
+  htmlBody?: string | null
   createdAt?: Date | string
   sourceTemplate?: Prisma.MessageVariantCreateNestedOneWithoutClonesInput
   clones?: Prisma.MessageVariantCreateNestedManyWithoutSourceTemplateInput
@@ -946,6 +969,7 @@ export type MessageVariantUncheckedCreateWithoutMessageInput = {
   sortOrder?: number
   sourceTemplateId?: string | null
   actionFeatures?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
+  htmlBody?: string | null
   createdAt?: Date | string
   clones?: Prisma.MessageVariantUncheckedCreateNestedManyWithoutSourceTemplateInput
   decisions?: Prisma.UserDecisionUncheckedCreateNestedManyWithoutVariantInput
@@ -1003,6 +1027,7 @@ export type MessageVariantScalarWhereInput = {
   sortOrder?: Prisma.IntFilter<"MessageVariant"> | number
   sourceTemplateId?: Prisma.StringNullableFilter<"MessageVariant"> | string | null
   actionFeatures?: Prisma.JsonNullableFilter<"MessageVariant">
+  htmlBody?: Prisma.StringNullableFilter<"MessageVariant"> | string | null
   createdAt?: Prisma.DateTimeFilter<"MessageVariant"> | Date | string
 }
 
@@ -1026,6 +1051,7 @@ export type MessageVariantCreateWithoutClonesInput = {
   subcategory?: string | null
   sortOrder?: number
   actionFeatures?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
+  htmlBody?: string | null
   createdAt?: Date | string
   message: Prisma.MessageCreateNestedOneWithoutVariantsInput
   sourceTemplate?: Prisma.MessageVariantCreateNestedOneWithoutClonesInput
@@ -1055,6 +1081,7 @@ export type MessageVariantUncheckedCreateWithoutClonesInput = {
   sortOrder?: number
   sourceTemplateId?: string | null
   actionFeatures?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
+  htmlBody?: string | null
   createdAt?: Date | string
   decisions?: Prisma.UserDecisionUncheckedCreateNestedManyWithoutVariantInput
   translations?: Prisma.MessageVariantTranslationUncheckedCreateNestedManyWithoutVariantInput
@@ -1085,6 +1112,7 @@ export type MessageVariantCreateWithoutSourceTemplateInput = {
   subcategory?: string | null
   sortOrder?: number
   actionFeatures?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
+  htmlBody?: string | null
   createdAt?: Date | string
   message: Prisma.MessageCreateNestedOneWithoutVariantsInput
   clones?: Prisma.MessageVariantCreateNestedManyWithoutSourceTemplateInput
@@ -1113,6 +1141,7 @@ export type MessageVariantUncheckedCreateWithoutSourceTemplateInput = {
   subcategory?: string | null
   sortOrder?: number
   actionFeatures?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
+  htmlBody?: string | null
   createdAt?: Date | string
   clones?: Prisma.MessageVariantUncheckedCreateNestedManyWithoutSourceTemplateInput
   decisions?: Prisma.UserDecisionUncheckedCreateNestedManyWithoutVariantInput
@@ -1160,6 +1189,7 @@ export type MessageVariantUpdateWithoutClonesInput = {
   subcategory?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   sortOrder?: Prisma.IntFieldUpdateOperationsInput | number
   actionFeatures?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
+  htmlBody?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   message?: Prisma.MessageUpdateOneRequiredWithoutVariantsNestedInput
   sourceTemplate?: Prisma.MessageVariantUpdateOneWithoutClonesNestedInput
@@ -1189,6 +1219,7 @@ export type MessageVariantUncheckedUpdateWithoutClonesInput = {
   sortOrder?: Prisma.IntFieldUpdateOperationsInput | number
   sourceTemplateId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   actionFeatures?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
+  htmlBody?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   decisions?: Prisma.UserDecisionUncheckedUpdateManyWithoutVariantNestedInput
   translations?: Prisma.MessageVariantTranslationUncheckedUpdateManyWithoutVariantNestedInput
@@ -1230,6 +1261,7 @@ export type MessageVariantCreateWithoutTranslationsInput = {
   subcategory?: string | null
   sortOrder?: number
   actionFeatures?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
+  htmlBody?: string | null
   createdAt?: Date | string
   message: Prisma.MessageCreateNestedOneWithoutVariantsInput
   sourceTemplate?: Prisma.MessageVariantCreateNestedOneWithoutClonesInput
@@ -1259,6 +1291,7 @@ export type MessageVariantUncheckedCreateWithoutTranslationsInput = {
   sortOrder?: number
   sourceTemplateId?: string | null
   actionFeatures?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
+  htmlBody?: string | null
   createdAt?: Date | string
   clones?: Prisma.MessageVariantUncheckedCreateNestedManyWithoutSourceTemplateInput
   decisions?: Prisma.UserDecisionUncheckedCreateNestedManyWithoutVariantInput
@@ -1300,6 +1333,7 @@ export type MessageVariantUpdateWithoutTranslationsInput = {
   subcategory?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   sortOrder?: Prisma.IntFieldUpdateOperationsInput | number
   actionFeatures?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
+  htmlBody?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   message?: Prisma.MessageUpdateOneRequiredWithoutVariantsNestedInput
   sourceTemplate?: Prisma.MessageVariantUpdateOneWithoutClonesNestedInput
@@ -1329,6 +1363,7 @@ export type MessageVariantUncheckedUpdateWithoutTranslationsInput = {
   sortOrder?: Prisma.IntFieldUpdateOperationsInput | number
   sourceTemplateId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   actionFeatures?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
+  htmlBody?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   clones?: Prisma.MessageVariantUncheckedUpdateManyWithoutSourceTemplateNestedInput
   decisions?: Prisma.UserDecisionUncheckedUpdateManyWithoutVariantNestedInput
@@ -1354,6 +1389,7 @@ export type MessageVariantCreateWithoutDecisionsInput = {
   subcategory?: string | null
   sortOrder?: number
   actionFeatures?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
+  htmlBody?: string | null
   createdAt?: Date | string
   message: Prisma.MessageCreateNestedOneWithoutVariantsInput
   sourceTemplate?: Prisma.MessageVariantCreateNestedOneWithoutClonesInput
@@ -1383,6 +1419,7 @@ export type MessageVariantUncheckedCreateWithoutDecisionsInput = {
   sortOrder?: number
   sourceTemplateId?: string | null
   actionFeatures?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
+  htmlBody?: string | null
   createdAt?: Date | string
   clones?: Prisma.MessageVariantUncheckedCreateNestedManyWithoutSourceTemplateInput
   translations?: Prisma.MessageVariantTranslationUncheckedCreateNestedManyWithoutVariantInput
@@ -1424,6 +1461,7 @@ export type MessageVariantUpdateWithoutDecisionsInput = {
   subcategory?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   sortOrder?: Prisma.IntFieldUpdateOperationsInput | number
   actionFeatures?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
+  htmlBody?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   message?: Prisma.MessageUpdateOneRequiredWithoutVariantsNestedInput
   sourceTemplate?: Prisma.MessageVariantUpdateOneWithoutClonesNestedInput
@@ -1453,6 +1491,7 @@ export type MessageVariantUncheckedUpdateWithoutDecisionsInput = {
   sortOrder?: Prisma.IntFieldUpdateOperationsInput | number
   sourceTemplateId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   actionFeatures?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
+  htmlBody?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   clones?: Prisma.MessageVariantUncheckedUpdateManyWithoutSourceTemplateNestedInput
   translations?: Prisma.MessageVariantTranslationUncheckedUpdateManyWithoutVariantNestedInput
@@ -1479,6 +1518,7 @@ export type MessageVariantCreateManyMessageInput = {
   sortOrder?: number
   sourceTemplateId?: string | null
   actionFeatures?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
+  htmlBody?: string | null
   createdAt?: Date | string
 }
 
@@ -1502,6 +1542,7 @@ export type MessageVariantUpdateWithoutMessageInput = {
   subcategory?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   sortOrder?: Prisma.IntFieldUpdateOperationsInput | number
   actionFeatures?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
+  htmlBody?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   sourceTemplate?: Prisma.MessageVariantUpdateOneWithoutClonesNestedInput
   clones?: Prisma.MessageVariantUpdateManyWithoutSourceTemplateNestedInput
@@ -1530,6 +1571,7 @@ export type MessageVariantUncheckedUpdateWithoutMessageInput = {
   sortOrder?: Prisma.IntFieldUpdateOperationsInput | number
   sourceTemplateId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   actionFeatures?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
+  htmlBody?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   clones?: Prisma.MessageVariantUncheckedUpdateManyWithoutSourceTemplateNestedInput
   decisions?: Prisma.UserDecisionUncheckedUpdateManyWithoutVariantNestedInput
@@ -1557,6 +1599,7 @@ export type MessageVariantUncheckedUpdateManyWithoutMessageInput = {
   sortOrder?: Prisma.IntFieldUpdateOperationsInput | number
   sourceTemplateId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   actionFeatures?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
+  htmlBody?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
 }
 
@@ -1581,6 +1624,7 @@ export type MessageVariantCreateManySourceTemplateInput = {
   subcategory?: string | null
   sortOrder?: number
   actionFeatures?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
+  htmlBody?: string | null
   createdAt?: Date | string
 }
 
@@ -1604,6 +1648,7 @@ export type MessageVariantUpdateWithoutSourceTemplateInput = {
   subcategory?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   sortOrder?: Prisma.IntFieldUpdateOperationsInput | number
   actionFeatures?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
+  htmlBody?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   message?: Prisma.MessageUpdateOneRequiredWithoutVariantsNestedInput
   clones?: Prisma.MessageVariantUpdateManyWithoutSourceTemplateNestedInput
@@ -1632,6 +1677,7 @@ export type MessageVariantUncheckedUpdateWithoutSourceTemplateInput = {
   subcategory?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   sortOrder?: Prisma.IntFieldUpdateOperationsInput | number
   actionFeatures?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
+  htmlBody?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   clones?: Prisma.MessageVariantUncheckedUpdateManyWithoutSourceTemplateNestedInput
   decisions?: Prisma.UserDecisionUncheckedUpdateManyWithoutVariantNestedInput
@@ -1659,6 +1705,7 @@ export type MessageVariantUncheckedUpdateManyWithoutSourceTemplateInput = {
   subcategory?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   sortOrder?: Prisma.IntFieldUpdateOperationsInput | number
   actionFeatures?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
+  htmlBody?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
 }
 
@@ -1733,6 +1780,7 @@ export type MessageVariantSelect<ExtArgs extends runtime.Types.Extensions.Intern
   sortOrder?: boolean
   sourceTemplateId?: boolean
   actionFeatures?: boolean
+  htmlBody?: boolean
   createdAt?: boolean
   message?: boolean | Prisma.MessageDefaultArgs<ExtArgs>
   sourceTemplate?: boolean | Prisma.MessageVariant$sourceTemplateArgs<ExtArgs>
@@ -1764,6 +1812,7 @@ export type MessageVariantSelectCreateManyAndReturn<ExtArgs extends runtime.Type
   sortOrder?: boolean
   sourceTemplateId?: boolean
   actionFeatures?: boolean
+  htmlBody?: boolean
   createdAt?: boolean
   message?: boolean | Prisma.MessageDefaultArgs<ExtArgs>
   sourceTemplate?: boolean | Prisma.MessageVariant$sourceTemplateArgs<ExtArgs>
@@ -1791,6 +1840,7 @@ export type MessageVariantSelectUpdateManyAndReturn<ExtArgs extends runtime.Type
   sortOrder?: boolean
   sourceTemplateId?: boolean
   actionFeatures?: boolean
+  htmlBody?: boolean
   createdAt?: boolean
   message?: boolean | Prisma.MessageDefaultArgs<ExtArgs>
   sourceTemplate?: boolean | Prisma.MessageVariant$sourceTemplateArgs<ExtArgs>
@@ -1818,10 +1868,11 @@ export type MessageVariantSelectScalar = {
   sortOrder?: boolean
   sourceTemplateId?: boolean
   actionFeatures?: boolean
+  htmlBody?: boolean
   createdAt?: boolean
 }
 
-export type MessageVariantOmit<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = runtime.Types.Extensions.GetOmit<"id" | "messageId" | "name" | "subject" | "body" | "cta" | "status" | "brazeVariantId" | "brazeCanvasStepId" | "title" | "iconImageUrl" | "deeplink" | "preferredHour" | "preferredDayOfWeek" | "frequencyCapOverride" | "warmupUntil" | "category" | "subcategory" | "sortOrder" | "sourceTemplateId" | "actionFeatures" | "createdAt", ExtArgs["result"]["messageVariant"]>
+export type MessageVariantOmit<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = runtime.Types.Extensions.GetOmit<"id" | "messageId" | "name" | "subject" | "body" | "cta" | "status" | "brazeVariantId" | "brazeCanvasStepId" | "title" | "iconImageUrl" | "deeplink" | "preferredHour" | "preferredDayOfWeek" | "frequencyCapOverride" | "warmupUntil" | "category" | "subcategory" | "sortOrder" | "sourceTemplateId" | "actionFeatures" | "htmlBody" | "createdAt", ExtArgs["result"]["messageVariant"]>
 export type MessageVariantInclude<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
   message?: boolean | Prisma.MessageDefaultArgs<ExtArgs>
   sourceTemplate?: boolean | Prisma.MessageVariant$sourceTemplateArgs<ExtArgs>
@@ -1870,6 +1921,7 @@ export type $MessageVariantPayload<ExtArgs extends runtime.Types.Extensions.Inte
     sortOrder: number
     sourceTemplateId: string | null
     actionFeatures: runtime.JsonValue | null
+    htmlBody: string | null
     createdAt: Date
   }, ExtArgs["result"]["messageVariant"]>
   composites: {}
@@ -2320,6 +2372,7 @@ export interface MessageVariantFieldRefs {
   readonly sortOrder: Prisma.FieldRef<"MessageVariant", 'Int'>
   readonly sourceTemplateId: Prisma.FieldRef<"MessageVariant", 'String'>
   readonly actionFeatures: Prisma.FieldRef<"MessageVariant", 'Json'>
+  readonly htmlBody: Prisma.FieldRef<"MessageVariant", 'String'>
   readonly createdAt: Prisma.FieldRef<"MessageVariant", 'DateTime'>
 }
     

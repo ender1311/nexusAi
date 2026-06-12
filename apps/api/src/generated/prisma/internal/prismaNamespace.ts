@@ -3076,6 +3076,7 @@ export const MessageVariantScalarFieldEnum = {
   sortOrder: 'sortOrder',
   sourceTemplateId: 'sourceTemplateId',
   actionFeatures: 'actionFeatures',
+  htmlBody: 'htmlBody',
   createdAt: 'createdAt'
 } as const
 
@@ -3087,7 +3088,9 @@ export const MessageVariantTranslationScalarFieldEnum = {
   messageVariantId: 'messageVariantId',
   language: 'language',
   title: 'title',
+  subject: 'subject',
   body: 'body',
+  htmlBody: 'htmlBody',
   bodyPersonal: 'bodyPersonal',
   status: 'status',
   source: 'source',

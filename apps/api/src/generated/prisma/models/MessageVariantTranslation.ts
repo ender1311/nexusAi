@@ -29,7 +29,9 @@ export type MessageVariantTranslationMinAggregateOutputType = {
   messageVariantId: string | null
   language: string | null
   title: string | null
+  subject: string | null
   body: string | null
+  htmlBody: string | null
   bodyPersonal: string | null
   status: string | null
   source: string | null
@@ -43,7 +45,9 @@ export type MessageVariantTranslationMaxAggregateOutputType = {
   messageVariantId: string | null
   language: string | null
   title: string | null
+  subject: string | null
   body: string | null
+  htmlBody: string | null
   bodyPersonal: string | null
   status: string | null
   source: string | null
@@ -57,7 +61,9 @@ export type MessageVariantTranslationCountAggregateOutputType = {
   messageVariantId: number
   language: number
   title: number
+  subject: number
   body: number
+  htmlBody: number
   bodyPersonal: number
   status: number
   source: number
@@ -73,7 +79,9 @@ export type MessageVariantTranslationMinAggregateInputType = {
   messageVariantId?: true
   language?: true
   title?: true
+  subject?: true
   body?: true
+  htmlBody?: true
   bodyPersonal?: true
   status?: true
   source?: true
@@ -87,7 +95,9 @@ export type MessageVariantTranslationMaxAggregateInputType = {
   messageVariantId?: true
   language?: true
   title?: true
+  subject?: true
   body?: true
+  htmlBody?: true
   bodyPersonal?: true
   status?: true
   source?: true
@@ -101,7 +111,9 @@ export type MessageVariantTranslationCountAggregateInputType = {
   messageVariantId?: true
   language?: true
   title?: true
+  subject?: true
   body?: true
+  htmlBody?: true
   bodyPersonal?: true
   status?: true
   source?: true
@@ -188,7 +200,9 @@ export type MessageVariantTranslationGroupByOutputType = {
   messageVariantId: string
   language: string
   title: string | null
+  subject: string | null
   body: string
+  htmlBody: string | null
   bodyPersonal: string | null
   status: string
   source: string | null
@@ -223,7 +237,9 @@ export type MessageVariantTranslationWhereInput = {
   messageVariantId?: Prisma.StringFilter<"MessageVariantTranslation"> | string
   language?: Prisma.StringFilter<"MessageVariantTranslation"> | string
   title?: Prisma.StringNullableFilter<"MessageVariantTranslation"> | string | null
+  subject?: Prisma.StringNullableFilter<"MessageVariantTranslation"> | string | null
   body?: Prisma.StringFilter<"MessageVariantTranslation"> | string
+  htmlBody?: Prisma.StringNullableFilter<"MessageVariantTranslation"> | string | null
   bodyPersonal?: Prisma.StringNullableFilter<"MessageVariantTranslation"> | string | null
   status?: Prisma.StringFilter<"MessageVariantTranslation"> | string
   source?: Prisma.StringNullableFilter<"MessageVariantTranslation"> | string | null
@@ -238,7 +254,9 @@ export type MessageVariantTranslationOrderByWithRelationInput = {
   messageVariantId?: Prisma.SortOrder
   language?: Prisma.SortOrder
   title?: Prisma.SortOrderInput | Prisma.SortOrder
+  subject?: Prisma.SortOrderInput | Prisma.SortOrder
   body?: Prisma.SortOrder
+  htmlBody?: Prisma.SortOrderInput | Prisma.SortOrder
   bodyPersonal?: Prisma.SortOrderInput | Prisma.SortOrder
   status?: Prisma.SortOrder
   source?: Prisma.SortOrderInput | Prisma.SortOrder
@@ -257,7 +275,9 @@ export type MessageVariantTranslationWhereUniqueInput = Prisma.AtLeast<{
   messageVariantId?: Prisma.StringFilter<"MessageVariantTranslation"> | string
   language?: Prisma.StringFilter<"MessageVariantTranslation"> | string
   title?: Prisma.StringNullableFilter<"MessageVariantTranslation"> | string | null
+  subject?: Prisma.StringNullableFilter<"MessageVariantTranslation"> | string | null
   body?: Prisma.StringFilter<"MessageVariantTranslation"> | string
+  htmlBody?: Prisma.StringNullableFilter<"MessageVariantTranslation"> | string | null
   bodyPersonal?: Prisma.StringNullableFilter<"MessageVariantTranslation"> | string | null
   status?: Prisma.StringFilter<"MessageVariantTranslation"> | string
   source?: Prisma.StringNullableFilter<"MessageVariantTranslation"> | string | null
@@ -272,7 +292,9 @@ export type MessageVariantTranslationOrderByWithAggregationInput = {
   messageVariantId?: Prisma.SortOrder
   language?: Prisma.SortOrder
   title?: Prisma.SortOrderInput | Prisma.SortOrder
+  subject?: Prisma.SortOrderInput | Prisma.SortOrder
   body?: Prisma.SortOrder
+  htmlBody?: Prisma.SortOrderInput | Prisma.SortOrder
   bodyPersonal?: Prisma.SortOrderInput | Prisma.SortOrder
   status?: Prisma.SortOrder
   source?: Prisma.SortOrderInput | Prisma.SortOrder
@@ -292,7 +314,9 @@ export type MessageVariantTranslationScalarWhereWithAggregatesInput = {
   messageVariantId?: Prisma.StringWithAggregatesFilter<"MessageVariantTranslation"> | string
   language?: Prisma.StringWithAggregatesFilter<"MessageVariantTranslation"> | string
   title?: Prisma.StringNullableWithAggregatesFilter<"MessageVariantTranslation"> | string | null
+  subject?: Prisma.StringNullableWithAggregatesFilter<"MessageVariantTranslation"> | string | null
   body?: Prisma.StringWithAggregatesFilter<"MessageVariantTranslation"> | string
+  htmlBody?: Prisma.StringNullableWithAggregatesFilter<"MessageVariantTranslation"> | string | null
   bodyPersonal?: Prisma.StringNullableWithAggregatesFilter<"MessageVariantTranslation"> | string | null
   status?: Prisma.StringWithAggregatesFilter<"MessageVariantTranslation"> | string
   source?: Prisma.StringNullableWithAggregatesFilter<"MessageVariantTranslation"> | string | null
@@ -305,7 +329,9 @@ export type MessageVariantTranslationCreateInput = {
   id?: string
   language: string
   title?: string | null
+  subject?: string | null
   body: string
+  htmlBody?: string | null
   bodyPersonal?: string | null
   status?: string
   source?: string | null
@@ -320,7 +346,9 @@ export type MessageVariantTranslationUncheckedCreateInput = {
   messageVariantId: string
   language: string
   title?: string | null
+  subject?: string | null
   body: string
+  htmlBody?: string | null
   bodyPersonal?: string | null
   status?: string
   source?: string | null
@@ -333,7 +361,9 @@ export type MessageVariantTranslationUpdateInput = {
   id?: Prisma.StringFieldUpdateOperationsInput | string
   language?: Prisma.StringFieldUpdateOperationsInput | string
   title?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  subject?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   body?: Prisma.StringFieldUpdateOperationsInput | string
+  htmlBody?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   bodyPersonal?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   status?: Prisma.StringFieldUpdateOperationsInput | string
   source?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
@@ -348,7 +378,9 @@ export type MessageVariantTranslationUncheckedUpdateInput = {
   messageVariantId?: Prisma.StringFieldUpdateOperationsInput | string
   language?: Prisma.StringFieldUpdateOperationsInput | string
   title?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  subject?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   body?: Prisma.StringFieldUpdateOperationsInput | string
+  htmlBody?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   bodyPersonal?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   status?: Prisma.StringFieldUpdateOperationsInput | string
   source?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
@@ -362,7 +394,9 @@ export type MessageVariantTranslationCreateManyInput = {
   messageVariantId: string
   language: string
   title?: string | null
+  subject?: string | null
   body: string
+  htmlBody?: string | null
   bodyPersonal?: string | null
   status?: string
   source?: string | null
@@ -375,7 +409,9 @@ export type MessageVariantTranslationUpdateManyMutationInput = {
   id?: Prisma.StringFieldUpdateOperationsInput | string
   language?: Prisma.StringFieldUpdateOperationsInput | string
   title?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  subject?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   body?: Prisma.StringFieldUpdateOperationsInput | string
+  htmlBody?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   bodyPersonal?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   status?: Prisma.StringFieldUpdateOperationsInput | string
   source?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
@@ -389,7 +425,9 @@ export type MessageVariantTranslationUncheckedUpdateManyInput = {
   messageVariantId?: Prisma.StringFieldUpdateOperationsInput | string
   language?: Prisma.StringFieldUpdateOperationsInput | string
   title?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  subject?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   body?: Prisma.StringFieldUpdateOperationsInput | string
+  htmlBody?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   bodyPersonal?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   status?: Prisma.StringFieldUpdateOperationsInput | string
   source?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
@@ -418,7 +456,9 @@ export type MessageVariantTranslationCountOrderByAggregateInput = {
   messageVariantId?: Prisma.SortOrder
   language?: Prisma.SortOrder
   title?: Prisma.SortOrder
+  subject?: Prisma.SortOrder
   body?: Prisma.SortOrder
+  htmlBody?: Prisma.SortOrder
   bodyPersonal?: Prisma.SortOrder
   status?: Prisma.SortOrder
   source?: Prisma.SortOrder
@@ -432,7 +472,9 @@ export type MessageVariantTranslationMaxOrderByAggregateInput = {
   messageVariantId?: Prisma.SortOrder
   language?: Prisma.SortOrder
   title?: Prisma.SortOrder
+  subject?: Prisma.SortOrder
   body?: Prisma.SortOrder
+  htmlBody?: Prisma.SortOrder
   bodyPersonal?: Prisma.SortOrder
   status?: Prisma.SortOrder
   source?: Prisma.SortOrder
@@ -446,7 +488,9 @@ export type MessageVariantTranslationMinOrderByAggregateInput = {
   messageVariantId?: Prisma.SortOrder
   language?: Prisma.SortOrder
   title?: Prisma.SortOrder
+  subject?: Prisma.SortOrder
   body?: Prisma.SortOrder
+  htmlBody?: Prisma.SortOrder
   bodyPersonal?: Prisma.SortOrder
   status?: Prisma.SortOrder
   source?: Prisma.SortOrder
@@ -501,7 +545,9 @@ export type MessageVariantTranslationCreateWithoutVariantInput = {
   id?: string
   language: string
   title?: string | null
+  subject?: string | null
   body: string
+  htmlBody?: string | null
   bodyPersonal?: string | null
   status?: string
   source?: string | null
@@ -514,7 +560,9 @@ export type MessageVariantTranslationUncheckedCreateWithoutVariantInput = {
   id?: string
   language: string
   title?: string | null
+  subject?: string | null
   body: string
+  htmlBody?: string | null
   bodyPersonal?: string | null
   status?: string
   source?: string | null
@@ -557,7 +605,9 @@ export type MessageVariantTranslationScalarWhereInput = {
   messageVariantId?: Prisma.StringFilter<"MessageVariantTranslation"> | string
   language?: Prisma.StringFilter<"MessageVariantTranslation"> | string
   title?: Prisma.StringNullableFilter<"MessageVariantTranslation"> | string | null
+  subject?: Prisma.StringNullableFilter<"MessageVariantTranslation"> | string | null
   body?: Prisma.StringFilter<"MessageVariantTranslation"> | string
+  htmlBody?: Prisma.StringNullableFilter<"MessageVariantTranslation"> | string | null
   bodyPersonal?: Prisma.StringNullableFilter<"MessageVariantTranslation"> | string | null
   status?: Prisma.StringFilter<"MessageVariantTranslation"> | string
   source?: Prisma.StringNullableFilter<"MessageVariantTranslation"> | string | null
@@ -570,7 +620,9 @@ export type MessageVariantTranslationCreateManyVariantInput = {
   id?: string
   language: string
   title?: string | null
+  subject?: string | null
   body: string
+  htmlBody?: string | null
   bodyPersonal?: string | null
   status?: string
   source?: string | null
@@ -583,7 +635,9 @@ export type MessageVariantTranslationUpdateWithoutVariantInput = {
   id?: Prisma.StringFieldUpdateOperationsInput | string
   language?: Prisma.StringFieldUpdateOperationsInput | string
   title?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  subject?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   body?: Prisma.StringFieldUpdateOperationsInput | string
+  htmlBody?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   bodyPersonal?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   status?: Prisma.StringFieldUpdateOperationsInput | string
   source?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
@@ -596,7 +650,9 @@ export type MessageVariantTranslationUncheckedUpdateWithoutVariantInput = {
   id?: Prisma.StringFieldUpdateOperationsInput | string
   language?: Prisma.StringFieldUpdateOperationsInput | string
   title?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  subject?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   body?: Prisma.StringFieldUpdateOperationsInput | string
+  htmlBody?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   bodyPersonal?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   status?: Prisma.StringFieldUpdateOperationsInput | string
   source?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
@@ -609,7 +665,9 @@ export type MessageVariantTranslationUncheckedUpdateManyWithoutVariantInput = {
   id?: Prisma.StringFieldUpdateOperationsInput | string
   language?: Prisma.StringFieldUpdateOperationsInput | string
   title?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  subject?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   body?: Prisma.StringFieldUpdateOperationsInput | string
+  htmlBody?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   bodyPersonal?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   status?: Prisma.StringFieldUpdateOperationsInput | string
   source?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
@@ -625,7 +683,9 @@ export type MessageVariantTranslationSelect<ExtArgs extends runtime.Types.Extens
   messageVariantId?: boolean
   language?: boolean
   title?: boolean
+  subject?: boolean
   body?: boolean
+  htmlBody?: boolean
   bodyPersonal?: boolean
   status?: boolean
   source?: boolean
@@ -640,7 +700,9 @@ export type MessageVariantTranslationSelectCreateManyAndReturn<ExtArgs extends r
   messageVariantId?: boolean
   language?: boolean
   title?: boolean
+  subject?: boolean
   body?: boolean
+  htmlBody?: boolean
   bodyPersonal?: boolean
   status?: boolean
   source?: boolean
@@ -655,7 +717,9 @@ export type MessageVariantTranslationSelectUpdateManyAndReturn<ExtArgs extends r
   messageVariantId?: boolean
   language?: boolean
   title?: boolean
+  subject?: boolean
   body?: boolean
+  htmlBody?: boolean
   bodyPersonal?: boolean
   status?: boolean
   source?: boolean
@@ -670,7 +734,9 @@ export type MessageVariantTranslationSelectScalar = {
   messageVariantId?: boolean
   language?: boolean
   title?: boolean
+  subject?: boolean
   body?: boolean
+  htmlBody?: boolean
   bodyPersonal?: boolean
   status?: boolean
   source?: boolean
@@ -679,7 +745,7 @@ export type MessageVariantTranslationSelectScalar = {
   updatedAt?: boolean
 }
 
-export type MessageVariantTranslationOmit<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = runtime.Types.Extensions.GetOmit<"id" | "messageVariantId" | "language" | "title" | "body" | "bodyPersonal" | "status" | "source" | "sourceFile" | "createdAt" | "updatedAt", ExtArgs["result"]["messageVariantTranslation"]>
+export type MessageVariantTranslationOmit<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = runtime.Types.Extensions.GetOmit<"id" | "messageVariantId" | "language" | "title" | "subject" | "body" | "htmlBody" | "bodyPersonal" | "status" | "source" | "sourceFile" | "createdAt" | "updatedAt", ExtArgs["result"]["messageVariantTranslation"]>
 export type MessageVariantTranslationInclude<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
   variant?: boolean | Prisma.MessageVariantDefaultArgs<ExtArgs>
 }
@@ -700,7 +766,9 @@ export type $MessageVariantTranslationPayload<ExtArgs extends runtime.Types.Exte
     messageVariantId: string
     language: string
     title: string | null
+    subject: string | null
     body: string
+    htmlBody: string | null
     bodyPersonal: string | null
     status: string
     source: string | null
@@ -1135,7 +1203,9 @@ export interface MessageVariantTranslationFieldRefs {
   readonly messageVariantId: Prisma.FieldRef<"MessageVariantTranslation", 'String'>
   readonly language: Prisma.FieldRef<"MessageVariantTranslation", 'String'>
   readonly title: Prisma.FieldRef<"MessageVariantTranslation", 'String'>
+  readonly subject: Prisma.FieldRef<"MessageVariantTranslation", 'String'>
   readonly body: Prisma.FieldRef<"MessageVariantTranslation", 'String'>
+  readonly htmlBody: Prisma.FieldRef<"MessageVariantTranslation", 'String'>
   readonly bodyPersonal: Prisma.FieldRef<"MessageVariantTranslation", 'String'>
   readonly status: Prisma.FieldRef<"MessageVariantTranslation", 'String'>
   readonly source: Prisma.FieldRef<"MessageVariantTranslation", 'String'>
