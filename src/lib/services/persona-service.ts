@@ -86,24 +86,62 @@ export async function assignUserToPersona(
  * Returns count of assignments made.
  */
 export async function batchAssignPersonas(config: AssignmentConfig = {}): Promise<number> {
-  const [users, discoveredPersonas] = await Promise.all([
-    prisma.trackedUser.findMany({ select: { externalId: true } }),
-    prisma.persona.findMany({
-      where: { source: "discovered", isActive: true, centroid: { not: Prisma.DbNull } },
-    }),
-  ]);
+  // Fetch personas first — if none exist there's nothing to assign to.
+  const discoveredPersonas = await prisma.persona.findMany({
+    where: { source: "discovered", isActive: true, centroid: { not: Prisma.DbNull } },
+  });
+  if (discoveredPersonas.length === 0) return 0;
 
-  let assigned = 0;
-  const BATCH_SIZE = 50;
-  for (let i = 0; i < users.length; i += BATCH_SIZE) {
-    const batch = users.slice(i, i + BATCH_SIZE);
-    const results = await Promise.all(
-      batch.map((u) => assignUserToPersona(u.externalId, config, discoveredPersonas))
-    );
-    assigned += results.filter((r) => r.personaId !== null).length;
+  // Fetch all users that need persona assignment in one query, with all fields
+  // needed for feature vector computation (avoids N+1 per-user DB calls).
+  const users = await prisma.trackedUser.findMany({
+    select: {
+      externalId: true,
+      totalDecisions: true,
+      totalConversions: true,
+      totalReward: true,
+      channelStats: true,
+      hourlyStats: true,
+      dailyStats: true,
+      attributes: true,
+    },
+  });
+
+  // Compute assignments entirely in memory — no DB call per user.
+  const personaMap = discoveredPersonas.map((p) => ({
+    id: p.id,
+    centroid: p.centroid as number[] | null,
+  }));
+  const byPersona = new Map<string, string[]>();
+  for (const u of users) {
+    const vec = computeFeatureVector({
+      totalDecisions: u.totalDecisions,
+      totalConversions: u.totalConversions,
+      totalReward: u.totalReward,
+      channelStats: u.channelStats,
+      hourlyStats: u.hourlyStats,
+      dailyStats: u.dailyStats,
+      attributes: (u.attributes as Record<string, unknown>) ?? {},
+    });
+    const { personaId } = selectNearestPersona(vec, personaMap);
+    if (personaId) {
+      if (!byPersona.has(personaId)) byPersona.set(personaId, []);
+      byPersona.get(personaId)!.push(u.externalId);
+    }
   }
 
-  return assigned;
+  // One updateMany per persona (N_personas queries, not N_users queries).
+  const now = new Date();
+  await Promise.all(
+    [...byPersona.entries()].map(([personaId, externalIds]) =>
+      prisma.trackedUser.updateMany({
+        where: { externalId: { in: externalIds } },
+        data: { personaId, personaAssignedAt: now },
+      }),
+    ),
+  );
+
+  return [...byPersona.values()].reduce((sum, ids) => sum + ids.length, 0);
 }
 
 /**
@@ -117,16 +155,22 @@ export async function discoverPersonas(config: DiscoveryConfig = {}): Promise<{
   silhouetteScore: number;
   k: number;
 }> {
-  const minInteractions = config.minInteractions ?? 20;
+  const minInteractions = config.minInteractions ?? 5;
   const minK = config.minK ?? 3;
   const maxK = config.maxK ?? 15;
   const stabilityRuns = config.stabilityRuns ?? 5;
   const algorithm = config.algorithm ?? "hdbscan";
   const maxSampleSize = config.maxSampleSize ?? 3000;
+  // Cap the initial DB fetch to avoid loading the entire user table.
+  // Fisher-Yates sampling below reduces this further to maxSampleSize.
+  const fetchCap = maxSampleSize * 10;
 
-  // Fetch users with enough data
+  // Fetch users with enough data — cap to fetchCap rows ordered by most active
+  // to avoid loading the full 34M+ User table into memory.
   const eligibleUsers = await prisma.trackedUser.findMany({
     where: { totalDecisions: { gte: minInteractions } },
+    orderBy: { totalDecisions: "desc" },
+    take: fetchCap,
   });
 
   if (eligibleUsers.length < minK * 2) {
