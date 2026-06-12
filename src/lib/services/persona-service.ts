@@ -165,10 +165,11 @@ export async function discoverPersonas(config: DiscoveryConfig = {}): Promise<{
   // Fisher-Yates sampling below reduces this further to maxSampleSize.
   const fetchCap = maxSampleSize * 10;
 
-  // Fetch users with enough data — cap to fetchCap rows ordered by most active
-  // to avoid loading the full 34M+ User table into memory.
+  // Fetch users with behavioral data (channelStats populated by Hightouch sync).
+  // totalDecisions is a stale aggregate counter (~0 for all 35M users) so we
+  // use channelStats presence as the eligibility signal instead.
   const eligibleUsers = await prisma.trackedUser.findMany({
-    where: { totalDecisions: { gte: minInteractions } },
+    where: { channelStats: { not: Prisma.DbNull } },
     orderBy: { totalDecisions: "desc" },
     take: fetchCap,
   });
