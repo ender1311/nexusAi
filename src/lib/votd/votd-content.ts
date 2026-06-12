@@ -42,11 +42,16 @@ async function loadVotdCalendar(): Promise<VotdCalendarEntry[]> {
           { headers: VOTD_HEADERS },
         );
         if (!res.ok) throw new Error(`votd.json HTTP ${res.status}`);
-        const json = (await res.json()) as { votd?: VotdCalendarEntry[] };
-        if (!Array.isArray(json.votd) || json.votd.length === 0) {
+        const json = (await res.json()) as {
+          votd?: VotdCalendarEntry[];
+          response?: { data?: VotdCalendarEntry[] };
+        };
+        // API changed from { votd: [...] } to { response: { data: [...] } }
+        const entries = json.response?.data ?? json.votd;
+        if (!Array.isArray(entries) || entries.length === 0) {
           throw new Error("votd.json: empty calendar");
         }
-        return json.votd;
+        return entries;
       } catch (err) {
         calendarPromise = null;
         throw err;
@@ -85,8 +90,10 @@ async function fetchVerse(
   if (!res.ok) return null;
   const json = (await res.json()) as {
     verses?: Array<{ content?: string; reference?: { human?: string } }>;
+    response?: { data?: { verses?: Array<{ content?: string; reference?: { human?: string } }> } };
   };
-  const verses = json.verses ?? [];
+  // API changed from { verses: [...] } to { response: { data: { verses: [...] } } }
+  const verses = json.response?.data?.verses ?? json.verses ?? [];
   const reference = verses.map((v) => v.reference?.human).filter(Boolean).join("; ");
   const verseText = verses.map((v) => (v.content ?? "").trim()).filter(Boolean).join(" ");
   if (!reference || !verseText) return null;
@@ -104,8 +111,13 @@ async function fetchImageUrls(
       { headers: VOTD_HEADERS },
     );
     if (res.ok) {
-      const json = (await res.json()) as { items?: Array<{ urls?: { regular?: string } }> };
-      const template = json.items?.[0]?.urls?.regular;
+      const json = (await res.json()) as {
+        items?: Array<{ urls?: { regular?: string } }>;
+        response?: { data?: { images?: Array<{ urls?: { regular?: string } }> } };
+      };
+      // API changed from { items: [...] } to { response: { data: { images: [...] } } }
+      const items = json.response?.data?.images ?? json.items;
+      const template = items?.[0]?.urls?.regular;
       if (template) {
         return {
           ios: renderImageUrl(template, 320, 320),
