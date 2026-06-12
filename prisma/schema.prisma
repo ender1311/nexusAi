@@ -575,6 +575,7 @@ model GuidedPrayerDailyContent {
   usfm      String // first usfm_text module reference, e.g. "PSA.23.1"
   reference String // human-readable reference, e.g. "Psalm 23:1"
   verseText String
+  imageUrl  String? // morning image URL template with {width}x{height} placeholder; null if unavailable
   createdAt DateTime @default(now())
 }
 

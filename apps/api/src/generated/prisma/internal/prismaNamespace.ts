@@ -417,6 +417,7 @@ export const ModelName = {
   Segment: 'Segment',
   SyncNameOverride: 'SyncNameOverride',
   SegmentFieldFacet: 'SegmentFieldFacet',
+  GuidedPrayerDailyContent: 'GuidedPrayerDailyContent',
   VotdDailyContent: 'VotdDailyContent'
 } as const
 
@@ -433,7 +434,7 @@ export type TypeMap<ExtArgs extends runtime.Types.Extensions.InternalArgs = runt
     omit: GlobalOmitOptions
   }
   meta: {
-    modelProps: "agent" | "goal" | "message" | "messageVariant" | "messageVariantTranslation" | "deeplink" | "userDecision" | "trackedUser" | "persona" | "agentPersonaTarget" | "personaArmStats" | "userArmStats" | "linUCBArm" | "schedulingRule" | "modelMetric" | "planSet" | "planSetMember" | "appSetting" | "userAgentAssignment" | "funnelTransition" | "cronRun" | "failedBrazeSend" | "processedEventId" | "ingestSyncLog" | "campaignContent" | "demoUserGroup" | "userSegment" | "userPreference" | "pushCategory" | "pushSubcategory" | "segment" | "syncNameOverride" | "segmentFieldFacet" | "votdDailyContent"
+    modelProps: "agent" | "goal" | "message" | "messageVariant" | "messageVariantTranslation" | "deeplink" | "userDecision" | "trackedUser" | "persona" | "agentPersonaTarget" | "personaArmStats" | "userArmStats" | "linUCBArm" | "schedulingRule" | "modelMetric" | "planSet" | "planSetMember" | "appSetting" | "userAgentAssignment" | "funnelTransition" | "cronRun" | "failedBrazeSend" | "processedEventId" | "ingestSyncLog" | "campaignContent" | "demoUserGroup" | "userSegment" | "userPreference" | "pushCategory" | "pushSubcategory" | "segment" | "syncNameOverride" | "segmentFieldFacet" | "guidedPrayerDailyContent" | "votdDailyContent"
     txIsolationLevel: TransactionIsolationLevel
   }
   model: {
@@ -2879,6 +2880,80 @@ export type TypeMap<ExtArgs extends runtime.Types.Extensions.InternalArgs = runt
         }
       }
     }
+    GuidedPrayerDailyContent: {
+      payload: Prisma.$GuidedPrayerDailyContentPayload<ExtArgs>
+      fields: Prisma.GuidedPrayerDailyContentFieldRefs
+      operations: {
+        findUnique: {
+          args: Prisma.GuidedPrayerDailyContentFindUniqueArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$GuidedPrayerDailyContentPayload> | null
+        }
+        findUniqueOrThrow: {
+          args: Prisma.GuidedPrayerDailyContentFindUniqueOrThrowArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$GuidedPrayerDailyContentPayload>
+        }
+        findFirst: {
+          args: Prisma.GuidedPrayerDailyContentFindFirstArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$GuidedPrayerDailyContentPayload> | null
+        }
+        findFirstOrThrow: {
+          args: Prisma.GuidedPrayerDailyContentFindFirstOrThrowArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$GuidedPrayerDailyContentPayload>
+        }
+        findMany: {
+          args: Prisma.GuidedPrayerDailyContentFindManyArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$GuidedPrayerDailyContentPayload>[]
+        }
+        create: {
+          args: Prisma.GuidedPrayerDailyContentCreateArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$GuidedPrayerDailyContentPayload>
+        }
+        createMany: {
+          args: Prisma.GuidedPrayerDailyContentCreateManyArgs<ExtArgs>
+          result: BatchPayload
+        }
+        createManyAndReturn: {
+          args: Prisma.GuidedPrayerDailyContentCreateManyAndReturnArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$GuidedPrayerDailyContentPayload>[]
+        }
+        delete: {
+          args: Prisma.GuidedPrayerDailyContentDeleteArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$GuidedPrayerDailyContentPayload>
+        }
+        update: {
+          args: Prisma.GuidedPrayerDailyContentUpdateArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$GuidedPrayerDailyContentPayload>
+        }
+        deleteMany: {
+          args: Prisma.GuidedPrayerDailyContentDeleteManyArgs<ExtArgs>
+          result: BatchPayload
+        }
+        updateMany: {
+          args: Prisma.GuidedPrayerDailyContentUpdateManyArgs<ExtArgs>
+          result: BatchPayload
+        }
+        updateManyAndReturn: {
+          args: Prisma.GuidedPrayerDailyContentUpdateManyAndReturnArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$GuidedPrayerDailyContentPayload>[]
+        }
+        upsert: {
+          args: Prisma.GuidedPrayerDailyContentUpsertArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$GuidedPrayerDailyContentPayload>
+        }
+        aggregate: {
+          args: Prisma.GuidedPrayerDailyContentAggregateArgs<ExtArgs>
+          result: runtime.Types.Utils.Optional<Prisma.AggregateGuidedPrayerDailyContent>
+        }
+        groupBy: {
+          args: Prisma.GuidedPrayerDailyContentGroupByArgs<ExtArgs>
+          result: runtime.Types.Utils.Optional<Prisma.GuidedPrayerDailyContentGroupByOutputType>[]
+        }
+        count: {
+          args: Prisma.GuidedPrayerDailyContentCountArgs<ExtArgs>
+          result: runtime.Types.Utils.Optional<Prisma.GuidedPrayerDailyContentCountAggregateOutputType> | number
+        }
+      }
+    }
     VotdDailyContent: {
       payload: Prisma.$VotdDailyContentPayload<ExtArgs>
       fields: Prisma.VotdDailyContentFieldRefs
@@ -3490,6 +3565,18 @@ export const SegmentFieldFacetScalarFieldEnum = {
 export type SegmentFieldFacetScalarFieldEnum = (typeof SegmentFieldFacetScalarFieldEnum)[keyof typeof SegmentFieldFacetScalarFieldEnum]
 
 
+export const GuidedPrayerDailyContentScalarFieldEnum = {
+  date: 'date',
+  usfm: 'usfm',
+  reference: 'reference',
+  verseText: 'verseText',
+  imageUrl: 'imageUrl',
+  createdAt: 'createdAt'
+} as const
+
+export type GuidedPrayerDailyContentScalarFieldEnum = (typeof GuidedPrayerDailyContentScalarFieldEnum)[keyof typeof GuidedPrayerDailyContentScalarFieldEnum]
+
+
 export const VotdDailyContentScalarFieldEnum = {
   id: 'id',
   date: 'date',
@@ -3779,6 +3866,7 @@ export type GlobalOmitConfig = {
   segment?: Prisma.SegmentOmit
   syncNameOverride?: Prisma.SyncNameOverrideOmit
   segmentFieldFacet?: Prisma.SegmentFieldFacetOmit
+  guidedPrayerDailyContent?: Prisma.GuidedPrayerDailyContentOmit
   votdDailyContent?: Prisma.VotdDailyContentOmit
 }
 

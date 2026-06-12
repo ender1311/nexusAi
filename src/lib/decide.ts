@@ -49,6 +49,11 @@ export type DecideInput = {
    * testers can force-send regardless of the agent's quiet hour window.
    */
   bypassQuietHours?: boolean;
+  /**
+   * Optional: set to true to bypass frequency cap suppression only.
+   * Used by the demo send route so testers can force-send regardless of cap state.
+   */
+  bypassFrequencyCap?: boolean;
   /** Optional: context about the user at decision time — stored on UserDecision for analysis
    *  and used as feature input when algorithm is "linucb". */
   context?: DecideContext;
@@ -74,7 +79,7 @@ export type DecideResult =
  * Returns DecideResult otherwise (may be suppressed if scheduling rules block the send).
  */
 export async function decideForUser(input: DecideInput): Promise<DecideResult | null> {
-  const { agentId, externalUserId, preloadedAgent, skipSchedulingChecks, bypassQuietHours, context } = input;
+  const { agentId, externalUserId, preloadedAgent, skipSchedulingChecks, bypassQuietHours, bypassFrequencyCap, context } = input;
 
   // 1. Fetch agent with all active variants and scheduling rule (skip if preloaded)
   const agent = preloadedAgent ?? await prisma.agent.findFirst({
@@ -175,7 +180,7 @@ export async function decideForUser(input: DecideInput): Promise<DecideResult | 
 
     // 4b. Frequency cap — count recent decisions in the configured window
     const freqCap = parseFrequencyCap(rule.frequencyCap);
-    if (typeof freqCap?.maxSends === "number") {
+    if (!bypassFrequencyCap && typeof freqCap?.maxSends === "number") {
       const periodMs: Record<string, number> = {
         day:    86_400_000,
         week:   7  * 86_400_000,

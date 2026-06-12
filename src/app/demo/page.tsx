@@ -92,6 +92,7 @@ export default function DemoPage() {
   const [preview, setPreview] = useState<DemoPreviewResponse | null>(null);
   const [previewLoading, setPreviewLoading] = useState(false);
   const [bypassQuietHours, setBypassQuietHours] = useState(false);
+  const [bypassFrequencyCap, setBypassFrequencyCap] = useState(false);
 
   useEffect(() => {
     fetch("/api/agents")
@@ -229,7 +230,7 @@ export default function DemoPage() {
       const res = await fetch("/api/demo/send", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ agentId: selectedAgentId, userIds, bypassQuietHours }),
+        body: JSON.stringify({ agentId: selectedAgentId, userIds, bypassQuietHours, bypassFrequencyCap }),
       });
       const data: { data?: SendResult[]; error?: string } = await res.json();
       setResults(data.data ?? []);
@@ -401,6 +402,10 @@ export default function DemoPage() {
           <label className="flex items-center gap-1.5 cursor-pointer select-none">
             <Checkbox checked={bypassQuietHours} onCheckedChange={() => setBypassQuietHours((v) => !v)} />
             <span className="text-xs text-muted-foreground">Override quiet hours</span>
+          </label>
+          <label className="flex items-center gap-1.5 cursor-pointer select-none">
+            <Checkbox checked={bypassFrequencyCap} onCheckedChange={() => setBypassFrequencyCap((v) => !v)} />
+            <span className="text-xs text-muted-foreground">Override frequency cap</span>
           </label>
           {results.length > 0 && (
             <span className="text-xs text-muted-foreground">

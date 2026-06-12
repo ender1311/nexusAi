@@ -84,6 +84,7 @@ export const ModelName = {
   Segment: 'Segment',
   SyncNameOverride: 'SyncNameOverride',
   SegmentFieldFacet: 'SegmentFieldFacet',
+  GuidedPrayerDailyContent: 'GuidedPrayerDailyContent',
   VotdDailyContent: 'VotdDailyContent'
 } as const
 
@@ -599,6 +600,18 @@ export const SegmentFieldFacetScalarFieldEnum = {
 } as const
 
 export type SegmentFieldFacetScalarFieldEnum = (typeof SegmentFieldFacetScalarFieldEnum)[keyof typeof SegmentFieldFacetScalarFieldEnum]
+
+
+export const GuidedPrayerDailyContentScalarFieldEnum = {
+  date: 'date',
+  usfm: 'usfm',
+  reference: 'reference',
+  verseText: 'verseText',
+  imageUrl: 'imageUrl',
+  createdAt: 'createdAt'
+} as const
+
+export type GuidedPrayerDailyContentScalarFieldEnum = (typeof GuidedPrayerDailyContentScalarFieldEnum)[keyof typeof GuidedPrayerDailyContentScalarFieldEnum]
 
 
 export const VotdDailyContentScalarFieldEnum = {

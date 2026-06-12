@@ -205,7 +205,12 @@ export type SyncNameOverride = Prisma.SyncNameOverrideModel
  */
 export type SegmentFieldFacet = Prisma.SegmentFieldFacetModel
 /**
- * Model VotdDailyContent
+ * Model GuidedPrayerDailyContent
  * Immutable per-day, per-language VOTD cache. A given day's VOTD never changes.
+ */
+export type GuidedPrayerDailyContent = Prisma.GuidedPrayerDailyContentModel
+/**
+ * Model VotdDailyContent
+ * 
  */
 export type VotdDailyContent = Prisma.VotdDailyContentModel

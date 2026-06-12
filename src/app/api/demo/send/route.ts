@@ -5,10 +5,11 @@ import { prisma } from "@/lib/db";
 import { createBrazeClient } from "@/lib/braze/client";
 import { PayloadFactory } from "@/lib/braze/payload-factory";
 import { randomUUID } from "crypto";
-import { hasVotdTags, substituteVotdTags } from "@/lib/votd/votd-tags";
+import { hasVotdTags, hasGpTags, substituteVotdTags, substituteGpTags } from "@/lib/votd/votd-tags";
 import { guidedLabels } from "@/lib/votd/labels";
 import { resolveVotdUserKey } from "@/lib/votd/votd-user-key";
 import { getVotdContent } from "@/lib/votd/votd-content";
+import { getGpContent, buildGpImageUrls } from "@/lib/votd/guided-prayer-content";
 import { VERSE_IMAGE_SENTINEL } from "@/lib/verse-image";
 
 type SendResult = {
@@ -41,7 +42,7 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "Invalid JSON" }, { status: 400 });
   }
 
-  const { agentId, userIds, bypassQuietHours } = (body ?? {}) as Record<string, unknown>;
+  const { agentId, userIds, bypassQuietHours, bypassFrequencyCap } = (body ?? {}) as Record<string, unknown>;
   if (typeof agentId !== "string" || !Array.isArray(userIds) || userIds.length === 0) {
     return NextResponse.json({ error: "agentId and non-empty userIds array required" }, { status: 400 });
   }
@@ -52,6 +53,7 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "userIds must be strings" }, { status: 400 });
   }
   const forceOverrideQuietHours = bypassQuietHours === true;
+  const forceOverrideFrequencyCap = bypassFrequencyCap === true;
 
   const brazeClient = createBrazeClient();
   const factory = brazeClient ? new PayloadFactory() : null;
@@ -60,7 +62,7 @@ export async function POST(req: NextRequest) {
   const results: SendResult[] = await Promise.all(
     (userIds as string[]).map(async (userId): Promise<SendResult> => {
       try {
-        const decision = await decideForUser({ agentId, externalUserId: userId, bypassQuietHours: forceOverrideQuietHours });
+        const decision = await decideForUser({ agentId, externalUserId: userId, bypassQuietHours: forceOverrideQuietHours, bypassFrequencyCap: forceOverrideFrequencyCap });
         if (!decision) return { userId, status: "failed", reason: "agent not found or no variants" };
         if (decision.suppressed) return { userId, status: "suppressed", reason: decision.reason };
 
@@ -81,7 +83,22 @@ export async function POST(req: NextRequest) {
         let iosImageUrl: string | undefined;
         let androidImageUrl: string | undefined;
 
-        if (hasVotdTags(variant.title, variant.body)) {
+        if (hasGpTags(variant.title, variant.body)) {
+          const today = new Date().toISOString().slice(0, 10);
+          const content = await getGpContent(prisma, today);
+          if (!content) {
+            return { userId, status: "failed" as const, variantName: variant.name, reason: "GP content unavailable" };
+          }
+          const labels = guidedLabels("en");
+          const subs = { guidedPrayerLabel: labels.guidedPrayer, gpReference: content.reference, gpText: content.verseText };
+          title = substituteGpTags(title, subs);
+          body = substituteGpTags(body, subs);
+          if (variant.iconImageUrl === VERSE_IMAGE_SENTINEL) {
+            const imgs = buildGpImageUrls(content.imageUrl);
+            iosImageUrl = imgs.ios ?? undefined;
+            androidImageUrl = imgs.android ?? undefined;
+          }
+        } else if (hasVotdTags(variant.title, variant.body)) {
           const trackedUser = await prisma.trackedUser.findUnique({
             where: { externalId: userId },
             select: { attributes: true },

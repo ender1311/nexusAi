@@ -21,7 +21,25 @@ export type GpContent = {
   usfm: string;
   reference: string;
   verseText: string;
+  imageUrl: string | null;
 };
+
+/** Build a platform-specific GP image URL by substituting dimensions into the proxy template.
+ *  Template looks like: //imageproxy.youversionapi.com/{width}x{height}/https://... */
+export function buildGpImageUrl(template: string, w: number, h: number): string {
+  return template
+    .replace("{width}x{height}", `${w}x${h}`)
+    .replace(/^\/\//, "https://");
+}
+
+/** Per-platform GP image URLs: 320x320 for iOS, 1024x512 for Android. Null if no template. */
+export function buildGpImageUrls(imageUrl: string | null): { ios: string | null; android: string | null } {
+  if (!imageUrl) return { ios: null, android: null };
+  return {
+    ios: buildGpImageUrl(imageUrl, 320, 320),
+    android: buildGpImageUrl(imageUrl, 1024, 512),
+  };
+}
 
 type PrismaLike = typeof import("@/lib/db").prisma;
 
@@ -30,6 +48,32 @@ function buildHeaders(): Record<string, string> {
   const key = process.env.GUIDED_PRAYER_API_KEY;
   if (key) h["Authorization"] = `Bearer ${key}`;
   return h;
+}
+
+/** Fetch the morning image URL template for a day-of-year. Returns null on any failure. */
+async function fetchGpDayImage(doy: number): Promise<string | null> {
+  try {
+    const res = await fetch(
+      `${GP_BASE}/guides/${DEFAULT_GUIDE_ID}/days/${doy}`,
+      { headers: buildHeaders() },
+    );
+    if (!res.ok) return null;
+    const json = (await res.json()) as Record<string, unknown>;
+    const data = (json.data ?? json) as Record<string, unknown>;
+    const images = data.images;
+    if (Array.isArray(images)) {
+      const morning = images.find(
+        (img): img is Record<string, unknown> =>
+          img && typeof img === "object" && (img as Record<string, unknown>).slug === "morning",
+      );
+      const morningUrl = morning?.url;
+      if (typeof morningUrl === "string" && morningUrl) return morningUrl;
+    }
+    const fallback = data.image_url;
+    return typeof fallback === "string" && fallback ? fallback : null;
+  } catch {
+    return null;
+  }
 }
 
 /** Fetch the first usfm_text module reference for a day-of-year. Returns null on any failure. */
@@ -109,7 +153,7 @@ export async function getGpContent(
   if (cached) return cached;
 
   const doy = dayOfYear(date);
-  const usfm = await fetchGpUsfm(doy);
+  const [usfm, imageUrl] = await Promise.all([fetchGpUsfm(doy), fetchGpDayImage(doy)]);
   if (!usfm) return null;
 
   const verse = await fetchGpVerse(usfm);
@@ -118,7 +162,7 @@ export async function getGpContent(
   try {
     return await prisma.guidedPrayerDailyContent.upsert({
       where: { date },
-      create: { date, usfm, reference: verse.reference, verseText: verse.verseText },
+      create: { date, usfm, reference: verse.reference, verseText: verse.verseText, imageUrl },
       update: {},
     });
   } catch (err) {

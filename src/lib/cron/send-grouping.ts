@@ -19,6 +19,7 @@ import { guidedLabels } from "@/lib/votd/labels";
 import { resolveVotdUserKey, votdContentKey } from "@/lib/votd/votd-user-key";
 import type { VotdContent } from "@/lib/votd/votd-content";
 import type { GpContent } from "@/lib/votd/guided-prayer-content";
+import { buildGpImageUrls } from "@/lib/votd/guided-prayer-content";
 
 export type VariantSendGroup = {
   variantId: string;
@@ -102,6 +103,7 @@ export function groupDecisionsByVariant(
     let copyKeyed: boolean;
     let verseImageId: string | undefined;
     let votdImage: { ios: string | null; android: string | null } | undefined;
+    let gpImage: { ios: string | null; android: string | null } | undefined;
 
     if (meta.givingHandleStrategy != null) {
       // Dynamic giving handle: resolve a per-user ask amount + impact figure, then
@@ -148,6 +150,7 @@ export function groupDecisionsByVariant(
             gpText: content.verseText,
           }),
         };
+        gpImage = buildGpImageUrls(content.imageUrl);
       } else if (isVotd) {
         const key = resolveVotdUserKey(user.attributes, scheduledAt);
         const content = localization?.votdContent?.get(votdContentKey(key.date, key.languageTag));
@@ -194,6 +197,10 @@ export function groupDecisionsByVariant(
         // VOTD arm: today's localized verse image (nullable → text-only send).
         iosImageUrl = votdImage.ios;
         androidImageUrl = votdImage.android;
+      } else if (gpImage && meta.channel === "push") {
+        // GP arm: today's morning prayer image (nullable → text-only send).
+        iosImageUrl = gpImage.ios;
+        androidImageUrl = gpImage.android;
       } else if (meta.body === VERSE_PUSH_SENTINEL && meta.channel === "push") {
         // Sentinel only resolves on a verse arm (we have a chosen verse). On a
         // non-verse arm the sentinel is meaningless → no image.
