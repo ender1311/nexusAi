@@ -1,9 +1,9 @@
-// Guided Prayer daily content — fetched from prayer.youversionapi.com 4.0.
-// Requires GUIDED_PRAYER_API_KEY env var (Bearer token). Returns null gracefully
-// when the token is absent/expired so cron skips GP users rather than crashing.
+// Guided Prayer daily content — fetched from guidedprayers.youversionapi.com 4.0.
+// No auth required for production API. GUIDED_PRAYER_API_KEY is optional (Bearer token)
+// if the API ever adds auth requirements. Returns null gracefully on any failure.
 import { dayOfYear } from "./votd-content";
 
-const GP_BASE = "https://prayer.youversionapi.com/4.0";
+const GP_BASE = "https://guidedprayers.youversionapi.com/4.0";
 const DEFAULT_GUIDE_ID = 1;
 // English NIV (111) — guide 1 is English-only
 const GP_VERSION_ID = 111;
