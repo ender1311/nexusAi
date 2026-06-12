@@ -190,6 +190,15 @@ export const getCachedAgentCardStats = unstable_cache(
   { tags: ["agents", "dashboard-stats"], revalidate: TTL.STANDARD }
 );
 
+/** Active cohort size (releasedAt IS NULL) for a single agent detail page. */
+export function getCachedAgentAssignedCount(id: string) {
+  return unstable_cache(
+    () => prisma.userAgentAssignment.count({ where: { agentId: id, releasedAt: null } }),
+    ["agent-assigned-count", id],
+    { tags: [`agent-${id}`, "dashboard-stats"], revalidate: TTL.STANDARD }
+  )();
+}
+
 /**
  * Kill-switch setting for global send pause. Tagged "lift-settings" so
  * KillSwitchToggle → POST /api/settings → revalidateTag("lift-settings") busts it

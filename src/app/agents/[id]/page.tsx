@@ -15,7 +15,7 @@ import { TestedVariablesBadges } from "@/components/agents/tested-variables-badg
 import { VariantDiffTable } from "@/components/agents/variant-diff-table";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { TestedVariable, MessageVariant, AgentStatus, FunnelStage } from "@/types/agent";
-import { getCachedAgent, getCachedActivePersonas, getCachedAgentAudienceData, getCachedAgentDecisionSplit } from "@/lib/cache";
+import { getCachedAgent, getCachedActivePersonas, getCachedAgentAudienceData, getCachedAgentDecisionSplit, getCachedAgentAssignedCount } from "@/lib/cache";
 import { prisma } from "@/lib/db";
 import { VERSE_PUSH_SENTINEL } from "@/lib/verse-content";
 import { getAuth } from "@/lib/auth";
@@ -244,6 +244,14 @@ export default async function AgentDetailPage({
                   </p>
                 </CardContent>
               </Card>
+              <Card>
+                <CardContent className="p-4">
+                  <p className="text-xs text-muted-foreground">Assigned Users</p>
+                  <Suspense fallback={<Skeleton className="h-8 w-16 mt-1" />}>
+                    <AssignedUsersValue agentId={agent.id} />
+                  </Suspense>
+                </CardContent>
+              </Card>
             </div>
           </TabsContent>
 
@@ -467,6 +475,12 @@ async function SentCountBadges({ agentId }: { agentId: string }) {
       )}
     </>
   );
+}
+
+/** Overview "Assigned Users" card value — active cohort locked to this agent. */
+async function AssignedUsersValue({ agentId }: { agentId: string }) {
+  const count = await getCachedAgentAssignedCount(agentId);
+  return <p className="text-2xl font-bold mt-1">{formatNumber(count)}</p>;
 }
 
 /** Overview "Messages Sent" card value — same streamed count as the top bar. */
