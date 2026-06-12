@@ -838,6 +838,38 @@ export async function POST(req: NextRequest) {
       ]),
     );
 
+    // Pre-load the active UserAgentAssignment for every flag carrier so the
+    // interaction-flag detection loop below never issues a findFirst per user.
+    const assignmentRows = flagCarrierIds.length > 0
+      ? await prisma.userAgentAssignment.findMany({
+          where: { externalUserId: { in: flagCarrierIds }, releasedAt: null },
+          select: { externalUserId: true, agentId: true, enrollmentFlags: true },
+        })
+      : [];
+    // One active assignment per user (releasedAt: null is unique per user).
+    const assignmentByUser = new Map(assignmentRows.map((r) => [r.externalUserId, r]));
+
+    // Pre-load the most-recent unconverted decision for each flag carrier — used
+    // by both the active-path and tail-attribution loops to avoid two findFirst
+    // calls per flag per user. Includes agent+goals for reward calculation.
+    const flagDecisionRows = flagCarrierIds.length > 0
+      ? await prisma.userDecision.findMany({
+          where: {
+            userId: { in: flagCarrierIds },
+            conversionAt: null,
+            sentAt: { gte: new Date(Date.now() - FLAG_ATTRIBUTION_WINDOW_MS) },
+          },
+          orderBy: { sentAt: "desc" },
+          include: { agent: { include: { goals: true } } },
+        })
+      : [];
+    // Keep only the most-recent decision per (userId, agentId) pair.
+    const flagDecisionByUserAgent = new Map<string, typeof flagDecisionRows[number]>();
+    for (const row of flagDecisionRows) {
+      const key = `${row.userId}::${row.agentId}`;
+      if (!flagDecisionByUserAgent.has(key)) flagDecisionByUserAgent.set(key, row);
+    }
+
     // Pre-resolve identity records for the whole chunk in two queries instead of
     // a 3×findUnique fan-out per user. Only users that arrive with both a real
     // external_user_id and a differing braze_id need identity reconciliation.
@@ -1101,10 +1133,7 @@ export async function POST(req: NextRequest) {
           // tail path never double-fires on the same flag in the same sync.
           const handledFlags = new Set<string>();
 
-          const flagAssignment = await prisma.userAgentAssignment.findFirst({
-            where: { externalUserId: externalId, releasedAt: null },
-            select: { agentId: true, enrollmentFlags: true },
-          });
+          const flagAssignment = assignmentByUser.get(externalId) ?? null;
           if (flagAssignment) {
             const { agentId: owningAgentId, enrollmentFlags: rawEnrollment } = flagAssignment;
             // Tolerant parse: corrupt/missing enrollmentFlags → null, so Type-A
@@ -1151,11 +1180,7 @@ export async function POST(req: NextRequest) {
             // Only the no-decision case is unmatched; an already-credited decision ID
             // means this sync already consumed that slot — skip silently, don't count it.
             for (const flagName of creditedFlags) {
-              const flagDecision = await prisma.userDecision.findFirst({
-                where: { userId: externalId, agentId: owningAgentId, conversionAt: null },
-                orderBy: { sentAt: "desc" },
-                include: { agent: { include: { goals: true } } },
-              });
+              const flagDecision = flagDecisionByUserAgent.get(`${externalId}::${owningAgentId}`) ?? null;
               if (flagDecision === null) {
                 // No unconverted decision exists — flag fired but there was no prior send.
                 unmatchedFlagConversions++;
@@ -1185,16 +1210,17 @@ export async function POST(req: NextRequest) {
           // a different agent that currently owns them.
           for (const flagName of detectTransitionedFlags(raw, storedAttrs)) {
             if (handledFlags.has(flagName)) continue;
-            const tailDecision = await prisma.userDecision.findFirst({
-              where: {
-                userId: externalId,
-                conversionAt: null,
-                sentAt: { gte: new Date(Date.now() - FLAG_ATTRIBUTION_WINDOW_MS) },
-                agent: { goals: { some: { eventName: flagName, conversionType: { not: null } } } },
-              },
-              orderBy: { sentAt: "desc" },
-              include: { agent: { include: { goals: true } } },
-            });
+            // Find the most recent pre-fetched decision for any agent that has a
+            // goal matching this flag. The map is ordered most-recent first within
+            // each (userId, agentId) key, so the first match across all agents wins.
+            const tailDecision = flagDecisionRows
+              .filter(
+                (r) =>
+                  r.userId === externalId &&
+                  !creditedDecisionIds.has(r.id) &&
+                  r.agent.goals.some((g) => g.eventName === flagName && g.conversionType !== null),
+              )
+              .at(0) ?? null;
             if (tailDecision !== null && !creditedDecisionIds.has(tailDecision.id)) {
               await applyConversion({
                 decision: tailDecision,
