@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
-import { Settings, X } from "lucide-react";
+import { Settings, X, ChevronDown } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -29,7 +29,8 @@ import {
 } from "@/types/agent";
 import { AgentColorPicker } from "./agent-color-picker";
 import { AgentDeeplinkOverrideField } from "./agent-deeplink-override-field";
-import { SegmentCheckList, type SegmentOption } from "./segment-check-list";
+import { type SegmentOption } from "./segment-check-list";
+import { SegmentMultiSelect } from "./segment-multi-select";
 import { resolveSegmentTargeting } from "@/lib/agent-targeting";
 import { cn, formatNumber } from "@/lib/utils";
 import {
@@ -191,6 +192,9 @@ export function AgentSettingsEditor({ agent, initialRule, startInEditMode }: Pro
   const [smartSuppress, setSmartSuppress] = useState(initialSmartSuppress);
   const [suppressThresh, setSuppressThresh] = useState(initialSuppressThresh);
   const [prioritizeLastSeen, setPrioritizeLastSeen] = useState(initialPrioritizeLastSeen);
+
+  // UI state
+  const [identityCollapsed, setIdentityCollapsed] = useState(false);
 
   // Segment options
   const [segments, setSegments] = useState<SegmentOption[]>([]);
@@ -541,24 +545,35 @@ export function AgentSettingsEditor({ agent, initialRule, startInEditMode }: Pro
 
       {/* Identity */}
       <Card>
-        <CardHeader><CardTitle className="text-sm font-semibold">Identity</CardTitle></CardHeader>
-        <CardContent className="space-y-4">
-          <div className="space-y-1.5">
-            <label className="text-sm font-medium">Name</label>
-            <Input value={name} onChange={(e) => setName(e.target.value)} placeholder="Agent name" />
-          </div>
-          <div className="space-y-1.5">
-            <label className="text-sm font-medium">Description</label>
-            <Textarea
-              value={description}
-              onChange={(e) => setDescription(e.target.value)}
-              placeholder="What does this agent do?"
-              rows={2}
-              className="resize-none text-sm"
-            />
-          </div>
-          <AgentColorPicker agentId={agent.id} currentColor={agent.color} usedColors={agent.usedColors} />
-        </CardContent>
+        <CardHeader>
+          <button
+            type="button"
+            className="flex w-full items-center justify-between"
+            onClick={() => setIdentityCollapsed((c) => !c)}
+          >
+            <CardTitle className="text-sm font-semibold">Identity</CardTitle>
+            <ChevronDown className={cn("h-4 w-4 text-muted-foreground transition-transform", identityCollapsed && "-rotate-90")} />
+          </button>
+        </CardHeader>
+        {!identityCollapsed && (
+          <CardContent className="space-y-4">
+            <div className="space-y-1.5">
+              <label className="text-sm font-medium">Name</label>
+              <Input value={name} onChange={(e) => setName(e.target.value)} placeholder="Agent name" />
+            </div>
+            <div className="space-y-1.5">
+              <label className="text-sm font-medium">Description</label>
+              <Textarea
+                value={description}
+                onChange={(e) => setDescription(e.target.value)}
+                placeholder="What does this agent do?"
+                rows={2}
+                className="resize-none text-sm"
+              />
+            </div>
+            <AgentColorPicker agentId={agent.id} currentColor={agent.color} usedColors={agent.usedColors} />
+          </CardContent>
+        )}
       </Card>
 
       {/* Algorithm */}
@@ -640,25 +655,26 @@ export function AgentSettingsEditor({ agent, initialRule, startInEditMode }: Pro
             <div className="space-y-1.5">
               <label className="text-sm font-medium">Include Segments (AND)</label>
               <p className="text-xs text-muted-foreground">User must be in ALL selected segments.</p>
-              <SegmentCheckList
+              <SegmentMultiSelect
                 segments={segments}
                 selected={segmentIncludes}
-                currentAgentTargetNames={initialIncludes}
+                disabledNames={new Set(segmentExcludes)}
                 onChange={setSegmentIncludes}
+                emptyText="No include segments — all users in the funnel stage are eligible."
               />
             </div>
           )}
 
-          {/* Excludes apply in BOTH modes — funnel-stage agents can carry
-              standalone excludes (matches the create wizard and the old sheet). */}
+          {/* Excludes apply in BOTH modes — funnel-stage agents can carry standalone excludes. */}
           <div className="space-y-1.5">
             <label className="text-sm font-medium">Exclude Segments (optional)</label>
             <p className="text-xs text-muted-foreground">User must NOT be in any selected segment.</p>
-            <SegmentCheckList
+            <SegmentMultiSelect
               segments={segments}
               selected={segmentExcludes}
-              currentAgentTargetNames={[]}
+              disabledNames={new Set(segmentIncludes)}
               onChange={setSegmentExcludes}
+              emptyText="No exclusions."
             />
           </div>
 

@@ -6,6 +6,8 @@ import { Check } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { AGENT_PALETTE } from "@/types/agent";
 
+const HEX_RE = /^#[0-9a-fA-F]{6}$/;
+
 interface AgentColorPickerProps {
   agentId: string;
   currentColor: string;
@@ -17,6 +19,8 @@ export function AgentColorPicker({ agentId, currentColor, usedColors }: AgentCol
   const [selected, setSelected] = useState(currentColor);
   const [saving, setSaving] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [hexInput, setHexInput] = useState("");
+  const hexValid = HEX_RE.test(hexInput);
 
   async function pick(hex: string) {
     if (hex === selected || saving) return;
@@ -84,9 +88,36 @@ export function AgentColorPicker({ agentId, currentColor, usedColors }: AgentCol
           );
         })}
       </div>
-      <p className="text-xs text-muted-foreground">
-        Small dot = already used by another agent.
-      </p>
+      <p className="text-xs text-muted-foreground">Small dot = already used by another agent.</p>
+
+      {/* Custom hex input */}
+      <div className="flex items-center gap-2">
+        <div
+          className="h-6 w-6 rounded border border-input shrink-0"
+          style={{ backgroundColor: hexValid ? hexInput : "transparent" }}
+        />
+        <input
+          type="text"
+          value={hexInput}
+          onChange={(e) => setHexInput(e.target.value)}
+          onKeyDown={(e) => { if (e.key === "Enter" && hexValid) pick(hexInput.toLowerCase()); }}
+          placeholder="#rrggbb"
+          maxLength={7}
+          className={cn(
+            "flex-1 h-8 rounded-md border bg-background px-2.5 text-sm font-mono outline-none transition-colors",
+            hexInput && !hexValid ? "border-destructive" : "border-input focus:border-ring",
+          )}
+        />
+        <button
+          type="button"
+          disabled={!hexValid || saving !== null}
+          onClick={() => pick(hexInput.toLowerCase())}
+          className="h-8 px-2.5 text-xs rounded-md border border-input bg-background hover:bg-muted transition-colors disabled:opacity-40"
+        >
+          Use
+        </button>
+      </div>
+
       {error && <p className="text-xs text-destructive" role="alert">{error}</p>}
     </div>
   );

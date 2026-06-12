@@ -24,7 +24,8 @@ import { YouVersionGoalPreset } from "@/lib/constants/youversion";
 import { isInteractionFlag } from "@/lib/constants/interaction-flags";
 import { resolveSegmentTargeting } from "@/lib/agent-targeting";
 import { AgentDeeplinkOverrideField } from "@/components/agents/agent-deeplink-override-field";
-import { SegmentCheckList, type SegmentOption } from "@/components/agents/segment-check-list";
+import { type SegmentOption } from "@/components/agents/segment-check-list";
+import { SegmentMultiSelect } from "@/components/agents/segment-multi-select";
 import { VERSE_PUSH_SENTINEL } from "@/lib/verse-content";
 
 const STEPS = [
@@ -585,11 +586,12 @@ export function AgentWizard({
                 <div className="space-y-1.5">
                   <label className="text-sm font-medium">Include Segments (AND)</label>
                   <p className="text-xs text-muted-foreground">User must be in ALL selected segments.</p>
-                  <SegmentCheckList
+                  <SegmentMultiSelect
                     segments={segments}
                     selected={form.segmentIncludes}
-                    currentAgentTargetNames={[]}
+                    disabledNames={new Set(form.segmentExcludes)}
                     onChange={(v) => update("segmentIncludes", v)}
+                    emptyText="No include segments — all users in the funnel stage are eligible."
                   />
                 </div>
               ) : (
@@ -615,11 +617,12 @@ export function AgentWizard({
               <div className="space-y-1.5">
                 <label className="text-sm font-medium">Exclude Segments (optional)</label>
                 <p className="text-xs text-muted-foreground">User must NOT be in any selected segment.</p>
-                <SegmentCheckList
+                <SegmentMultiSelect
                   segments={segments}
                   selected={form.segmentExcludes}
-                  currentAgentTargetNames={[]}
+                  disabledNames={new Set(form.segmentIncludes)}
                   onChange={(v) => update("segmentExcludes", v)}
+                  emptyText="No exclusions."
                 />
               </div>
             </CardContent>
