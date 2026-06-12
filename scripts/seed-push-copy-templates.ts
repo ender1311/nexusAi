@@ -541,13 +541,12 @@ const CATEGORIES: CategoryDef[] = [
   },
 
   // ── Guided Scripture ───────────────────────────────────────────────────────
-  // No subcategory split — subcategory is null for all variants.
   {
     category: "guided-scripture",
     messageName: "Guided Scripture Templates",
     variants: [
       {
-        subcategory: null,
+        subcategory: "guided-scripture",
         name: "Why Did This Happen — Doubt",
         title: '"Why did this happen?"',
         body: "Open Guided Scripture to learn how to wrestle with doubt.",
@@ -556,7 +555,7 @@ const CATEGORIES: CategoryDef[] = [
         actionFeatures: { tone: "question", hasPersonalization: false, ctaType: "deeplink", messageLengthBucket: "short", sourceFile: "2024-08-Guided-Scripture-Doubt-PUSH-1-en.json" },
       },
       {
-        subcategory: null,
+        subcategory: "guided-scripture",
         name: "Find Hope in Suffering",
         title: "❤️ Find hope in suffering",
         body: "Open Guided Scripture to discover how God meets you in the hard seasons.",
@@ -565,7 +564,7 @@ const CATEGORIES: CategoryDef[] = [
         actionFeatures: { tone: "empathy", hasPersonalization: false, ctaType: "deeplink", messageLengthBucket: "short", sourceFile: "2024-08-guided-scripture-suffering-PUSH-3-en.json" },
       },
       {
-        subcategory: null,
+        subcategory: "guided-scripture",
         name: "Can I Change — Transformation",
         title: '"Can I change?"',
         body: "God has the power to transform lives—including yours! Open Guided Scripture.",
@@ -574,7 +573,7 @@ const CATEGORIES: CategoryDef[] = [
         actionFeatures: { tone: "question", hasPersonalization: false, ctaType: "deeplink", messageLengthBucket: "short", sourceFile: "2025-01-guided-scripture-transformation-PUSH1-en.json" },
       },
       {
-        subcategory: null,
+        subcategory: "guided-scripture",
         name: "Fruit of the Spirit",
         title: '🍊 "The fruit of the Spirit is…"',
         body: "Learn more about Galatians 5 in Guided Scripture.",
@@ -583,7 +582,7 @@ const CATEGORIES: CategoryDef[] = [
         actionFeatures: { tone: "empathy", hasPersonalization: false, ctaType: "deeplink", messageLengthBucket: "short", sourceFile: "2024-10-guided-scripture-fruit-of-the-spirit-PUSH-en.json" },
       },
       {
-        subcategory: null,
+        subcategory: "guided-scripture",
         name: "When Life Is Tough — Honoring God",
         title: "When life is tough…",
         body: "How do you honor God? Open Guided Scripture for a three-day series on honoring God.",
@@ -592,7 +591,7 @@ const CATEGORIES: CategoryDef[] = [
         actionFeatures: { tone: "empathy", hasPersonalization: false, ctaType: "deeplink", messageLengthBucket: "medium", sourceFile: "2024-11-guided-scripture-honoring-god-PUSH-en.json" },
       },
       {
-        subcategory: null,
+        subcategory: "guided-scripture",
         name: "Explore the Sermon on the Mount",
         title: "⛰️ Explore the Sermon on the Mount",
         body: "Visit Guided Scripture this week for special content!",
@@ -602,7 +601,7 @@ const CATEGORIES: CategoryDef[] = [
       },
       // --- Dynamic VOTD variants (liquid tags resolved at send time) ---
       {
-        subcategory: null,
+        subcategory: "votd-dynamic",
         name: "VOTD: Label + Reference",
         title: "{{guided_scripture_label}}",
         body: "{{votd_reference}}",
@@ -611,7 +610,7 @@ const CATEGORIES: CategoryDef[] = [
         actionFeatures: { tone: "empathy", hasPersonalization: true, ctaType: "deeplink", messageLengthBucket: "short", sourceFile: "dynamic-votd" },
       },
       {
-        subcategory: null,
+        subcategory: "votd-dynamic",
         name: "VOTD: Label + Reference (Verse Image)",
         title: "{{guided_scripture_label}}",
         body: "{{votd_reference}}",
@@ -621,7 +620,7 @@ const CATEGORIES: CategoryDef[] = [
         actionFeatures: { tone: "empathy", hasPersonalization: true, ctaType: "deeplink", messageLengthBucket: "short", sourceFile: "dynamic-votd" },
       },
       {
-        subcategory: null,
+        subcategory: "votd-dynamic",
         name: "VOTD: Label + Verse Text",
         title: "{{guided_scripture_label}}",
         body: "{{votd_text}}",
@@ -630,7 +629,7 @@ const CATEGORIES: CategoryDef[] = [
         actionFeatures: { tone: "empathy", hasPersonalization: true, ctaType: "deeplink", messageLengthBucket: "medium", sourceFile: "dynamic-votd" },
       },
       {
-        subcategory: null,
+        subcategory: "votd-dynamic",
         name: "VOTD: Label + Verse Text (Verse Image)",
         title: "{{guided_scripture_label}}",
         body: "{{votd_text}}",
@@ -640,7 +639,7 @@ const CATEGORIES: CategoryDef[] = [
         actionFeatures: { tone: "empathy", hasPersonalization: true, ctaType: "deeplink", messageLengthBucket: "medium", sourceFile: "dynamic-votd" },
       },
       {
-        subcategory: null,
+        subcategory: "votd-dynamic",
         name: "VOTD: Reference + Label",
         title: "{{votd_reference}}",
         body: "{{guided_scripture_label}}",
@@ -649,7 +648,7 @@ const CATEGORIES: CategoryDef[] = [
         actionFeatures: { tone: "empathy", hasPersonalization: true, ctaType: "deeplink", messageLengthBucket: "short", sourceFile: "dynamic-votd" },
       },
       {
-        subcategory: null,
+        subcategory: "votd-dynamic",
         name: "VOTD: Reference + Label (Verse Image)",
         title: "{{votd_reference}}",
         body: "{{guided_scripture_label}}",

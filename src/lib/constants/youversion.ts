@@ -27,16 +27,18 @@ export const YOUVERSION_GOALS: YouVersionGoalPreset[] = [
 export const YOUVERSION_DEEPLINKS: PushDeeplink[] = [
   // General
   { label: "Home", value: "youversion://home", category: "General" },
-  { label: "Verse of the Day", value: "youversion://votd", category: "General" },
   { label: "Discover", value: "youversion://discover", category: "General" },
   { label: "Settings", value: "youversion://settings", category: "General" },
+  // Daily — VOTD-based features grouped together
+  { label: "Verse of the Day", value: "https://www.bible.com/verse-of-the-day", category: "Daily" },
+  { label: "Guided Prayer", value: "https://www.bible.com/guides/1", category: "Daily" },
+  { label: "Guided Scripture", value: "https://www.bible.com/stories", category: "Daily" },
   // Bible Plans
   { label: "Browse Plans", value: "youversion://plans", category: "Bible Plans" },
   { label: "My Plans", value: "youversion://plans/my", category: "Bible Plans" },
   { label: "Plan of the Year", value: "youversion://plans/featured", category: "Bible Plans" },
   // Reading
   { label: "Bible Reader", value: "youversion://bible", category: "Reading" },
-  { label: "Guided Scripture", value: "youversion://guided-scripture", category: "Reading" },
   { label: "Reading History", value: "youversion://bible/history", category: "Reading" },
   // Media
   { label: "Videos", value: "youversion://videos", category: "Media" },
@@ -49,7 +51,6 @@ export const YOUVERSION_DEEPLINKS: PushDeeplink[] = [
   { label: "Find Plans (web)", value: "https://www.bible.com/reading-plans", category: "Web Links" },
   { label: "My Plans (web)", value: "https://www.bible.com/my-plans", category: "Web Links" },
   { label: "Saved Plans (web)", value: "https://www.bible.com/saved_plans", category: "Web Links" },
-  { label: "Verse of the Day (web)", value: "https://www.bible.com/verse-of-the-day", category: "Web Links" },
 ];
 
 export const TESTED_VARIABLE_LABELS: Record<TestedVariable, string> = {

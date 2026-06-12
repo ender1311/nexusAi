@@ -41,7 +41,7 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "Invalid JSON" }, { status: 400 });
   }
 
-  const { agentId, userIds } = (body ?? {}) as Record<string, unknown>;
+  const { agentId, userIds, bypassQuietHours } = (body ?? {}) as Record<string, unknown>;
   if (typeof agentId !== "string" || !Array.isArray(userIds) || userIds.length === 0) {
     return NextResponse.json({ error: "agentId and non-empty userIds array required" }, { status: 400 });
   }
@@ -51,6 +51,7 @@ export async function POST(req: NextRequest) {
   if (!userIds.every((id) => typeof id === "string")) {
     return NextResponse.json({ error: "userIds must be strings" }, { status: 400 });
   }
+  const forceOverrideQuietHours = bypassQuietHours === true;
 
   const brazeClient = createBrazeClient();
   const factory = brazeClient ? new PayloadFactory() : null;
@@ -59,7 +60,7 @@ export async function POST(req: NextRequest) {
   const results: SendResult[] = await Promise.all(
     (userIds as string[]).map(async (userId): Promise<SendResult> => {
       try {
-        const decision = await decideForUser({ agentId, externalUserId: userId });
+        const decision = await decideForUser({ agentId, externalUserId: userId, bypassQuietHours: forceOverrideQuietHours });
         if (!decision) return { userId, status: "failed", reason: "agent not found or no variants" };
         if (decision.suppressed) return { userId, status: "suppressed", reason: decision.reason };
 

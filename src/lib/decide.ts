@@ -43,6 +43,12 @@ export type DecideInput = {
    * before calling decideForUser, eliminating per-user DB queries for those checks.
    */
   skipSchedulingChecks?: boolean;
+  /**
+   * Optional: set to true to bypass quiet hours / quiet days suppression only.
+   * Frequency cap and other checks still apply. Used by the demo send route so
+   * testers can force-send regardless of the agent's quiet hour window.
+   */
+  bypassQuietHours?: boolean;
   /** Optional: context about the user at decision time — stored on UserDecision for analysis
    *  and used as feature input when algorithm is "linucb". */
   context?: DecideContext;
@@ -68,7 +74,7 @@ export type DecideResult =
  * Returns DecideResult otherwise (may be suppressed if scheduling rules block the send).
  */
 export async function decideForUser(input: DecideInput): Promise<DecideResult | null> {
-  const { agentId, externalUserId, preloadedAgent, skipSchedulingChecks, context } = input;
+  const { agentId, externalUserId, preloadedAgent, skipSchedulingChecks, bypassQuietHours, context } = input;
 
   // 1. Fetch agent with all active variants and scheduling rule (skip if preloaded)
   const agent = preloadedAgent ?? await prisma.agent.findFirst({
@@ -144,24 +150,26 @@ export async function decideForUser(input: DecideInput): Promise<DecideResult | 
     // 4a. Quiet hours — suppress mode only; none/schedule skip the server-side check.
     // Backward compat: legacy records without mode default to suppress (or schedule if timezone="user").
     const quietHoursRaw = parseQuietHours(rule.quietHours);
-    const qhMode = quietHoursRaw?.mode ?? (quietHoursRaw?.timezone === "user" ? "schedule" : quietHoursRaw ? "suppress" : "none");
-    if (qhMode === "suppress" && quietHoursRaw?.start && quietHoursRaw?.end) {
-      const agentTz = quietHoursRaw.timezone ?? "UTC";
-      const attrs = user.attributes as Record<string, unknown>;
-      const userTz = typeof attrs?.timezone === "string" ? attrs.timezone : agentTz;
-      if (isInQuietHours(quietHoursRaw.start, quietHoursRaw.end, userTz, now)) {
-        return { suppressed: true, reason: "quiet_hours" };
+    if (!bypassQuietHours) {
+      const qhMode = quietHoursRaw?.mode ?? (quietHoursRaw?.timezone === "user" ? "schedule" : quietHoursRaw ? "suppress" : "none");
+      if (qhMode === "suppress" && quietHoursRaw?.start && quietHoursRaw?.end) {
+        const agentTz = quietHoursRaw.timezone ?? "UTC";
+        const attrs = user.attributes as Record<string, unknown>;
+        const userTz = typeof attrs?.timezone === "string" ? attrs.timezone : agentTz;
+        if (isInQuietHours(quietHoursRaw.start, quietHoursRaw.end, userTz, now)) {
+          return { suppressed: true, reason: "quiet_hours" };
+        }
       }
-    }
 
-    // 4a-b. Quiet days — suppress sends on specific days of week (independent of time-based quiet hours)
-    const quietDaysRaw = quietHoursRaw?.quietDays ?? [];
-    if (quietDaysRaw.length > 0) {
-      const agentTz2 = quietHoursRaw?.timezone ?? "UTC";
-      const attrs2 = user.attributes as Record<string, unknown>;
-      const userTz2 = typeof attrs2?.timezone === "string" ? attrs2.timezone : agentTz2;
-      if (isQuietDay(quietDaysRaw, userTz2, now)) {
-        return { suppressed: true, reason: "quiet_hours" };
+      // 4a-b. Quiet days — suppress sends on specific days of week (independent of time-based quiet hours)
+      const quietDaysRaw = quietHoursRaw?.quietDays ?? [];
+      if (quietDaysRaw.length > 0) {
+        const agentTz2 = quietHoursRaw?.timezone ?? "UTC";
+        const attrs2 = user.attributes as Record<string, unknown>;
+        const userTz2 = typeof attrs2?.timezone === "string" ? attrs2.timezone : agentTz2;
+        if (isQuietDay(quietDaysRaw, userTz2, now)) {
+          return { suppressed: true, reason: "quiet_hours" };
+        }
       }
     }
 

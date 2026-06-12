@@ -22,7 +22,7 @@ describe("push-categories catalogue", () => {
   });
 
   it("matches the canonical DB subcategory mapping", () => {
-    expect(PUSH_SUBCATEGORIES["guided-scripture"]).toEqual([]);
+    expect(PUSH_SUBCATEGORIES["guided-scripture"]).toEqual(["guided-scripture", "votd-dynamic"]);
     expect(PUSH_SUBCATEGORIES.votd).toEqual(["votd-page", "todays-story"]);
   });
 

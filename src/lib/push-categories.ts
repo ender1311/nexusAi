@@ -4,8 +4,7 @@
 // agent message pickers) derives from this list so the catalogue cannot drift.
 //
 // Ordering here is the canonical display order. Subcategory values match what is
-// stored on MessageVariant rows in the DB; `guided-scripture` intentionally has no
-// subcategories (its variants carry a null subcategory).
+// stored on MessageVariant rows in the DB.
 
 export type PushSubcategory = { value: string; label: string };
 export type PushCategory = { value: string; label: string; subcategories: PushSubcategory[] };
@@ -40,7 +39,10 @@ export const PUSH_CATEGORIES: PushCategory[] = [
   {
     value: "guided-scripture",
     label: "Guided Scripture",
-    subcategories: [],
+    subcategories: [
+      { value: "guided-scripture", label: "Guided Scripture" },
+      { value: "votd-dynamic", label: "Daily Verse (Dynamic)" },
+    ],
   },
   {
     value: "guided-prayer",
