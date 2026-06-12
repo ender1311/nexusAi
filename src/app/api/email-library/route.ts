@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { Prisma } from "@/generated/prisma/client";
 import { prisma } from "@/lib/db";
 import { ok, fail, handleRouteError } from "@/lib/api/respond";
-import { EMAIL_LIBRARY_AGENT_NAME, EMAIL_CATEGORY_VALUES, EMAIL_SUBCATEGORIES } from "@/lib/email-categories";
+import { EMAIL_CATEGORY_VALUES, EMAIL_SUBCATEGORIES } from "@/lib/email-categories";
 
 const FILTER_PARAMS = ["q", "category", "subcategory", "status", "sort", "dir", "limit", "cursor"];
 const SORT_FIELDS = new Set(["createdAt", "name", "sortOrder"]);
@@ -19,17 +19,12 @@ const SELECT = {
 
 export async function GET(req: NextRequest) {
   try {
-    const agent = await prisma.agent.findFirst({ where: { name: EMAIL_LIBRARY_AGENT_NAME } });
     const sp = new URL(req.url).searchParams;
     const hasFilters = FILTER_PARAMS.some((p) => sp.has(p));
 
-    if (!agent) {
-      return NextResponse.json({ data: hasFilters ? { items: [], total: 0, nextCursor: null } : [] });
-    }
-
     const status = sp.get("status");
     const where: Prisma.MessageVariantWhereInput = {
-      message: { agentId: agent.id },
+      message: { agentId: null, channel: "email" },
       status: status ? status : { not: "archived" },
     };
     const category = sp.get("category");
@@ -86,7 +81,7 @@ export async function GET(req: NextRequest) {
   }
 }
 
-// GET /api/email-library?id=<variantId>&html=true — returns full htmlBody for a single variant
+// PATCH /api/email-library?id=<variantId> — returns full htmlBody for a single variant
 export async function PATCH(req: NextRequest) {
   const sp = new URL(req.url).searchParams;
   const id = sp.get("id");
@@ -123,26 +118,12 @@ export async function POST(req: NextRequest) {
   if (subSlug && !EMAIL_SUBCATEGORIES[category]?.includes(subSlug)) return fail("invalid subcategory", 400);
 
   try {
-    let agent = await prisma.agent.findFirst({ where: { name: EMAIL_LIBRARY_AGENT_NAME } });
-    if (!agent) {
-      agent = await prisma.agent.create({
-        data: {
-          name: EMAIL_LIBRARY_AGENT_NAME,
-          description: "Canonical email templates. Never used for decisions — status stays draft.",
-          algorithm: "thompson",
-          epsilon: 0.1,
-          status: "draft",
-          funnelStage: "connected",
-        },
-      });
-    }
-
     let message = await prisma.message.findFirst({
-      where: { agentId: agent.id, variants: { some: { category } } },
+      where: { agentId: null, channel: "email", variants: { some: { category } } },
     });
     if (!message) {
       message = await prisma.message.create({
-        data: { agentId: agent.id, name: `${category} Email Templates`, channel: "email" },
+        data: { agentId: null, name: `${category} Email Templates`, channel: "email" },
       });
     }
 
@@ -152,7 +133,7 @@ export async function POST(req: NextRequest) {
         name: name.trim(),
         subject: subject.trim(),
         htmlBody: htmlBody.trim(),
-        body: subject.trim(), // use subject as body snippet for full-text search
+        body: subject.trim(),
         deeplink: typeof deeplink === "string" ? deeplink.trim() || null : null,
         cta: typeof cta === "string" ? cta.trim() || null : null,
         category,

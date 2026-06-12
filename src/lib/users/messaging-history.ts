@@ -22,7 +22,7 @@ export type DecisionForTimeline = {
   variant: {
     name: string;
     title: string | null;
-    message: { agent: { name: string } };
+    message: { agent: { name: string } | null };
   } | null;
 };
 
@@ -36,7 +36,7 @@ export function buildMessagingTimeline(decisions: DecisionForTimeline[]): Timeli
     const base = {
       decisionId: d.id,
       channel: d.channel,
-      agentName: d.variant?.message.agent.name ?? null,
+      agentName: d.variant?.message.agent?.name ?? null,
       variantName: d.variant?.name ?? null,
       variantTitle: d.variant?.title ?? null,
     };

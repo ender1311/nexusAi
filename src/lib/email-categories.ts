@@ -74,5 +74,3 @@ export const EMAIL_CATEGORY_VALUES: string[] = EMAIL_CATEGORIES.map((c) => c.val
 export const EMAIL_SUBCATEGORIES: Record<string, string[]> = Object.fromEntries(
   EMAIL_CATEGORIES.map((c) => [c.value, c.subcategories.map((s) => s.value)]),
 );
-
-export const EMAIL_LIBRARY_AGENT_NAME = "__email_library__";

@@ -3,7 +3,7 @@ import { revalidateTag } from "next/cache";
 import { Prisma } from "@/generated/prisma/client";
 import { prisma } from "@/lib/db";
 import { requireLibraryEditor } from "@/lib/auth";
-import { LIBRARY_AGENT_NAME } from "@/lib/engine/template-sync";
+
 import { ok, fail, handleRouteError } from "@/lib/api/respond";
 import { getPushTaxonomy } from "@/lib/cache/push-taxonomy";
 import { validateVariantTaxonomy } from "@/lib/push-taxonomy";
@@ -13,17 +13,12 @@ const SORT_FIELDS = new Set(["createdAt", "name", "sortOrder"]);
 
 export async function GET(req: NextRequest) {
   try {
-    const agent = await prisma.agent.findFirst({ where: { name: LIBRARY_AGENT_NAME } });
     const sp = new URL(req.url).searchParams;
     const hasFilters = FILTER_PARAMS.some((p) => sp.has(p));
 
-    if (!agent) {
-      return NextResponse.json({ data: hasFilters ? { items: [], total: 0, nextCursor: null } : [] });
-    }
-
     const status = sp.get("status");
     const where: Prisma.MessageVariantWhereInput = {
-      message: { agentId: agent.id },
+      message: { agentId: null, channel: "push" },
       status: status ? status : { not: "archived" },
     };
     const category = sp.get("category");
@@ -112,32 +107,13 @@ export async function POST(req: NextRequest) {
   if (!valid.ok) return fail(valid.error, 400);
 
   try {
-    // Find or create library agent
-    let agent = await prisma.agent.findFirst({ where: { name: LIBRARY_AGENT_NAME } });
-    if (!agent) {
-      agent = await prisma.agent.create({
-        data: {
-          name: LIBRARY_AGENT_NAME,
-          description: "Canonical push copy templates. Never used for decisions — status stays draft.",
-          algorithm: "thompson",
-          epsilon: 0.1,
-          status: "draft",
-          funnelStage: "connected",
-        },
-      });
-    }
-
-    // Find existing message for this category, or create one
+    // Find existing library message for this category, or create one (agentId = null = library)
     let message = await prisma.message.findFirst({
-      where: { agentId: agent.id, variants: { some: { category } } },
+      where: { agentId: null, channel: "push", variants: { some: { category } } },
     });
     if (!message) {
       message = await prisma.message.create({
-        data: {
-          agentId: agent.id,
-          name: `${category} Templates`,
-          channel: "push",
-        },
+        data: { agentId: null, name: `${category} Templates`, channel: "push" },
       });
     }
 

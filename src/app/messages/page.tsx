@@ -6,7 +6,7 @@ import { Header } from "@/components/layout/header";
 import { Button } from "@/components/ui/button";
 import { prisma } from "@/lib/db";
 import { getAuth } from "@/lib/auth";
-import { LIBRARY_AGENT_NAME } from "@/lib/engine/template-sync";
+
 import { TemplateFormSheet } from "@/components/push-library/template-form-sheet";
 import { ManageCategoriesSheet } from "@/components/push-library/manage-categories-sheet";
 import { PushLibraryClient } from "@/components/push-library/push-library-client";
@@ -15,13 +15,8 @@ import { PushTranslationUpload } from "@/components/messages/push-translation-up
 
 const getGroups = unstable_cache(
   async (): Promise<TemplateGroup[]> => {
-    const agent = await prisma.agent.findFirst({
-      where: { name: LIBRARY_AGENT_NAME },
-    });
-    if (!agent) return [];
-
     const variants = await prisma.messageVariant.findMany({
-      where: { message: { agentId: agent.id }, status: { not: "archived" } },
+      where: { message: { agentId: null, channel: "push" }, status: { not: "archived" } },
       select: {
         id: true,
         name: true,

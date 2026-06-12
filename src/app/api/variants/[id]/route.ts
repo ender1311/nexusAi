@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { revalidateTag } from "next/cache";
 import { prisma } from "@/lib/db";
-import { LIBRARY_AGENT_NAME, TEMPLATE_COPY_FIELDS } from "@/lib/engine/template-sync";
+import { TEMPLATE_COPY_FIELDS } from "@/lib/engine/template-sync";
 import { syncClonesFromTemplate } from "@/lib/services/template-service";
 import { requireLibraryEditor } from "@/lib/auth";
 import { getPushTaxonomy } from "@/lib/cache/push-taxonomy";
@@ -64,7 +64,7 @@ export async function PATCH(
   // rejected (400) rather than persisted. Single-level include only (Neon).
   const message = await prisma.message.findUnique({
     where: { id: variant.messageId },
-    include: { agent: { select: { name: true } } },
+    select: { agentId: true, channel: true },
   });
   if (message?.channel === "push") {
     const resultingTitle = "title" in updateData ? updateData.title : variant.title;
@@ -94,7 +94,7 @@ export async function PATCH(
 
   // If this is a template variant, sync copy fields to all clones.
   let clonesUpdated = 0;
-  if (message?.agent?.name === LIBRARY_AGENT_NAME) {
+  if (message?.agentId === null) {
     const copyData = Object.fromEntries(
       TEMPLATE_COPY_FIELDS.map((f) => [f, (updated as Record<string, unknown>)[f]])
     );

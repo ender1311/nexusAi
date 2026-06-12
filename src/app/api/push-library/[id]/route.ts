@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { revalidateTag } from "next/cache";
 import { prisma } from "@/lib/db";
 import { requireLibraryEditor } from "@/lib/auth";
-import { LIBRARY_AGENT_NAME } from "@/lib/engine/template-sync";
+
 import { fail, handleRouteError } from "@/lib/api/respond";
 
 export async function DELETE(
@@ -16,14 +16,14 @@ export async function DELETE(
   try {
     const variant = await prisma.messageVariant.findUnique({
       where: { id },
-      include: { message: { include: { agent: { select: { name: true } } } } },
+      select: { id: true, message: { select: { agentId: true } } },
     });
 
     if (!variant) {
       return fail("Template not found", 404);
     }
 
-    if (variant.message.agent.name !== LIBRARY_AGENT_NAME) {
+    if (variant.message.agentId !== null) {
       return fail("Not a library template", 400);
     }
 

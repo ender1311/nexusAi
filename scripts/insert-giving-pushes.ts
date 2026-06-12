@@ -1,15 +1,14 @@
 // Bulk-insert the curated giving push library (docs/json/giving-push-library.json) into
-// the push copy library as MessageVariant rows under the LIBRARY_AGENT_NAME agent.
+// the push copy library as MessageVariant rows (agentId = null = library).
 //
 // SAFETY: dry-run by default — prints the plan and writes NOTHING. Pass --commit to
-// insert. Idempotent: skips any entry whose name already exists under the library
-// agent, so re-runs never duplicate. Create-only — never updates or deletes.
+// insert. Idempotent: skips any entry whose name already exists in the library,
+// so re-runs never duplicate. Create-only — never updates or deletes.
 // prisma here targets the .env.local DB (production) per CLAUDE.md, so review the
 // dry-run before passing --commit.
 import * as fs from "fs";
 import * as path from "path";
 import { prisma } from "@/lib/db";
-import { LIBRARY_AGENT_NAME } from "@/lib/engine/template-sync";
 
 type Entry = {
   name: string;
@@ -29,47 +28,25 @@ async function main() {
   const entries = JSON.parse(raw) as Entry[];
   console.log(`Loaded ${entries.length} entries from ${JSON_PATH}`);
 
-  // Find or create the library agent (mirrors POST /api/push-library).
-  let agent = await prisma.agent.findFirst({ where: { name: LIBRARY_AGENT_NAME } });
-  if (!agent) {
-    if (!COMMIT) {
-      console.log(`[dry-run] would create library agent "${LIBRARY_AGENT_NAME}"`);
-    } else {
-      agent = await prisma.agent.create({
-        data: {
-          name: LIBRARY_AGENT_NAME,
-          description: "Canonical push copy templates. Never used for decisions — status stays draft.",
-          algorithm: "thompson",
-          epsilon: 0.1,
-          status: "draft",
-          funnelStage: "connected",
-        },
-      });
-      console.log(`Created library agent ${agent.id}`);
-    }
-  }
-
-  // Find or create the "giving" category message.
-  let message = agent
-    ? await prisma.message.findFirst({
-        where: { agentId: agent.id, variants: { some: { category: "giving" } } },
-      })
-    : null;
+  // Find or create the "giving" category message (agentId = null = library).
+  let message = await prisma.message.findFirst({
+    where: { agentId: null, channel: "push", variants: { some: { category: "giving" } } },
+  });
   if (!message) {
     if (!COMMIT) {
-      console.log(`[dry-run] would create message "giving Templates"`);
+      console.log(`[dry-run] would create library message "giving Templates"`);
     } else {
       message = await prisma.message.create({
-        data: { agentId: agent!.id, name: "giving Templates", channel: "push" },
+        data: { agentId: null, name: "giving Templates", channel: "push" },
       });
       console.log(`Created message ${message.id}`);
     }
   }
 
-  // Existing names under the library agent → skip to stay idempotent.
-  const existing = agent
+  // Existing names in the library → skip to stay idempotent.
+  const existing = message
     ? await prisma.messageVariant.findMany({
-        where: { message: { agentId: agent.id } },
+        where: { message: { agentId: null, channel: "push" } },
         select: { name: true },
       })
     : [];

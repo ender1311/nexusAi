@@ -11,7 +11,6 @@
 import * as fs from "fs";
 import * as path from "path";
 import { prisma } from "@/lib/db";
-import { EMAIL_LIBRARY_AGENT_NAME } from "@/lib/email-categories";
 
 const isDryRun = !process.argv.includes("--commit");
 
@@ -231,32 +230,14 @@ async function main() {
   }
 
   // --- Commit ---
-  // Ensure email library agent exists
-  let agent = await prisma.agent.findFirst({ where: { name: EMAIL_LIBRARY_AGENT_NAME } });
-  if (!agent) {
-    agent = await prisma.agent.create({
-      data: {
-        name: EMAIL_LIBRARY_AGENT_NAME,
-        description: "Canonical email templates from YouVersion campaign history. Never used for decisions.",
-        algorithm: "thompson",
-        epsilon: 0.1,
-        status: "draft",
-        funnelStage: "connected",
-      },
-    });
-    console.log(`\nCreated agent: ${agent.id}`);
-  } else {
-    console.log(`\nUsing existing agent: ${agent.id}`);
-  }
-
-  // Cache messages per category
+  // Cache messages per category (agentId = null = library)
   const messageCache = new Map<string, string>();
   const getOrCreateMessage = async (cat: string): Promise<string> => {
     if (messageCache.has(cat)) return messageCache.get(cat)!;
-    let msg = await prisma.message.findFirst({ where: { agentId: agent!.id, name: `${cat} Email Templates` } });
+    let msg = await prisma.message.findFirst({ where: { agentId: null, channel: "email", name: `${cat} Email Templates` } });
     if (!msg) {
       msg = await prisma.message.create({
-        data: { agentId: agent!.id, name: `${cat} Email Templates`, channel: "email" },
+        data: { agentId: null, name: `${cat} Email Templates`, channel: "email" },
       });
     }
     messageCache.set(cat, msg.id);

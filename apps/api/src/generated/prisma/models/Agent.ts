@@ -888,6 +888,11 @@ export type AgentScalarRelationFilter = {
   isNot?: Prisma.AgentWhereInput
 }
 
+export type AgentNullableScalarRelationFilter = {
+  is?: Prisma.AgentWhereInput | null
+  isNot?: Prisma.AgentWhereInput | null
+}
+
 export type StringFieldUpdateOperationsInput = {
   set?: string
 }
@@ -952,10 +957,12 @@ export type AgentCreateNestedOneWithoutMessagesInput = {
   connect?: Prisma.AgentWhereUniqueInput
 }
 
-export type AgentUpdateOneRequiredWithoutMessagesNestedInput = {
+export type AgentUpdateOneWithoutMessagesNestedInput = {
   create?: Prisma.XOR<Prisma.AgentCreateWithoutMessagesInput, Prisma.AgentUncheckedCreateWithoutMessagesInput>
   connectOrCreate?: Prisma.AgentCreateOrConnectWithoutMessagesInput
   upsert?: Prisma.AgentUpsertWithoutMessagesInput
+  disconnect?: Prisma.AgentWhereInput | boolean
+  delete?: Prisma.AgentWhereInput | boolean
   connect?: Prisma.AgentWhereUniqueInput
   update?: Prisma.XOR<Prisma.XOR<Prisma.AgentUpdateToOneWithWhereWithoutMessagesInput, Prisma.AgentUpdateWithoutMessagesInput>, Prisma.AgentUncheckedUpdateWithoutMessagesInput>
 }

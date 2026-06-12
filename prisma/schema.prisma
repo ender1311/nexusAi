@@ -71,7 +71,7 @@ model Goal {
 
 model Message {
   id              String   @id @default(cuid())
-  agentId         String
+  agentId         String?  // null = library message (push or email); non-null = owned by an agent
   name            String
   channel         String
   brazeCampaignId String?
@@ -79,7 +79,7 @@ model Message {
   testedVariables Json     @default("[]")
   createdAt       DateTime @default(now())
 
-  agent    Agent            @relation(fields: [agentId], references: [id], onDelete: Cascade)
+  agent    Agent?           @relation(fields: [agentId], references: [id], onDelete: Cascade)
   variants MessageVariant[]
 
   @@index([agentId])

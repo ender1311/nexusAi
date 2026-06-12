@@ -1,42 +1,35 @@
 export const revalidate = 60;
 
 import { prisma } from "@/lib/db";
-import { EMAIL_LIBRARY_AGENT_NAME } from "@/lib/email-categories";
 import { EmailLibraryClient, type EmailGroup } from "@/components/email-library/email-library-client";
 import type { EmailVariant } from "@/components/email-library/email-card";
 
 export default async function EmailLibraryPage() {
-  const agent = await prisma.agent.findFirst({ where: { name: EMAIL_LIBRARY_AGENT_NAME } });
-
-  let groups: EmailGroup[] = [];
-
-  if (agent) {
-    const variants = await prisma.messageVariant.findMany({
-      where: { message: { agentId: agent.id }, status: { not: "archived" } },
-      select: {
-        id: true, name: true, subject: true, body: true, deeplink: true,
-        cta: true, status: true, category: true, subcategory: true, sortOrder: true,
-        translations: {
-          select: { language: true, subject: true, status: true },
-          where: { status: "active" },
-        },
+  const variants = await prisma.messageVariant.findMany({
+    where: { message: { agentId: null, channel: "email" }, status: { not: "archived" } },
+    select: {
+      id: true, name: true, subject: true, body: true, deeplink: true,
+      cta: true, status: true, category: true, subcategory: true, sortOrder: true,
+      translations: {
+        select: { language: true, subject: true, status: true },
+        where: { status: "active" },
       },
-      orderBy: [{ category: "asc" }, { subcategory: "asc" }, { sortOrder: "asc" }, { createdAt: "asc" }],
-    });
+    },
+    orderBy: [{ category: "asc" }, { subcategory: "asc" }, { sortOrder: "asc" }, { createdAt: "asc" }],
+  });
 
-    const grouped = new Map<string, Map<string | null, EmailVariant[]>>();
-    for (const v of variants) {
-      const cat = v.category ?? "uncategorized";
-      if (!grouped.has(cat)) grouped.set(cat, new Map());
-      const subMap = grouped.get(cat)!;
-      const sub = v.subcategory ?? null;
-      if (!subMap.has(sub)) subMap.set(sub, []);
-      subMap.get(sub)!.push(v as EmailVariant);
-    }
-    groups = Array.from(grouped.entries()).flatMap(([c, subMap]) =>
-      Array.from(subMap.entries()).map(([s, vs]) => ({ category: c, subcategory: s, variants: vs })),
-    );
+  const grouped = new Map<string, Map<string | null, EmailVariant[]>>();
+  for (const v of variants) {
+    const cat = v.category ?? "uncategorized";
+    if (!grouped.has(cat)) grouped.set(cat, new Map());
+    const subMap = grouped.get(cat)!;
+    const sub = v.subcategory ?? null;
+    if (!subMap.has(sub)) subMap.set(sub, []);
+    subMap.get(sub)!.push(v as EmailVariant);
   }
+  const groups: EmailGroup[] = Array.from(grouped.entries()).flatMap(([c, subMap]) =>
+    Array.from(subMap.entries()).map(([s, vs]) => ({ category: c, subcategory: s, variants: vs })),
+  );
 
   const totalVariants = groups.reduce((n, g) => n + g.variants.length, 0);
   const totalLanguages = new Set(

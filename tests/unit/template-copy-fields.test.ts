@@ -6,7 +6,7 @@
  * Any change to this constant should be intentional and reviewed carefully.
  */
 import { describe, expect, it } from "bun:test";
-import { TEMPLATE_COPY_FIELDS, LIBRARY_AGENT_NAME } from "@/lib/engine/template-sync";
+import { TEMPLATE_COPY_FIELDS } from "@/lib/engine/template-sync";
 
 describe("TEMPLATE_COPY_FIELDS", () => {
   it("contains exactly the expected fields in any order", () => {
@@ -51,13 +51,3 @@ describe("TEMPLATE_COPY_FIELDS", () => {
   });
 });
 
-describe("LIBRARY_AGENT_NAME", () => {
-  it("is a non-empty string", () => {
-    expect(typeof LIBRARY_AGENT_NAME).toBe("string");
-    expect(LIBRARY_AGENT_NAME.length).toBeGreaterThan(0);
-  });
-
-  it("equals Push Copy Library (the known DB value)", () => {
-    expect(LIBRARY_AGENT_NAME).toBe("Push Copy Library");
-  });
-});

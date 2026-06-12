@@ -163,7 +163,7 @@ export type MessageGroupByArgs<ExtArgs extends runtime.Types.Extensions.Internal
 
 export type MessageGroupByOutputType = {
   id: string
-  agentId: string
+  agentId: string | null
   name: string
   channel: string
   brazeCampaignId: string | null
@@ -195,20 +195,20 @@ export type MessageWhereInput = {
   OR?: Prisma.MessageWhereInput[]
   NOT?: Prisma.MessageWhereInput | Prisma.MessageWhereInput[]
   id?: Prisma.StringFilter<"Message"> | string
-  agentId?: Prisma.StringFilter<"Message"> | string
+  agentId?: Prisma.StringNullableFilter<"Message"> | string | null
   name?: Prisma.StringFilter<"Message"> | string
   channel?: Prisma.StringFilter<"Message"> | string
   brazeCampaignId?: Prisma.StringNullableFilter<"Message"> | string | null
   brazeCanvasId?: Prisma.StringNullableFilter<"Message"> | string | null
   testedVariables?: Prisma.JsonFilter<"Message">
   createdAt?: Prisma.DateTimeFilter<"Message"> | Date | string
-  agent?: Prisma.XOR<Prisma.AgentScalarRelationFilter, Prisma.AgentWhereInput>
+  agent?: Prisma.XOR<Prisma.AgentNullableScalarRelationFilter, Prisma.AgentWhereInput> | null
   variants?: Prisma.MessageVariantListRelationFilter
 }
 
 export type MessageOrderByWithRelationInput = {
   id?: Prisma.SortOrder
-  agentId?: Prisma.SortOrder
+  agentId?: Prisma.SortOrderInput | Prisma.SortOrder
   name?: Prisma.SortOrder
   channel?: Prisma.SortOrder
   brazeCampaignId?: Prisma.SortOrderInput | Prisma.SortOrder
@@ -224,20 +224,20 @@ export type MessageWhereUniqueInput = Prisma.AtLeast<{
   AND?: Prisma.MessageWhereInput | Prisma.MessageWhereInput[]
   OR?: Prisma.MessageWhereInput[]
   NOT?: Prisma.MessageWhereInput | Prisma.MessageWhereInput[]
-  agentId?: Prisma.StringFilter<"Message"> | string
+  agentId?: Prisma.StringNullableFilter<"Message"> | string | null
   name?: Prisma.StringFilter<"Message"> | string
   channel?: Prisma.StringFilter<"Message"> | string
   brazeCampaignId?: Prisma.StringNullableFilter<"Message"> | string | null
   brazeCanvasId?: Prisma.StringNullableFilter<"Message"> | string | null
   testedVariables?: Prisma.JsonFilter<"Message">
   createdAt?: Prisma.DateTimeFilter<"Message"> | Date | string
-  agent?: Prisma.XOR<Prisma.AgentScalarRelationFilter, Prisma.AgentWhereInput>
+  agent?: Prisma.XOR<Prisma.AgentNullableScalarRelationFilter, Prisma.AgentWhereInput> | null
   variants?: Prisma.MessageVariantListRelationFilter
 }, "id">
 
 export type MessageOrderByWithAggregationInput = {
   id?: Prisma.SortOrder
-  agentId?: Prisma.SortOrder
+  agentId?: Prisma.SortOrderInput | Prisma.SortOrder
   name?: Prisma.SortOrder
   channel?: Prisma.SortOrder
   brazeCampaignId?: Prisma.SortOrderInput | Prisma.SortOrder
@@ -254,7 +254,7 @@ export type MessageScalarWhereWithAggregatesInput = {
   OR?: Prisma.MessageScalarWhereWithAggregatesInput[]
   NOT?: Prisma.MessageScalarWhereWithAggregatesInput | Prisma.MessageScalarWhereWithAggregatesInput[]
   id?: Prisma.StringWithAggregatesFilter<"Message"> | string
-  agentId?: Prisma.StringWithAggregatesFilter<"Message"> | string
+  agentId?: Prisma.StringNullableWithAggregatesFilter<"Message"> | string | null
   name?: Prisma.StringWithAggregatesFilter<"Message"> | string
   channel?: Prisma.StringWithAggregatesFilter<"Message"> | string
   brazeCampaignId?: Prisma.StringNullableWithAggregatesFilter<"Message"> | string | null
@@ -271,13 +271,13 @@ export type MessageCreateInput = {
   brazeCanvasId?: string | null
   testedVariables?: Prisma.JsonNullValueInput | runtime.InputJsonValue
   createdAt?: Date | string
-  agent: Prisma.AgentCreateNestedOneWithoutMessagesInput
+  agent?: Prisma.AgentCreateNestedOneWithoutMessagesInput
   variants?: Prisma.MessageVariantCreateNestedManyWithoutMessageInput
 }
 
 export type MessageUncheckedCreateInput = {
   id?: string
-  agentId: string
+  agentId?: string | null
   name: string
   channel: string
   brazeCampaignId?: string | null
@@ -295,13 +295,13 @@ export type MessageUpdateInput = {
   brazeCanvasId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   testedVariables?: Prisma.JsonNullValueInput | runtime.InputJsonValue
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
-  agent?: Prisma.AgentUpdateOneRequiredWithoutMessagesNestedInput
+  agent?: Prisma.AgentUpdateOneWithoutMessagesNestedInput
   variants?: Prisma.MessageVariantUpdateManyWithoutMessageNestedInput
 }
 
 export type MessageUncheckedUpdateInput = {
   id?: Prisma.StringFieldUpdateOperationsInput | string
-  agentId?: Prisma.StringFieldUpdateOperationsInput | string
+  agentId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   name?: Prisma.StringFieldUpdateOperationsInput | string
   channel?: Prisma.StringFieldUpdateOperationsInput | string
   brazeCampaignId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
@@ -313,7 +313,7 @@ export type MessageUncheckedUpdateInput = {
 
 export type MessageCreateManyInput = {
   id?: string
-  agentId: string
+  agentId?: string | null
   name: string
   channel: string
   brazeCampaignId?: string | null
@@ -334,7 +334,7 @@ export type MessageUpdateManyMutationInput = {
 
 export type MessageUncheckedUpdateManyInput = {
   id?: Prisma.StringFieldUpdateOperationsInput | string
-  agentId?: Prisma.StringFieldUpdateOperationsInput | string
+  agentId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   name?: Prisma.StringFieldUpdateOperationsInput | string
   channel?: Prisma.StringFieldUpdateOperationsInput | string
   brazeCampaignId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
@@ -498,7 +498,7 @@ export type MessageScalarWhereInput = {
   OR?: Prisma.MessageScalarWhereInput[]
   NOT?: Prisma.MessageScalarWhereInput | Prisma.MessageScalarWhereInput[]
   id?: Prisma.StringFilter<"Message"> | string
-  agentId?: Prisma.StringFilter<"Message"> | string
+  agentId?: Prisma.StringNullableFilter<"Message"> | string | null
   name?: Prisma.StringFilter<"Message"> | string
   channel?: Prisma.StringFilter<"Message"> | string
   brazeCampaignId?: Prisma.StringNullableFilter<"Message"> | string | null
@@ -515,12 +515,12 @@ export type MessageCreateWithoutVariantsInput = {
   brazeCanvasId?: string | null
   testedVariables?: Prisma.JsonNullValueInput | runtime.InputJsonValue
   createdAt?: Date | string
-  agent: Prisma.AgentCreateNestedOneWithoutMessagesInput
+  agent?: Prisma.AgentCreateNestedOneWithoutMessagesInput
 }
 
 export type MessageUncheckedCreateWithoutVariantsInput = {
   id?: string
-  agentId: string
+  agentId?: string | null
   name: string
   channel: string
   brazeCampaignId?: string | null
@@ -553,12 +553,12 @@ export type MessageUpdateWithoutVariantsInput = {
   brazeCanvasId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   testedVariables?: Prisma.JsonNullValueInput | runtime.InputJsonValue
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
-  agent?: Prisma.AgentUpdateOneRequiredWithoutMessagesNestedInput
+  agent?: Prisma.AgentUpdateOneWithoutMessagesNestedInput
 }
 
 export type MessageUncheckedUpdateWithoutVariantsInput = {
   id?: Prisma.StringFieldUpdateOperationsInput | string
-  agentId?: Prisma.StringFieldUpdateOperationsInput | string
+  agentId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   name?: Prisma.StringFieldUpdateOperationsInput | string
   channel?: Prisma.StringFieldUpdateOperationsInput | string
   brazeCampaignId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
@@ -649,7 +649,7 @@ export type MessageSelect<ExtArgs extends runtime.Types.Extensions.InternalArgs 
   brazeCanvasId?: boolean
   testedVariables?: boolean
   createdAt?: boolean
-  agent?: boolean | Prisma.AgentDefaultArgs<ExtArgs>
+  agent?: boolean | Prisma.Message$agentArgs<ExtArgs>
   variants?: boolean | Prisma.Message$variantsArgs<ExtArgs>
   _count?: boolean | Prisma.MessageCountOutputTypeDefaultArgs<ExtArgs>
 }, ExtArgs["result"]["message"]>
@@ -663,7 +663,7 @@ export type MessageSelectCreateManyAndReturn<ExtArgs extends runtime.Types.Exten
   brazeCanvasId?: boolean
   testedVariables?: boolean
   createdAt?: boolean
-  agent?: boolean | Prisma.AgentDefaultArgs<ExtArgs>
+  agent?: boolean | Prisma.Message$agentArgs<ExtArgs>
 }, ExtArgs["result"]["message"]>
 
 export type MessageSelectUpdateManyAndReturn<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = runtime.Types.Extensions.GetSelect<{
@@ -675,7 +675,7 @@ export type MessageSelectUpdateManyAndReturn<ExtArgs extends runtime.Types.Exten
   brazeCanvasId?: boolean
   testedVariables?: boolean
   createdAt?: boolean
-  agent?: boolean | Prisma.AgentDefaultArgs<ExtArgs>
+  agent?: boolean | Prisma.Message$agentArgs<ExtArgs>
 }, ExtArgs["result"]["message"]>
 
 export type MessageSelectScalar = {
@@ -691,26 +691,26 @@ export type MessageSelectScalar = {
 
 export type MessageOmit<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = runtime.Types.Extensions.GetOmit<"id" | "agentId" | "name" | "channel" | "brazeCampaignId" | "brazeCanvasId" | "testedVariables" | "createdAt", ExtArgs["result"]["message"]>
 export type MessageInclude<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
-  agent?: boolean | Prisma.AgentDefaultArgs<ExtArgs>
+  agent?: boolean | Prisma.Message$agentArgs<ExtArgs>
   variants?: boolean | Prisma.Message$variantsArgs<ExtArgs>
   _count?: boolean | Prisma.MessageCountOutputTypeDefaultArgs<ExtArgs>
 }
 export type MessageIncludeCreateManyAndReturn<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
-  agent?: boolean | Prisma.AgentDefaultArgs<ExtArgs>
+  agent?: boolean | Prisma.Message$agentArgs<ExtArgs>
 }
 export type MessageIncludeUpdateManyAndReturn<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
-  agent?: boolean | Prisma.AgentDefaultArgs<ExtArgs>
+  agent?: boolean | Prisma.Message$agentArgs<ExtArgs>
 }
 
 export type $MessagePayload<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
   name: "Message"
   objects: {
-    agent: Prisma.$AgentPayload<ExtArgs>
+    agent: Prisma.$AgentPayload<ExtArgs> | null
     variants: Prisma.$MessageVariantPayload<ExtArgs>[]
   }
   scalars: runtime.Types.Extensions.GetPayloadResult<{
     id: string
-    agentId: string
+    agentId: string | null
     name: string
     channel: string
     brazeCampaignId: string | null
@@ -1111,7 +1111,7 @@ readonly fields: MessageFieldRefs;
  */
 export interface Prisma__MessageClient<T, Null = never, ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs, GlobalOmitOptions = {}> extends Prisma.PrismaPromise<T> {
   readonly [Symbol.toStringTag]: "PrismaPromise"
-  agent<T extends Prisma.AgentDefaultArgs<ExtArgs> = {}>(args?: Prisma.Subset<T, Prisma.AgentDefaultArgs<ExtArgs>>): Prisma.Prisma__AgentClient<runtime.Types.Result.GetResult<Prisma.$AgentPayload<ExtArgs>, T, "findUniqueOrThrow", GlobalOmitOptions> | Null, Null, ExtArgs, GlobalOmitOptions>
+  agent<T extends Prisma.Message$agentArgs<ExtArgs> = {}>(args?: Prisma.Subset<T, Prisma.Message$agentArgs<ExtArgs>>): Prisma.Prisma__AgentClient<runtime.Types.Result.GetResult<Prisma.$AgentPayload<ExtArgs>, T, "findUniqueOrThrow", GlobalOmitOptions> | null, null, ExtArgs, GlobalOmitOptions>
   variants<T extends Prisma.Message$variantsArgs<ExtArgs> = {}>(args?: Prisma.Subset<T, Prisma.Message$variantsArgs<ExtArgs>>): Prisma.PrismaPromise<runtime.Types.Result.GetResult<Prisma.$MessageVariantPayload<ExtArgs>, T, "findMany", GlobalOmitOptions> | Null>
   /**
    * Attaches callbacks for the resolution and/or rejection of the Promise.
@@ -1548,6 +1548,25 @@ export type MessageDeleteManyArgs<ExtArgs extends runtime.Types.Extensions.Inter
    * Limit how many Messages to delete.
    */
   limit?: number
+}
+
+/**
+ * Message.agent
+ */
+export type Message$agentArgs<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
+  /**
+   * Select specific fields to fetch from the Agent
+   */
+  select?: Prisma.AgentSelect<ExtArgs> | null
+  /**
+   * Omit specific fields from the Agent
+   */
+  omit?: Prisma.AgentOmit<ExtArgs> | null
+  /**
+   * Choose, which related nodes to fetch as well
+   */
+  include?: Prisma.AgentInclude<ExtArgs> | null
+  where?: Prisma.AgentWhereInput
 }
 
 /**

@@ -3,7 +3,7 @@ export const maxDuration = 300;
 import { NextRequest, NextResponse } from "next/server";
 import { constantTimeEqual } from "@/lib/constant-time-compare";
 import { prisma } from "@/lib/db";
-import { LIBRARY_AGENT_NAME, TEMPLATE_COPY_FIELDS } from "@/lib/engine/template-sync";
+import { TEMPLATE_COPY_FIELDS } from "@/lib/engine/template-sync";
 import { syncClonesFromTemplate } from "@/lib/services/template-service";
 
 function verifyAuth(req: NextRequest): boolean {
@@ -22,7 +22,7 @@ export async function GET(req: NextRequest) {
   // must propagate their status to clones so agent variants stop being sent.
   const templates = await prisma.messageVariant.findMany({
     where: {
-      message: { agent: { name: LIBRARY_AGENT_NAME } },
+      message: { agentId: null, channel: "push" },
     },
   });
 

@@ -5,8 +5,6 @@
 import { cache } from "react";
 import { unstable_cache } from "next/cache";
 import { prisma } from "@/lib/db";
-import { LIBRARY_AGENT_NAME } from "@/lib/engine/template-sync";
-import { EMAIL_LIBRARY_AGENT_NAME } from "@/lib/email-categories";
 import { TTL } from "./ttl";
 
 /** Full agent detail with all relations. Tagged for targeted invalidation. */
@@ -104,7 +102,7 @@ export const getCachedAgentList = cache(
   unstable_cache(
     () =>
       prisma.agent.findMany({
-        where: { name: { notIn: [LIBRARY_AGENT_NAME, EMAIL_LIBRARY_AGENT_NAME] } },
+        where: {},
         select: {
           id: true,
           name: true,
@@ -122,7 +120,7 @@ export const getCachedAgentList = cache(
 export const getCachedControlTowerAgents = cache(unstable_cache(
   () =>
     prisma.agent.findMany({
-      where: { name: { notIn: [LIBRARY_AGENT_NAME, EMAIL_LIBRARY_AGENT_NAME] } },
+      where: {},
       select: { id: true, name: true, description: true, status: true, funnelStage: true, color: true, sendingPaused: true },
       orderBy: { updatedAt: "desc" },
     }),
