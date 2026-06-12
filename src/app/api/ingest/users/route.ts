@@ -274,6 +274,7 @@ async function attributeCanvasOpen(
   if (!variant) return false;
 
   const { agentId } = variant.message;
+  if (!agentId) return false; // library variants have no agent — nothing to attribute
   const variantId   = variant.id;
 
   // Try to stamp an existing decision (from a Nexus-controlled send of this variant).
