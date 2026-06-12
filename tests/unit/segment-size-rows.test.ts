@@ -3,14 +3,14 @@ import { mergeSegmentSizeRows, bestSize, type RuleSegInput, type HtSegInput } fr
 
 const baseRule = (over: Partial<RuleSegInput>): RuleSegInput => ({
   id: "s1", name: "Rule A", description: null, estimate: 100,
-  sizeExact: null, sizeComputedAt: null, updatedAt: new Date("2026-06-01T00:00:00Z"),
+  sizeExact: null, sizeComputedAt: null, updatedAt: "2026-06-01T00:00:00.000Z",
   ...over,
 });
 
 describe("mergeSegmentSizeRows", () => {
   it("tags each source with its kind and serializes dates to ISO strings", () => {
     const rows = mergeSegmentSizeRows(
-      [baseRule({ sizeComputedAt: new Date("2026-06-02T03:04:05Z") })],
+      [baseRule({ sizeComputedAt: "2026-06-02T03:04:05.000Z" })],
       [{ name: "ht-seg", userCount: 5, assignedTo: "Agent X" }],
     );
     const rule = rows.find((r) => r.kind === "rule")!;

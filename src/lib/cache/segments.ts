@@ -54,11 +54,13 @@ export const getCachedSegments = unstable_cache(
 /** Segment definitions (Segment table rows) for the audience builder/sizes pages. */
 export const getCachedSegmentDefs = cache(
   unstable_cache(
-    () =>
-      prisma.segment.findMany({
+    async () => {
+      const rows = await prisma.segment.findMany({
         orderBy: { updatedAt: "desc" },
         select: { id: true, name: true, description: true, rule: true, sizeExact: true, sizeComputedAt: true, updatedAt: true },
-      }),
+      });
+      return rows.map((r) => ({ ...r, updatedAt: r.updatedAt.toISOString(), sizeComputedAt: r.sizeComputedAt?.toISOString() ?? null }));
+    },
     ["segment-defs"],
     { tags: ["segments"], revalidate: TTL.STANDARD }
   )

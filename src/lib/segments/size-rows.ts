@@ -8,8 +8,8 @@ export type RuleSegInput = {
   description: string | null;
   estimate: number | null;
   sizeExact: number | null;
-  sizeComputedAt: Date | null;
-  updatedAt: Date;
+  sizeComputedAt: string | null;
+  updatedAt: string;
 };
 
 export type HtSegInput = { name: string; userCount: number; assignedTo: string | null };
@@ -44,8 +44,8 @@ export function mergeSegmentSizeRows(ruleSegs: RuleSegInput[], htSegs: HtSegInpu
         description: r.description,
         estimate: r.estimate,
         sizeExact: r.sizeExact,
-        sizeComputedAt: r.sizeComputedAt ? r.sizeComputedAt.toISOString() : null,
-        updatedAt: r.updatedAt.toISOString(),
+        sizeComputedAt: r.sizeComputedAt,
+        updatedAt: r.updatedAt,
       }),
     ),
     ...htSegs.map(

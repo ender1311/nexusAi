@@ -18,7 +18,7 @@ export default async function SegmentsPage() {
     getCachedSegmentFacets(),
   ]);
 
-  const segments: SegmentSummary[] = rows.map((r) => ({ ...r, updatedAt: r.updatedAt.toISOString() }));
+  const segments: SegmentSummary[] = rows;
   const personaOptions = personas.map((p) => ({ value: p.id, label: p.name }));
   const segmentNameOptions = segmentNames.map((s) => s.segmentName);
   const facetMap = buildFacetMap(facetRows);
