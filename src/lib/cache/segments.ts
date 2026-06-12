@@ -2,6 +2,7 @@
  * Segment `unstable_cache` wrappers.
  * See ./index.ts for the tag taxonomy.
  */
+import { cache } from "react";
 import { unstable_cache } from "next/cache";
 import { prisma } from "@/lib/db";
 import { Prisma } from "@/generated/prisma/client";
@@ -48,4 +49,43 @@ export const getCachedSegments = unstable_cache(
   },
   ["segments"],
   { tags: ["segments"], revalidate: TTL.STANDARD }
+);
+
+/** Segment definitions (Segment table rows) for the audience builder/sizes pages. */
+export const getCachedSegmentDefs = cache(
+  unstable_cache(
+    () =>
+      prisma.segment.findMany({
+        orderBy: { updatedAt: "desc" },
+        select: { id: true, name: true, description: true, rule: true, sizeExact: true, sizeComputedAt: true, updatedAt: true },
+      }),
+    ["segment-defs"],
+    { tags: ["segments"], revalidate: TTL.STANDARD }
+  )
+);
+
+/** All distinct segment names from UserSegment for autocomplete in the rule builder. */
+export const getCachedSegmentNames = cache(
+  unstable_cache(
+    () =>
+      prisma.userSegment.findMany({
+        distinct: ["segmentName"],
+        select: { segmentName: true },
+        orderBy: { segmentName: "asc" },
+      }),
+    ["segment-names"],
+    { tags: ["segments"], revalidate: TTL.STANDARD }
+  )
+);
+
+/** Facet rows for the segment rule builder — changes only when cron refreshes facets. */
+export const getCachedSegmentFacets = cache(
+  unstable_cache(
+    () =>
+      prisma.segmentFieldFacet.findMany({
+        select: { fieldId: true, kind: true, payload: true },
+      }),
+    ["segment-facets"],
+    { tags: ["segments"], revalidate: TTL.LONG }
+  )
 );

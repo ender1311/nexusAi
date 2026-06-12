@@ -1,6 +1,5 @@
 import { Header } from "@/components/layout/header";
-import { prisma } from "@/lib/db";
-import { getCachedSegments } from "@/lib/cache/segments";
+import { getCachedSegments, getCachedSegmentDefs } from "@/lib/cache/segments";
 import { safeEstimateForRule, mergeSegmentSizeRows } from "@/lib/segments/size-rows";
 import { SegmentSizesTable } from "@/components/segments/segment-sizes-table";
 
@@ -8,10 +7,7 @@ export const dynamic = "force-dynamic";
 
 export default async function SizesPage() {
   const [ruleSegs, htSegs] = await Promise.all([
-    prisma.segment.findMany({
-      orderBy: { updatedAt: "desc" },
-      select: { id: true, name: true, description: true, rule: true, sizeExact: true, sizeComputedAt: true, updatedAt: true },
-    }),
+    getCachedSegmentDefs(),
     getCachedSegments(),
   ]);
 

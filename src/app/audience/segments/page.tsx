@@ -1,16 +1,21 @@
 import { Header } from "@/components/layout/header";
-import { prisma } from "@/lib/db";
 import { SegmentBuilder, type SegmentSummary } from "@/components/segments/segment-builder";
 import { buildFacetMap } from "@/lib/segments/facet-types";
+import {
+  getCachedSegmentDefs,
+  getCachedSegmentNames,
+  getCachedSegmentFacets,
+} from "@/lib/cache";
+import { getCachedActivePersonas } from "@/lib/cache";
 
 export const dynamic = "force-dynamic";
 
 export default async function SegmentsPage() {
   const [rows, personas, segmentNames, facetRows] = await Promise.all([
-    prisma.segment.findMany({ orderBy: { updatedAt: "desc" }, select: { id: true, name: true, description: true, updatedAt: true } }),
-    prisma.persona.findMany({ where: { isActive: true }, select: { id: true, name: true }, orderBy: { name: "asc" } }),
-    prisma.userSegment.findMany({ distinct: ["segmentName"], select: { segmentName: true }, orderBy: { segmentName: "asc" } }),
-    prisma.segmentFieldFacet.findMany({ select: { fieldId: true, kind: true, payload: true } }),
+    getCachedSegmentDefs(),
+    getCachedActivePersonas(),
+    getCachedSegmentNames(),
+    getCachedSegmentFacets(),
   ]);
 
   const segments: SegmentSummary[] = rows.map((r) => ({ ...r, updatedAt: r.updatedAt.toISOString() }));

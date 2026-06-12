@@ -9,7 +9,6 @@ import { AgentToggleGrid } from "@/components/control-tower/agent-toggle-grid";
 import { FunnelStageBreakdown } from "@/components/charts/funnel-stage-breakdown";
 import { UserInspector } from "@/components/control-tower/user-inspector";
 import { CronRuns } from "@/components/control-tower/cron-runs";
-import { prisma } from "@/lib/db";
 import { getAuth } from "@/lib/auth";
 import { KillSwitchToggle } from "@/components/control-tower/kill-switch-toggle";
 import {
@@ -17,6 +16,7 @@ import {
   getCachedControlTowerStats,
   getCachedFunnelStageBreakdown,
   getCachedFleetRecoveryStats,
+  getCachedKillSwitchSetting,
 } from "@/lib/cache";
 
 // ── Sections ─────────────────────────────────────────────────────────────────
@@ -41,7 +41,7 @@ async function AgentTogglesSection() {
 async function KillSwitchSection() {
   const [{ isAdmin }, setting] = await Promise.all([
     getAuth(),
-    prisma.appSetting.findUnique({ where: { key: "global_sending_paused" } }),
+    getCachedKillSwitchSetting(),
   ]);
   if (!isAdmin) return null;
   return (

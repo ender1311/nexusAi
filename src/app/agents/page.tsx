@@ -14,7 +14,7 @@ import { prisma } from "@/lib/db";
 import { getAuth } from "@/lib/auth";
 import { getHiddenStatsForCurrentUser } from "@/lib/user-preferences";
 import { LIBRARY_AGENT_NAME } from "@/lib/engine/template-sync";
-import { getCachedAgentConvergenceStates, getCachedAgentCardStats } from "@/lib/cache";
+import { getCachedAgentConvergenceStates, getCachedAgentCardStats, getCachedKillSwitchSetting } from "@/lib/cache";
 
 const PAGE_SIZE = 20;
 
@@ -84,7 +84,7 @@ export default async function AgentsPage({
   )(),
     getCachedAgentConvergenceStates(),
     getCachedAgentCardStats(),
-    prisma.appSetting.findUnique({ where: { key: "global_sending_paused" } }),
+    getCachedKillSwitchSetting(),
   ]);
 
   const killSwitchOn = killSwitchSetting?.value === "true";

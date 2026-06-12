@@ -382,6 +382,7 @@ export default function DashboardPage() {
   void getCachedFunnelStageBreakdown();
   void getCachedPreferredChannelStats();
   void getCachedFleetRecoveryStats();
+  void getCachedFleetGiftStats();
 
   return (
     <>

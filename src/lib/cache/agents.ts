@@ -190,6 +190,19 @@ export const getCachedAgentCardStats = unstable_cache(
   { tags: ["agents", "dashboard-stats"], revalidate: TTL.STANDARD }
 );
 
+/**
+ * Kill-switch setting for global send pause. Tagged "lift-settings" so
+ * KillSwitchToggle → POST /api/settings → revalidateTag("lift-settings") busts it
+ * immediately on toggle. 60s TTL as a backstop for cold caches.
+ */
+export const getCachedKillSwitchSetting = cache(
+  unstable_cache(
+    () => prisma.appSetting.findUnique({ where: { key: "global_sending_paused" } }),
+    ["kill-switch-setting"],
+    { tags: ["lift-settings"], revalidate: 60 }
+  )
+);
+
 /** All variant id+name pairs for display in performance tables. */
 export const getCachedAllVariantNames = cache(
   unstable_cache(
