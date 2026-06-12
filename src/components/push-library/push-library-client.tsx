@@ -183,7 +183,7 @@ export function PushLibraryClient({ groups, canManageLibrary }: Props) {
     <div className="space-y-4">
       {/* Toolbar */}
       <div className="flex flex-col sm:flex-row sm:items-center gap-2">
-        <div className="relative flex-1 max-w-sm">
+        <div className="relative w-full sm:flex-1 sm:max-w-sm">
           <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
           <Input
             placeholder="Search title, body…"
@@ -193,7 +193,7 @@ export function PushLibraryClient({ groups, canManageLibrary }: Props) {
           />
         </div>
 
-        <div className="flex flex-col gap-1.5 flex-1">
+        <div className="flex flex-col gap-1.5 sm:flex-1">
           <div className="flex items-center gap-1 flex-wrap">
             <button
               onClick={() => handleCategoryClick(null)}
@@ -252,41 +252,43 @@ export function PushLibraryClient({ groups, canManageLibrary }: Props) {
           )}
         </div>
 
-        <select
-          value={sort}
-          onChange={(e) => setSort(e.target.value as "createdAt" | "name")}
-          className="h-9 rounded-md border bg-background px-2 text-xs shrink-0"
-          aria-label="Sort"
-        >
-          <option value="createdAt">Newest</option>
-          <option value="name">Name</option>
-        </select>
+        <div className="flex items-center justify-between gap-2 sm:contents">
+          <select
+            value={sort}
+            onChange={(e) => setSort(e.target.value as "createdAt" | "name")}
+            className="h-9 rounded-md border bg-background px-2 text-xs shrink-0"
+            aria-label="Sort"
+          >
+            <option value="createdAt">Newest</option>
+            <option value="name">Name</option>
+          </select>
 
-        <div className="flex items-center gap-1 border rounded-lg p-1 shrink-0">
-          <button
-            onClick={() => setView("table")}
-            className={cn(
-              "flex items-center gap-1.5 px-3 py-1 rounded-md text-xs font-medium transition-colors",
-              view === "table"
-                ? "bg-primary text-primary-foreground"
-                : "text-muted-foreground hover:text-foreground hover:bg-muted"
-            )}
-          >
-            <List className="h-3.5 w-3.5" />
-            Table
-          </button>
-          <button
-            onClick={() => setView("grid")}
-            className={cn(
-              "flex items-center gap-1.5 px-3 py-1 rounded-md text-xs font-medium transition-colors",
-              view === "grid"
-                ? "bg-primary text-primary-foreground"
-                : "text-muted-foreground hover:text-foreground hover:bg-muted"
-            )}
-          >
-            <LayoutGrid className="h-3.5 w-3.5" />
-            Cards
-          </button>
+          <div className="flex items-center gap-1 border rounded-lg p-1 shrink-0">
+            <button
+              onClick={() => setView("table")}
+              className={cn(
+                "flex items-center gap-1.5 px-3 py-1 rounded-md text-xs font-medium transition-colors",
+                view === "table"
+                  ? "bg-primary text-primary-foreground"
+                  : "text-muted-foreground hover:text-foreground hover:bg-muted"
+              )}
+            >
+              <List className="h-3.5 w-3.5" />
+              Table
+            </button>
+            <button
+              onClick={() => setView("grid")}
+              className={cn(
+                "flex items-center gap-1.5 px-3 py-1 rounded-md text-xs font-medium transition-colors",
+                view === "grid"
+                  ? "bg-primary text-primary-foreground"
+                  : "text-muted-foreground hover:text-foreground hover:bg-muted"
+              )}
+            >
+              <LayoutGrid className="h-3.5 w-3.5" />
+              Cards
+            </button>
+          </div>
         </div>
       </div>
 
