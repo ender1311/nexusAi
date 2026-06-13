@@ -1,11 +1,10 @@
 "use client";
 
 import { useState } from "react";
-import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardFooter } from "@/components/ui/card";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
-import { Mail, Globe, Eye } from "lucide-react";
+import { Eye } from "lucide-react";
+import { cn } from "@/lib/utils";
 
 export type EmailVariant = {
   id: string;
@@ -20,116 +19,193 @@ export type EmailVariant = {
   translations: { language: string; subject: string | null; status: string }[];
 };
 
+type HtmlCache = { en: string; langs: Record<string, string> };
+
 export function EmailCard({ variant }: { variant: EmailVariant }) {
-  const [previewOpen, setPreviewOpen] = useState(false);
-  const [previewHtml, setPreviewHtml] = useState<string | null>(null);
-  const [previewLang, setPreviewLang] = useState("en");
+  const [open, setOpen] = useState(false);
+  const [lang, setLang] = useState("en");
+  const [cache, setCache] = useState<HtmlCache | null>(null);
   const [loading, setLoading] = useState(false);
 
   const activeLangs = variant.translations.map((t) => t.language);
+  const allLangs = ["en", ...activeLangs];
+  const bodySnippet = variant.body?.slice(0, 150).trim();
 
-  async function openPreview(lang: string) {
-    setPreviewLang(lang);
-    setPreviewOpen(true);
-    if (previewHtml !== null && lang === "en") return;
+  async function ensureLoaded(): Promise<HtmlCache> {
+    if (cache) return cache;
     setLoading(true);
     try {
       const res = await fetch(`/api/email-library?id=${variant.id}`, { method: "PATCH" });
       const json = await res.json();
-      if (lang === "en") {
-        setPreviewHtml(json.data?.htmlBody ?? "<p>No HTML available</p>");
-      } else {
-        const t = json.data?.translations?.find((x: { language: string; htmlBody: string | null }) => x.language === lang);
-        setPreviewHtml(t?.htmlBody ?? "<p>No HTML available for this language</p>");
+      const langs: Record<string, string> = {};
+      for (const t of (json.data?.translations ?? []) as { language: string; htmlBody: string | null }[]) {
+        langs[t.language] = t.htmlBody ?? "";
       }
+      const loaded: HtmlCache = { en: json.data?.htmlBody ?? "", langs };
+      setCache(loaded);
+      return loaded;
     } finally {
       setLoading(false);
     }
   }
 
+  async function openPreview(l = "en") {
+    setLang(l);
+    setOpen(true);
+    await ensureLoaded();
+  }
+
+  async function switchLang(l: string) {
+    setLang(l);
+    await ensureLoaded();
+  }
+
+  function currentHtml(): string | null {
+    if (!cache) return null;
+    const h = lang === "en" ? cache.en : (cache.langs[lang] ?? "");
+    return h || null;
+  }
+
+  const currentSubject =
+    lang === "en"
+      ? (variant.subject ?? "—")
+      : (variant.translations.find((t) => t.language === lang)?.subject ?? "—");
+
   return (
     <>
-      <Card className="flex flex-col overflow-hidden">
-        <CardContent className="flex-1 p-4 space-y-2">
-          <div className="flex items-start justify-between gap-2">
-            <p className="text-sm font-medium leading-tight">{variant.name}</p>
-            <div className="flex shrink-0 items-center gap-1">
-              {activeLangs.length > 0 && (
-                <Badge variant="secondary" className="text-xs gap-1">
-                  <Globe className="h-3 w-3" />
-                  {activeLangs.length}
-                </Badge>
-              )}
-              {variant.subcategory && (
-                <Badge variant="outline" className="text-xs">{variant.subcategory}</Badge>
-              )}
-            </div>
+      {/* Card */}
+      <div
+        className="group relative flex flex-col rounded-xl border border-border/60 bg-card shadow-sm hover:border-border hover:shadow-md transition-all duration-200 cursor-pointer overflow-hidden"
+        onClick={() => openPreview("en")}
+      >
+        {/* Category breadcrumb */}
+        {(variant.category || variant.subcategory) && (
+          <div className="flex items-center gap-1 px-4 pt-3">
+            {variant.category && (
+              <span className="text-[10px] font-medium uppercase tracking-wide text-muted-foreground/50">
+                {variant.category.replace(/-/g, " ")}
+              </span>
+            )}
+            {variant.subcategory && (
+              <>
+                <span className="text-[10px] text-muted-foreground/30">›</span>
+                <span className="text-[10px] font-medium uppercase tracking-wide text-muted-foreground/50">
+                  {variant.subcategory.replace(/-/g, " ")}
+                </span>
+              </>
+            )}
+          </div>
+        )}
+
+        {/* Template name */}
+        <h3 className="px-4 pt-2 pb-3 text-sm font-semibold leading-snug text-foreground group-hover:text-primary transition-colors line-clamp-2">
+          {variant.name}
+        </h3>
+
+        {/* Mini email mockup */}
+        <div className="mx-4 rounded-lg border bg-muted/20 overflow-hidden">
+          <div className="px-3 py-2 bg-background/60 border-b">
+            <p className="text-[11px] font-semibold text-foreground leading-snug truncate">
+              {variant.subject ?? <span className="italic text-muted-foreground font-normal">No subject</span>}
+            </p>
+          </div>
+          <div className="px-3 py-2.5 min-h-[54px]">
+            {bodySnippet ? (
+              <p className="text-[11px] text-muted-foreground leading-relaxed line-clamp-2">{bodySnippet}</p>
+            ) : (
+              <p className="text-[11px] text-muted-foreground/40 italic">No preview available</p>
+            )}
+            {variant.cta && (
+              <div className="mt-2">
+                <span className="inline-block rounded px-2.5 py-0.5 text-[10px] font-semibold border border-primary/25 text-primary bg-primary/5 leading-5">
+                  {variant.cta}
+                </span>
+              </div>
+            )}
+          </div>
+        </div>
+
+        {/* Footer */}
+        <div
+          className="mt-3 px-4 pb-4 flex items-center justify-between gap-2"
+          onClick={(e) => e.stopPropagation()}
+        >
+          {/* Language pills */}
+          <div className="flex items-center gap-1 flex-wrap">
+            <span className="text-[10px] font-mono font-medium text-muted-foreground bg-muted rounded px-1.5 py-0.5">
+              en
+            </span>
+            {activeLangs.slice(0, 3).map((l) => (
+              <button
+                key={l}
+                className="text-[10px] font-mono text-muted-foreground hover:text-foreground border rounded px-1.5 py-0.5 hover:bg-muted transition-colors"
+                onClick={() => openPreview(l)}
+              >
+                {l}
+              </button>
+            ))}
+            {activeLangs.length > 3 && (
+              <span className="text-[10px] text-muted-foreground">+{activeLangs.length - 3}</span>
+            )}
           </div>
 
-          <div className="rounded-md border bg-muted/30 p-3 space-y-1">
-            <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
-              <Mail className="h-3.5 w-3.5 shrink-0" />
-              <span className="font-medium">Subject:</span>
-              <span className="truncate">{variant.subject ?? "—"}</span>
-            </div>
-          </div>
-
-          {variant.deeplink && (
-            <p className="text-xs font-mono text-muted-foreground truncate">{variant.deeplink}</p>
-          )}
-        </CardContent>
-
-        <CardFooter className="px-4 pb-4 pt-0 flex gap-2">
           <Button
-            variant="outline"
+            variant="ghost"
             size="sm"
-            className="flex-1 gap-1"
+            className="h-7 px-2 text-xs gap-1 text-muted-foreground hover:text-foreground shrink-0"
             onClick={() => openPreview("en")}
           >
             <Eye className="h-3.5 w-3.5" />
             Preview
           </Button>
-          {activeLangs.length > 0 && (
-            <select
-              className="h-8 rounded-md border bg-background px-2 text-xs"
-              defaultValue=""
-              onChange={(e) => { if (e.target.value) openPreview(e.target.value); }}
-              aria-label="Preview language"
-            >
-              <option value="">Lang…</option>
-              {activeLangs.map((l) => (
-                <option key={l} value={l}>{l}</option>
-              ))}
-            </select>
-          )}
-        </CardFooter>
-      </Card>
+        </div>
+      </div>
 
-      <Dialog open={previewOpen} onOpenChange={setPreviewOpen}>
-        <DialogContent className="max-w-4xl max-h-[90vh] flex flex-col p-0">
-          <DialogHeader className="px-6 pt-6 pb-4 border-b shrink-0">
-            <DialogTitle className="text-sm font-medium">
-              {variant.name}
-              {previewLang !== "en" && <Badge variant="secondary" className="ml-2">{previewLang}</Badge>}
-            </DialogTitle>
-            <p className="text-xs text-muted-foreground mt-1">
-              Subject: {previewLang === "en"
-                ? (variant.subject ?? "—")
-                : (variant.translations.find(t => t.language === previewLang)?.subject ?? "—")}
+      {/* Preview dialog */}
+      <Dialog open={open} onOpenChange={setOpen}>
+        <DialogContent className="max-w-4xl max-h-[92vh] flex flex-col p-0 gap-0">
+          <DialogHeader className="px-6 pt-5 pb-4 border-b shrink-0 gap-1.5">
+            <DialogTitle className="text-sm font-semibold leading-snug pr-6">{variant.name}</DialogTitle>
+            {allLangs.length > 1 && (
+              <div className="flex items-center gap-1 flex-wrap pt-0.5">
+                {allLangs.map((l) => (
+                  <button
+                    key={l}
+                    onClick={() => switchLang(l)}
+                    className={cn(
+                      "px-2.5 py-0.5 rounded-md text-[11px] font-mono font-medium transition-colors",
+                      lang === l
+                        ? "bg-primary text-primary-foreground"
+                        : "text-muted-foreground hover:text-foreground hover:bg-muted",
+                    )}
+                  >
+                    {l}
+                  </button>
+                ))}
+              </div>
+            )}
+            <p className="text-xs text-muted-foreground">
+              <span className="font-medium text-foreground/80">Subject:</span> {currentSubject}
             </p>
           </DialogHeader>
-          <div className="flex-1 overflow-auto p-0">
+
+          <div className="flex-1 overflow-hidden">
             {loading ? (
-              <div className="flex items-center justify-center h-48 text-sm text-muted-foreground">
-                Loading…
+              <div className="flex items-center justify-center h-64 text-sm text-muted-foreground">
+                Loading preview…
               </div>
-            ) : previewHtml ? (
+            ) : currentHtml() ? (
               <iframe
-                srcDoc={previewHtml}
+                key={lang}
+                srcDoc={currentHtml()!}
                 className="w-full h-full min-h-[600px] border-0"
                 sandbox="allow-same-origin"
-                title="Email preview"
+                title={`Email preview — ${lang}`}
               />
+            ) : open && !loading ? (
+              <div className="flex items-center justify-center h-64 text-sm text-muted-foreground">
+                No HTML available for {lang}
+              </div>
             ) : null}
           </div>
         </DialogContent>

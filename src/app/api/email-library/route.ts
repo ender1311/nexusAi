@@ -33,7 +33,7 @@ export async function GET(req: NextRequest) {
     if (subcategory) where.subcategory = subcategory;
     const q = sp.get("q")?.trim();
     if (q) {
-      where.OR = (["name", "subject", "body", "cta"] as const).map((f) => ({
+      where.OR = (["name", "subject", "body", "cta", "deeplink"] as const).map((f) => ({
         [f]: { contains: q, mode: "insensitive" },
       }));
     }

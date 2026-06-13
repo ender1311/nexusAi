@@ -1,11 +1,13 @@
 "use client";
 
-import { useEffect, useState } from "react";
-import { ChevronDown, ChevronRight, Mail, Search } from "lucide-react";
+import { useEffect, useRef, useState } from "react";
+import { Mail, Search, LayoutGrid, List } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
+import { Skeleton } from "@/components/ui/skeleton";
 import { cn } from "@/lib/utils";
 import { EmailCard, type EmailVariant } from "./email-card";
+import { EmailListRow } from "./email-list-row";
 import { EMAIL_CATEGORIES } from "@/lib/email-categories";
 
 export type EmailGroup = {
@@ -14,40 +16,72 @@ export type EmailGroup = {
   variants: EmailVariant[];
 };
 
+type ViewMode = "grid" | "list";
+
 type Props = { groups: EmailGroup[] };
 
 const categoryOrder = EMAIL_CATEGORIES.map((c) => c.value);
 
-function formatLabel(slug: string): string {
-  return slug.split("-").map((w) => w.charAt(0).toUpperCase() + w.slice(1)).join(" ");
-}
-
 function categoryLabel(slug: string): string {
-  return EMAIL_CATEGORIES.find((c) => c.value === slug)?.label ?? formatLabel(slug);
+  return EMAIL_CATEGORIES.find((c) => c.value === slug)?.label ?? slug.replace(/-/g, " ");
 }
 
 function subcategoryLabel(catSlug: string | null, subSlug: string): string {
   const cat = EMAIL_CATEGORIES.find((c) => c.value === catSlug);
-  return cat?.subcategories.find((s) => s.value === subSlug)?.label ?? formatLabel(subSlug);
+  return (
+    cat?.subcategories.find((s) => s.value === subSlug)?.label ??
+    subSlug.replace(/-/g, " ")
+  );
+}
+
+function GroupLabel({ category, subcategory }: { category: string; subcategory: string | null }) {
+  return (
+    <span className="text-sm font-semibold text-muted-foreground">
+      {categoryLabel(category)}
+      {subcategory && (
+        <>
+          <span className="mx-1.5 text-muted-foreground/40">/</span>
+          <span>{subcategoryLabel(category, subcategory)}</span>
+        </>
+      )}
+    </span>
+  );
 }
 
 export function EmailLibraryClient({ groups }: Props) {
-  const [collapsed, setCollapsed] = useState<Record<string, boolean>>({});
   const [search, setSearch] = useState("");
   const [categoryFilter, setCategoryFilter] = useState<string | null>(null);
+  const [viewMode, setViewMode] = useState<ViewMode>("grid");
+  const [collapsed, setCollapsed] = useState<Record<string, boolean>>({});
   const [serverItems, setServerItems] = useState<EmailVariant[] | null>(null);
+  const [serverLoading, setServerLoading] = useState(false);
+  const searchRef = useRef<HTMLInputElement>(null);
+
+  // Restore view preference after hydration
+  useEffect(() => {
+    const saved = localStorage.getItem("email-library-view") as ViewMode | null;
+    if (saved === "grid" || saved === "list") setViewMode(saved);
+  }, []);
 
   const filterActive = !!(search.trim() || categoryFilter);
 
   useEffect(() => {
-    if (!filterActive) { setTimeout(() => setServerItems(null), 0); return; }
+    if (!filterActive) {
+      setServerItems(null);
+      return;
+    }
+    setServerLoading(true);
     const t = setTimeout(async () => {
       const p = new URLSearchParams();
       if (search.trim()) p.set("q", search.trim());
       if (categoryFilter) p.set("category", categoryFilter);
-      const res = await fetch(`/api/email-library?${p.toString()}`);
-      const json = await res.json();
-      setServerItems(json.data?.items ?? []);
+      try {
+        const res = await fetch(`/api/email-library?${p.toString()}`);
+        const json = await res.json();
+        setServerItems(json.data?.items ?? []);
+      } finally {
+        setServerLoading(false);
+      }
     }, 250);
     return () => clearTimeout(t);
   }, [search, categoryFilter, filterActive]);
@@ -56,104 +90,209 @@ export function EmailLibraryClient({ groups }: Props) {
     const ai = categoryOrder.indexOf(a.category);
     const bi = categoryOrder.indexOf(b.category);
     if (ai === -1 && bi === -1) return a.category.localeCompare(b.category);
-    if (ai === -1) return 1; if (bi === -1) return -1;
+    if (ai === -1) return 1;
+    if (bi === -1) return -1;
     return ai - bi;
   });
 
   const categories = Array.from(new Set(sortedGroups.map((g) => g.category)));
   const allVariants = groups.flatMap((g) => g.variants);
-  const flatVariants = filterActive ? (serverItems ?? []) : allVariants;
+  const flatVariants: EmailVariant[] = filterActive ? (serverItems ?? []) : allVariants;
+
+  function setView(mode: ViewMode) {
+    setViewMode(mode);
+    localStorage.setItem("email-library-view", mode);
+  }
+
+  function renderGrid(variants: EmailVariant[]) {
+    return (
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+        {variants.map((v) => (
+          <EmailCard key={v.id} variant={v} />
+        ))}
+      </div>
+    );
+  }
+
+  function renderList(variants: EmailVariant[]) {
+    return (
+      <div className="rounded-xl border overflow-hidden">
+        {variants.map((v) => (
+          <EmailListRow key={v.id} variant={v} />
+        ))}
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-4">
       {/* Toolbar */}
-      <div className="flex flex-col sm:flex-row sm:items-center gap-2">
-        <div className="relative w-full sm:flex-1 sm:max-w-sm">
-          <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
-          <Input
-            placeholder="Search subject, name…"
-            className="pl-8 h-9"
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-          />
-        </div>
-        <div className="flex items-center gap-1 flex-wrap">
-          <button
-            onClick={() => setCategoryFilter(null)}
-            className={cn(
-              "px-3 py-1 rounded-full text-xs font-medium border transition-colors",
-              !categoryFilter
-                ? "bg-primary text-primary-foreground border-primary"
-                : "bg-background text-muted-foreground border-border hover:text-foreground hover:border-foreground"
-            )}
-          >
-            All
-          </button>
-          {categories.map((cat) => (
+      <div className="space-y-3">
+        {/* Row 1: Search + view toggle */}
+        <div className="flex items-center gap-2">
+          <div className="relative flex-1">
+            <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
+            <Input
+              ref={searchRef}
+              placeholder="Search name, subject, body, CTA…"
+              className="pl-8 h-9"
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+            />
+          </div>
+
+          {/* View toggle */}
+          <div className="flex items-center border rounded-lg overflow-hidden shrink-0">
             <button
-              key={cat}
-              onClick={() => setCategoryFilter(categoryFilter === cat ? null : cat)}
+              title="Grid view"
+              onClick={() => setView("grid")}
               className={cn(
-                "px-3 py-1 rounded-full text-xs font-medium border transition-colors",
-                categoryFilter === cat
-                  ? "bg-primary text-primary-foreground border-primary"
-                  : "bg-background text-muted-foreground border-border hover:text-foreground hover:border-foreground"
+                "p-2 transition-colors",
+                viewMode === "grid"
+                  ? "bg-primary text-primary-foreground"
+                  : "text-muted-foreground hover:bg-muted",
               )}
             >
-              {categoryLabel(cat)}
+              <LayoutGrid className="h-4 w-4" />
             </button>
-          ))}
+            <button
+              title="List view"
+              onClick={() => setView("list")}
+              className={cn(
+                "p-2 border-l transition-colors",
+                viewMode === "list"
+                  ? "bg-primary text-primary-foreground"
+                  : "text-muted-foreground hover:bg-muted",
+              )}
+            >
+              <List className="h-4 w-4" />
+            </button>
+          </div>
+        </div>
+
+        {/* Row 2: Category filter — horizontal scroll on mobile */}
+        <div className="flex items-center gap-2">
+          <span className="shrink-0 text-xs text-muted-foreground font-medium">Category:</span>
+          <div className="flex items-center gap-2 overflow-x-auto scrollbar-hide pb-0.5">
+            <button
+              onClick={() => setCategoryFilter(null)}
+              className={cn(
+                "shrink-0 px-3 py-1 rounded-full text-xs font-medium border transition-colors",
+                !categoryFilter
+                  ? "bg-primary text-primary-foreground border-primary"
+                  : "bg-background text-muted-foreground border-border hover:text-foreground hover:border-foreground",
+              )}
+            >
+              All
+            </button>
+            {categories.map((cat) => (
+              <button
+                key={cat}
+                onClick={() => setCategoryFilter(categoryFilter === cat ? null : cat)}
+                className={cn(
+                  "shrink-0 px-3 py-1 rounded-full text-xs font-medium border transition-colors",
+                  categoryFilter === cat
+                    ? "bg-primary text-primary-foreground border-primary"
+                    : "bg-background text-muted-foreground border-border hover:text-foreground hover:border-foreground",
+                )}
+              >
+                {categoryLabel(cat)}
+              </button>
+            ))}
+          </div>
         </div>
       </div>
 
+      {/* Results */}
       {filterActive ? (
-        flatVariants.length === 0 ? (
-          <p className="py-12 text-center text-sm text-muted-foreground">No results</p>
+        serverLoading ? (
+          <SearchSkeleton viewMode={viewMode} />
+        ) : flatVariants.length === 0 ? (
+          <div className="py-16 text-center">
+            <Mail className="h-10 w-10 text-muted-foreground/30 mx-auto mb-3" />
+            <p className="text-sm font-medium text-muted-foreground">No results</p>
+            <p className="text-xs text-muted-foreground mt-1">
+              Try a different search term or category.
+            </p>
+            <button
+              className="mt-3 text-xs text-primary underline-offset-4 hover:underline"
+              onClick={() => { setSearch(""); setCategoryFilter(null); }}
+            >
+              Clear filters
+            </button>
+          </div>
         ) : (
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-            {flatVariants.map((v) => <EmailCard key={v.id} variant={v} />)}
+          <div className="space-y-1">
+            <p className="text-xs text-muted-foreground pb-1">
+              {flatVariants.length} result{flatVariants.length !== 1 ? "s" : ""}
+            </p>
+            {viewMode === "grid" ? renderGrid(flatVariants) : renderList(flatVariants)}
           </div>
         )
-      ) : (
-        sortedGroups.map((group) => {
-          const key = `${group.category}-${group.subcategory ?? "none"}`;
-          const label = group.subcategory
-            ? `${categoryLabel(group.category)} / ${subcategoryLabel(group.category, group.subcategory)}`
-            : categoryLabel(group.category);
-          const isCollapsed = collapsed[key] ?? false;
-
-          return (
-            <section key={key}>
-              <button
-                onClick={() => setCollapsed((p) => ({ ...p, [key]: !p[key] }))}
-                className="flex items-center gap-2 w-full text-left mb-3 group"
-              >
-                {isCollapsed ? (
-                  <ChevronRight className="h-4 w-4 text-muted-foreground" />
-                ) : (
-                  <ChevronDown className="h-4 w-4 text-muted-foreground" />
-                )}
-                <Mail className="h-4 w-4 text-muted-foreground" />
-                <span className="text-sm font-semibold text-muted-foreground">{label}</span>
-                <Badge variant="secondary" className="ml-1">{group.variants.length}</Badge>
-              </button>
-              {!isCollapsed && (
-                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 mb-6">
-                  {group.variants.map((v) => <EmailCard key={v.id} variant={v} />)}
-                </div>
-              )}
-            </section>
-          );
-        })
-      )}
-
-      {!filterActive && allVariants.length === 0 && (
+      ) : allVariants.length === 0 ? (
         <div className="py-16 text-center">
-          <Mail className="h-10 w-10 text-muted-foreground/40 mx-auto mb-3" />
-          <p className="text-sm text-muted-foreground">No email templates yet.</p>
-          <p className="text-xs text-muted-foreground mt-1">Run the seed script to import templates from the Dropbox campaign library.</p>
+          <Mail className="h-10 w-10 text-muted-foreground/30 mx-auto mb-3" />
+          <p className="text-sm font-medium text-muted-foreground">No email templates yet</p>
+          <p className="text-xs text-muted-foreground mt-1">
+            Run the seed script to import templates from the Dropbox campaign library.
+          </p>
+        </div>
+      ) : (
+        <div className="space-y-6">
+          {sortedGroups.map((group) => {
+            const key = `${group.category}-${group.subcategory ?? "none"}`;
+            const isCollapsed = collapsed[key] ?? false;
+
+            return (
+              <section key={key}>
+                <button
+                  onClick={() => setCollapsed((p) => ({ ...p, [key]: !p[key] }))}
+                  className="flex items-center gap-2 w-full text-left mb-3 group/header"
+                >
+                  <Mail className="h-4 w-4 text-muted-foreground shrink-0" />
+                  <GroupLabel category={group.category} subcategory={group.subcategory} />
+                  <Badge variant="secondary" className="ml-1 shrink-0">
+                    {group.variants.length}
+                  </Badge>
+                  <span className="ml-auto text-[10px] text-muted-foreground/50 group-hover/header:text-muted-foreground transition-colors">
+                    {isCollapsed ? "show" : "hide"}
+                  </span>
+                </button>
+
+                {!isCollapsed && (
+                  viewMode === "grid"
+                    ? renderGrid(group.variants)
+                    : renderList(group.variants)
+                )}
+              </section>
+            );
+          })}
         </div>
       )}
+    </div>
+  );
+}
+
+function SearchSkeleton({ viewMode }: { viewMode: ViewMode }) {
+  if (viewMode === "list") {
+    return (
+      <div className="rounded-xl border overflow-hidden">
+        {[1, 2, 3, 4, 5].map((i) => (
+          <div key={i} className="flex items-center gap-3 px-4 py-3 border-b last:border-0">
+            <Skeleton className="h-4 w-4 rounded" />
+            <Skeleton className="h-4 flex-1 max-w-[180px]" />
+            <Skeleton className="h-4 flex-1 hidden sm:block" />
+            <Skeleton className="h-5 w-12 rounded-full" />
+          </div>
+        ))}
+      </div>
+    );
+  }
+  return (
+    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+      {[1, 2, 3, 4].map((i) => (
+        <Skeleton key={i} className="h-52 rounded-xl" />
+      ))}
     </div>
   );
 }

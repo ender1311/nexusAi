@@ -1,6 +1,7 @@
 export const revalidate = 60;
 
 import { prisma } from "@/lib/db";
+import { Header } from "@/components/layout/header";
 import { EmailLibraryClient, type EmailGroup } from "@/components/email-library/email-library-client";
 import type { EmailVariant } from "@/components/email-library/email-card";
 
@@ -31,24 +32,22 @@ export default async function EmailLibraryPage() {
     Array.from(subMap.entries()).map(([s, vs]) => ({ category: c, subcategory: s, variants: vs })),
   );
 
-  const totalVariants = groups.reduce((n, g) => n + g.variants.length, 0);
+  const totalVariants = variants.length;
   const totalLanguages = new Set(
-    groups.flatMap((g) => g.variants.flatMap((v) => v.translations.map((t) => t.language)))
+    variants.flatMap((v) => v.translations.map((t) => t.language))
   ).size;
 
+  const description =
+    totalVariants > 0
+      ? `${totalVariants} templates · ${totalLanguages + 1} languages`
+      : "Curated email templates from YouVersion campaigns";
+
   return (
-    <div className="p-6 space-y-6">
-      <div className="flex items-start justify-between gap-4">
-        <div>
-          <h1 className="text-2xl font-semibold tracking-tight">Email Library</h1>
-          <p className="text-sm text-muted-foreground mt-1">
-            {totalVariants > 0
-              ? `${totalVariants} email templates across ${totalLanguages + 1} languages`
-              : "Curated email templates from YouVersion campaign history."}
-          </p>
-        </div>
+    <>
+      <Header title="Email Library" description={description} />
+      <div className="p-4 sm:p-6 space-y-4">
+        <EmailLibraryClient groups={groups} />
       </div>
-      <EmailLibraryClient groups={groups} />
-    </div>
+    </>
   );
 }
