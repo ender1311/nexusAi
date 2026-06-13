@@ -1341,6 +1341,25 @@ export async function POST(req: NextRequest) {
               now,
             ));
 
+            // Guard: verify the *delivery time* itself doesn't land in quiet hours.
+            // The pre-filter checks quiet hours at cron-run time; a user at 9pm ET
+            // passes that check, but if their preferred UTC hour maps to 11pm ET
+            // the send would arrive in quiet hours. Fall back to in_local_time
+            // (8am local via Braze) instead.
+            if (!isFallback && quietHoursConfig?.start && quietHoursConfig?.end) {
+              const attrs = user.attributes as Record<string, unknown>;
+              const agentTz = quietHoursConfig.timezone ?? "UTC";
+              const userTz = typeof attrs?.timezone === "string" ? attrs.timezone : agentTz;
+              if (isInQuietHours(quietHoursConfig.start, quietHoursConfig.end, userTz, scheduledAt)) {
+                ({ scheduledAt, inLocalTime: isFallback } = computeScheduledAt(
+                  null,
+                  null,
+                  scheduleDeliverHour ?? agent.fallbackSendHour ?? 8,
+                  now,
+                ));
+              }
+            }
+
             // Global blackout: suppress sends landing on a blackout calendar date.
             if (isBlackoutDate(scheduledAt, blackoutDates)) {
               totalSuppressed++;
@@ -1800,6 +1819,21 @@ export async function POST(req: NextRequest) {
               scheduleDeliverHour ?? agent.fallbackSendHour ?? 8,
               now,
             ));
+
+            // Guard: verify the *delivery time* itself doesn't land in quiet hours.
+            if (!isFallback && quietHoursConfig?.start && quietHoursConfig?.end) {
+              const attrs = user.attributes as Record<string, unknown>;
+              const agentTz = quietHoursConfig.timezone ?? "UTC";
+              const userTz = typeof attrs?.timezone === "string" ? attrs.timezone : agentTz;
+              if (isInQuietHours(quietHoursConfig.start, quietHoursConfig.end, userTz, scheduledAt)) {
+                ({ scheduledAt, inLocalTime: isFallback } = computeScheduledAt(
+                  null,
+                  null,
+                  scheduleDeliverHour ?? agent.fallbackSendHour ?? 8,
+                  now,
+                ));
+              }
+            }
 
             // Global blackout: suppress sends landing on a blackout calendar date.
             if (isBlackoutDate(scheduledAt, blackoutDates)) {

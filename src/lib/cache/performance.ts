@@ -29,7 +29,7 @@ export const getCachedPerformanceMetrics = unstable_cache(
           "agentId"                                                                          AS agent_id,
           COUNT(*)::bigint                                                                   AS sends,
           COUNT("conversionAt")::bigint                                                     AS conversions,
-          COUNT(*) FILTER (WHERE "channel" = 'push')::bigint                               AS push_sends,
+          COUNT(*) FILTER (WHERE "channel" = 'push' AND "brazeSendId" IS NOT NULL)::bigint  AS push_sends,
           COUNT(*) FILTER (WHERE "channel" = 'push' AND "pushOpenAt" IS NOT NULL)::bigint  AS push_opens
         FROM "UserDecision"
         WHERE "sentAt" >= ${thirtyDaysAgo}

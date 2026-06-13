@@ -101,7 +101,7 @@ export async function GET(): Promise<
     const [pushSendRows, pushOpenRows, brazeStats] = await Promise.all([
       prisma.userDecision.groupBy({
         by: ["agentId"],
-        where: { channel: "push", sentAt: { gte: new Date("2026-05-16") } },
+        where: { channel: "push", brazeSendId: { not: null }, sentAt: { gte: new Date("2026-05-16") } },
         _count: { id: true },
         _min: { sentAt: true },
       }),
