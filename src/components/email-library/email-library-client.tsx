@@ -1,10 +1,11 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { Mail, Search, LayoutGrid, List } from "lucide-react";
+import { Mail, Maximize2, Search, LayoutGrid, List, X } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Skeleton } from "@/components/ui/skeleton";
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { cn } from "@/lib/utils";
 import { EmailCard, type EmailVariant } from "./email-card";
 import { EmailListRow } from "./email-list-row";
@@ -17,6 +18,7 @@ export type EmailGroup = {
 };
 
 type ViewMode = "grid" | "list";
+type HtmlCache = { en: string; langs: Record<string, string> };
 
 type Props = { groups: EmailGroup[] };
 
@@ -55,11 +57,18 @@ export function EmailLibraryClient({ groups }: Props) {
   const [collapsed, setCollapsed] = useState<Record<string, boolean>>({});
   const [serverItems, setServerItems] = useState<EmailVariant[] | null>(null);
   const [serverLoading, setServerLoading] = useState(false);
-  // Monotonically-increasing counter. Each effect run stamps its ID; only the
-  // latest response may update state, preventing stale fetches from overwriting.
   const requestIdRef = useRef(0);
 
-  // Restore view preference after hydration (localStorage unavailable on server).
+  // Preview panel state
+  const [selectedVariant, setSelectedVariant] = useState<EmailVariant | null>(null);
+  const [selectedLang, setSelectedLang] = useState("en");
+  const [htmlCache, setHtmlCache] = useState<Map<string, HtmlCache>>(new Map());
+  const [htmlLoading, setHtmlLoading] = useState(false);
+  const [expandOpen, setExpandOpen] = useState(false);
+  const loadingRef = useRef<string | null>(null);
+  const loadPromiseRef = useRef<Map<string, Promise<HtmlCache>>>(new Map());
+
+  // Restore view preference after hydration
   useEffect(() => {
     const saved = localStorage.getItem("email-library-view") as ViewMode | null;
     if (saved === "grid" || saved === "list") setViewMode(saved);
@@ -68,10 +77,8 @@ export function EmailLibraryClient({ groups }: Props) {
   const filterActive = !!(search.trim() || categoryFilter);
 
   useEffect(() => {
-    // Compute inline so the linter sees the correct deps without filterActive in the array.
     const isActive = !!(search.trim() || categoryFilter);
     if (!isActive) {
-      // Invalidate any in-flight fetch so its result is discarded when it lands.
       requestIdRef.current++;
       setServerItems(null);
       setServerLoading(false);
@@ -98,6 +105,62 @@ export function EmailLibraryClient({ groups }: Props) {
     return () => clearTimeout(t);
   }, [search, categoryFilter]);
 
+  function loadHtml(variant: EmailVariant): Promise<HtmlCache> {
+    const cached = htmlCache.get(variant.id);
+    if (cached) return Promise.resolve(cached);
+
+    const existing = loadPromiseRef.current.get(variant.id);
+    if (existing) return existing;
+
+    setHtmlLoading(true);
+    const promise = (async () => {
+      try {
+        const res = await fetch(`/api/email-library?id=${variant.id}`, { method: "PATCH" });
+        const json = await res.json();
+        const langs: Record<string, string> = {};
+        for (const t of (json.data?.translations ?? []) as {
+          language: string;
+          htmlBody: string | null;
+        }[]) {
+          langs[t.language] = t.htmlBody ?? "";
+        }
+        const loaded: HtmlCache = { en: json.data?.htmlBody ?? "", langs };
+        setHtmlCache((prev) => new Map(prev).set(variant.id, loaded));
+        return loaded;
+      } finally {
+        setHtmlLoading(false);
+        loadPromiseRef.current.delete(variant.id);
+      }
+    })();
+    loadPromiseRef.current.set(variant.id, promise);
+    return promise;
+  }
+
+  async function handleSelect(variant: EmailVariant, lang = "en") {
+    setSelectedVariant(variant);
+    setSelectedLang(lang);
+    await loadHtml(variant);
+  }
+
+  function closePanel() {
+    setSelectedVariant(null);
+  }
+
+  const panelCache = selectedVariant ? htmlCache.get(selectedVariant.id) ?? null : null;
+  const panelHtml = panelCache
+    ? selectedLang === "en"
+      ? panelCache.en || null
+      : panelCache.langs[selectedLang] || null
+    : null;
+  const panelSubject = selectedVariant
+    ? selectedLang === "en"
+      ? (selectedVariant.subject ?? "—")
+      : (selectedVariant.translations.find((t) => t.language === selectedLang)?.subject ?? "—")
+    : "—";
+  const panelAllLangs = selectedVariant
+    ? ["en", ...selectedVariant.translations.map((t) => t.language)]
+    : [];
+
   const sortedGroups = [...groups].sort((a, b) => {
     const ai = categoryOrder.indexOf(a.category);
     const bi = categoryOrder.indexOf(b.category);
@@ -118,9 +181,21 @@ export function EmailLibraryClient({ groups }: Props) {
 
   function renderGrid(variants: EmailVariant[]) {
     return (
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+      <div
+        className={cn(
+          "grid gap-4 grid-cols-1 sm:grid-cols-2",
+          selectedVariant
+            ? "lg:grid-cols-2 xl:grid-cols-3"
+            : "lg:grid-cols-3 xl:grid-cols-4",
+        )}
+      >
         {variants.map((v) => (
-          <EmailCard key={v.id} variant={v} />
+          <EmailCard
+            key={v.id}
+            variant={v}
+            onSelect={handleSelect}
+            selected={selectedVariant?.id === v.id}
+          />
         ))}
       </div>
     );
@@ -130,91 +205,19 @@ export function EmailLibraryClient({ groups }: Props) {
     return (
       <div className="rounded-xl border overflow-hidden">
         {variants.map((v) => (
-          <EmailListRow key={v.id} variant={v} />
+          <EmailListRow
+            key={v.id}
+            variant={v}
+            onSelect={handleSelect}
+            selected={selectedVariant?.id === v.id}
+          />
         ))}
       </div>
     );
   }
 
-  return (
-    <div className="space-y-4">
-      {/* Toolbar */}
-      <div className="space-y-3">
-        {/* Row 1: Search + view toggle */}
-        <div className="flex items-center gap-2">
-          <div className="relative flex-1">
-            <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
-            <Input
-              placeholder="Search name, subject, body, CTA…"
-              className="pl-8 h-9"
-              value={search}
-              onChange={(e) => setSearch(e.target.value)}
-            />
-          </div>
-
-          {/* View toggle */}
-          <div className="flex items-center border rounded-lg overflow-hidden shrink-0">
-            <button
-              title="Grid view"
-              onClick={() => setView("grid")}
-              className={cn(
-                "p-2 transition-colors",
-                viewMode === "grid"
-                  ? "bg-primary text-primary-foreground"
-                  : "text-muted-foreground hover:bg-muted",
-              )}
-            >
-              <LayoutGrid className="h-4 w-4" />
-            </button>
-            <button
-              title="List view"
-              onClick={() => setView("list")}
-              className={cn(
-                "p-2 border-l transition-colors",
-                viewMode === "list"
-                  ? "bg-primary text-primary-foreground"
-                  : "text-muted-foreground hover:bg-muted",
-              )}
-            >
-              <List className="h-4 w-4" />
-            </button>
-          </div>
-        </div>
-
-        {/* Row 2: Category filter — horizontal scroll on mobile */}
-        <div className="flex items-center gap-2">
-          <span className="shrink-0 text-xs text-muted-foreground font-medium">Category:</span>
-          <div className="flex items-center gap-2 overflow-x-auto scrollbar-hide pb-0.5">
-            <button
-              onClick={() => setCategoryFilter(null)}
-              className={cn(
-                "shrink-0 px-3 py-1 rounded-full text-xs font-medium border transition-colors",
-                !categoryFilter
-                  ? "bg-primary text-primary-foreground border-primary"
-                  : "bg-background text-muted-foreground border-border hover:text-foreground hover:border-foreground",
-              )}
-            >
-              All
-            </button>
-            {categories.map((cat) => (
-              <button
-                key={cat}
-                onClick={() => setCategoryFilter(categoryFilter === cat ? null : cat)}
-                className={cn(
-                  "shrink-0 px-3 py-1 rounded-full text-xs font-medium border transition-colors",
-                  categoryFilter === cat
-                    ? "bg-primary text-primary-foreground border-primary"
-                    : "bg-background text-muted-foreground border-border hover:text-foreground hover:border-foreground",
-                )}
-              >
-                {categoryLabel(cat)}
-              </button>
-            ))}
-          </div>
-        </div>
-      </div>
-
-      {/* Results */}
+  const cardsContent = (
+    <>
       {filterActive ? (
         serverLoading ? (
           <SearchSkeleton viewMode={viewMode} />
@@ -227,7 +230,10 @@ export function EmailLibraryClient({ groups }: Props) {
             </p>
             <button
               className="mt-3 text-xs text-primary underline-offset-4 hover:underline"
-              onClick={() => { setSearch(""); setCategoryFilter(null); }}
+              onClick={() => {
+                setSearch("");
+                setCategoryFilter(null);
+              }}
             >
               Clear filters
             </button>
@@ -270,16 +276,229 @@ export function EmailLibraryClient({ groups }: Props) {
                   </span>
                 </button>
 
-                {!isCollapsed && (
-                  viewMode === "grid"
+                {!isCollapsed &&
+                  (viewMode === "grid"
                     ? renderGrid(group.variants)
-                    : renderList(group.variants)
-                )}
+                    : renderList(group.variants))}
               </section>
             );
           })}
         </div>
       )}
+    </>
+  );
+
+  return (
+    <div className="space-y-4">
+      {/* Toolbar — always full width */}
+      <div className="space-y-3">
+        <div className="flex items-center gap-2">
+          <div className="relative flex-1">
+            <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
+            <Input
+              placeholder="Search name, subject, body, CTA…"
+              className="pl-8 h-9"
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+            />
+          </div>
+
+          <div className="flex items-center border rounded-lg overflow-hidden shrink-0">
+            <button
+              title="Grid view"
+              onClick={() => setView("grid")}
+              className={cn(
+                "p-2 transition-colors",
+                viewMode === "grid"
+                  ? "bg-primary text-primary-foreground"
+                  : "text-muted-foreground hover:bg-muted",
+              )}
+            >
+              <LayoutGrid className="h-4 w-4" />
+            </button>
+            <button
+              title="List view"
+              onClick={() => setView("list")}
+              className={cn(
+                "p-2 border-l transition-colors",
+                viewMode === "list"
+                  ? "bg-primary text-primary-foreground"
+                  : "text-muted-foreground hover:bg-muted",
+              )}
+            >
+              <List className="h-4 w-4" />
+            </button>
+          </div>
+        </div>
+
+        <div className="flex items-center gap-2">
+          <span className="shrink-0 text-xs text-muted-foreground font-medium">Category:</span>
+          <div className="flex items-center gap-2 overflow-x-auto scrollbar-hide pb-0.5">
+            <button
+              onClick={() => setCategoryFilter(null)}
+              className={cn(
+                "shrink-0 px-3 py-1 rounded-full text-xs font-medium border transition-colors",
+                !categoryFilter
+                  ? "bg-primary text-primary-foreground border-primary"
+                  : "bg-background text-muted-foreground border-border hover:text-foreground hover:border-foreground",
+              )}
+            >
+              All
+            </button>
+            {categories.map((cat) => (
+              <button
+                key={cat}
+                onClick={() => setCategoryFilter(categoryFilter === cat ? null : cat)}
+                className={cn(
+                  "shrink-0 px-3 py-1 rounded-full text-xs font-medium border transition-colors",
+                  categoryFilter === cat
+                    ? "bg-primary text-primary-foreground border-primary"
+                    : "bg-background text-muted-foreground border-border hover:text-foreground hover:border-foreground",
+                )}
+              >
+                {categoryLabel(cat)}
+              </button>
+            ))}
+          </div>
+        </div>
+      </div>
+
+      {/* Content + preview panel */}
+      {selectedVariant ? (
+        <div className="flex gap-4 items-start">
+          {/* Left: scrollable cards */}
+          <div className="flex-1 min-w-0">{cardsContent}</div>
+
+          {/* Right: sticky preview panel */}
+          <div className="w-[420px] xl:w-[460px] shrink-0 sticky top-4 self-start rounded-xl border bg-card shadow-lg overflow-hidden flex flex-col max-h-[calc(100vh-6rem)]">
+            {/* Panel header */}
+            <div className="px-4 pt-4 pb-3 border-b shrink-0 space-y-2">
+              <div className="flex items-start justify-between gap-2">
+                <div className="min-w-0 flex-1">
+                  <h3 className="text-sm font-semibold leading-snug truncate">
+                    {selectedVariant.name}
+                  </h3>
+                  <p className="text-xs text-muted-foreground mt-0.5">
+                    <span className="font-medium text-foreground/80">Subject:</span>{" "}
+                    {panelSubject}
+                  </p>
+                </div>
+                <div className="flex items-center gap-0.5 shrink-0">
+                  <button
+                    title="Expand to full width"
+                    onClick={() => setExpandOpen(true)}
+                    className="p-1.5 rounded-md text-muted-foreground hover:text-foreground hover:bg-muted transition-colors"
+                  >
+                    <Maximize2 className="h-3.5 w-3.5" />
+                  </button>
+                  <button
+                    title="Close preview"
+                    onClick={closePanel}
+                    className="p-1.5 rounded-md text-muted-foreground hover:text-foreground hover:bg-muted transition-colors"
+                  >
+                    <X className="h-4 w-4" />
+                  </button>
+                </div>
+              </div>
+
+              {/* Lang switcher */}
+              {panelAllLangs.length > 1 && (
+                <div className="flex items-center gap-1 flex-wrap">
+                  {panelAllLangs.map((l) => (
+                    <button
+                      key={l}
+                      onClick={() => setSelectedLang(l)}
+                      className={cn(
+                        "px-2 py-0.5 rounded text-[11px] font-mono font-medium transition-colors",
+                        selectedLang === l
+                          ? "bg-primary text-primary-foreground"
+                          : "text-muted-foreground hover:text-foreground hover:bg-muted",
+                      )}
+                    >
+                      {l}
+                    </button>
+                  ))}
+                </div>
+              )}
+            </div>
+
+            {/* iframe */}
+            <div className="flex-1 overflow-auto min-h-0">
+              {htmlLoading && !panelCache ? (
+                <div className="flex items-center justify-center h-48 text-sm text-muted-foreground">
+                  Loading preview…
+                </div>
+              ) : panelHtml ? (
+                <iframe
+                  key={`${selectedVariant.id}-${selectedLang}`}
+                  srcDoc={panelHtml}
+                  className="w-full h-full min-h-[500px] border-0"
+                  sandbox="allow-same-origin"
+                  title={`Email preview — ${selectedLang}`}
+                />
+              ) : !htmlLoading ? (
+                <div className="flex items-center justify-center h-48 text-sm text-muted-foreground">
+                  No HTML available for {selectedLang}
+                </div>
+              ) : null}
+            </div>
+          </div>
+        </div>
+      ) : (
+        cardsContent
+      )}
+
+      {/* Expand — full-width Dialog */}
+      <Dialog open={expandOpen} onOpenChange={setExpandOpen}>
+        <DialogContent className="max-w-5xl max-h-[92vh] flex flex-col p-0 gap-0">
+          <DialogHeader className="px-6 pt-5 pb-4 border-b shrink-0 gap-1.5">
+            <DialogTitle className="text-sm font-semibold leading-snug pr-6">
+              {selectedVariant?.name}
+            </DialogTitle>
+            {panelAllLangs.length > 1 && (
+              <div className="flex items-center gap-1 flex-wrap pt-0.5">
+                {panelAllLangs.map((l) => (
+                  <button
+                    key={l}
+                    onClick={() => setSelectedLang(l)}
+                    className={cn(
+                      "px-2.5 py-0.5 rounded-md text-[11px] font-mono font-medium transition-colors",
+                      selectedLang === l
+                        ? "bg-primary text-primary-foreground"
+                        : "text-muted-foreground hover:text-foreground hover:bg-muted",
+                    )}
+                  >
+                    {l}
+                  </button>
+                ))}
+              </div>
+            )}
+            <p className="text-xs text-muted-foreground">
+              <span className="font-medium text-foreground/80">Subject:</span> {panelSubject}
+            </p>
+          </DialogHeader>
+
+          <div className="flex-1 overflow-auto">
+            {htmlLoading && !panelCache ? (
+              <div className="flex items-center justify-center h-64 text-sm text-muted-foreground">
+                Loading preview…
+              </div>
+            ) : panelHtml ? (
+              <iframe
+                key={`expand-${selectedVariant?.id}-${selectedLang}`}
+                srcDoc={panelHtml}
+                className="w-full h-full min-h-[600px] border-0"
+                sandbox="allow-same-origin"
+                title={`Email preview — ${selectedLang}`}
+              />
+            ) : !htmlLoading ? (
+              <div className="flex items-center justify-center h-64 text-sm text-muted-foreground">
+                No HTML available for {selectedLang}
+              </div>
+            ) : null}
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

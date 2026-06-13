@@ -4,8 +4,8 @@ export const GUIDED_PRAYER_LABEL_TAG = "{{guided_prayer_label}}";
 export const VOTD_REFERENCE_TAG = "{{votd_reference}}";
 export const VOTD_TEXT_TAG = "{{votd_text}}";
 // Guided Prayer content tags — resolved from prayer.youversionapi.com (not VOTD)
-export const GP_REFERENCE_TAG = "{{gp_reference}}";
-export const GP_TEXT_TAG = "{{gp_text}}";
+export const GP_REFERENCE_TAG = "{{gp_verse_ref}}";
+export const GP_TEXT_TAG = "{{gp_verse_text}}";
 
 const VOTD_TAGS = [
   GUIDED_SCRIPTURE_LABEL_TAG,

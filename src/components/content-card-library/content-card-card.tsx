@@ -98,7 +98,7 @@ export function ContentCardCard({ variant }: { variant: ContentCardVariant }) {
 
       {/* Detail dialog */}
       <Dialog open={open} onOpenChange={setOpen}>
-        <DialogContent className="max-w-md">
+        <DialogContent className="max-w-xl">
           <DialogHeader>
             <DialogTitle className="text-sm font-semibold pr-6">{variant.name}</DialogTitle>
           </DialogHeader>
@@ -162,7 +162,7 @@ function TriggerProp({ label, value }: { label: string; value: string | null | u
   return (
     <div className="flex gap-2">
       <span className={cn("shrink-0 text-muted-foreground/60", value ? "" : "opacity-40")}>{label}:</span>
-      <span className={cn("truncate", value ? "text-foreground" : "italic text-muted-foreground/40")}>
+      <span className={cn("break-words min-w-0", value ? "text-foreground" : "italic text-muted-foreground/40")}>
         {value ?? "null"}
       </span>
     </div>
