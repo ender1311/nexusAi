@@ -99,9 +99,19 @@ export async function POST(req: NextRequest) {
       where: { agentId: null, channel: "modal-iam", variants: { some: { category } } },
     });
     if (!message) {
-      message = await prisma.message.create({
-        data: { agentId: null, name: `${category} Modal IAM Templates`, channel: "modal-iam" },
-      });
+      try {
+        message = await prisma.message.create({
+          data: { agentId: null, name: `${category} Modal IAM Templates`, channel: "modal-iam" },
+        });
+      } catch (createErr: unknown) {
+        // Concurrent create race — another request won; re-query for the winner
+        const isP2002 = typeof createErr === "object" && createErr !== null && "code" in createErr && (createErr as { code: string }).code === "P2002";
+        if (!isP2002) throw createErr;
+        message = await prisma.message.findFirst({
+          where: { agentId: null, channel: "modal-iam", variants: { some: { category } } },
+        });
+        if (!message) throw createErr; // give up — unexpected state
+      }
     }
 
     const variant = await prisma.messageVariant.create({

@@ -147,9 +147,14 @@ describe("modal IAM library DB model", () => {
     const json = await res.json();
     expect(json.data.title).toBe("Test Modal Title");
     expect(json.data.body).toBe("Test modal IAM body text");
-    // Cleanup created variant (and its Message bucket if now empty)
+    // Cleanup: delete variant, then delete Message bucket if it's now empty
     if (json.data?.id) {
       await prisma.messageVariant.delete({ where: { id: json.data.id } }).catch(() => {});
+      const msgId = json.data.messageId as string | undefined;
+      if (msgId) {
+        const remaining = await prisma.messageVariant.count({ where: { messageId: msgId } });
+        if (remaining === 0) await prisma.message.delete({ where: { id: msgId } }).catch(() => {});
+      }
     }
   });
 

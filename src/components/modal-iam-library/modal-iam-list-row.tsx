@@ -20,7 +20,7 @@ export function ModalIamListRow({ variant }: Props) {
       >
         {variant.iconImageUrl ? (
           // eslint-disable-next-line @next/next/no-img-element
-          <img src={variant.iconImageUrl} alt="" className="w-7 h-7 rounded-md object-cover shrink-0" />
+          <img src={variant.iconImageUrl} alt={variant.name} className="w-7 h-7 rounded-md object-cover shrink-0" />
         ) : (
           <div className="w-7 h-7 rounded-md bg-primary/10 flex items-center justify-center shrink-0">
             <ImageIcon className="w-3.5 h-3.5 text-primary/40" />

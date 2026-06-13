@@ -233,7 +233,7 @@ function readIamDir(iamDir: string): ModalEntry[] {
   return entries;
 }
 
-async function importYear(year: string, dryRun: boolean): Promise<void> {
+async function importYear(year: string, dryRun: boolean, updateMode: boolean): Promise<void> {
   const yearDir = path.join(DROPBOX_BASE, year);
   if (!fs.existsSync(yearDir)) {
     console.log(`Year directory not found: ${yearDir}`);
@@ -292,10 +292,24 @@ async function importYear(year: string, dryRun: boolean): Promise<void> {
 
       const existing = await prisma.messageVariant.findFirst({
         where: { name: variantName, message: { agentId: null, channel: "modal-iam" } },
+        select: { id: true, cta: true },
       });
       if (existing) {
-        console.log(`  [exists] ${variantName}`);
-        skipped++;
+        if (updateMode && entry.cta && !existing.cta) {
+          if (!dryRun) {
+            await prisma.messageVariant.update({
+              where: { id: existing.id },
+              data: { cta: entry.cta, deeplink: entry.deeplink, iconImageUrl: entry.imageUrl },
+            });
+            console.log(`  [update] ${variantName} cta="${entry.cta}"`);
+          } else {
+            console.log(`  [update-dry] ${variantName} would set cta="${entry.cta}"`);
+          }
+          created++;
+        } else {
+          console.log(`  [exists] ${variantName}`);
+          skipped++;
+        }
         continue;
       }
 
@@ -360,23 +374,26 @@ async function importYear(year: string, dryRun: boolean): Promise<void> {
     }
   }
 
-  console.log(`\n${year}: ${created} created, ${skipped} skipped, ${noIam} no modal IAM`);
+  console.log(`\n${year}: ${created} created/updated, ${skipped} skipped, ${noIam} no modal IAM`);
 }
 
 async function main() {
   const args = process.argv.slice(2);
   const dryRun = args.includes("--dry-run");
+  const updateMode = args.includes("--update");
   const yearFlagIdx = args.indexOf("--year");
   const yearArg = args.find((a) => a.startsWith("--year="))?.split("=")[1]
     ?? (yearFlagIdx !== -1 ? args[yearFlagIdx + 1] : undefined);
   const years = yearArg ? [yearArg] : ["2025", "2026"];
 
-  console.log(`Modal IAM library import — ${dryRun ? "DRY RUN" : "LIVE"}`);
+  const modeLabel = dryRun ? "DRY RUN" : updateMode ? "UPDATE" : "LIVE";
+  console.log(`Modal IAM library import — ${modeLabel}`);
+  if (updateMode) console.log("  (--update: backfill cta/deeplink/image for existing variants missing cta)");
   console.log(`Base path: ${DROPBOX_BASE}\n`);
 
   for (const year of years) {
     console.log(`=== ${year} ===`);
-    await importYear(year, dryRun);
+    await importYear(year, dryRun, updateMode);
   }
 
   await prisma.$disconnect();
