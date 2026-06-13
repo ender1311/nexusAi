@@ -68,7 +68,9 @@ export function EmailLibraryClient({ groups }: Props) {
   const filterActive = !!(search.trim() || categoryFilter);
 
   useEffect(() => {
-    if (!filterActive) {
+    // Compute inline so the linter sees the correct deps without filterActive in the array.
+    const isActive = !!(search.trim() || categoryFilter);
+    if (!isActive) {
       // Invalidate any in-flight fetch so its result is discarded when it lands.
       requestIdRef.current++;
       setServerItems(null);
