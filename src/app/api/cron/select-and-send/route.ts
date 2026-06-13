@@ -16,7 +16,7 @@ import { createBrazeClient } from "@/lib/braze/client";
 import { PayloadFactory } from "@/lib/braze/payload-factory";
 import { evaluateTargetFilter, buildComputedKeys } from "@/lib/engine/target-filter";
 import { buildAgentLottery } from "@/lib/engine/agent-lottery";
-import { getTodayStartUTC, computeScheduledAt, peakActivityHour, isInQuietHours, isBlackoutDate }  from "@/lib/engine/scheduling";
+import { getTodayStartUTC, computeScheduledAt, peakActivityHour, isInQuietHours, isBlackoutDate, localHourOf }  from "@/lib/engine/scheduling";
 import { isTimingMatch } from "@/lib/engine/send-timing";
 import { LinUCB } from "@/lib/engine/linucb";
 import { selectVariant, blendArm } from "@/lib/engine/select-variant";
@@ -1394,12 +1394,18 @@ export async function POST(req: NextRequest) {
                 variantScores[vid] = a + b > 0 ? a / (a + b) : 0;
               }
             }
+            const attrs = user.attributes as Record<string, unknown>;
+            const userTz = typeof attrs.timezone === "string" ? attrs.timezone : "America/New_York";
+            const scheduledLocalHour = inLocalTime
+              ? (scheduleDeliverHour ?? agent.fallbackSendHour ?? 8)
+              : localHourOf(scheduledAt, userTz);
             return {
-              agentId:          agent.id,
-              userId:           user.externalId,
-              messageVariantId: variantId,
-              channel:          pageVariants.find((v) => v.id === variantId)?.channel ?? "push",
-              scheduledFor:     scheduledAt,
+              agentId:             agent.id,
+              userId:              user.externalId,
+              messageVariantId:    variantId,
+              channel:             pageVariants.find((v) => v.id === variantId)?.channel ?? "push",
+              scheduledFor:        scheduledAt,
+              scheduledLocalHour,
               decisionContext:  {
                 ...(pid ? { personaId: pid, selectedVariantId: variantId, variantScores } : {}),
                 inLocalTime,
@@ -1864,13 +1870,19 @@ export async function POST(req: NextRequest) {
               variantScores[vid] = a + b > 0 ? a / (a + b) : 0;
             }
           }
+          const attrs = user.attributes as Record<string, unknown>;
+          const userTz = typeof attrs.timezone === "string" ? attrs.timezone : "America/New_York";
+          const scheduledLocalHour = inLocalTime
+            ? (scheduleDeliverHour ?? agent.fallbackSendHour ?? 8)
+            : localHourOf(scheduledAt, userTz);
           return {
-            agentId:          agent.id,
-            userId:           user.externalId,
-            messageVariantId: variantId,
-            channel:          windowVariants.find((v) => v.id === variantId)?.channel ?? "push",
-            sentAt:           now,
-            scheduledFor:     scheduledAt,
+            agentId:             agent.id,
+            userId:              user.externalId,
+            messageVariantId:    variantId,
+            channel:             windowVariants.find((v) => v.id === variantId)?.channel ?? "push",
+            sentAt:              now,
+            scheduledFor:        scheduledAt,
+            scheduledLocalHour,
             decisionContext:  {
               ...(pid ? { personaId: pid, selectedVariantId: variantId, variantScores } : {}),
               inLocalTime,

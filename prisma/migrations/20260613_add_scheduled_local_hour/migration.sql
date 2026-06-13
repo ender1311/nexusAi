@@ -1,0 +1,1 @@
+ALTER TABLE "UserDecision" ADD COLUMN IF NOT EXISTS "scheduledLocalHour" SMALLINT;

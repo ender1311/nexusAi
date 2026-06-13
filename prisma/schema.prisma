@@ -173,6 +173,7 @@ model UserDecision {
   reward                  Float?
   conversionValue         Float?    // USD-normalized gift amount for an attributed gift_given decision; null otherwise
   brazeAnalyticsFetchedAt DateTime? // when /sends/data_series was last polled (used for daily 900-sendId cap)
+  scheduledLocalHour      Int?      // user-local delivery hour (0–23); null for pre-migration rows
   // Context snapshot at decide-time — used for offline analysis and oracle training
   // { giver_tier?, streak_status?, streak_days?, recency_days?, trigger_event? }
   decisionContext  Json?

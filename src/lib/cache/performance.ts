@@ -218,21 +218,23 @@ export const getCachedChartDecisions = unstable_cache(
         ORDER BY 1 ASC
       `,
       // Per-hour/day-of-week counts (for timing heatmap)
-      // Use scheduledFor when available — for in_local_time sends it stores the local delivery hour
-      // (e.g. 08:00Z meaning "8am in user's timezone"). Fall back to sentAt for immediate sends.
+      // scheduledLocalHour stores the user's local delivery hour computed at send time.
+      // Pre-migration rows fall back to EXTRACT(HOUR FROM scheduledFor/sentAt) — for
+      // in_local_time sends that equals the fallback hour (8); for preferred-hour sends
+      // it's the UTC dispatch time which may not match local time.
       prisma.$queryRaw<Array<{ hour: bigint; dow: bigint; count: bigint }>>`
-        SELECT EXTRACT(HOUR FROM COALESCE("scheduledFor", "sentAt"))::bigint AS hour,
-               EXTRACT(DOW  FROM COALESCE("scheduledFor", "sentAt"))::bigint AS dow,
-               COUNT(*)::bigint                                               AS count
+        SELECT COALESCE("scheduledLocalHour", EXTRACT(HOUR FROM COALESCE("scheduledFor", "sentAt")))::bigint AS hour,
+               EXTRACT(DOW FROM COALESCE("scheduledFor", "sentAt"))::bigint                                   AS dow,
+               COUNT(*)::bigint                                                                                AS count
         FROM "UserDecision"
         WHERE "sentAt" >= ${thirtyDaysAgo}
         GROUP BY 1, 2
       `,
       // Per-hour sends + conversions for send-time intelligence chart
       prisma.$queryRaw<Array<{ hour: bigint; sends: bigint; conversions: bigint }>>`
-        SELECT EXTRACT(HOUR FROM COALESCE("scheduledFor", "sentAt"))::bigint AS hour,
-               COUNT(*)::bigint                                               AS sends,
-               COUNT("conversionAt")::bigint                                  AS conversions
+        SELECT COALESCE("scheduledLocalHour", EXTRACT(HOUR FROM COALESCE("scheduledFor", "sentAt")))::bigint AS hour,
+               COUNT(*)::bigint                                                                               AS sends,
+               COUNT("conversionAt")::bigint                                                                  AS conversions
         FROM "UserDecision"
         WHERE "sentAt" >= ${thirtyDaysAgo}
         GROUP BY 1

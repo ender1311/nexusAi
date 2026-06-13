@@ -172,6 +172,24 @@ export function isBlackoutDate(scheduledAt: Date, blackoutDates: string[]): bool
   return blackoutDates.includes(ymd);
 }
 
+/**
+ * Returns the hour of day (0–23) that `utcTime` corresponds to in `timezone`.
+ * Falls back to the UTC hour on invalid timezone strings.
+ */
+export function localHourOf(utcTime: Date, timezone: string): number {
+  try {
+    const s = new Intl.DateTimeFormat("en-US", {
+      timeZone: timezone,
+      hour: "2-digit",
+      hourCycle: "h23",
+    }).format(utcTime);
+    const h = parseInt(s, 10);
+    return Number.isNaN(h) ? utcTime.getUTCHours() : h % 24;
+  } catch {
+    return utcTime.getUTCHours();
+  }
+}
+
 export function isInQuietHours(start: string, end: string, timezone: string, now: Date): boolean {
   let tzTime: string;
   try {
