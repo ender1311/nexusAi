@@ -24,6 +24,13 @@ interface SmsMessage {
   body: string;
 }
 
+interface ContentCardMessage {
+  title: string;
+  message: string;
+  cta: string | null;
+  link: string | null;
+}
+
 // Braze recipient: exactly one identifier per entry (external_user_id OR braze_id).
 // Used when a batch contains unverified users who have no external_user_id in Braze.
 export type BrazeRecipient =
@@ -149,6 +156,43 @@ export class PayloadFactory {
         },
       },
       ...this.buildAudience(audience),
+    };
+  }
+
+  /**
+   * Build a /campaigns/trigger/send payload for an API-triggered content card.
+   * The Braze campaign uses {{api_trigger_properties.${title}}}, ${message},
+   * ${cta}, ${link} as liquid variables — we resolve them here and pass as
+   * trigger_properties shared by all recipients in the batch.
+   */
+  buildContentCardApiTriggerPayload(
+    msg: ContentCardMessage,
+    audience: AudienceTarget,
+    campaignId: string,
+  ): Record<string, unknown> {
+    const trigger_properties: Record<string, string> = {
+      title: msg.title,
+      message: msg.message,
+    };
+    if (msg.cta) trigger_properties.cta = msg.cta;
+    if (msg.link) trigger_properties.link = msg.link;
+
+    // Build recipients array. When mixed braze_id/external_user_id batch,
+    // use recipients[]; otherwise use the flatter external_user_ids format.
+    const hasBrazeOnly = audience.recipients?.some((r) => "braze_id" in r);
+    const recipientList =
+      audience.recipients ??
+      (audience.externalUserIds?.map((id) => ({ external_user_id: id })) ?? []);
+
+    if (hasBrazeOnly || audience.recipients) {
+      return { campaign_id: campaignId, trigger_properties, recipients: recipientList };
+    }
+    return {
+      campaign_id: campaignId,
+      trigger_properties,
+      ...(audience.externalUserIds?.length
+        ? { recipients: audience.externalUserIds.map((id) => ({ external_user_id: id })) }
+        : {}),
     };
   }
 

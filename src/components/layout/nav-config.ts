@@ -1,7 +1,7 @@
 import {
   LayoutDashboard, Bot, Users2, BarChart3, Settings, Radar, Database,
   Play, Workflow, FlaskConical, Sprout, HelpCircle, BookOpen, Mail,
-  ScrollText, Search, Boxes, Ruler, type LucideIcon,
+  ScrollText, Search, Boxes, Ruler, Layers, type LucideIcon,
 } from "lucide-react";
 
 export type NavItem = { href: string; label: string; icon: LucideIcon };
@@ -32,6 +32,7 @@ export const navTree: NavEntry[] = [
       { href: "/messages", label: "Push Library", icon: BookOpen },
       { href: "/email-library", label: "Email Library", icon: Mail },
       { href: "/push-library", label: "Verse Library", icon: ScrollText },
+      { href: "/content-card-library", label: "Content Cards", icon: Layers },
     ],
   },
   {

@@ -11,7 +11,7 @@ const votdMeta: VariantMeta = {
   title: "{{guided_scripture_label}}",
   deeplink: "https://www.bible.com/stories",
   brazeCampaignId: null, brazeVariantId: null, givingHandleStrategy: null,
-  iconImageUrl: null,
+  iconImageUrl: null, cta: null,
 };
 
 function content(overrides: Partial<VotdContent> = {}): VotdContent {

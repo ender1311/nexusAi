@@ -28,6 +28,7 @@ export type VariantSendGroup = {
   channel: string;
   body: string;
   title: string | null;
+  cta: string | null;
   deeplink: string | null;
   iosImageUrl: string | null;
   androidImageUrl: string | null;
@@ -44,6 +45,7 @@ export type VariantMeta = {
   channel: string;
   body: string;
   title: string | null;
+  cta: string | null;
   deeplink: string | null;
   brazeCampaignId: string | null;
   brazeVariantId: string | null;
@@ -232,6 +234,7 @@ export function groupDecisionsByVariant(
         channel:         meta.channel,
         body:            copy.body,
         title:           copy.title,
+        cta:             meta.cta,
         deeplink:        resolvedDeeplink,
         iosImageUrl,
         androidImageUrl,
@@ -283,6 +286,51 @@ export async function sendVariantGroup(
         )}
       : { externalUserIds: batchUserIds };
     let payload: Record<string, unknown>;
+
+    if (group.channel === "content-card") {
+      // API-triggered content card: always uses /campaigns/trigger/send with the
+      // dedicated content card campaign ID. Trigger properties resolve the Liquid
+      // variables baked into the campaign template (title, message, cta, link).
+      const ccCampaignId =
+        process.env.BRAZE_CONTENT_CARD_CAMPAIGN_ID ??
+        group.brazeCampaignId ??
+        resolvedCampaignId;
+      if (!ccCampaignId) {
+        console.error("[cron/select-and-send] content-card send skipped: no campaign ID (set BRAZE_CONTENT_CARD_CAMPAIGN_ID)");
+        return { sent: 0, errors: batchUserIds.length };
+      }
+      payload = factory.buildContentCardApiTriggerPayload(
+        {
+          title: group.title ?? "",
+          message: group.body,
+          cta: group.cta ?? null,
+          link: group.deeplink ?? null,
+        },
+        audience,
+        ccCampaignId,
+      );
+      const res = await brazeClient!.post("/campaigns/trigger/send", payload);
+      if (res.ok) {
+        const sendId = randomUUID();
+        await prisma.userDecision.updateMany({
+          where: { id: { in: batchDecisionIds } },
+          data: { brazeSendId: sendId },
+        });
+        if (onSuccessfulBatch) onSuccessfulBatch(batchUserIds);
+        return { sent: batchUserIds.length, errors: 0 };
+      } else {
+        let responseBody: unknown;
+        try { responseBody = await res.json(); } catch { responseBody = null; }
+        const reason = `HTTP ${res.status}: ${JSON.stringify(responseBody)}`;
+        console.error("[cron/select-and-send] content-card Braze HTTP error:", reason, { variantId: group.variantId });
+        void prisma.failedBrazeSend.create({
+          data: { agentId, variantId: group.variantId, channel: group.channel, userIds: batchUserIds, decisionIds: batchDecisionIds, reason },
+        }).catch((dbErr: unknown) => {
+          console.error("[cron/select-and-send] Failed to write FailedBrazeSend record:", dbErr);
+        });
+        return { sent: 0, errors: batchUserIds.length };
+      }
+    }
 
     if (group.channel === "push") {
       payload = factory.buildPushPayload(

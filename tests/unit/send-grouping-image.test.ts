@@ -5,7 +5,7 @@ import { VERSE_IMAGE_SENTINEL, buildVerseImageUrls, DEFAULT_VERSE_IMAGE_ID } fro
 
 const baseMeta: VariantMeta = {
   channel: "push", body: VERSE_PUSH_SENTINEL, title: "[verse]", deeplink: null,
-  brazeCampaignId: null, brazeVariantId: null, givingHandleStrategy: null,
+  brazeCampaignId: null, brazeVariantId: null, givingHandleStrategy: null, cta: null,
   iconImageUrl: VERSE_IMAGE_SENTINEL,
 };
 

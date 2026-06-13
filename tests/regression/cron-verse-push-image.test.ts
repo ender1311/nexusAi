@@ -19,7 +19,7 @@ const pool: VersePool = [
 function verseMeta(over: Partial<VariantMeta> = {}): VariantMeta {
   return {
     channel: "push", body: VERSE_PUSH_SENTINEL, title: "[verse:reference]", deeplink: null,
-    brazeCampaignId: null, brazeVariantId: null, givingHandleStrategy: null,
+    brazeCampaignId: null, brazeVariantId: null, givingHandleStrategy: null, cta: null,
     iconImageUrl: VERSE_IMAGE_SENTINEL, ...over,
   };
 }

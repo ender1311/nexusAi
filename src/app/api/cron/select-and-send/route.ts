@@ -823,11 +823,12 @@ export async function POST(req: NextRequest) {
     // If no lottery users and no in-window users, skip agent entirely
     if (lotteryUserIds.length === 0 && !hasInWindowUsers) continue;
 
-    // Build variant detail lookup: variantId → { channel, body, title, deeplink, brazeCampaignId, brazeVariantId }
+    // Build variant detail lookup: variantId → { channel, body, title, cta, deeplink, brazeCampaignId, brazeVariantId }
     const variantMeta = new Map<string, {
       channel: string;
       body: string;
       title: string | null;
+      cta: string | null;
       deeplink: string | null;
       brazeCampaignId: string | null;
       brazeVariantId: string | null;
@@ -845,6 +846,7 @@ export async function POST(req: NextRequest) {
           channel:         msg.channel,
           body:            v.body,
           title:           v.title ?? null,
+          cta:             v.cta ?? null,
           deeplink:        agent.deeplinkOverride ?? v.deeplink ?? null,
           brazeCampaignId: msg.brazeCampaignId ?? null,
           brazeVariantId:  v.brazeVariantId ?? null,

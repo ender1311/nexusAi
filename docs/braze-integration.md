@@ -61,8 +61,7 @@ Currents at `POST /api/ingest/braze-events` — the **primary reward path**.
 
 ## Payload Factory — Channel Payloads
 
-`PayloadFactory` exposes dedicated builders for push and email; other channels
-fall through to a generic body payload. All builders attach
+`PayloadFactory` exposes dedicated builders per channel. All builders attach
 `in_local_time: true` when the group was scheduled in local-time fallback mode.
 
 ```mermaid
@@ -71,22 +70,31 @@ flowchart TD
 
     AUDIENCE --> PUSH[buildPushPayload]
     AUDIENCE --> EMAIL[buildEmailPayload]
+    AUDIENCE --> CC[buildContentCardApiTriggerPayload]
     AUDIENCE --> OTHER[buildSmsPayload<br/>generic message_body fallthrough]
 
-    subgraph PUSH_DETAIL["Push Payload"]
+    subgraph PUSH_DETAIL["Push Payload → /messages/send"]
         PUSH --> ANDROID["Android: alert (body), title,<br/>custom_uri (deeplink), image_url"]
         PUSH --> APPLE["Apple: alert (body),<br/>custom_uri (deeplink), rich image"]
     end
 
-    subgraph EMAIL_DETAIL["Email Payload"]
+    subgraph EMAIL_DETAIL["Email Payload → /messages/send"]
         EMAIL --> EFIELDS["subject, body (HTML),<br/>from / reply_to"]
+    end
+
+    subgraph CC_DETAIL["Content Card → /campaigns/trigger/send"]
+        CC --> CC_TP["trigger_properties:<br/>title, message, cta, link<br/>Campaign: BRAZE_CONTENT_CARD_CAMPAIGN_ID"]
     end
 ```
 
 > **Message channels** are `push | email | in-app | content-card` (the
-> `Message.channel` enum). The send grouping routes `push`→`buildPushPayload`,
-> `email`→`buildEmailPayload`, and everything else through the generic body
-> builder.
+> `Message.channel` enum). The send grouping routes:
+> - `push` → `buildPushPayload` → `POST /messages/send`
+> - `email` → `buildEmailPayload` → `POST /messages/send`
+> - `content-card` → `buildContentCardApiTriggerPayload` → `POST /campaigns/trigger/send`
+>   using the API-triggered campaign (`BRAZE_CONTENT_CARD_CAMPAIGN_ID`). The campaign
+>   template resolves `{{api_trigger_properties.${title}}}`, `${message}`, `${cta}`, `${link}`.
+> - everything else → `buildSmsPayload` (generic body fallthrough)
 
 ## Analytics Fetch & Normalization
 
