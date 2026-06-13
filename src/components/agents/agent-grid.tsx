@@ -19,8 +19,9 @@ import {
   arrayMove,
 } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
-import { ArrowUpDown, Bot, Columns2, GripVertical, LayoutGrid, List, Trash2 } from "lucide-react";
+import { ArrowUpDown, Bot, Columns2, GripVertical, LayoutGrid, List, Plus, Trash2 } from "lucide-react";
 import { cn, formatNumber } from "@/lib/utils";
+import { Button } from "@/components/ui/button";
 import { Agent, agentTargetingLabel } from "@/types/agent";
 import type { StatKey } from "@/lib/stat-visibility";
 import { AgentCard } from "./agent-card";
@@ -380,8 +381,17 @@ export function AgentGrid({
     <div className="space-y-4">
       {/* Toolbar */}
       <div className="flex items-center justify-between gap-2 flex-wrap">
-        {/* Sort dropdown */}
-        <div className="relative" ref={sortRef}>
+        <div className="flex items-center gap-2">
+          {isAdmin && (
+            <Link href="/agents/new">
+              <Button size="sm">
+                <Plus className="h-4 w-4" />
+                New Agent
+              </Button>
+            </Link>
+          )}
+          {/* Sort dropdown */}
+          <div className="relative" ref={sortRef}>
           <button
             onClick={() => setSortOpen((v) => !v)}
             className={cn(
@@ -414,6 +424,7 @@ export function AgentGrid({
               ))}
             </div>
           )}
+          </div>
         </div>
 
         {/* Right-side controls */}

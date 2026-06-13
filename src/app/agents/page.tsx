@@ -22,6 +22,16 @@ const PAGE_SIZE = 20;
 const VALID_STATUSES = new Set<AgentStatus>(["active", "paused", "draft"]);
 const VALID_STAGES = new Set<FunnelStage>(FUNNEL_STAGES);
 
+async function AgentsHeaderActions() {
+  const [{ isAdmin }, killSwitchSetting] = await Promise.all([
+    getAuth(),
+    getCachedKillSwitchSetting(),
+  ]);
+  if (!isAdmin) return null;
+  const killSwitchOn = killSwitchSetting?.value === "true";
+  return <KillSwitchToggle initialOn={killSwitchOn} />;
+}
+
 async function AgentsContent({
   search,
   safeStatus,
@@ -119,18 +129,6 @@ async function AgentsContent({
 
   return (
     <>
-      {isAdmin && (
-        <div className="flex flex-wrap items-center justify-end gap-2">
-          <KillSwitchToggle initialOn={killSwitchOn} />
-          <Link href="/agents/new">
-            <Button size="sm">
-              <Plus className="h-4 w-4 mr-1" />
-              New Agent
-            </Button>
-          </Link>
-        </div>
-      )}
-
       {agents.length === 0 ? (
         hasFilters ? (
           <div className="flex flex-col items-center justify-center py-16 text-center border-2 border-dashed rounded-xl text-muted-foreground">
@@ -177,16 +175,10 @@ async function AgentsContent({
 
 function AgentsContentSkeleton() {
   return (
-    <div className="space-y-4">
-      <div className="flex items-center justify-end gap-2">
-        <Skeleton className="h-8 w-28" />
-        <Skeleton className="h-8 w-28" />
-      </div>
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-        {[1, 2, 3, 4, 5, 6].map((i) => (
-          <Skeleton key={i} className="h-36 rounded-xl" />
-        ))}
-      </div>
+    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+      {[1, 2, 3, 4, 5, 6].map((i) => (
+        <Skeleton key={i} className="h-36 rounded-xl" />
+      ))}
     </div>
   );
 }
@@ -212,7 +204,11 @@ export default async function AgentsPage({
 
   return (
     <>
-      <Header title="Agents" description="Manage your Nexus agents" />
+      <Header title="Agents" description="Manage your Nexus agents">
+        <Suspense fallback={<Skeleton className="h-8 w-28" />}>
+          <AgentsHeaderActions />
+        </Suspense>
+      </Header>
       <div className="p-4 sm:p-6 space-y-4">
         {/* Filter row renders immediately — client component reads URL via useSearchParams */}
         <AgentFilters search={search} status={status} stage={safeStage} />
