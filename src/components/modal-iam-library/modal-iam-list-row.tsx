@@ -64,7 +64,7 @@ export function ModalIamListRow({ variant }: Props) {
                   <p className="mt-1.5 text-[12px] leading-relaxed text-[#636366]">
                     {variant.body}
                   </p>
-                  <div className="mt-3 rounded-lg bg-[#5b4fd8] px-3 py-2 text-[12px] font-semibold text-white">
+                  <div className="mt-3 rounded-lg bg-[#008294] px-3 py-2 text-[12px] font-semibold text-white">
                     {variant.cta ?? "Tap to Continue"}
                   </div>
                 </div>
