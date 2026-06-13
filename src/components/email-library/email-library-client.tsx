@@ -55,9 +55,11 @@ export function EmailLibraryClient({ groups }: Props) {
   const [collapsed, setCollapsed] = useState<Record<string, boolean>>({});
   const [serverItems, setServerItems] = useState<EmailVariant[] | null>(null);
   const [serverLoading, setServerLoading] = useState(false);
-  const searchRef = useRef<HTMLInputElement>(null);
+  // Monotonically-increasing counter. Each effect run stamps its ID; only the
+  // latest response may update state, preventing stale fetches from overwriting.
+  const requestIdRef = useRef(0);
 
-  // Restore view preference after hydration
+  // Restore view preference after hydration (localStorage unavailable on server).
   useEffect(() => {
     const saved = localStorage.getItem("email-library-view") as ViewMode | null;
     if (saved === "grid" || saved === "list") setViewMode(saved);
@@ -67,9 +69,13 @@ export function EmailLibraryClient({ groups }: Props) {
 
   useEffect(() => {
     if (!filterActive) {
+      // Invalidate any in-flight fetch so its result is discarded when it lands.
+      requestIdRef.current++;
       setServerItems(null);
+      setServerLoading(false);
       return;
     }
+    const myId = ++requestIdRef.current;
     setServerLoading(true);
     const t = setTimeout(async () => {
       const p = new URLSearchParams();
@@ -78,13 +84,17 @@ export function EmailLibraryClient({ groups }: Props) {
       try {
         const res = await fetch(`/api/email-library?${p.toString()}`);
         const json = await res.json();
+        if (myId !== requestIdRef.current) return;
         setServerItems(json.data?.items ?? []);
+      } catch {
+        if (myId !== requestIdRef.current) return;
+        setServerItems([]);
       } finally {
-        setServerLoading(false);
+        if (myId === requestIdRef.current) setServerLoading(false);
       }
     }, 250);
     return () => clearTimeout(t);
-  }, [search, categoryFilter, filterActive]);
+  }, [search, categoryFilter]);
 
   const sortedGroups = [...groups].sort((a, b) => {
     const ai = categoryOrder.indexOf(a.category);
@@ -133,7 +143,6 @@ export function EmailLibraryClient({ groups }: Props) {
           <div className="relative flex-1">
             <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
             <Input
-              ref={searchRef}
               placeholder="Search name, subject, body, CTA…"
               className="pl-8 h-9"
               value={search}

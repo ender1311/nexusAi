@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Eye } from "lucide-react";
@@ -26,27 +26,35 @@ export function EmailCard({ variant }: { variant: EmailVariant }) {
   const [lang, setLang] = useState("en");
   const [cache, setCache] = useState<HtmlCache | null>(null);
   const [loading, setLoading] = useState(false);
+  // Prevents duplicate in-flight fetches if openPreview/switchLang called concurrently.
+  const loadPromiseRef = useRef<Promise<HtmlCache> | null>(null);
 
   const activeLangs = variant.translations.map((t) => t.language);
   const allLangs = ["en", ...activeLangs];
   const bodySnippet = variant.body?.slice(0, 150).trim();
 
-  async function ensureLoaded(): Promise<HtmlCache> {
-    if (cache) return cache;
+  function ensureLoaded(): Promise<HtmlCache> {
+    if (cache) return Promise.resolve(cache);
+    if (loadPromiseRef.current) return loadPromiseRef.current;
     setLoading(true);
-    try {
-      const res = await fetch(`/api/email-library?id=${variant.id}`, { method: "PATCH" });
-      const json = await res.json();
-      const langs: Record<string, string> = {};
-      for (const t of (json.data?.translations ?? []) as { language: string; htmlBody: string | null }[]) {
-        langs[t.language] = t.htmlBody ?? "";
+    const promise = (async () => {
+      try {
+        const res = await fetch(`/api/email-library?id=${variant.id}`, { method: "PATCH" });
+        const json = await res.json();
+        const langs: Record<string, string> = {};
+        for (const t of (json.data?.translations ?? []) as { language: string; htmlBody: string | null }[]) {
+          langs[t.language] = t.htmlBody ?? "";
+        }
+        const loaded: HtmlCache = { en: json.data?.htmlBody ?? "", langs };
+        setCache(loaded);
+        return loaded;
+      } finally {
+        setLoading(false);
+        loadPromiseRef.current = null;
       }
-      const loaded: HtmlCache = { en: json.data?.htmlBody ?? "", langs };
-      setCache(loaded);
-      return loaded;
-    } finally {
-      setLoading(false);
-    }
+    })();
+    loadPromiseRef.current = promise;
+    return promise;
   }
 
   async function openPreview(l = "en") {
@@ -189,7 +197,7 @@ export function EmailCard({ variant }: { variant: EmailVariant }) {
             </p>
           </DialogHeader>
 
-          <div className="flex-1 overflow-hidden">
+          <div className="flex-1 overflow-auto">
             {loading ? (
               <div className="flex items-center justify-center h-64 text-sm text-muted-foreground">
                 Loading preview…

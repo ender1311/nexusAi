@@ -37,9 +37,10 @@ export default async function EmailLibraryPage() {
     variants.flatMap((v) => v.translations.map((t) => t.language))
   ).size;
 
+  const langCount = totalLanguages + 1;
   const description =
     totalVariants > 0
-      ? `${totalVariants} templates · ${totalLanguages + 1} languages`
+      ? `${totalVariants} template${totalVariants !== 1 ? "s" : ""} · ${langCount} ${langCount !== 1 ? "languages" : "language"}`
       : "Curated email templates from YouVersion campaigns";
 
   return (
