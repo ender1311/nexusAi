@@ -193,9 +193,11 @@ export async function prepareGpContent(
     dates.add(date);
   }
 
-  for (const date of dates) {
-    const content = await getGpContent(prisma, date);
-    if (content) out.set(date, content);
-  }
+  await Promise.all(
+    Array.from(dates).map(async (date) => {
+      const content = await getGpContent(prisma, date);
+      if (content) out.set(date, content);
+    }),
+  );
   return out;
 }
