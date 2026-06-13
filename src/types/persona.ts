@@ -34,6 +34,7 @@ export interface Persona {
   isActive: boolean;
   tags: string[];
   clusterSize: number;
+  userCount?: number | null;
   silhouetteScore: number | null;
   discoveredAt: string | null;
   createdAt: string;

@@ -1,0 +1,1 @@
+ALTER TABLE "Persona" ADD COLUMN "userCount" INTEGER;

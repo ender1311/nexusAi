@@ -29,6 +29,14 @@
     {
       "path": "/api/cron/refresh-segment-facets",
       "schedule": "30 4 * * *"
+    },
+    {
+      "path": "/api/cron/refresh-persona-counts",
+      "schedule": "20 * * * *"
+    },
+    {
+      "path": "/api/cron/keep-alive",
+      "schedule": "*/5 * * * *"
     }
   ]
 }

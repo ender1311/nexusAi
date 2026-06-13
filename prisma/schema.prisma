@@ -255,6 +255,7 @@ model Persona {
   source          String    @default("manual")  // "manual" | "discovered"
   centroid        Json?                          // JSON feature vector
   clusterSize     Int       @default(0)
+  userCount       Int?                           // cached COUNT of assigned TrackedUsers; refreshed by cron
   silhouetteScore Float?
   traits          Json      @default("{}")       // JSON: discovered/extra fields
   label           String?

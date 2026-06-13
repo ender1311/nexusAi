@@ -28,11 +28,13 @@ export type AggregatePersona = {
 
 export type PersonaAvgAggregateOutputType = {
   clusterSize: number | null
+  userCount: number | null
   silhouetteScore: number | null
 }
 
 export type PersonaSumAggregateOutputType = {
   clusterSize: number | null
+  userCount: number | null
   silhouetteScore: number | null
 }
 
@@ -44,6 +46,7 @@ export type PersonaMinAggregateOutputType = {
   color: string | null
   source: string | null
   clusterSize: number | null
+  userCount: number | null
   silhouetteScore: number | null
   label: string | null
   isActive: boolean | null
@@ -60,6 +63,7 @@ export type PersonaMaxAggregateOutputType = {
   color: string | null
   source: string | null
   clusterSize: number | null
+  userCount: number | null
   silhouetteScore: number | null
   label: string | null
   isActive: boolean | null
@@ -77,6 +81,7 @@ export type PersonaCountAggregateOutputType = {
   source: number
   centroid: number
   clusterSize: number
+  userCount: number
   silhouetteScore: number
   traits: number
   label: number
@@ -91,11 +96,13 @@ export type PersonaCountAggregateOutputType = {
 
 export type PersonaAvgAggregateInputType = {
   clusterSize?: true
+  userCount?: true
   silhouetteScore?: true
 }
 
 export type PersonaSumAggregateInputType = {
   clusterSize?: true
+  userCount?: true
   silhouetteScore?: true
 }
 
@@ -107,6 +114,7 @@ export type PersonaMinAggregateInputType = {
   color?: true
   source?: true
   clusterSize?: true
+  userCount?: true
   silhouetteScore?: true
   label?: true
   isActive?: true
@@ -123,6 +131,7 @@ export type PersonaMaxAggregateInputType = {
   color?: true
   source?: true
   clusterSize?: true
+  userCount?: true
   silhouetteScore?: true
   label?: true
   isActive?: true
@@ -140,6 +149,7 @@ export type PersonaCountAggregateInputType = {
   source?: true
   centroid?: true
   clusterSize?: true
+  userCount?: true
   silhouetteScore?: true
   traits?: true
   label?: true
@@ -246,6 +256,7 @@ export type PersonaGroupByOutputType = {
   source: string
   centroid: runtime.JsonValue | null
   clusterSize: number
+  userCount: number | null
   silhouetteScore: number | null
   traits: runtime.JsonValue
   label: string | null
@@ -288,6 +299,7 @@ export type PersonaWhereInput = {
   source?: Prisma.StringFilter<"Persona"> | string
   centroid?: Prisma.JsonNullableFilter<"Persona">
   clusterSize?: Prisma.IntFilter<"Persona"> | number
+  userCount?: Prisma.IntNullableFilter<"Persona"> | number | null
   silhouetteScore?: Prisma.FloatNullableFilter<"Persona"> | number | null
   traits?: Prisma.JsonFilter<"Persona">
   label?: Prisma.StringNullableFilter<"Persona"> | string | null
@@ -309,6 +321,7 @@ export type PersonaOrderByWithRelationInput = {
   source?: Prisma.SortOrder
   centroid?: Prisma.SortOrderInput | Prisma.SortOrder
   clusterSize?: Prisma.SortOrder
+  userCount?: Prisma.SortOrderInput | Prisma.SortOrder
   silhouetteScore?: Prisma.SortOrderInput | Prisma.SortOrder
   traits?: Prisma.SortOrder
   label?: Prisma.SortOrderInput | Prisma.SortOrder
@@ -333,6 +346,7 @@ export type PersonaWhereUniqueInput = Prisma.AtLeast<{
   source?: Prisma.StringFilter<"Persona"> | string
   centroid?: Prisma.JsonNullableFilter<"Persona">
   clusterSize?: Prisma.IntFilter<"Persona"> | number
+  userCount?: Prisma.IntNullableFilter<"Persona"> | number | null
   silhouetteScore?: Prisma.FloatNullableFilter<"Persona"> | number | null
   traits?: Prisma.JsonFilter<"Persona">
   label?: Prisma.StringNullableFilter<"Persona"> | string | null
@@ -354,6 +368,7 @@ export type PersonaOrderByWithAggregationInput = {
   source?: Prisma.SortOrder
   centroid?: Prisma.SortOrderInput | Prisma.SortOrder
   clusterSize?: Prisma.SortOrder
+  userCount?: Prisma.SortOrderInput | Prisma.SortOrder
   silhouetteScore?: Prisma.SortOrderInput | Prisma.SortOrder
   traits?: Prisma.SortOrder
   label?: Prisma.SortOrderInput | Prisma.SortOrder
@@ -381,6 +396,7 @@ export type PersonaScalarWhereWithAggregatesInput = {
   source?: Prisma.StringWithAggregatesFilter<"Persona"> | string
   centroid?: Prisma.JsonNullableWithAggregatesFilter<"Persona">
   clusterSize?: Prisma.IntWithAggregatesFilter<"Persona"> | number
+  userCount?: Prisma.IntNullableWithAggregatesFilter<"Persona"> | number | null
   silhouetteScore?: Prisma.FloatNullableWithAggregatesFilter<"Persona"> | number | null
   traits?: Prisma.JsonWithAggregatesFilter<"Persona">
   label?: Prisma.StringNullableWithAggregatesFilter<"Persona"> | string | null
@@ -400,6 +416,7 @@ export type PersonaCreateInput = {
   source?: string
   centroid?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   clusterSize?: number
+  userCount?: number | null
   silhouetteScore?: number | null
   traits?: Prisma.JsonNullValueInput | runtime.InputJsonValue
   label?: string | null
@@ -421,6 +438,7 @@ export type PersonaUncheckedCreateInput = {
   source?: string
   centroid?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   clusterSize?: number
+  userCount?: number | null
   silhouetteScore?: number | null
   traits?: Prisma.JsonNullValueInput | runtime.InputJsonValue
   label?: string | null
@@ -442,6 +460,7 @@ export type PersonaUpdateInput = {
   source?: Prisma.StringFieldUpdateOperationsInput | string
   centroid?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   clusterSize?: Prisma.IntFieldUpdateOperationsInput | number
+  userCount?: Prisma.NullableIntFieldUpdateOperationsInput | number | null
   silhouetteScore?: Prisma.NullableFloatFieldUpdateOperationsInput | number | null
   traits?: Prisma.JsonNullValueInput | runtime.InputJsonValue
   label?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
@@ -463,6 +482,7 @@ export type PersonaUncheckedUpdateInput = {
   source?: Prisma.StringFieldUpdateOperationsInput | string
   centroid?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   clusterSize?: Prisma.IntFieldUpdateOperationsInput | number
+  userCount?: Prisma.NullableIntFieldUpdateOperationsInput | number | null
   silhouetteScore?: Prisma.NullableFloatFieldUpdateOperationsInput | number | null
   traits?: Prisma.JsonNullValueInput | runtime.InputJsonValue
   label?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
@@ -484,6 +504,7 @@ export type PersonaCreateManyInput = {
   source?: string
   centroid?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   clusterSize?: number
+  userCount?: number | null
   silhouetteScore?: number | null
   traits?: Prisma.JsonNullValueInput | runtime.InputJsonValue
   label?: string | null
@@ -503,6 +524,7 @@ export type PersonaUpdateManyMutationInput = {
   source?: Prisma.StringFieldUpdateOperationsInput | string
   centroid?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   clusterSize?: Prisma.IntFieldUpdateOperationsInput | number
+  userCount?: Prisma.NullableIntFieldUpdateOperationsInput | number | null
   silhouetteScore?: Prisma.NullableFloatFieldUpdateOperationsInput | number | null
   traits?: Prisma.JsonNullValueInput | runtime.InputJsonValue
   label?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
@@ -522,6 +544,7 @@ export type PersonaUncheckedUpdateManyInput = {
   source?: Prisma.StringFieldUpdateOperationsInput | string
   centroid?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   clusterSize?: Prisma.IntFieldUpdateOperationsInput | number
+  userCount?: Prisma.NullableIntFieldUpdateOperationsInput | number | null
   silhouetteScore?: Prisma.NullableFloatFieldUpdateOperationsInput | number | null
   traits?: Prisma.JsonNullValueInput | runtime.InputJsonValue
   label?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
@@ -546,6 +569,7 @@ export type PersonaCountOrderByAggregateInput = {
   source?: Prisma.SortOrder
   centroid?: Prisma.SortOrder
   clusterSize?: Prisma.SortOrder
+  userCount?: Prisma.SortOrder
   silhouetteScore?: Prisma.SortOrder
   traits?: Prisma.SortOrder
   label?: Prisma.SortOrder
@@ -558,6 +582,7 @@ export type PersonaCountOrderByAggregateInput = {
 
 export type PersonaAvgOrderByAggregateInput = {
   clusterSize?: Prisma.SortOrder
+  userCount?: Prisma.SortOrder
   silhouetteScore?: Prisma.SortOrder
 }
 
@@ -569,6 +594,7 @@ export type PersonaMaxOrderByAggregateInput = {
   color?: Prisma.SortOrder
   source?: Prisma.SortOrder
   clusterSize?: Prisma.SortOrder
+  userCount?: Prisma.SortOrder
   silhouetteScore?: Prisma.SortOrder
   label?: Prisma.SortOrder
   isActive?: Prisma.SortOrder
@@ -585,6 +611,7 @@ export type PersonaMinOrderByAggregateInput = {
   color?: Prisma.SortOrder
   source?: Prisma.SortOrder
   clusterSize?: Prisma.SortOrder
+  userCount?: Prisma.SortOrder
   silhouetteScore?: Prisma.SortOrder
   label?: Prisma.SortOrder
   isActive?: Prisma.SortOrder
@@ -595,6 +622,7 @@ export type PersonaMinOrderByAggregateInput = {
 
 export type PersonaSumOrderByAggregateInput = {
   clusterSize?: Prisma.SortOrder
+  userCount?: Prisma.SortOrder
   silhouetteScore?: Prisma.SortOrder
 }
 
@@ -642,6 +670,7 @@ export type PersonaCreateWithoutTrackedUsersInput = {
   source?: string
   centroid?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   clusterSize?: number
+  userCount?: number | null
   silhouetteScore?: number | null
   traits?: Prisma.JsonNullValueInput | runtime.InputJsonValue
   label?: string | null
@@ -662,6 +691,7 @@ export type PersonaUncheckedCreateWithoutTrackedUsersInput = {
   source?: string
   centroid?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   clusterSize?: number
+  userCount?: number | null
   silhouetteScore?: number | null
   traits?: Prisma.JsonNullValueInput | runtime.InputJsonValue
   label?: string | null
@@ -698,6 +728,7 @@ export type PersonaUpdateWithoutTrackedUsersInput = {
   source?: Prisma.StringFieldUpdateOperationsInput | string
   centroid?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   clusterSize?: Prisma.IntFieldUpdateOperationsInput | number
+  userCount?: Prisma.NullableIntFieldUpdateOperationsInput | number | null
   silhouetteScore?: Prisma.NullableFloatFieldUpdateOperationsInput | number | null
   traits?: Prisma.JsonNullValueInput | runtime.InputJsonValue
   label?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
@@ -718,6 +749,7 @@ export type PersonaUncheckedUpdateWithoutTrackedUsersInput = {
   source?: Prisma.StringFieldUpdateOperationsInput | string
   centroid?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   clusterSize?: Prisma.IntFieldUpdateOperationsInput | number
+  userCount?: Prisma.NullableIntFieldUpdateOperationsInput | number | null
   silhouetteScore?: Prisma.NullableFloatFieldUpdateOperationsInput | number | null
   traits?: Prisma.JsonNullValueInput | runtime.InputJsonValue
   label?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
@@ -738,6 +770,7 @@ export type PersonaCreateWithoutAgentTargetsInput = {
   source?: string
   centroid?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   clusterSize?: number
+  userCount?: number | null
   silhouetteScore?: number | null
   traits?: Prisma.JsonNullValueInput | runtime.InputJsonValue
   label?: string | null
@@ -758,6 +791,7 @@ export type PersonaUncheckedCreateWithoutAgentTargetsInput = {
   source?: string
   centroid?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   clusterSize?: number
+  userCount?: number | null
   silhouetteScore?: number | null
   traits?: Prisma.JsonNullValueInput | runtime.InputJsonValue
   label?: string | null
@@ -794,6 +828,7 @@ export type PersonaUpdateWithoutAgentTargetsInput = {
   source?: Prisma.StringFieldUpdateOperationsInput | string
   centroid?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   clusterSize?: Prisma.IntFieldUpdateOperationsInput | number
+  userCount?: Prisma.NullableIntFieldUpdateOperationsInput | number | null
   silhouetteScore?: Prisma.NullableFloatFieldUpdateOperationsInput | number | null
   traits?: Prisma.JsonNullValueInput | runtime.InputJsonValue
   label?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
@@ -814,6 +849,7 @@ export type PersonaUncheckedUpdateWithoutAgentTargetsInput = {
   source?: Prisma.StringFieldUpdateOperationsInput | string
   centroid?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   clusterSize?: Prisma.IntFieldUpdateOperationsInput | number
+  userCount?: Prisma.NullableIntFieldUpdateOperationsInput | number | null
   silhouetteScore?: Prisma.NullableFloatFieldUpdateOperationsInput | number | null
   traits?: Prisma.JsonNullValueInput | runtime.InputJsonValue
   label?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
@@ -874,6 +910,7 @@ export type PersonaSelect<ExtArgs extends runtime.Types.Extensions.InternalArgs 
   source?: boolean
   centroid?: boolean
   clusterSize?: boolean
+  userCount?: boolean
   silhouetteScore?: boolean
   traits?: boolean
   label?: boolean
@@ -896,6 +933,7 @@ export type PersonaSelectCreateManyAndReturn<ExtArgs extends runtime.Types.Exten
   source?: boolean
   centroid?: boolean
   clusterSize?: boolean
+  userCount?: boolean
   silhouetteScore?: boolean
   traits?: boolean
   label?: boolean
@@ -915,6 +953,7 @@ export type PersonaSelectUpdateManyAndReturn<ExtArgs extends runtime.Types.Exten
   source?: boolean
   centroid?: boolean
   clusterSize?: boolean
+  userCount?: boolean
   silhouetteScore?: boolean
   traits?: boolean
   label?: boolean
@@ -934,6 +973,7 @@ export type PersonaSelectScalar = {
   source?: boolean
   centroid?: boolean
   clusterSize?: boolean
+  userCount?: boolean
   silhouetteScore?: boolean
   traits?: boolean
   label?: boolean
@@ -944,7 +984,7 @@ export type PersonaSelectScalar = {
   updatedAt?: boolean
 }
 
-export type PersonaOmit<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = runtime.Types.Extensions.GetOmit<"id" | "name" | "description" | "icon" | "color" | "source" | "centroid" | "clusterSize" | "silhouetteScore" | "traits" | "label" | "tags" | "isActive" | "discoveredAt" | "createdAt" | "updatedAt", ExtArgs["result"]["persona"]>
+export type PersonaOmit<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = runtime.Types.Extensions.GetOmit<"id" | "name" | "description" | "icon" | "color" | "source" | "centroid" | "clusterSize" | "userCount" | "silhouetteScore" | "traits" | "label" | "tags" | "isActive" | "discoveredAt" | "createdAt" | "updatedAt", ExtArgs["result"]["persona"]>
 export type PersonaInclude<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
   trackedUsers?: boolean | Prisma.Persona$trackedUsersArgs<ExtArgs>
   agentTargets?: boolean | Prisma.Persona$agentTargetsArgs<ExtArgs>
@@ -968,6 +1008,7 @@ export type $PersonaPayload<ExtArgs extends runtime.Types.Extensions.InternalArg
     source: string
     centroid: runtime.JsonValue | null
     clusterSize: number
+    userCount: number | null
     silhouetteScore: number | null
     traits: runtime.JsonValue
     label: string | null
@@ -1409,6 +1450,7 @@ export interface PersonaFieldRefs {
   readonly source: Prisma.FieldRef<"Persona", 'String'>
   readonly centroid: Prisma.FieldRef<"Persona", 'Json'>
   readonly clusterSize: Prisma.FieldRef<"Persona", 'Int'>
+  readonly userCount: Prisma.FieldRef<"Persona", 'Int'>
   readonly silhouetteScore: Prisma.FieldRef<"Persona", 'Float'>
   readonly traits: Prisma.FieldRef<"Persona", 'Json'>
   readonly label: Prisma.FieldRef<"Persona", 'String'>

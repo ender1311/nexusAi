@@ -37,11 +37,11 @@ const getPersonas = cache(
           description: true,
           tags: true,
           clusterSize: true,
+          userCount: true,
           silhouetteScore: true,
           discoveredAt: true,
           createdAt: true,
           updatedAt: true,
-          _count: { select: { trackedUsers: true } },
         },
       });
       return rows as unknown as Persona[];
@@ -57,7 +57,7 @@ async function KpiSection() {
   // which exceeded this route's maxDuration and surfaced as "connection closed".
   const personas = await getPersonas().catch(() => [] as Persona[]);
   const totalPersonas = personas.length;
-  const assignedUsers = personas.reduce((s, p) => s + (p._count?.trackedUsers ?? 0), 0);
+  const assignedUsers = personas.reduce((s, p) => s + (p.userCount ?? 0), 0);
   const topPersonaName = personas[0]?.name ?? "";
 
   return (
@@ -96,7 +96,7 @@ async function PersonaGridsSection() {
 
   const manualPersonas = personas.filter((p) => p.source === "manual");
   const discoveredPersonas = personas.filter((p) => p.source === "discovered");
-  const assignedUsers = personas.reduce((s, p) => s + (p._count?.trackedUsers ?? 0), 0);
+  const assignedUsers = personas.reduce((s, p) => s + (p.userCount ?? 0), 0);
 
   if (personas.length === 0) {
     return (

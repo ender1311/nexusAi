@@ -290,6 +290,7 @@ export const PersonaScalarFieldEnum = {
   source: 'source',
   centroid: 'centroid',
   clusterSize: 'clusterSize',
+  userCount: 'userCount',
   silhouetteScore: 'silhouetteScore',
   traits: 'traits',
   label: 'label',
