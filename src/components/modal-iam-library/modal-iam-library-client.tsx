@@ -31,10 +31,12 @@ function subcategoryLabel(catSlug: string | null, subSlug: string): string {
 }
 
 function GroupLabel({ category, subcategory }: { category: string; subcategory: string | null }) {
+  // Suppress subcategory when its slug matches the parent (e.g. "guided-scripture/guided-scripture")
+  const showSub = subcategory && subcategory !== category;
   return (
     <span className="text-sm font-semibold text-muted-foreground">
       {categoryLabel(category)}
-      {subcategory && (
+      {showSub && (
         <>
           <span className="mx-1.5 text-muted-foreground/40">/</span>
           <span>{subcategoryLabel(category, subcategory)}</span>
@@ -50,6 +52,8 @@ export function ModalIamLibraryClient({ groups }: Props) {
   const [viewMode, setViewMode] = useState<ViewMode>("grid");
   const [collapsed, setCollapsed] = useState<Record<string, boolean>>({});
   const [serverItems, setServerItems] = useState<ModalIamVariant[] | null>(null);
+  const [serverTotal, setServerTotal] = useState<number | null>(null);
+  const [serverError, setServerError] = useState(false);
   const [serverLoading, setServerLoading] = useState(false);
   const requestIdRef = useRef(0);
 
@@ -65,22 +69,32 @@ export function ModalIamLibraryClient({ groups }: Props) {
     if (!isActive) {
       requestIdRef.current++;
       setServerItems(null);
+      setServerTotal(null);
+      setServerError(false);
       setServerLoading(false);
       return;
     }
     const myId = ++requestIdRef.current;
     setServerLoading(true);
+    setServerError(false);
     const t = setTimeout(async () => {
       const p = new URLSearchParams();
       if (search.trim()) p.set("q", search.trim());
       if (categoryFilter) p.set("category", categoryFilter);
       try {
         const res = await fetch(`/api/modal-iam-library?${p.toString()}`);
-        const json = await res.json();
         if (myId !== requestIdRef.current) return;
+        if (!res.ok) {
+          setServerError(true);
+          setServerItems([]);
+          return;
+        }
+        const json = await res.json();
         setServerItems(json.data?.items ?? []);
+        setServerTotal(json.data?.total ?? null);
       } catch {
         if (myId !== requestIdRef.current) return;
+        setServerError(true);
         setServerItems([]);
       } finally {
         if (myId === requestIdRef.current) setServerLoading(false);
@@ -201,6 +215,20 @@ export function ModalIamLibraryClient({ groups }: Props) {
       {filterActive ? (
         serverLoading ? (
           <SearchSkeleton viewMode={viewMode} />
+        ) : serverError ? (
+          <div className="py-16 text-center">
+            <Layers className="h-10 w-10 text-muted-foreground/30 mx-auto mb-3" />
+            <p className="text-sm font-medium text-muted-foreground">Search failed</p>
+            <p className="text-xs text-muted-foreground mt-1">
+              There was an error loading results. Try again.
+            </p>
+            <button
+              className="mt-3 text-xs text-primary underline-offset-4 hover:underline"
+              onClick={() => { setSearch(""); setCategoryFilter(null); }}
+            >
+              Clear filters
+            </button>
+          </div>
         ) : flatVariants.length === 0 ? (
           <div className="py-16 text-center">
             <Layers className="h-10 w-10 text-muted-foreground/30 mx-auto mb-3" />
@@ -218,7 +246,9 @@ export function ModalIamLibraryClient({ groups }: Props) {
         ) : (
           <div className="space-y-1">
             <p className="text-xs text-muted-foreground pb-1">
-              {flatVariants.length} result{flatVariants.length !== 1 ? "s" : ""}
+              {serverTotal !== null && serverTotal > flatVariants.length
+                ? `Showing ${flatVariants.length} of ${serverTotal} results`
+                : `${flatVariants.length} result${flatVariants.length !== 1 ? "s" : ""}`}
             </p>
             {viewMode === "grid" ? renderGrid(flatVariants) : renderList(flatVariants)}
           </div>
@@ -234,7 +264,7 @@ export function ModalIamLibraryClient({ groups }: Props) {
       ) : (
         <div className="space-y-6">
           {sortedGroups.map((group) => {
-            const key = `${group.category}-${group.subcategory ?? "none"}`;
+            const key = `${group.category}||${group.subcategory ?? ""}`;
             const isCollapsed = collapsed[key] ?? false;
 
             return (

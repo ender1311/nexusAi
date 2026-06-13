@@ -54,7 +54,7 @@ export function ModalIamListRow({ variant }: Props) {
                 {variant.iconImageUrl ? (
                   <div className="aspect-video overflow-hidden bg-zinc-100">
                     {/* eslint-disable-next-line @next/next/no-img-element */}
-                    <img src={variant.iconImageUrl} alt="" className="h-full w-full object-cover" />
+                    <img src={variant.iconImageUrl} alt={variant.name} className="h-full w-full object-cover" />
                   </div>
                 ) : null}
                 <div className={cn("px-4 pb-4 text-center", variant.iconImageUrl ? "pt-3" : "pt-6")}>
@@ -65,7 +65,7 @@ export function ModalIamListRow({ variant }: Props) {
                     {variant.body}
                   </p>
                   <div className="mt-3 rounded-lg bg-[#5b4fd8] px-3 py-2 text-[12px] font-semibold text-white">
-                    Tap to Continue
+                    {variant.cta ?? "Tap to Continue"}
                   </div>
                 </div>
                 {/* X button */}

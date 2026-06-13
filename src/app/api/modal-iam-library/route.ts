@@ -8,7 +8,7 @@ const FILTER_PARAMS = ["q", "category", "subcategory", "status", "sort", "dir", 
 const SORT_FIELDS = new Set(["createdAt", "name", "sortOrder"]);
 
 const SELECT = {
-  id: true, name: true, title: true, body: true, deeplink: true, iconImageUrl: true,
+  id: true, name: true, title: true, body: true, cta: true, deeplink: true, iconImageUrl: true,
   status: true, category: true, subcategory: true, sortOrder: true,
 } as const;
 

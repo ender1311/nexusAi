@@ -4,7 +4,7 @@ import { prisma } from "@/lib/db";
 // Integration tests for /api/modal-iam-library route.
 // Verifies the modal IAM message + variant lifecycle using direct Prisma queries.
 
-let messageId: string;
+let messageId: string | undefined;
 let variantId: string;
 
 beforeAll(async () => {
@@ -26,6 +26,7 @@ beforeAll(async () => {
       name: "Sowers Giving Modal",
       title: "Join the Sowers",
       body: "Partner with YouVersion to bring the Bible to the world.",
+      cta: "Give Now",
       deeplink: "https://www.bible.com/giving/sowers",
       iconImageUrl: null,
       category: "giving",
@@ -37,7 +38,9 @@ beforeAll(async () => {
 });
 
 afterAll(async () => {
-  await prisma.message.delete({ where: { id: messageId } });
+  if (messageId) {
+    await prisma.message.delete({ where: { id: messageId } }).catch(() => {});
+  }
 });
 
 describe("modal IAM library DB model", () => {
@@ -45,6 +48,7 @@ describe("modal IAM library DB model", () => {
     const v = await prisma.messageVariant.findUniqueOrThrow({ where: { id: variantId } });
     expect(v.title).toBe("Join the Sowers");
     expect(v.body).toBe("Partner with YouVersion to bring the Bible to the world.");
+    expect(v.cta).toBe("Give Now");
     expect(v.deeplink).toBe("https://www.bible.com/giving/sowers");
     expect(v.category).toBe("giving");
     expect(v.subcategory).toBe("sowers");
@@ -63,18 +67,22 @@ describe("modal IAM library DB model", () => {
   });
 
   it("GET /api/modal-iam-library returns grouped library variants", async () => {
-    const res = await fetch("http://localhost:3000/api/modal-iam-library");
-    if (!res.ok) {
-      // Server not running in CI — verify DB shape directly
+    let res: Response;
+    try {
+      res = await fetch("http://localhost:3000/api/modal-iam-library");
+    } catch {
+      // Server not running — verify DB shape directly
       const variants = await prisma.messageVariant.findMany({
         where: { message: { agentId: null, channel: "modal-iam" }, id: variantId },
-        select: { id: true, name: true, title: true, body: true, deeplink: true, category: true },
+        select: { id: true, name: true, title: true, body: true, cta: true, deeplink: true, category: true },
       });
       expect(variants).toHaveLength(1);
       expect(variants[0].title).toBe("Join the Sowers");
+      expect(variants[0].cta).toBe("Give Now");
       expect(variants[0].body).toContain("YouVersion");
       return;
     }
+    expect(res.ok).toBe(true);
     const json = await res.json();
     expect(Array.isArray(json.data)).toBe(true);
     const group = json.data.find((g: { category: string }) => g.category === "giving");
@@ -83,30 +91,36 @@ describe("modal IAM library DB model", () => {
   });
 
   it("GET /api/modal-iam-library with search returns paginated items", async () => {
-    const res = await fetch("http://localhost:3000/api/modal-iam-library?q=Sowers");
-    if (!res.ok && res.status === 0) return; // server not running
-    if (res.ok) {
-      const json = await res.json();
-      expect(typeof json.data.total).toBe("number");
-      expect(Array.isArray(json.data.items)).toBe(true);
+    let res: Response;
+    try {
+      res = await fetch("http://localhost:3000/api/modal-iam-library?q=Sowers");
+    } catch {
+      return; // server not running
     }
+    expect(res.ok).toBe(true);
+    const json = await res.json();
+    expect(typeof json.data.total).toBe("number");
+    expect(Array.isArray(json.data.items)).toBe(true);
   });
 
   it("POST /api/modal-iam-library creates a new modal IAM variant", async () => {
-    const res = await fetch("http://localhost:3000/api/modal-iam-library", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        name: "Test Modal IAM Create",
-        title: "Test Modal Title",
-        body: "Test modal IAM body text",
-        deeplink: "https://bible.com/plans",
-        category: "bible-plans",
-        subcategory: "featured-plans",
-      }),
-    });
-    if (res.status === 0 || (!res.ok && res.status === 500)) {
-      // Server not running in CI — verify DB model accepts the fields
+    let res: Response;
+    try {
+      res = await fetch("http://localhost:3000/api/modal-iam-library", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          name: "Test Modal IAM Create",
+          title: "Test Modal Title",
+          body: "Test modal IAM body text",
+          cta: "Learn More",
+          deeplink: "https://bible.com/plans",
+          category: "bible-plans",
+          subcategory: "featured-plans",
+        }),
+      });
+    } catch {
+      // Server not running — verify DB model accepts the fields directly
       const msg2 = await prisma.message.create({
         data: { agentId: null, name: "__test_modal_iam_post__", channel: "modal-iam" },
       });
@@ -116,6 +130,7 @@ describe("modal IAM library DB model", () => {
           name: "Test Modal IAM Create",
           title: "Test Modal Title",
           body: "Test modal IAM body text",
+          cta: "Learn More",
           deeplink: "https://bible.com/plans",
           category: "bible-plans",
           subcategory: "featured-plans",
@@ -123,49 +138,64 @@ describe("modal IAM library DB model", () => {
         },
       });
       expect(v2.title).toBe("Test Modal Title");
+      expect(v2.cta).toBe("Learn More");
       expect(v2.category).toBe("bible-plans");
       await prisma.message.delete({ where: { id: msg2.id } });
       return;
     }
-    if (res.ok) {
-      const json = await res.json();
-      expect(json.data.title).toBe("Test Modal Title");
-      expect(json.data.body).toBe("Test modal IAM body text");
+    expect(res.ok).toBe(true);
+    const json = await res.json();
+    expect(json.data.title).toBe("Test Modal Title");
+    expect(json.data.body).toBe("Test modal IAM body text");
+    // Cleanup created variant (and its Message bucket if now empty)
+    if (json.data?.id) {
       await prisma.messageVariant.delete({ where: { id: json.data.id } }).catch(() => {});
     }
   });
 
   it("POST /api/modal-iam-library rejects missing title", async () => {
-    const res = await fetch("http://localhost:3000/api/modal-iam-library", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ name: "No title", body: "body text", category: "giving" }),
-    });
-    if (res.status === 0) return; // server not running
+    let res: Response;
+    try {
+      res = await fetch("http://localhost:3000/api/modal-iam-library", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ name: "No title", body: "body text", category: "giving" }),
+      });
+    } catch {
+      return; // server not running
+    }
     expect(res.status).toBe(400);
     const json = await res.json();
     expect(json.error).toContain("title");
   });
 
   it("POST /api/modal-iam-library rejects missing body", async () => {
-    const res = await fetch("http://localhost:3000/api/modal-iam-library", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ name: "No body", title: "A title", category: "giving" }),
-    });
-    if (res.status === 0) return; // server not running
+    let res: Response;
+    try {
+      res = await fetch("http://localhost:3000/api/modal-iam-library", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ name: "No body", title: "A title", category: "giving" }),
+      });
+    } catch {
+      return; // server not running
+    }
     expect(res.status).toBe(400);
     const json = await res.json();
     expect(json.error).toContain("body");
   });
 
   it("POST /api/modal-iam-library rejects invalid category", async () => {
-    const res = await fetch("http://localhost:3000/api/modal-iam-library", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ name: "Bad cat", title: "T", body: "B", category: "not-a-category" }),
-    });
-    if (res.status === 0) return; // server not running
+    let res: Response;
+    try {
+      res = await fetch("http://localhost:3000/api/modal-iam-library", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ name: "Bad cat", title: "T", body: "B", category: "not-a-category" }),
+      });
+    } catch {
+      return; // server not running
+    }
     expect(res.status).toBe(400);
   });
 });
