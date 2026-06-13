@@ -49,7 +49,12 @@ export function KillSwitchToggle({ initialOn }: { initialOn: boolean }) {
           render={
             <Button size="sm" variant="destructive" disabled={loading}>
               <Power className="h-3.5 w-3.5 mr-1.5" />
-              {loading ? "Resuming…" : "Kill switch ON — Resume all"}
+              {loading ? "Resuming…" : (
+                <>
+                  <span className="sm:hidden">Kill switch ON</span>
+                  <span className="hidden sm:inline">Kill switch ON — Resume all</span>
+                </>
+              )}
             </Button>
           }
         />

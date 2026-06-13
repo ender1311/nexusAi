@@ -120,7 +120,7 @@ async function AgentsContent({
   return (
     <>
       {isAdmin && (
-        <div className="flex items-center justify-end gap-2">
+        <div className="flex flex-wrap items-center justify-end gap-2">
           <KillSwitchToggle initialOn={killSwitchOn} />
           <Link href="/agents/new">
             <Button size="sm">

@@ -66,22 +66,24 @@ export function AgentFilters({ search, status, stage }: AgentFiltersProps) {
         </div>
       </div>
 
-      <div className="flex items-center gap-2 flex-wrap">
-        <span className="text-xs text-muted-foreground font-medium">Stage:</span>
-        {FUNNEL_STAGES.map((s: FunnelStage) => (
-          <button
-            key={s}
-            onClick={() => updateParams({ stage: stage === s ? undefined : s })}
-            className={cn(
-              "px-3 py-1 rounded-full text-xs font-medium border transition-colors",
-              stage === s
-                ? "bg-primary text-primary-foreground border-primary"
-                : "bg-background text-muted-foreground border-border hover:text-foreground hover:border-foreground",
-            )}
-          >
-            {FUNNEL_STAGE_META[s].label}
-          </button>
-        ))}
+      <div className="flex items-center gap-2">
+        <span className="shrink-0 text-xs text-muted-foreground font-medium">Stage:</span>
+        <div className="flex items-center gap-2 overflow-x-auto scrollbar-hide pb-0.5">
+          {FUNNEL_STAGES.map((s: FunnelStage) => (
+            <button
+              key={s}
+              onClick={() => updateParams({ stage: stage === s ? undefined : s })}
+              className={cn(
+                "shrink-0 px-3 py-1 rounded-full text-xs font-medium border transition-colors",
+                stage === s
+                  ? "bg-primary text-primary-foreground border-primary"
+                  : "bg-background text-muted-foreground border-border hover:text-foreground hover:border-foreground",
+              )}
+            >
+              {FUNNEL_STAGE_META[s].label}
+            </button>
+          ))}
+        </div>
       </div>
     </div>
   );
