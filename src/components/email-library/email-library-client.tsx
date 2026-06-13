@@ -65,7 +65,6 @@ export function EmailLibraryClient({ groups }: Props) {
   const [htmlCache, setHtmlCache] = useState<Map<string, HtmlCache>>(new Map());
   const [htmlLoading, setHtmlLoading] = useState(false);
   const [expandOpen, setExpandOpen] = useState(false);
-  const loadingRef = useRef<string | null>(null);
   const loadPromiseRef = useRef<Map<string, Promise<HtmlCache>>>(new Map());
 
   // Restore view preference after hydration
