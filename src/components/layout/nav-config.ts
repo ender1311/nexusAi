@@ -34,6 +34,7 @@ export const navTree: NavEntry[] = [
       { href: "/push-library", label: "Verse Library", icon: ScrollText },
       { href: "/content-card-library", label: "Content Cards", icon: Layers },
       { href: "/slideup-library", label: "Slideups", icon: MessageSquare },
+      { href: "/modal-iam-library", label: "Modal IAMs", icon: Layers },
     ],
   },
   {
