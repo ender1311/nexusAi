@@ -138,7 +138,10 @@ export function groupDecisionsByVariant(
         const { date: gpDate } = resolveVotdUserKey(user.attributes, scheduledAt);
         const content = localization?.gpContent?.get(gpDate);
         // Missing GP content → skip rather than deliver raw liquid tags.
-        if (!content) continue;
+        if (!content) {
+          console.warn("[send-grouping] GP content missing for date", gpDate, "— skipping user", user.externalId);
+          continue;
+        }
         const labels = guidedLabels("en");
         copy = {
           title: meta.title != null ? substituteGpTags(meta.title, {

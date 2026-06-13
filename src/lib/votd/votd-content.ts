@@ -203,9 +203,14 @@ export async function prepareVotdContent(
     pending.set(votdContentKey(key.date, key.languageTag), key);
   }
 
-  for (const [key, { date, languageTag }] of pending) {
-    const content = await getVotdContent(prisma, date, languageTag);
-    if (content) out.set(key, content);
+  const results = await Promise.allSettled(
+    Array.from(pending.entries()).map(async ([key, { date, languageTag }]) => {
+      const content = await getVotdContent(prisma, date, languageTag);
+      if (content) out.set(key, content);
+    }),
+  );
+  for (const r of results) {
+    if (r.status === "rejected") console.error("[votd-content] prepareVotdContent fetch threw:", r.reason);
   }
   return out;
 }

@@ -193,11 +193,15 @@ export async function prepareGpContent(
     dates.add(date);
   }
 
-  await Promise.all(
+  // allSettled: a transient API failure for one date never aborts the rest.
+  const results = await Promise.allSettled(
     Array.from(dates).map(async (date) => {
       const content = await getGpContent(prisma, date);
       if (content) out.set(date, content);
     }),
   );
+  for (const r of results) {
+    if (r.status === "rejected") console.error("[guided-prayer] prepareGpContent fetch threw:", r.reason);
+  }
   return out;
 }

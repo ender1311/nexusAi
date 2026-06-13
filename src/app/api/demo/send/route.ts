@@ -130,6 +130,8 @@ export async function POST(req: NextRequest) {
           );
           const res = await brazeClient.post("/messages/send", payload);
           if (!res.ok) return { userId, status: "failed", reason: "Braze send failed", variantName };
+          // Override sends intentionally skip UserDecision creation — they are test
+          // sends, not bandit selections, and should not pollute analytics or frequency cap.
           return { userId, status: "sent", variantName };
         }
 
@@ -230,7 +232,7 @@ export async function POST(req: NextRequest) {
         await prisma.userDecision.update({
           where: { id: decision.userDecisionId },
           data: { brazeSendId: randomUUID() },
-        }).catch(() => {}); // non-critical
+        }).catch((err) => console.warn("[demo/send] userDecision update failed (non-critical):", err));
 
         return { userId, status: "sent", variantName: variant.name };
       } catch (err) {
