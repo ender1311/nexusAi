@@ -21,6 +21,10 @@ graph TB
     subgraph BRAZE_API["Braze REST API"]
         SEND["POST /messages/send<br/>Immediate delivery"]
         SCHED["POST /messages/schedule/create<br/>Future delivery (returns schedule_id)"]
+        CC_SEND["POST /campaigns/trigger/send<br/>API-triggered content card"]
+        CC_SCHED["POST /campaigns/trigger/schedule/create<br/>Scheduled content card"]
+        CANVAS_SEND["POST /canvas/trigger/send<br/>Canvas-triggered slideup"]
+        CANVAS_SCHED["POST /canvas/trigger/schedule/create<br/>Scheduled slideup"]
         CAMP["GET /campaigns/data_series<br/>Campaign analytics"]
         SENDS["GET /sends/data_series<br/>Per-send analytics"]
     end
@@ -71,6 +75,7 @@ flowchart TD
     AUDIENCE --> PUSH[buildPushPayload]
     AUDIENCE --> EMAIL[buildEmailPayload]
     AUDIENCE --> CC[buildContentCardApiTriggerPayload]
+    AUDIENCE --> CANVAS[buildCanvasApiTriggerPayload]
     AUDIENCE --> OTHER[buildSmsPayload<br/>generic message_body fallthrough]
 
     subgraph PUSH_DETAIL["Push Payload → /messages/send"]
@@ -82,18 +87,26 @@ flowchart TD
         EMAIL --> EFIELDS["subject, body (HTML),<br/>from / reply_to"]
     end
 
-    subgraph CC_DETAIL["Content Card → /campaigns/trigger/send"]
+    subgraph CC_DETAIL["Content Card → /campaigns/trigger/send (or schedule/create)"]
         CC --> CC_TP["trigger_properties:<br/>title, message, cta, link<br/>Campaign: BRAZE_CONTENT_CARD_CAMPAIGN_ID"]
+    end
+
+    subgraph CANVAS_DETAIL["Slideup → /canvas/trigger/send (or schedule/create)"]
+        CANVAS --> CANVAS_EP["canvas_entry_properties:<br/>slideupOnly, title?, message, link?, imageUrl?<br/>Canvas: BRAZE_NEXUS_SLIDEUP_CANVAS_ID"]
     end
 ```
 
 > **Message channels** are `push | email | in-app | content-card` (the
 > `Message.channel` enum). The send grouping routes:
-> - `push` → `buildPushPayload` → `POST /messages/send`
-> - `email` → `buildEmailPayload` → `POST /messages/send`
+> - `push` → `buildPushPayload` → `POST /messages/send` (or `/messages/schedule/create`)
+> - `email` → `buildEmailPayload` → `POST /messages/send` (or `/messages/schedule/create`)
 > - `content-card` → `buildContentCardApiTriggerPayload` → `POST /campaigns/trigger/send`
->   using the API-triggered campaign (`BRAZE_CONTENT_CARD_CAMPAIGN_ID`). The campaign
->   template resolves `{{api_trigger_properties.${title}}}`, `${message}`, `${cta}`, `${link}`.
+>   (or `/campaigns/trigger/schedule/create`). Campaign: `BRAZE_CONTENT_CARD_CAMPAIGN_ID`.
+>   The campaign template resolves `{{api_trigger_properties.${title}}}`, `${message}`, `${cta}`, `${link}`.
+> - `in-app` → `buildCanvasApiTriggerPayload` → `POST /canvas/trigger/send`
+>   (or `/canvas/trigger/schedule/create`). Canvas: `BRAZE_NEXUS_SLIDEUP_CANVAS_ID`.
+>   Canvas entry properties: `slideupOnly` (derived from `title === null`), `title`, `message`, `link`, `imageUrl`.
+>   The canvas Decision Split routes `slideupOnly=true` to slideup-only step, `false` to push-then-slideup.
 > - everything else → `buildSmsPayload` (generic body fallthrough)
 
 ## Analytics Fetch & Normalization
@@ -153,6 +166,8 @@ remains a legacy fallback.
 | `BRAZE_NEXUS_ANDROID_VARIANT_ID` | Android push message variation |
 | `BRAZE_NEXUS_EMAIL_VARIANT_ID` | Email message variation |
 | `BRAZE_NEXUS_CONTENTCARD_VARIANT_ID` | Content-card message variation |
+| `BRAZE_CONTENT_CARD_CAMPAIGN_ID` | API-triggered content card campaign (required for `in-app` channel sends) |
+| `BRAZE_NEXUS_SLIDEUP_CANVAS_ID` | Canvas ID for slideup sends (required for `in-app` channel sends) |
 | `BRAZE_ANDROID_APP_ID` / `BRAZE_IOS_APP_ID` / `BRAZE_WEB_APP_ID` | Optional platform app identifiers used in push payload construction |
 
 > **Config source:** `BrazeClient` reads from `process.env` at instantiation.

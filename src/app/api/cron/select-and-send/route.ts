@@ -194,6 +194,31 @@ export async function POST(req: NextRequest) {
     console.warn(`[cron/select-and-send] skipped ${skippedIncompletePush} incomplete push variant(s)`);
   }
 
+  // Drop content-card variants with a missing title — the Braze campaign template
+  // requires trigger_properties.title; a null title sends an empty string and
+  // renders broken cards. Body is non-nullable in the schema so only title is checked.
+  let skippedIncompleteContentCard = 0;
+  for (const agent of agents) {
+    for (const msg of agent.messages) {
+      if (msg.channel !== "content-card") continue;
+      const complete = msg.variants.filter((v) => typeof v.title === "string" && v.title.trim().length > 0);
+      if (complete.length !== msg.variants.length) {
+        skippedIncompleteContentCard += msg.variants.length - complete.length;
+        for (const v of msg.variants) {
+          if (!(typeof v.title === "string" && v.title.trim().length > 0)) {
+            console.warn(
+              `[cron/select-and-send] skipping content-card variant ${v.id} (agent ${agent.id}): missing title`
+            );
+          }
+        }
+        msg.variants = complete;
+      }
+    }
+  }
+  if (skippedIncompleteContentCard > 0) {
+    console.warn(`[cron/select-and-send] skipped ${skippedIncompleteContentCard} incomplete content-card variant(s)`);
+  }
+
   void prisma.cronRun.update({
     where: { id: cronRunId },
     data: { agentCount: agents.length },
@@ -1290,29 +1315,43 @@ export async function POST(req: NextRequest) {
             )!;
           }
 
-          // Schedule mode: force in_local_time via Braze at the configured hour.
-          // Otherwise prefer the user's last-seen hour; fall back to their historical peak hour.
-          const effectiveSendHour = scheduleDeliverHour !== null ? null : (user.preferredSendHour ?? peakActivityHour(user.hourlyStats));
-          const effectiveSendMinute = scheduleDeliverHour !== null ? null : (user.preferredSendHour !== null ? (user.preferredSendMinute ?? null) : null);
-          const { scheduledAt, inLocalTime: isFallback } = computeScheduledAt(
-            effectiveSendHour,
-            effectiveSendMinute,
-            scheduleDeliverHour ?? agent.fallbackSendHour ?? 8,
-            now,
-          );
+          // Content cards and slideup-only in-app messages are not time-sensitive:
+          // content cards persist in the inbox; slideup-only has no push notification.
+          // Skip user-timing resolution and scheduling for these channels so they
+          // send immediately and never get held by quiet hours or the 2-hour window.
+          const selectedMeta = variantMeta.get(selectedVariantId);
+          const sendImmediately =
+            selectedMeta?.channel === "content-card" ||
+            (selectedMeta?.channel === "in-app" && selectedMeta.title === null);
 
-          // Global blackout: suppress sends landing on a blackout calendar date (checks the
-          // scheduledAt UTC anchor, so rolled-forward fallback sends are caught too).
-          if (isBlackoutDate(scheduledAt, blackoutDates)) {
-            totalSuppressed++;
-            suppress.blackout++;
-            continue;
+          let scheduledAt: Date;
+          let isFallback: boolean;
+          if (sendImmediately) {
+            scheduledAt = now;
+            isFallback = false;
+          } else {
+            // Schedule mode: force in_local_time via Braze at the configured hour.
+            // Otherwise prefer the user's last-seen hour; fall back to their historical peak hour.
+            const effectiveSendHour = scheduleDeliverHour !== null ? null : (user.preferredSendHour ?? peakActivityHour(user.hourlyStats));
+            const effectiveSendMinute = scheduleDeliverHour !== null ? null : (user.preferredSendHour !== null ? (user.preferredSendMinute ?? null) : null);
+            ({ scheduledAt, inLocalTime: isFallback } = computeScheduledAt(
+              effectiveSendHour,
+              effectiveSendMinute,
+              scheduleDeliverHour ?? agent.fallbackSendHour ?? 8,
+              now,
+            ));
+
+            // Global blackout: suppress sends landing on a blackout calendar date.
+            if (isBlackoutDate(scheduledAt, blackoutDates)) {
+              totalSuppressed++;
+              suppress.blackout++;
+              continue;
+            }
+
+            // Timing window: only select users whose preferred send time is within the next 2 hours.
+            // Users on the fallback path (isFallback=true) are always eligible.
+            if (!isFallback && scheduledAt.getTime() - now.getTime() > 2 * 60 * 60 * 1000) continue;
           }
-
-          // Timing window: only select users whose preferred send time is within the next 2 hours.
-          // Users on the fallback path (isFallback=true) have no behavioral preference and are
-          // always eligible — Braze handles per-user timing via in_local_time scheduling.
-          if (!isFallback && scheduledAt.getTime() - now.getTime() > 2 * 60 * 60 * 1000) continue;
 
           lotteryDecisionInputs.push({
             user,
@@ -1739,23 +1778,35 @@ export async function POST(req: NextRequest) {
             )!;
           }
 
-          // Schedule mode: force in_local_time via Braze at the configured hour.
-          // Otherwise prefer the user's last-seen hour; fall back to their historical peak hour.
-          const effectiveSendHour = scheduleDeliverHour !== null ? null : (user.preferredSendHour ?? peakActivityHour(user.hourlyStats));
-          const effectiveSendMinute = scheduleDeliverHour !== null ? null : (user.preferredSendHour !== null ? (user.preferredSendMinute ?? null) : null);
-          const { scheduledAt, inLocalTime: isFallback } = computeScheduledAt(
-            effectiveSendHour,
-            effectiveSendMinute,
-            scheduleDeliverHour ?? agent.fallbackSendHour ?? 8,
-            now,
-          );
+          // Content cards and slideup-only in-app messages send immediately.
+          const selectedWindowMeta = variantMeta.get(selectedVariantId);
+          const sendWindowImmediately =
+            selectedWindowMeta?.channel === "content-card" ||
+            (selectedWindowMeta?.channel === "in-app" && selectedWindowMeta.title === null);
 
-          // Global blackout: suppress sends landing on a blackout calendar date (checks the
-          // scheduledAt UTC anchor, so rolled-forward fallback sends are caught too).
-          if (isBlackoutDate(scheduledAt, blackoutDates)) {
-            totalSuppressed++;
-            suppress.blackout++;
-            continue;
+          let scheduledAt: Date;
+          let isFallback: boolean;
+          if (sendWindowImmediately) {
+            scheduledAt = now;
+            isFallback = false;
+          } else {
+            // Schedule mode: force in_local_time via Braze at the configured hour.
+            // Otherwise prefer the user's last-seen hour; fall back to their historical peak hour.
+            const effectiveSendHour = scheduleDeliverHour !== null ? null : (user.preferredSendHour ?? peakActivityHour(user.hourlyStats));
+            const effectiveSendMinute = scheduleDeliverHour !== null ? null : (user.preferredSendHour !== null ? (user.preferredSendMinute ?? null) : null);
+            ({ scheduledAt, inLocalTime: isFallback } = computeScheduledAt(
+              effectiveSendHour,
+              effectiveSendMinute,
+              scheduleDeliverHour ?? agent.fallbackSendHour ?? 8,
+              now,
+            ));
+
+            // Global blackout: suppress sends landing on a blackout calendar date.
+            if (isBlackoutDate(scheduledAt, blackoutDates)) {
+              totalSuppressed++;
+              suppress.blackout++;
+              continue;
+            }
           }
 
           decisionInputs.push({

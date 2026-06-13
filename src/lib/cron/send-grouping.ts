@@ -210,7 +210,11 @@ export function groupDecisionsByVariant(
         iosImageUrl = ios;
         androidImageUrl = android;
       }
-    } else if (meta.iconImageUrl) {
+    } else if (meta.iconImageUrl && meta.channel !== "content-card") {
+      // content-card sends don't accept a dynamic imageUrl via trigger_properties,
+      // so don't set iosImageUrl/androidImageUrl for that channel. Including it in
+      // the group key would split users with different iconImageUrls into separate
+      // Braze calls even though the payloads would be identical (image never sent).
       iosImageUrl = meta.iconImageUrl;
       androidImageUrl = meta.iconImageUrl;
     }
@@ -288,13 +292,16 @@ export async function sendVariantGroup(
     let payload: Record<string, unknown>;
 
     if (group.channel === "content-card") {
-      // API-triggered content card: always uses /campaigns/trigger/send with the
-      // dedicated content card campaign ID. Trigger properties resolve the Liquid
-      // variables baked into the campaign template (title, message, cta, link).
+      // API-triggered content card: uses /campaigns/trigger/send (immediate) or
+      // /campaigns/trigger/schedule/create (future). Trigger properties resolve
+      // the Liquid variables in the campaign template (title, message, cta, link).
+      // Never fall back to the push campaign for content-card sends — a push
+      // campaign ID used with /campaigns/trigger/send for a content-card would
+      // be silently rejected or return a confusing Braze error.
       const ccCampaignId =
         process.env.BRAZE_CONTENT_CARD_CAMPAIGN_ID ??
         group.brazeCampaignId ??
-        resolvedCampaignId;
+        undefined;
       if (!ccCampaignId) {
         console.error("[cron/select-and-send] content-card send skipped: no campaign ID (set BRAZE_CONTENT_CARD_CAMPAIGN_ID)");
         return { sent: 0, errors: batchUserIds.length };
@@ -309,12 +316,30 @@ export async function sendVariantGroup(
         audience,
         ccCampaignId,
       );
-      const res = await brazeClient!.post("/campaigns/trigger/send", payload);
+      // Content cards set scheduledAt=now (sendImmediately path in the cron), not a
+      // future time. Use a 2-minute threshold to distinguish true future schedules
+      // from "send now" — otherwise every content-card would hit the schedule/create
+      // endpoint and Braze would receive a schedule time in the past.
+      const ccIsFuture = !!group.scheduledAt && group.scheduledAt.getTime() > Date.now() + 120_000;
+      const ccEndpoint = ccIsFuture
+        ? "/campaigns/trigger/schedule/create"
+        : "/campaigns/trigger/send";
+      if (ccIsFuture) {
+        payload = { ...payload, schedule: { time: group.scheduledAt!.toISOString() } };
+      }
+      const res = await brazeClient!.post(ccEndpoint, payload);
       if (res.ok) {
         const sendId = randomUUID();
+        let brazeScheduleId: string | null = null;
+        if (ccIsFuture) {
+          try {
+            const json = await res.json() as { schedule_id?: string };
+            brazeScheduleId = json.schedule_id ?? null;
+          } catch { /* ignore */ }
+        }
         await prisma.userDecision.updateMany({
           where: { id: { in: batchDecisionIds } },
-          data: { brazeSendId: sendId },
+          data: { brazeSendId: sendId, ...(brazeScheduleId && { brazeScheduleId }) },
         });
         if (onSuccessfulBatch) onSuccessfulBatch(batchUserIds);
         return { sent: batchUserIds.length, errors: 0 };
@@ -323,6 +348,68 @@ export async function sendVariantGroup(
         try { responseBody = await res.json(); } catch { responseBody = null; }
         const reason = `HTTP ${res.status}: ${JSON.stringify(responseBody)}`;
         console.error("[cron/select-and-send] content-card Braze HTTP error:", reason, { variantId: group.variantId });
+        void prisma.failedBrazeSend.create({
+          data: { agentId, variantId: group.variantId, channel: group.channel, userIds: batchUserIds, decisionIds: batchDecisionIds, reason },
+        }).catch((dbErr: unknown) => {
+          console.error("[cron/select-and-send] Failed to write FailedBrazeSend record:", dbErr);
+        });
+        return { sent: 0, errors: batchUserIds.length };
+      }
+    }
+
+    if (group.channel === "in-app") {
+      // Canvas-triggered slideup: uses /canvas/trigger/send (immediate) or
+      // /canvas/trigger/schedule/create (future). Canvas entry properties drive
+      // the Decision Split (slideupOnly) and populate push + slideup steps.
+      const canvasId =
+        process.env.BRAZE_NEXUS_SLIDEUP_CANVAS_ID ??
+        group.brazeCampaignId ??
+        undefined;
+      if (!canvasId) {
+        console.error("[cron/select-and-send] in-app send skipped: no canvas ID (set BRAZE_NEXUS_SLIDEUP_CANVAS_ID)");
+        return { sent: 0, errors: batchUserIds.length };
+      }
+      payload = factory.buildCanvasApiTriggerPayload(
+        {
+          title: group.title ?? null,
+          message: group.body,
+          link: group.deeplink ?? null,
+          imageUrl: group.iosImageUrl ?? null,
+        },
+        audience,
+        canvasId,
+      );
+      // Slideup-only variants set scheduledAt=now (sendImmediately path); use the
+      // same 2-minute threshold as content cards to avoid the schedule/create endpoint
+      // receiving a past or present timestamp.
+      const canvasIsFuture = !!group.scheduledAt && group.scheduledAt.getTime() > Date.now() + 120_000;
+      const canvasEndpoint = canvasIsFuture
+        ? "/canvas/trigger/schedule/create"
+        : "/canvas/trigger/send";
+      if (canvasIsFuture) {
+        payload = { ...payload, schedule: { time: group.scheduledAt!.toISOString() } };
+      }
+      const res = await brazeClient!.post(canvasEndpoint, payload);
+      if (res.ok) {
+        const sendId = randomUUID();
+        let brazeScheduleId: string | null = null;
+        if (canvasIsFuture) {
+          try {
+            const json = await res.json() as { schedule_id?: string };
+            brazeScheduleId = json.schedule_id ?? null;
+          } catch { /* ignore */ }
+        }
+        await prisma.userDecision.updateMany({
+          where: { id: { in: batchDecisionIds } },
+          data: { brazeSendId: sendId, ...(brazeScheduleId && { brazeScheduleId }) },
+        });
+        if (onSuccessfulBatch) onSuccessfulBatch(batchUserIds);
+        return { sent: batchUserIds.length, errors: 0 };
+      } else {
+        let responseBody: unknown;
+        try { responseBody = await res.json(); } catch { responseBody = null; }
+        const reason = `HTTP ${res.status}: ${JSON.stringify(responseBody)}`;
+        console.error("[cron/select-and-send] in-app Braze HTTP error:", reason, { variantId: group.variantId });
         void prisma.failedBrazeSend.create({
           data: { agentId, variantId: group.variantId, channel: group.channel, userIds: batchUserIds, decisionIds: batchDecisionIds, reason },
         }).catch((dbErr: unknown) => {

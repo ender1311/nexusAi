@@ -31,6 +31,15 @@ interface ContentCardMessage {
   link: string | null;
 }
 
+interface CanvasSlideupMessage {
+  /** Null title means slideup-only; non-null title sends push first, then slideup. */
+  title: string | null;
+  message: string;
+  link: string | null;
+  /** Slideup image URL. */
+  imageUrl: string | null;
+}
+
 // Braze recipient: exactly one identifier per entry (external_user_id OR braze_id).
 // Used when a batch contains unverified users who have no external_user_id in Braze.
 export type BrazeRecipient =
@@ -190,6 +199,40 @@ export class PayloadFactory {
     return {
       campaign_id: campaignId,
       trigger_properties,
+      ...(audience.externalUserIds?.length
+        ? { recipients: audience.externalUserIds.map((id) => ({ external_user_id: id })) }
+        : {}),
+    };
+  }
+
+  /**
+   * Build a /canvas/trigger/send payload for a slideup (in-app) message.
+   * Canvas entry properties drive the Decision Split (slideupOnly) and populate
+   * the push step (title, message, link, image fields) and slideup step (imageUrl,
+   * message, link). When title is null, slideupOnly=true routes through the
+   * slideup-only branch of the canvas Decision Split.
+   */
+  buildCanvasApiTriggerPayload(
+    msg: CanvasSlideupMessage,
+    audience: AudienceTarget,
+    canvasId: string,
+  ): Record<string, unknown> {
+    const slideupOnly = msg.title === null;
+    const canvas_entry_properties: Record<string, unknown> = {
+      slideupOnly,
+      message: msg.message,
+    };
+    if (!slideupOnly && msg.title) canvas_entry_properties.title = msg.title;
+    if (msg.link) canvas_entry_properties.link = msg.link;
+    if (msg.imageUrl) canvas_entry_properties.imageUrl = msg.imageUrl;
+
+    const hasBrazeOnly = audience.recipients?.some((r) => "braze_id" in r);
+    if (hasBrazeOnly || audience.recipients) {
+      return { canvas_id: canvasId, canvas_entry_properties, recipients: audience.recipients };
+    }
+    return {
+      canvas_id: canvasId,
+      canvas_entry_properties,
       ...(audience.externalUserIds?.length
         ? { recipients: audience.externalUserIds.map((id) => ({ external_user_id: id })) }
         : {}),
