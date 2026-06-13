@@ -2,6 +2,7 @@
 // No auth required for production API. GUIDED_PRAYER_API_KEY is optional (Bearer token)
 // if the API ever adds auth requirements. Returns null gracefully on any failure.
 import { dayOfYear } from "./votd-content";
+import { resolveVotdUserKey } from "./votd-user-key";
 
 const GP_BASE = "https://guidedprayers.youversionapi.com/4.0";
 const DEFAULT_GUIDE_ID = 1;
@@ -13,7 +14,10 @@ const GP_HEADERS: Record<string, string> = {
   "X-YouVersion-Client": "youversion",
   "X-YouVersion-App-Platform": "ios",
   "X-YouVersion-App-Version": "122",
+  // Node.js fetch sends no User-Agent by default; the GP API returns 404 without one.
+  "User-Agent": "yv api script",
   Accept: "application/json",
+  "Accept-Language": "en",
 };
 
 export type GpContent = {
@@ -171,12 +175,12 @@ export async function getGpContent(
   }
 }
 
-/** Cron-side pre-fetch: collect the unique dates for GP variant users,
- *  resolve each via getGpContent, return a map keyed by date string.
+/** Cron-side pre-fetch: collect the unique user-local dates for GP variant users,
+ *  resolve each via getGpContent, return a map keyed by user-local date string.
  *  Unresolvable dates are absent (those users get skipped). */
 export async function prepareGpContent(
   prisma: PrismaLike,
-  inputs: Array<{ variantId: string; scheduledAt: Date }>,
+  inputs: Array<{ user: { attributes: unknown }; variantId: string; scheduledAt: Date }>,
   gpVariantIds: Set<string>,
 ): Promise<Map<string, GpContent>> {
   const out = new Map<string, GpContent>();
@@ -185,7 +189,8 @@ export async function prepareGpContent(
   const dates = new Set<string>();
   for (const input of inputs) {
     if (!gpVariantIds.has(input.variantId)) continue;
-    dates.add(input.scheduledAt.toISOString().slice(0, 10));
+    const { date } = resolveVotdUserKey(input.user.attributes, input.scheduledAt);
+    dates.add(date);
   }
 
   for (const date of dates) {

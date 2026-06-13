@@ -35,12 +35,14 @@ export type DemoPreviewResponse = {
   agentId: string;
   agentName: string;
   assignments: DemoAssignment[];
+  /** All active push variants for this agent — used by the variant override picker. */
+  allVariants: DemoVariant[];
 };
 
 export async function POST(req: NextRequest) {
   try {
     const body = await req.json();
-    const { agentId, userIds } = body as { agentId?: unknown; userIds?: unknown };
+    const { agentId, userIds, variantOverrideId } = body as { agentId?: unknown; userIds?: unknown; variantOverrideId?: unknown };
 
     if (typeof agentId !== "string" || !agentId) {
       return NextResponse.json({ error: "agentId is required" }, { status: 400 });
@@ -137,22 +139,31 @@ export async function POST(req: NextRequest) {
         ? { eventName: agent.goals[0].eventName, tier: agent.goals[0].tier }
         : null;
 
+    // If a variant override is specified, all users see that variant.
+    const overrideVariant = typeof variantOverrideId === "string"
+      ? allVariants.find((v) => v.id === variantOverrideId)
+      : undefined;
+
     // Build assignments: round-robin personas, Thompson-sample variant per persona
     const ts = new ThompsonSampling();
     const assignments: DemoAssignment[] = ids.map((userId, i) => {
       const persona = personas[i % personas.length];
       const personaStats = statsByPersonaVariant[persona.id] ?? {};
 
-      // Build arms for Thompson sampling — fall back to pessimistic Beta(1,30) prior
-      const arms = allVariants.map((v) => {
-        const s = personaStats[v.id];
-        const stats = s ? { ...s, tries: 0, wins: 0 } : { alpha: 1, beta: 30, tries: 0, wins: 0 };
-        return { id: v.id, stats };
-      });
+      let bestVariant = overrideVariant;
+      let predictedReward = 0;
 
-      const result = ts.select(arms);
-      const bestVariant = allVariants.find((v) => v.id === result.variantId) ?? allVariants[0];
-      const predictedReward = result.predictedReward > 0 ? result.predictedReward : 1 / 31;
+      if (!bestVariant) {
+        // Build arms for Thompson sampling — fall back to pessimistic Beta(1,30) prior
+        const arms = allVariants.map((v) => {
+          const s = personaStats[v.id];
+          const stats = s ? { ...s, tries: 0, wins: 0 } : { alpha: 1, beta: 30, tries: 0, wins: 0 };
+          return { id: v.id, stats };
+        });
+        const result = ts.select(arms);
+        bestVariant = allVariants.find((v) => v.id === result.variantId) ?? allVariants[0];
+        predictedReward = result.predictedReward > 0 ? result.predictedReward : 1 / 31;
+      }
 
       return {
         userId,
@@ -170,10 +181,20 @@ export async function POST(req: NextRequest) {
       };
     });
 
+    const allVariantsList: DemoVariant[] = allVariants.map((v) => ({
+      id: v.id,
+      name: v.name,
+      title: v.title ?? null,
+      body: v.body,
+      cta: v.cta ?? null,
+      deeplink: v.deeplink ?? null,
+    }));
+
     return NextResponse.json<DemoPreviewResponse>({
       agentId,
       agentName: agent.name,
       assignments,
+      allVariants: allVariantsList,
     });
   } catch (error) {
     console.error("POST /api/demo/preview error:", error);

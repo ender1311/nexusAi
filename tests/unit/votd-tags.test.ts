@@ -1,6 +1,6 @@
 // tests/unit/votd-tags.test.ts
 import { describe, it, expect } from "bun:test";
-import { hasVotdTags, substituteVotdTags, type VotdSubstitutions } from "@/lib/votd/votd-tags";
+import { hasVotdTags, hasGpTags, substituteVotdTags, substituteGpTags, type VotdSubstitutions, type GpSubstitutions } from "@/lib/votd/votd-tags";
 
 const subs: VotdSubstitutions = {
   guidedScriptureLabel: "Today's Guided Scripture",
@@ -12,13 +12,27 @@ const subs: VotdSubstitutions = {
 describe("hasVotdTags", () => {
   it("detects each tag in title or body", () => {
     expect(hasVotdTags("{{guided_scripture_label}}", "x")).toBe(true);
-    expect(hasVotdTags("x", "{{guided_prayer_label}}")).toBe(true);
     expect(hasVotdTags(null, "{{votd_reference}}")).toBe(true);
     expect(hasVotdTags("{{votd_text}}", null)).toBe(true);
+  });
+  it("does NOT detect {{guided_prayer_label}} — GP label is not a VOTD signal", () => {
+    // GP variants use {{gp_verse_ref}}/{{gp_verse_text}} as their content signals.
+    // Routing on {{guided_prayer_label}} alone caused GP variants to pull VOTD content.
+    expect(hasVotdTags("x", "{{guided_prayer_label}}")).toBe(false);
   });
   it("returns false for plain copy and null/undefined", () => {
     expect(hasVotdTags("Hello", "World")).toBe(false);
     expect(hasVotdTags(null, null)).toBe(false);
+  });
+});
+
+describe("hasGpTags", () => {
+  it("detects gp verse tags", () => {
+    expect(hasGpTags("{{gp_verse_ref}}", "x")).toBe(true);
+    expect(hasGpTags("x", "{{gp_verse_text}}")).toBe(true);
+  });
+  it("returns false for VOTD-only copy", () => {
+    expect(hasGpTags("{{votd_text}}", "{{votd_reference}}")).toBe(false);
   });
 });
 

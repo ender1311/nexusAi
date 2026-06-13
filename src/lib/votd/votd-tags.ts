@@ -7,9 +7,11 @@ export const VOTD_TEXT_TAG = "{{votd_text}}";
 export const GP_REFERENCE_TAG = "{{gp_verse_ref}}";
 export const GP_TEXT_TAG = "{{gp_verse_text}}";
 
+// GUIDED_PRAYER_LABEL_TAG is intentionally excluded — GP variants use GP_REFERENCE_TAG /
+// GP_TEXT_TAG as their primary content signals. Including the prayer label here caused
+// false positives that routed GP variants into the VOTD content-fetch path.
 const VOTD_TAGS = [
   GUIDED_SCRIPTURE_LABEL_TAG,
-  GUIDED_PRAYER_LABEL_TAG,
   VOTD_REFERENCE_TAG,
   VOTD_TEXT_TAG,
 ] as const;

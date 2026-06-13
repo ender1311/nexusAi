@@ -42,10 +42,11 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "Invalid JSON" }, { status: 400 });
   }
 
-  const { agentId, userIds, bypassQuietHours, bypassFrequencyCap } = (body ?? {}) as Record<string, unknown>;
+  const { agentId, userIds, bypassQuietHours, bypassFrequencyCap, variantOverrideId } = (body ?? {}) as Record<string, unknown>;
   if (typeof agentId !== "string" || !Array.isArray(userIds) || userIds.length === 0) {
     return NextResponse.json({ error: "agentId and non-empty userIds array required" }, { status: 400 });
   }
+  const overrideVariantId = typeof variantOverrideId === "string" ? variantOverrideId : undefined;
   if (userIds.length > 20) {
     return NextResponse.json({ error: "Max 20 users per demo send" }, { status: 400 });
   }
@@ -62,6 +63,76 @@ export async function POST(req: NextRequest) {
   const results: SendResult[] = await Promise.all(
     (userIds as string[]).map(async (userId): Promise<SendResult> => {
       try {
+        let variantId: string;
+        let brazeVariantId: string | null = null;
+        let variantName: string | undefined;
+
+        if (overrideVariantId) {
+          // Verify this variant belongs to the requested agent before using it.
+          const overrideVariant = await prisma.messageVariant.findFirst({
+            where: {
+              id: overrideVariantId,
+              message: { agentId },
+            },
+            select: { id: true, name: true, title: true, body: true, deeplink: true, iconImageUrl: true, brazeVariantId: true },
+          });
+          if (!overrideVariant) return { userId, status: "failed", reason: "override variant not found for this agent" };
+          variantId = overrideVariant.id;
+          brazeVariantId = overrideVariant.brazeVariantId;
+          variantName = overrideVariant.name;
+
+          let title = overrideVariant.title ?? "";
+          let body = overrideVariant.body;
+          let iosImageUrl: string | undefined;
+          let androidImageUrl: string | undefined;
+
+          if (hasGpTags(overrideVariant.title, overrideVariant.body)) {
+            const trackedUserForGp = await prisma.trackedUser.findUnique({
+              where: { externalId: userId },
+              select: { attributes: true },
+            });
+            const { date: gpDate } = resolveVotdUserKey(trackedUserForGp?.attributes ?? {}, new Date());
+            const content = await getGpContent(prisma, gpDate);
+            if (!content) return { userId, status: "failed" as const, variantName, reason: "GP content unavailable" };
+            const labels = guidedLabels("en");
+            const subs = { guidedPrayerLabel: labels.guidedPrayer, gpReference: content.reference, gpText: content.verseText };
+            title = substituteGpTags(title, subs);
+            body = substituteGpTags(body, subs);
+            if (overrideVariant.iconImageUrl === VERSE_IMAGE_SENTINEL) {
+              const imgs = buildGpImageUrls(content.imageUrl);
+              iosImageUrl = imgs.ios ?? undefined;
+              androidImageUrl = imgs.android ?? undefined;
+            }
+          } else if (hasVotdTags(overrideVariant.title, overrideVariant.body)) {
+            const trackedUser = await prisma.trackedUser.findUnique({
+              where: { externalId: userId },
+              select: { attributes: true },
+            });
+            const key = resolveVotdUserKey(trackedUser?.attributes ?? {}, new Date());
+            const content = await getVotdContent(prisma, key.date, key.languageTag);
+            if (!content) return { userId, status: "failed" as const, variantName, reason: "VOTD content unavailable" };
+            const labels = guidedLabels(content.languageTag);
+            title = substituteVotdTags(title, { guidedScriptureLabel: labels.guidedScripture, guidedPrayerLabel: labels.guidedPrayer, votdReference: content.reference, votdText: content.verseText });
+            body = substituteVotdTags(body, { guidedScriptureLabel: labels.guidedScripture, guidedPrayerLabel: labels.guidedPrayer, votdReference: content.reference, votdText: content.verseText });
+            if (overrideVariant.iconImageUrl === VERSE_IMAGE_SENTINEL) {
+              iosImageUrl = content.imageUrlIos ?? undefined;
+              androidImageUrl = content.imageUrlAndroid ?? undefined;
+            }
+          }
+
+          if (!brazeClient || !factory) return { userId, status: "failed", reason: "Braze not configured", variantName };
+          const payload = factory.buildPushPayload(
+            { title, body, deeplink: overrideVariant.deeplink ?? undefined, iosImageUrl, androidImageUrl },
+            { externalUserIds: [userId] },
+            campaignId,
+            brazeVariantId ?? undefined,
+            false,
+          );
+          const res = await brazeClient.post("/messages/send", payload);
+          if (!res.ok) return { userId, status: "failed", reason: "Braze send failed", variantName };
+          return { userId, status: "sent", variantName };
+        }
+
         const decision = await decideForUser({ agentId, externalUserId: userId, bypassQuietHours: forceOverrideQuietHours, bypassFrequencyCap: forceOverrideFrequencyCap });
         if (!decision) return { userId, status: "failed", reason: "agent not found or no variants" };
         if (decision.suppressed) return { userId, status: "suppressed", reason: decision.reason };
@@ -84,8 +155,12 @@ export async function POST(req: NextRequest) {
         let androidImageUrl: string | undefined;
 
         if (hasGpTags(variant.title, variant.body)) {
-          const today = new Date().toISOString().slice(0, 10);
-          const content = await getGpContent(prisma, today);
+          const trackedUserForGp = await prisma.trackedUser.findUnique({
+            where: { externalId: userId },
+            select: { attributes: true },
+          });
+          const { date: gpDate } = resolveVotdUserKey(trackedUserForGp?.attributes ?? {}, new Date());
+          const content = await getGpContent(prisma, gpDate);
           if (!content) {
             return { userId, status: "failed" as const, variantName: variant.name, reason: "GP content unavailable" };
           }

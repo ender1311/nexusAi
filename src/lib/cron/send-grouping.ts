@@ -84,7 +84,7 @@ export function groupDecisionsByVariant(
     votdContent?: Map<string, VotdContent>;
     /** Push variants whose title/body contain {{gp_*}} liquid tags. */
     gpVariantIds?: Set<string>;
-    /** Pre-fetched Guided Prayer rows keyed by UTC date "YYYY-MM-DD". */
+    /** Pre-fetched Guided Prayer rows keyed by user-local date "YYYY-MM-DD" (America/Chicago fallback). */
     gpContent?: Map<string, GpContent>;
   },
   givingMultiplier?: number,
@@ -135,8 +135,8 @@ export function groupDecisionsByVariant(
       const isVerse =
         !isVotd && !isGp && meta.body === VERSE_PUSH_SENTINEL && verseStrategy != null && localization?.versePool != null;
       if (isGp) {
-        const date = scheduledAt.toISOString().slice(0, 10);
-        const content = localization?.gpContent?.get(date);
+        const { date: gpDate } = resolveVotdUserKey(user.attributes, scheduledAt);
+        const content = localization?.gpContent?.get(gpDate);
         // Missing GP content → skip rather than deliver raw liquid tags.
         if (!content) continue;
         const labels = guidedLabels("en");

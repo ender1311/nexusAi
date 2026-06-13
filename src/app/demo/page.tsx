@@ -8,7 +8,7 @@ import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Separator } from "@/components/ui/separator";
 import { Skeleton } from "@/components/ui/skeleton";
-import { Send, CheckCircle2, XCircle, Loader2, Users, Trash2, Download } from "lucide-react";
+import { Send, CheckCircle2, XCircle, Loader2, Users, Trash2, Download, ChevronLeft, ChevronRight } from "lucide-react";
 import type { DemoPreviewResponse, DemoAssignment } from "@/app/api/demo/preview/route";
 import type { DemoUserGroupRecord } from "@/app/api/demo/groups/route";
 import { OptimizationSimulation } from "@/components/demo/optimization-simulation";
@@ -38,6 +38,7 @@ const LEGACY_GROUPS_KEY = "nexus-demo-groups";
 type Group = { id: string; name: string; userIds: string[] };
 type Agent = { id: string; name: string; status: string; _count: { decisions: number } };
 type SendResult = { userId: string; status: "sent" | "suppressed" | "failed"; variantName?: string; reason?: string };
+type DemoVariantItem = { id: string; name: string; title: string | null; body: string };
 
 // ── Push notification preview card ──────────────────────────────────────────
 
@@ -93,6 +94,8 @@ export default function DemoPage() {
   const [previewLoading, setPreviewLoading] = useState(false);
   const [bypassQuietHours, setBypassQuietHours] = useState(false);
   const [bypassFrequencyCap, setBypassFrequencyCap] = useState(false);
+  const [variantOverrideId, setVariantOverrideId] = useState<string | null>(null);
+  const [allVariants, setAllVariants] = useState<DemoVariantItem[]>([]);
 
   useEffect(() => {
     fetch("/api/agents")
@@ -150,7 +153,7 @@ export default function DemoPage() {
     })();
   }, []);
 
-  // Auto-fetch preview whenever agent or users change
+  // Auto-fetch preview whenever agent, users, or variant override changes
   useEffect(() => {
     if (!selectedAgentId || userIds.length === 0) {
       setPreview(null);
@@ -162,7 +165,11 @@ export default function DemoPage() {
       fetch("/api/demo/preview", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ agentId: selectedAgentId, userIds }),
+        body: JSON.stringify({
+          agentId: selectedAgentId,
+          userIds,
+          ...(variantOverrideId ? { variantOverrideId } : {}),
+        }),
         signal: controller.signal,
       })
         .then(async (r) => {
@@ -170,7 +177,9 @@ export default function DemoPage() {
             setPreview(null);
             return;
           }
-          setPreview((await r.json()) as DemoPreviewResponse);
+          const data = (await r.json()) as DemoPreviewResponse;
+          setPreview(data);
+          if (data.allVariants?.length > 0) setAllVariants(data.allVariants);
         })
         .catch(() => {})
         .finally(() => setPreviewLoading(false));
@@ -179,7 +188,13 @@ export default function DemoPage() {
       clearTimeout(t);
       controller.abort();
     };
-  }, [selectedAgentId, userIds]);
+  }, [selectedAgentId, userIds, variantOverrideId]);
+
+  // Reset variant override when agent changes
+  useEffect(() => {
+    setVariantOverrideId(null);
+    setAllVariants([]);
+  }, [selectedAgentId]);
 
   function toggleUser(id: string) {
     setUserIds((prev) => (prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]));
@@ -230,7 +245,7 @@ export default function DemoPage() {
       const res = await fetch("/api/demo/send", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ agentId: selectedAgentId, userIds, bypassQuietHours, bypassFrequencyCap }),
+        body: JSON.stringify({ agentId: selectedAgentId, userIds, bypassQuietHours, bypassFrequencyCap, ...(variantOverrideId ? { variantOverrideId } : {}) }),
       });
       const data: { data?: SendResult[]; error?: string } = await res.json();
       setResults(data.data ?? []);
@@ -377,9 +392,50 @@ export default function DemoPage() {
         {/* Preview */}
         {(previewLoading || (preview && preview.assignments.length > 0)) && (
           <div className="space-y-3">
-            <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">
-              Preview — {preview ? preview.agentName : "…"}
-            </p>
+            <div className="flex items-center justify-between gap-4 flex-wrap">
+              <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">
+                Preview — {preview ? preview.agentName : "…"}
+              </p>
+              {/* Variant rotation picker */}
+              {allVariants.length > 1 && (
+                <div className="flex items-center gap-1.5">
+                  <button
+                    onClick={() => {
+                      if (allVariants.length === 0) return;
+                      const idx = variantOverrideId ? allVariants.findIndex((v) => v.id === variantOverrideId) : -1;
+                      const prev = allVariants[(idx - 1 + allVariants.length) % allVariants.length];
+                      setVariantOverrideId(prev?.id ?? null);
+                    }}
+                    className="p-1 rounded hover:bg-muted/80 text-muted-foreground transition-colors"
+                    title="Previous variant"
+                  >
+                    <ChevronLeft className="h-3.5 w-3.5" />
+                  </button>
+                  <select
+                    value={variantOverrideId ?? ""}
+                    onChange={(e) => setVariantOverrideId(e.target.value || null)}
+                    className="text-xs h-7 px-2 rounded border bg-background text-foreground max-w-[200px]"
+                  >
+                    <option value="">Bandit selects</option>
+                    {allVariants.map((v) => (
+                      <option key={v.id} value={v.id}>{v.name}</option>
+                    ))}
+                  </select>
+                  <button
+                    onClick={() => {
+                      if (allVariants.length === 0) return;
+                      const idx = variantOverrideId ? allVariants.findIndex((v) => v.id === variantOverrideId) : -1;
+                      const next = allVariants[(idx + 1) % allVariants.length];
+                      setVariantOverrideId(next?.id ?? null);
+                    }}
+                    className="p-1 rounded hover:bg-muted/80 text-muted-foreground transition-colors"
+                    title="Next variant"
+                  >
+                    <ChevronRight className="h-3.5 w-3.5" />
+                  </button>
+                </div>
+              )}
+            </div>
             <div className={`grid gap-3 ${userIds.length === 1 ? "grid-cols-1 max-w-sm" : "grid-cols-1 sm:grid-cols-2 xl:grid-cols-3"}`}>
               {previewLoading
                 ? userIds.map((id) => <Skeleton key={id} className="h-36 w-full rounded-lg" />)
