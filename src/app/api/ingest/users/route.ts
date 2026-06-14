@@ -1103,7 +1103,9 @@ export async function POST(req: NextRequest) {
       // initial column backfill) is ignored so it can't manufacture conversions.
       // Fault-isolated: a failure logs and never breaks the user sync.
       try {
-        if (incomingRecurring === true && storedRecurringByUser.get(externalId) === false) {
+        // YouVersion-specific flag drives Sower synthesis — must match the stored
+        // comparison (hasRecurringGiftYouversion) and the recurringFlipIds preload.
+        if (incomingRecurringYv === true && storedRecurringByUser.get(externalId) === false) {
           const decision = sowerDecisionByUser.get(externalId) ?? null;
           if (decision) {
             await applyConversion({

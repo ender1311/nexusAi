@@ -34,9 +34,11 @@ function buildRequest(body: unknown) {
   });
 }
 
-async function seedUser(externalId: string, hasRecurringGift: boolean | null) {
+// Sower-flip synthesis keys on the YouVersion-specific recurring flag
+// (hasRecurringGiftYouversion / has_recurring_gift_youversion), so seed/flip that.
+async function seedUser(externalId: string, hasRecurringGiftYouversion: boolean | null) {
   return prisma.trackedUser.create({
-    data: { externalId, attributes: { language_tag: "en" }, hasRecurringGift },
+    data: { externalId, attributes: { language_tag: "en" }, hasRecurringGiftYouversion },
   });
 }
 
@@ -77,7 +79,7 @@ describe("regression: sower + giving never double-credit one decision", () => {
       users: [{
         external_user_id: "user_dual",
         attributes: {
-          has_recurring_gift: true,
+          has_recurring_gift_youversion: true,
           gift_amount_most_recent_timestamp: giftDate.toISOString(),
           gift_amount_most_recent: 25,
           gift_currency_most_recent: "USD",
@@ -126,7 +128,7 @@ describe("regression: sower + giving never double-credit one decision", () => {
       users: [{
         external_user_id: "user_two",
         attributes: {
-          has_recurring_gift: true,
+          has_recurring_gift_youversion: true,
           gift_amount_most_recent_timestamp: giftDate.toISOString(),
           gift_amount_most_recent: 25,
           gift_currency_most_recent: "USD",
