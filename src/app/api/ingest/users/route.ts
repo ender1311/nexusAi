@@ -775,12 +775,12 @@ export async function POST(req: NextRequest) {
     const storedStageRows = chunkRecoveryIds.length > 0
       ? await prisma.trackedUser.findMany({
           where: { externalId: { in: chunkRecoveryIds } },
-          select: { externalId: true, funnelStage: true, hasRecurringGift: true },
+          select: { externalId: true, funnelStage: true, hasRecurringGift: true, hasRecurringGiftYouversion: true },
         })
       : [];
     const storedStageByUser = new Map(storedStageRows.map((r) => [r.externalId, r.funnelStage]));
-    // Prior observed has_recurring_gift per user — drives Sower-flip synthesis below.
-    const storedRecurringByUser = new Map(storedStageRows.map((r) => [r.externalId, r.hasRecurringGift]));
+    // Prior observed YouVersion-specific recurring-gift flag — drives Sower-flip synthesis below.
+    const storedRecurringByUser = new Map(storedStageRows.map((r) => [r.externalId, r.hasRecurringGiftYouversion]));
 
     // Pre-load candidate decisions for users whose has_recurring_gift just flipped
     // false→true this sync, so a Sower subscription can be attributed to the owning
@@ -792,7 +792,7 @@ export async function POST(req: NextRequest) {
     for (const u of chunk) {
       const id = u.external_user_id?.trim() || u.braze_id?.trim();
       if (!id) continue;
-      const incoming = normalizeRecurringFlag((u.attributes as Record<string, unknown> | undefined)?.["has_recurring_gift"]);
+      const incoming = normalizeRecurringFlag((u.attributes as Record<string, unknown> | undefined)?.["has_recurring_gift_youversion"]);
       if (incoming === true && storedRecurringByUser.get(id) === false) recurringFlipIds.push(id);
     }
     const sowerRows = recurringFlipIds.length > 0
@@ -1008,7 +1008,15 @@ export async function POST(req: NextRequest) {
       // Recurring-giver (Sower) state. null = not present this sync → leave column
       // untouched so a backfill or omitted attribute can't be mistaken for false.
       const incomingRecurring = normalizeRecurringFlag(raw["has_recurring_gift"]);
-      const recurringData = incomingRecurring !== null ? { hasRecurringGift: incomingRecurring } : {};
+      const incomingRecurringYv = normalizeRecurringFlag(raw["has_recurring_gift_youversion"]);
+      const incomingGiftMaxTs = raw["gift_amount_maximum_timestamp"] != null
+        ? (() => { const d = new Date(raw["gift_amount_maximum_timestamp"] as string); return isNaN(d.getTime()) ? null : d; })()
+        : null;
+      const recurringData = {
+        ...(incomingRecurring !== null && { hasRecurringGift: incomingRecurring }),
+        ...(incomingRecurringYv !== null && { hasRecurringGiftYouversion: incomingRecurringYv }),
+        ...(incomingGiftMaxTs !== null && { giftAmountMaximumTimestamp: incomingGiftMaxTs }),
+      };
 
       await prisma.trackedUser.upsert({
         where: { externalId },

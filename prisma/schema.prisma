@@ -221,10 +221,12 @@ model TrackedUser {
   funnelStage          String?    // "lapsed" | "connected" | "new_user" | etc; null = unknown
   funnelStageUpdatedAt DateTime?  // set on every ingest when funnelStage is present; used for staleness gate in cron
 
-  // Recurring-giver (Sower) state — last observed has_recurring_gift from Hightouch.
-  // null = never observed. A false→true transition during user sync synthesizes a
-  // sower_subscribed conversion. Persisted so the flip is detectable across syncs.
-  hasRecurringGift     Boolean?
+  // Recurring-giver (Sower) state — synced from Hightouch.
+  // null = never observed. For hasRecurringGiftYouversion, a false→true transition
+  // synthesizes a sower_subscribed conversion. Persisted so the flip is detectable.
+  hasRecurringGift           Boolean?   // any recurring gift (generic)
+  hasRecurringGiftYouversion Boolean?   // recurring gift specifically to the YouVersion Fund
+  giftAmountMaximumTimestamp DateTime?  // timestamp of the user's largest gift
 
   // Agent lock — set when the cron selects this user for sends; null = unlocked
   // No FK constraint on purpose (follows UserAgentAssignment pattern — survives agent soft-delete)

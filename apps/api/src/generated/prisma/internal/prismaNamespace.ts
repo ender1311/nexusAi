@@ -3208,6 +3208,7 @@ export const UserDecisionScalarFieldEnum = {
   reward: 'reward',
   conversionValue: 'conversionValue',
   brazeAnalyticsFetchedAt: 'brazeAnalyticsFetchedAt',
+  scheduledLocalHour: 'scheduledLocalHour',
   decisionContext: 'decisionContext'
 } as const
 
@@ -3233,6 +3234,8 @@ export const TrackedUserScalarFieldEnum = {
   funnelStage: 'funnelStage',
   funnelStageUpdatedAt: 'funnelStageUpdatedAt',
   hasRecurringGift: 'hasRecurringGift',
+  hasRecurringGiftYouversion: 'hasRecurringGiftYouversion',
+  giftAmountMaximumTimestamp: 'giftAmountMaximumTimestamp',
   lockedByAgentId: 'lockedByAgentId',
   personaId: 'personaId',
   personaConfidence: 'personaConfidence',

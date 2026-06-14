@@ -29,11 +29,13 @@ export type AggregateUserDecision = {
 export type UserDecisionAvgAggregateOutputType = {
   reward: number | null
   conversionValue: number | null
+  scheduledLocalHour: number | null
 }
 
 export type UserDecisionSumAggregateOutputType = {
   reward: number | null
   conversionValue: number | null
+  scheduledLocalHour: number | null
 }
 
 export type UserDecisionMinAggregateOutputType = {
@@ -52,6 +54,7 @@ export type UserDecisionMinAggregateOutputType = {
   reward: number | null
   conversionValue: number | null
   brazeAnalyticsFetchedAt: Date | null
+  scheduledLocalHour: number | null
 }
 
 export type UserDecisionMaxAggregateOutputType = {
@@ -70,6 +73,7 @@ export type UserDecisionMaxAggregateOutputType = {
   reward: number | null
   conversionValue: number | null
   brazeAnalyticsFetchedAt: Date | null
+  scheduledLocalHour: number | null
 }
 
 export type UserDecisionCountAggregateOutputType = {
@@ -88,6 +92,7 @@ export type UserDecisionCountAggregateOutputType = {
   reward: number
   conversionValue: number
   brazeAnalyticsFetchedAt: number
+  scheduledLocalHour: number
   decisionContext: number
   _all: number
 }
@@ -96,11 +101,13 @@ export type UserDecisionCountAggregateOutputType = {
 export type UserDecisionAvgAggregateInputType = {
   reward?: true
   conversionValue?: true
+  scheduledLocalHour?: true
 }
 
 export type UserDecisionSumAggregateInputType = {
   reward?: true
   conversionValue?: true
+  scheduledLocalHour?: true
 }
 
 export type UserDecisionMinAggregateInputType = {
@@ -119,6 +126,7 @@ export type UserDecisionMinAggregateInputType = {
   reward?: true
   conversionValue?: true
   brazeAnalyticsFetchedAt?: true
+  scheduledLocalHour?: true
 }
 
 export type UserDecisionMaxAggregateInputType = {
@@ -137,6 +145,7 @@ export type UserDecisionMaxAggregateInputType = {
   reward?: true
   conversionValue?: true
   brazeAnalyticsFetchedAt?: true
+  scheduledLocalHour?: true
 }
 
 export type UserDecisionCountAggregateInputType = {
@@ -155,6 +164,7 @@ export type UserDecisionCountAggregateInputType = {
   reward?: true
   conversionValue?: true
   brazeAnalyticsFetchedAt?: true
+  scheduledLocalHour?: true
   decisionContext?: true
   _all?: true
 }
@@ -261,6 +271,7 @@ export type UserDecisionGroupByOutputType = {
   reward: number | null
   conversionValue: number | null
   brazeAnalyticsFetchedAt: Date | null
+  scheduledLocalHour: number | null
   decisionContext: runtime.JsonValue | null
   _count: UserDecisionCountAggregateOutputType | null
   _avg: UserDecisionAvgAggregateOutputType | null
@@ -303,6 +314,7 @@ export type UserDecisionWhereInput = {
   reward?: Prisma.FloatNullableFilter<"UserDecision"> | number | null
   conversionValue?: Prisma.FloatNullableFilter<"UserDecision"> | number | null
   brazeAnalyticsFetchedAt?: Prisma.DateTimeNullableFilter<"UserDecision"> | Date | string | null
+  scheduledLocalHour?: Prisma.IntNullableFilter<"UserDecision"> | number | null
   decisionContext?: Prisma.JsonNullableFilter<"UserDecision">
   agent?: Prisma.XOR<Prisma.AgentScalarRelationFilter, Prisma.AgentWhereInput>
   variant?: Prisma.XOR<Prisma.MessageVariantNullableScalarRelationFilter, Prisma.MessageVariantWhereInput> | null
@@ -324,6 +336,7 @@ export type UserDecisionOrderByWithRelationInput = {
   reward?: Prisma.SortOrderInput | Prisma.SortOrder
   conversionValue?: Prisma.SortOrderInput | Prisma.SortOrder
   brazeAnalyticsFetchedAt?: Prisma.SortOrderInput | Prisma.SortOrder
+  scheduledLocalHour?: Prisma.SortOrderInput | Prisma.SortOrder
   decisionContext?: Prisma.SortOrderInput | Prisma.SortOrder
   agent?: Prisma.AgentOrderByWithRelationInput
   variant?: Prisma.MessageVariantOrderByWithRelationInput
@@ -348,6 +361,7 @@ export type UserDecisionWhereUniqueInput = Prisma.AtLeast<{
   reward?: Prisma.FloatNullableFilter<"UserDecision"> | number | null
   conversionValue?: Prisma.FloatNullableFilter<"UserDecision"> | number | null
   brazeAnalyticsFetchedAt?: Prisma.DateTimeNullableFilter<"UserDecision"> | Date | string | null
+  scheduledLocalHour?: Prisma.IntNullableFilter<"UserDecision"> | number | null
   decisionContext?: Prisma.JsonNullableFilter<"UserDecision">
   agent?: Prisma.XOR<Prisma.AgentScalarRelationFilter, Prisma.AgentWhereInput>
   variant?: Prisma.XOR<Prisma.MessageVariantNullableScalarRelationFilter, Prisma.MessageVariantWhereInput> | null
@@ -369,6 +383,7 @@ export type UserDecisionOrderByWithAggregationInput = {
   reward?: Prisma.SortOrderInput | Prisma.SortOrder
   conversionValue?: Prisma.SortOrderInput | Prisma.SortOrder
   brazeAnalyticsFetchedAt?: Prisma.SortOrderInput | Prisma.SortOrder
+  scheduledLocalHour?: Prisma.SortOrderInput | Prisma.SortOrder
   decisionContext?: Prisma.SortOrderInput | Prisma.SortOrder
   _count?: Prisma.UserDecisionCountOrderByAggregateInput
   _avg?: Prisma.UserDecisionAvgOrderByAggregateInput
@@ -396,6 +411,7 @@ export type UserDecisionScalarWhereWithAggregatesInput = {
   reward?: Prisma.FloatNullableWithAggregatesFilter<"UserDecision"> | number | null
   conversionValue?: Prisma.FloatNullableWithAggregatesFilter<"UserDecision"> | number | null
   brazeAnalyticsFetchedAt?: Prisma.DateTimeNullableWithAggregatesFilter<"UserDecision"> | Date | string | null
+  scheduledLocalHour?: Prisma.IntNullableWithAggregatesFilter<"UserDecision"> | number | null
   decisionContext?: Prisma.JsonNullableWithAggregatesFilter<"UserDecision">
 }
 
@@ -413,6 +429,7 @@ export type UserDecisionCreateInput = {
   reward?: number | null
   conversionValue?: number | null
   brazeAnalyticsFetchedAt?: Date | string | null
+  scheduledLocalHour?: number | null
   decisionContext?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   agent: Prisma.AgentCreateNestedOneWithoutDecisionsInput
   variant?: Prisma.MessageVariantCreateNestedOneWithoutDecisionsInput
@@ -434,6 +451,7 @@ export type UserDecisionUncheckedCreateInput = {
   reward?: number | null
   conversionValue?: number | null
   brazeAnalyticsFetchedAt?: Date | string | null
+  scheduledLocalHour?: number | null
   decisionContext?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
 }
 
@@ -451,6 +469,7 @@ export type UserDecisionUpdateInput = {
   reward?: Prisma.NullableFloatFieldUpdateOperationsInput | number | null
   conversionValue?: Prisma.NullableFloatFieldUpdateOperationsInput | number | null
   brazeAnalyticsFetchedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  scheduledLocalHour?: Prisma.NullableIntFieldUpdateOperationsInput | number | null
   decisionContext?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   agent?: Prisma.AgentUpdateOneRequiredWithoutDecisionsNestedInput
   variant?: Prisma.MessageVariantUpdateOneWithoutDecisionsNestedInput
@@ -472,6 +491,7 @@ export type UserDecisionUncheckedUpdateInput = {
   reward?: Prisma.NullableFloatFieldUpdateOperationsInput | number | null
   conversionValue?: Prisma.NullableFloatFieldUpdateOperationsInput | number | null
   brazeAnalyticsFetchedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  scheduledLocalHour?: Prisma.NullableIntFieldUpdateOperationsInput | number | null
   decisionContext?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
 }
 
@@ -491,6 +511,7 @@ export type UserDecisionCreateManyInput = {
   reward?: number | null
   conversionValue?: number | null
   brazeAnalyticsFetchedAt?: Date | string | null
+  scheduledLocalHour?: number | null
   decisionContext?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
 }
 
@@ -508,6 +529,7 @@ export type UserDecisionUpdateManyMutationInput = {
   reward?: Prisma.NullableFloatFieldUpdateOperationsInput | number | null
   conversionValue?: Prisma.NullableFloatFieldUpdateOperationsInput | number | null
   brazeAnalyticsFetchedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  scheduledLocalHour?: Prisma.NullableIntFieldUpdateOperationsInput | number | null
   decisionContext?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
 }
 
@@ -527,6 +549,7 @@ export type UserDecisionUncheckedUpdateManyInput = {
   reward?: Prisma.NullableFloatFieldUpdateOperationsInput | number | null
   conversionValue?: Prisma.NullableFloatFieldUpdateOperationsInput | number | null
   brazeAnalyticsFetchedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  scheduledLocalHour?: Prisma.NullableIntFieldUpdateOperationsInput | number | null
   decisionContext?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
 }
 
@@ -556,12 +579,14 @@ export type UserDecisionCountOrderByAggregateInput = {
   reward?: Prisma.SortOrder
   conversionValue?: Prisma.SortOrder
   brazeAnalyticsFetchedAt?: Prisma.SortOrder
+  scheduledLocalHour?: Prisma.SortOrder
   decisionContext?: Prisma.SortOrder
 }
 
 export type UserDecisionAvgOrderByAggregateInput = {
   reward?: Prisma.SortOrder
   conversionValue?: Prisma.SortOrder
+  scheduledLocalHour?: Prisma.SortOrder
 }
 
 export type UserDecisionMaxOrderByAggregateInput = {
@@ -580,6 +605,7 @@ export type UserDecisionMaxOrderByAggregateInput = {
   reward?: Prisma.SortOrder
   conversionValue?: Prisma.SortOrder
   brazeAnalyticsFetchedAt?: Prisma.SortOrder
+  scheduledLocalHour?: Prisma.SortOrder
 }
 
 export type UserDecisionMinOrderByAggregateInput = {
@@ -598,11 +624,13 @@ export type UserDecisionMinOrderByAggregateInput = {
   reward?: Prisma.SortOrder
   conversionValue?: Prisma.SortOrder
   brazeAnalyticsFetchedAt?: Prisma.SortOrder
+  scheduledLocalHour?: Prisma.SortOrder
 }
 
 export type UserDecisionSumOrderByAggregateInput = {
   reward?: Prisma.SortOrder
   conversionValue?: Prisma.SortOrder
+  scheduledLocalHour?: Prisma.SortOrder
 }
 
 export type UserDecisionCreateNestedManyWithoutAgentInput = {
@@ -711,6 +739,7 @@ export type UserDecisionCreateWithoutAgentInput = {
   reward?: number | null
   conversionValue?: number | null
   brazeAnalyticsFetchedAt?: Date | string | null
+  scheduledLocalHour?: number | null
   decisionContext?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   variant?: Prisma.MessageVariantCreateNestedOneWithoutDecisionsInput
 }
@@ -730,6 +759,7 @@ export type UserDecisionUncheckedCreateWithoutAgentInput = {
   reward?: number | null
   conversionValue?: number | null
   brazeAnalyticsFetchedAt?: Date | string | null
+  scheduledLocalHour?: number | null
   decisionContext?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
 }
 
@@ -778,6 +808,7 @@ export type UserDecisionScalarWhereInput = {
   reward?: Prisma.FloatNullableFilter<"UserDecision"> | number | null
   conversionValue?: Prisma.FloatNullableFilter<"UserDecision"> | number | null
   brazeAnalyticsFetchedAt?: Prisma.DateTimeNullableFilter<"UserDecision"> | Date | string | null
+  scheduledLocalHour?: Prisma.IntNullableFilter<"UserDecision"> | number | null
   decisionContext?: Prisma.JsonNullableFilter<"UserDecision">
 }
 
@@ -795,6 +826,7 @@ export type UserDecisionCreateWithoutVariantInput = {
   reward?: number | null
   conversionValue?: number | null
   brazeAnalyticsFetchedAt?: Date | string | null
+  scheduledLocalHour?: number | null
   decisionContext?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   agent: Prisma.AgentCreateNestedOneWithoutDecisionsInput
 }
@@ -814,6 +846,7 @@ export type UserDecisionUncheckedCreateWithoutVariantInput = {
   reward?: number | null
   conversionValue?: number | null
   brazeAnalyticsFetchedAt?: Date | string | null
+  scheduledLocalHour?: number | null
   decisionContext?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
 }
 
@@ -858,6 +891,7 @@ export type UserDecisionCreateManyAgentInput = {
   reward?: number | null
   conversionValue?: number | null
   brazeAnalyticsFetchedAt?: Date | string | null
+  scheduledLocalHour?: number | null
   decisionContext?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
 }
 
@@ -875,6 +909,7 @@ export type UserDecisionUpdateWithoutAgentInput = {
   reward?: Prisma.NullableFloatFieldUpdateOperationsInput | number | null
   conversionValue?: Prisma.NullableFloatFieldUpdateOperationsInput | number | null
   brazeAnalyticsFetchedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  scheduledLocalHour?: Prisma.NullableIntFieldUpdateOperationsInput | number | null
   decisionContext?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   variant?: Prisma.MessageVariantUpdateOneWithoutDecisionsNestedInput
 }
@@ -894,6 +929,7 @@ export type UserDecisionUncheckedUpdateWithoutAgentInput = {
   reward?: Prisma.NullableFloatFieldUpdateOperationsInput | number | null
   conversionValue?: Prisma.NullableFloatFieldUpdateOperationsInput | number | null
   brazeAnalyticsFetchedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  scheduledLocalHour?: Prisma.NullableIntFieldUpdateOperationsInput | number | null
   decisionContext?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
 }
 
@@ -912,6 +948,7 @@ export type UserDecisionUncheckedUpdateManyWithoutAgentInput = {
   reward?: Prisma.NullableFloatFieldUpdateOperationsInput | number | null
   conversionValue?: Prisma.NullableFloatFieldUpdateOperationsInput | number | null
   brazeAnalyticsFetchedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  scheduledLocalHour?: Prisma.NullableIntFieldUpdateOperationsInput | number | null
   decisionContext?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
 }
 
@@ -930,6 +967,7 @@ export type UserDecisionCreateManyVariantInput = {
   reward?: number | null
   conversionValue?: number | null
   brazeAnalyticsFetchedAt?: Date | string | null
+  scheduledLocalHour?: number | null
   decisionContext?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
 }
 
@@ -947,6 +985,7 @@ export type UserDecisionUpdateWithoutVariantInput = {
   reward?: Prisma.NullableFloatFieldUpdateOperationsInput | number | null
   conversionValue?: Prisma.NullableFloatFieldUpdateOperationsInput | number | null
   brazeAnalyticsFetchedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  scheduledLocalHour?: Prisma.NullableIntFieldUpdateOperationsInput | number | null
   decisionContext?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   agent?: Prisma.AgentUpdateOneRequiredWithoutDecisionsNestedInput
 }
@@ -966,6 +1005,7 @@ export type UserDecisionUncheckedUpdateWithoutVariantInput = {
   reward?: Prisma.NullableFloatFieldUpdateOperationsInput | number | null
   conversionValue?: Prisma.NullableFloatFieldUpdateOperationsInput | number | null
   brazeAnalyticsFetchedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  scheduledLocalHour?: Prisma.NullableIntFieldUpdateOperationsInput | number | null
   decisionContext?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
 }
 
@@ -984,6 +1024,7 @@ export type UserDecisionUncheckedUpdateManyWithoutVariantInput = {
   reward?: Prisma.NullableFloatFieldUpdateOperationsInput | number | null
   conversionValue?: Prisma.NullableFloatFieldUpdateOperationsInput | number | null
   brazeAnalyticsFetchedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  scheduledLocalHour?: Prisma.NullableIntFieldUpdateOperationsInput | number | null
   decisionContext?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
 }
 
@@ -1005,6 +1046,7 @@ export type UserDecisionSelect<ExtArgs extends runtime.Types.Extensions.Internal
   reward?: boolean
   conversionValue?: boolean
   brazeAnalyticsFetchedAt?: boolean
+  scheduledLocalHour?: boolean
   decisionContext?: boolean
   agent?: boolean | Prisma.AgentDefaultArgs<ExtArgs>
   variant?: boolean | Prisma.UserDecision$variantArgs<ExtArgs>
@@ -1026,6 +1068,7 @@ export type UserDecisionSelectCreateManyAndReturn<ExtArgs extends runtime.Types.
   reward?: boolean
   conversionValue?: boolean
   brazeAnalyticsFetchedAt?: boolean
+  scheduledLocalHour?: boolean
   decisionContext?: boolean
   agent?: boolean | Prisma.AgentDefaultArgs<ExtArgs>
   variant?: boolean | Prisma.UserDecision$variantArgs<ExtArgs>
@@ -1047,6 +1090,7 @@ export type UserDecisionSelectUpdateManyAndReturn<ExtArgs extends runtime.Types.
   reward?: boolean
   conversionValue?: boolean
   brazeAnalyticsFetchedAt?: boolean
+  scheduledLocalHour?: boolean
   decisionContext?: boolean
   agent?: boolean | Prisma.AgentDefaultArgs<ExtArgs>
   variant?: boolean | Prisma.UserDecision$variantArgs<ExtArgs>
@@ -1068,10 +1112,11 @@ export type UserDecisionSelectScalar = {
   reward?: boolean
   conversionValue?: boolean
   brazeAnalyticsFetchedAt?: boolean
+  scheduledLocalHour?: boolean
   decisionContext?: boolean
 }
 
-export type UserDecisionOmit<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = runtime.Types.Extensions.GetOmit<"id" | "agentId" | "userId" | "messageVariantId" | "channel" | "sentAt" | "brazeSendId" | "brazeScheduleId" | "scheduledFor" | "conversionEvent" | "conversionAt" | "pushOpenAt" | "reward" | "conversionValue" | "brazeAnalyticsFetchedAt" | "decisionContext", ExtArgs["result"]["userDecision"]>
+export type UserDecisionOmit<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = runtime.Types.Extensions.GetOmit<"id" | "agentId" | "userId" | "messageVariantId" | "channel" | "sentAt" | "brazeSendId" | "brazeScheduleId" | "scheduledFor" | "conversionEvent" | "conversionAt" | "pushOpenAt" | "reward" | "conversionValue" | "brazeAnalyticsFetchedAt" | "scheduledLocalHour" | "decisionContext", ExtArgs["result"]["userDecision"]>
 export type UserDecisionInclude<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
   agent?: boolean | Prisma.AgentDefaultArgs<ExtArgs>
   variant?: boolean | Prisma.UserDecision$variantArgs<ExtArgs>
@@ -1107,6 +1152,7 @@ export type $UserDecisionPayload<ExtArgs extends runtime.Types.Extensions.Intern
     reward: number | null
     conversionValue: number | null
     brazeAnalyticsFetchedAt: Date | null
+    scheduledLocalHour: number | null
     decisionContext: runtime.JsonValue | null
   }, ExtArgs["result"]["userDecision"]>
   composites: {}
@@ -1548,6 +1594,7 @@ export interface UserDecisionFieldRefs {
   readonly reward: Prisma.FieldRef<"UserDecision", 'Float'>
   readonly conversionValue: Prisma.FieldRef<"UserDecision", 'Float'>
   readonly brazeAnalyticsFetchedAt: Prisma.FieldRef<"UserDecision", 'DateTime'>
+  readonly scheduledLocalHour: Prisma.FieldRef<"UserDecision", 'Int'>
   readonly decisionContext: Prisma.FieldRef<"UserDecision", 'Json'>
 }
     
