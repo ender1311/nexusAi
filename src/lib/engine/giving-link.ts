@@ -55,6 +55,20 @@ export function usdAmount(amount: number, currency: string | null): number {
 
 export const USD_AMOUNT_LADDER = [5, 10, 15, 20, 25, 30, 50, 75, 100, 150, 200, 250, 500, 1000];
 
+// Default monthly ask (USD) for users with no gift history to anchor on.
+export const DEFAULT_HANDLE_USD = 25;
+// Bounds for the never-giver default ask. Variants experiment within this range
+// (carried per-variant via actionFeatures.givingHandleDefaultUsd); the bandit +
+// LinUCB context vector learn the best default per user / look-alike cohort.
+export const MIN_HANDLE_USD = 5;
+export const MAX_HANDLE_USD = 100;
+
+// Clamp a per-variant default ask to the experiment range; non-finite → DEFAULT.
+export function clampHandleDefault(usd: number): number {
+  if (!isFinite(usd)) return DEFAULT_HANDLE_USD;
+  return Math.min(MAX_HANDLE_USD, Math.max(MIN_HANDLE_USD, usd));
+}
+
 /**
  * Snap amount up to the nearest ladder value >= amount.
  * If amount exceeds the largest ladder value, return the largest.
@@ -175,7 +189,11 @@ function applyAskPipeline(anchor: number, attrs: Record<string, unknown>): numbe
  * Anchor blend formula: 0.6 * avg + 0.3 * recent + 0.1 * max (when all three present).
  * Upsell: anchor * 1.1; lapsed discount: * 0.75.
  */
-export function selectGiftAmountUSD(attrs: Record<string, unknown>): number {
+export function selectGiftAmountUSD(
+  attrs: Record<string, unknown>,
+  defaultUsd: number = DEFAULT_HANDLE_USD,
+): number {
+  const fallback = clampHandleDefault(defaultUsd);
   const avg = extractPositiveNumber(attrs, "gift_amount_average");
   const recent = extractPositiveNumber(attrs, "gift_amount_most_recent");
   const max = extractPositiveNumber(attrs, "gift_amount_maximum");
@@ -183,7 +201,7 @@ export function selectGiftAmountUSD(attrs: Record<string, unknown>): number {
 
   // First-time givers: no gift history at all
   if (lifetimeCount === null) {
-    return snapToLadder(10, USD_AMOUNT_LADDER);
+    return snapToLadder(fallback, USD_AMOUNT_LADDER);
   }
 
   // Anchor blend — weighted average of available signals
@@ -199,7 +217,8 @@ export function selectGiftAmountUSD(attrs: Record<string, unknown>): number {
     // Max is a ceiling signal; use 50% to avoid over-asking
     anchor = max * 0.5;
   } else {
-    anchor = 10;
+    // Giver of record but no amount signal → anchor on the configured default.
+    anchor = fallback;
   }
 
   return applyAskPipeline(anchor, attrs);
@@ -208,14 +227,15 @@ export function selectGiftAmountUSD(attrs: Record<string, unknown>): number {
 export function selectGiftAmountUSDByStrategy(
   attrs: Record<string, unknown>,
   strategy: GivingHandleStrategy,
+  defaultUsd: number = DEFAULT_HANDLE_USD,
 ): number {
-  if (strategy === "blend") return selectGiftAmountUSD(attrs);
+  if (strategy === "blend") return selectGiftAmountUSD(attrs, defaultUsd);
   const anchorKey =
     strategy === "avg-gift" ? "gift_amount_average"
     : strategy === "recent-gift" ? "gift_amount_most_recent"
     : "gift_amount_maximum";
   const anchor = extractPositiveNumber(attrs, anchorKey);
-  if (anchor === null) return selectGiftAmountUSD(attrs);
+  if (anchor === null) return selectGiftAmountUSD(attrs, defaultUsd);
   const rawAnchor = strategy === "max-gift" ? anchor * 0.5 : anchor;
   return applyAskPipeline(rawAnchor, attrs);
 }
@@ -236,9 +256,10 @@ function resolveCurrencyCode(attrs: Record<string, unknown>): string {
 export function resolveLocalGiftAmount(
   attrs: Record<string, unknown>,
   strategy: GivingHandleStrategy,
+  defaultUsd: number = DEFAULT_HANDLE_USD,
 ): { amountLocal: number; currencyCode: string; amountUsd: number } {
   const currencyCode = resolveCurrencyCode(attrs);
-  const amountUsd = selectGiftAmountUSDByStrategy(attrs, strategy);
+  const amountUsd = selectGiftAmountUSDByStrategy(attrs, strategy, defaultUsd);
   let amountLocal: number;
   if (currencyCode === "USD") {
     amountLocal = amountUsd;
@@ -267,8 +288,9 @@ export function buildGivingDeeplink(
   attrs: Record<string, unknown>,
   strategy: GivingHandleStrategy = "blend",
   frequency: GivingFrequency = "monthly",
+  defaultUsd: number = DEFAULT_HANDLE_USD,
 ): string {
-  const { amountLocal, currencyCode } = resolveLocalGiftAmount(attrs, strategy);
+  const { amountLocal, currencyCode } = resolveLocalGiftAmount(attrs, strategy, defaultUsd);
   const params = new URLSearchParams({
     currency: currencyCode.toLowerCase(),
     fund: "YouVersion",

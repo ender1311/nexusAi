@@ -4,6 +4,7 @@ import { PayloadFactory } from "@/lib/braze/payload-factory";
 import type { BrazeRecipient } from "@/lib/braze/payload-factory";
 import {
   GIVING_LINK_SENTINEL,
+  DEFAULT_HANDLE_USD,
   buildGivingDeeplink,
   resolveLocalGiftAmount,
   formatGiftAmount,
@@ -53,6 +54,8 @@ export type VariantMeta = {
   givingHandleStrategy: GivingHandleStrategy | null;
   /** One-time vs recurring give-page mode for resolved giving deeplinks. Defaults to "monthly". */
   givingFrequency?: GivingFrequency;
+  /** Per-variant default ask (USD) for never-givers; clamped to $5–$100. Defaults to $25. */
+  givingHandleDefaultUsd?: number;
   /** null = no image; VERSE_IMAGE_SENTINEL = per-verse image; https URL = static image. */
   iconImageUrl: string | null;
 };
@@ -111,19 +114,20 @@ export function groupDecisionsByVariant(
       // Dynamic giving handle: resolve a per-user ask amount + impact figure, then
       // substitute into copy and override the deeplink with the matching give-URL.
       const strategy = meta.givingHandleStrategy;
-      const { amountLocal, currencyCode, amountUsd } = resolveLocalGiftAmount(attrs, strategy);
+      const defaultUsd = meta.givingHandleDefaultUsd ?? DEFAULT_HANDLE_USD;
+      const { amountLocal, currencyCode, amountUsd } = resolveLocalGiftAmount(attrs, strategy, defaultUsd);
       const amountDisplay = formatGiftAmount(amountLocal, currencyCode);
       const bibles = computeBibles(amountUsd, givingMultiplier ?? DEFAULT_DOLLARS_TO_BIBLES);
       copy = {
         title: meta.title != null ? substituteGivingCopy(meta.title, { amountDisplay, bibles }) : null,
         body: substituteGivingCopy(meta.body, { amountDisplay, bibles }),
       };
-      resolvedDeeplink = buildGivingDeeplink(attrs, strategy, meta.givingFrequency ?? "monthly");
+      resolvedDeeplink = buildGivingDeeplink(attrs, strategy, meta.givingFrequency ?? "monthly", defaultUsd);
       // Per-user copy → batch only users sharing identical resolved copy.
       copyKeyed = meta.channel === "push";
     } else {
       resolvedDeeplink = meta.deeplink === GIVING_LINK_SENTINEL
-        ? buildGivingDeeplink(attrs, "blend", meta.givingFrequency ?? "monthly")
+        ? buildGivingDeeplink(attrs, "blend", meta.givingFrequency ?? "monthly", meta.givingHandleDefaultUsd ?? DEFAULT_HANDLE_USD)
         : meta.deeplink;
 
       // VOTD liquid-tag arms resolve today's (user-local) localized verse from

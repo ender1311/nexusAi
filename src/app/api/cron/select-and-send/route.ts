@@ -45,7 +45,7 @@ import { loadVersePool } from "@/lib/cron/verse-pool";
 import { hasVotdTags, hasGpTags } from "@/lib/votd/votd-tags";
 import { prepareVotdContent } from "@/lib/votd/votd-content";
 import { prepareGpContent } from "@/lib/votd/guided-prayer-content";
-import { isGivingHandleStrategy, isGivingFrequency, type GivingHandleStrategy, type GivingFrequency } from "@/lib/engine/giving-link";
+import { isGivingHandleStrategy, isGivingFrequency, DEFAULT_HANDLE_USD, type GivingHandleStrategy, type GivingFrequency } from "@/lib/engine/giving-link";
 import { parseMultiplier } from "@/lib/engine/giving-copy";
 import { isPushVariantComplete } from "@/lib/messages/push-completeness";
 import { snapshotEnrollmentFlags } from "@/lib/constants/interaction-flags";
@@ -91,6 +91,19 @@ function deriveGivingFrequency(actionFeatures: unknown): GivingFrequency {
       ? (actionFeatures as Record<string, unknown>)["givingFrequency"]
       : undefined;
   return isGivingFrequency(raw) ? raw : "monthly";
+}
+
+// Never-givers have no history to anchor on, so a dynamic-handle variant can
+// carry its own default ask in actionFeatures.givingHandleDefaultUsd. The engine
+// clamps it to $5–$100; multiple variants with different defaults let the bandit
+// (LinUCB context) learn the best opening ask per user / look-alike cohort.
+function deriveGivingDefaultUsd(actionFeatures: unknown): number {
+  const raw =
+    actionFeatures && typeof actionFeatures === "object"
+      ? (actionFeatures as Record<string, unknown>)["givingHandleDefaultUsd"]
+      : undefined;
+  const n = Number(raw);
+  return isFinite(n) && n > 0 ? n : DEFAULT_HANDLE_USD;
 }
 
 export async function POST(req: NextRequest) {
@@ -859,6 +872,7 @@ export async function POST(req: NextRequest) {
       brazeVariantId: string | null;
       givingHandleStrategy: GivingHandleStrategy | null;
       givingFrequency: GivingFrequency;
+      givingHandleDefaultUsd: number;
       iconImageUrl: string | null;
     }>();
     for (const msg of agent.messages) {
@@ -877,6 +891,7 @@ export async function POST(req: NextRequest) {
           brazeVariantId:  v.brazeVariantId ?? null,
           givingHandleStrategy: deriveGivingStrategy(v.subcategory ?? null, v.actionFeatures),
           givingFrequency: deriveGivingFrequency(v.actionFeatures),
+          givingHandleDefaultUsd: deriveGivingDefaultUsd(v.actionFeatures),
           iconImageUrl:    v.iconImageUrl ?? null,
         });
       }

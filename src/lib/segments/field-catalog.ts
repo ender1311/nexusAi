@@ -58,6 +58,13 @@ export const FIELD_CATALOG: FieldDef[] = [
   { id: "country_latest", label: "Country", category: "attribute", type: "string", operators: STR_OPS, facet: { kind: "values" }, compile: { strategy: "attr", key: "country_latest", cast: "text" } },
   { id: "language_tag", label: "Language", category: "attribute", type: "string", operators: STR_OPS, facet: { kind: "values" }, compile: { strategy: "attr", key: "language_tag", cast: "text" } },
   { id: "days_since_last_open", label: "Days since last open", category: "attribute", type: "number", operators: NUM_OPS, facet: { kind: "range" }, compile: { strategy: "attr", key: "days_since_last_open", cast: "numeric" } },
+  // has_recurring_gift is the generic recurring-giver flag: it covers an active
+  // recurring gift to EITHER the YouVersion fund OR the Bible-translation fund.
+  // ~95% of recurring givers give to YouVersion, so for "no active recurring gift"
+  // targeting this is a good proxy. A YouVersion-specific column
+  // (hasRecurringGiftYouversion) also exists on the User model but is not exposed
+  // here; add it as a separate field if a campaign must exclude only YouVersion
+  // recurring givers (and still reach translation-fund-only recurring givers).
   { id: "has_recurring_gift", label: "Has recurring gift", category: "attribute", type: "boolean", operators: BOOL_OPS, compile: { strategy: "attr", key: "has_recurring_gift", cast: "boolean" } },
   { id: "gift_count_lifetime", label: "Lifetime gift count", category: "attribute", type: "number", operators: NUM_OPS, facet: { kind: "range" }, compile: { strategy: "attr", key: "gift_count_lifetime", cast: "numeric" } },
   { id: "newsletter_push_enabled", label: "Push opt-in", category: "attribute", type: "boolean", operators: BOOL_OPS, compile: { strategy: "attr", key: "newsletter_push_enabled", cast: "boolean" } },

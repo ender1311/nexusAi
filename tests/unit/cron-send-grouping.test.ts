@@ -150,6 +150,23 @@ describe("groupDecisionsByVariant", () => {
     }
   });
 
+  it("dynamic-handle never-giver uses the per-variant default handle amount", () => {
+    const variantMeta = new Map<string, VariantMeta>([
+      ["v1", meta({ body: "Give {{ask}}", title: null, deeplink: null, givingHandleStrategy: "blend", givingHandleDefaultUsd: 50 })],
+    ]);
+    const decisionIdByUser = new Map([["u1", "d1"]]);
+    const at = new Date("2026-05-30T12:00:00Z");
+    // No gift history → never-giver → falls to the per-variant default ($50).
+    const groups = groupDecisionsByVariant(
+      [{ user: user("u1", null, {}), variantId: "v1", scheduledAt: at, inLocalTime: false }],
+      variantMeta,
+      decisionIdByUser,
+    );
+    const g = Object.values(groups)[0];
+    expect(g.deeplink).toContain("amount=50");
+    expect(g.body).toBe("Give $50");
+  });
+
   it("dynamic-handle uses default multiplier (24) when givingMultiplier omitted", () => {
     const variantMeta = new Map<string, VariantMeta>([
       ["v1", meta({ body: "{{bibles}} apps", deeplink: null, givingHandleStrategy: "avg-gift", title: null })],

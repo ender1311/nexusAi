@@ -80,13 +80,29 @@ describe("buildCurrencyLadder", () => {
 });
 
 describe("selectGiftAmountUSD", () => {
-  it("first-time giver (lifetimeCount absent) returns 10", () => {
-    expect(selectGiftAmountUSD({})).toBe(10);
+  it("first-time giver (lifetimeCount absent) returns the $25 default", () => {
+    expect(selectGiftAmountUSD({})).toBe(25);
   });
 
-  it("first-time giver (lifetimeCount=0 treated as absent/falsy) returns 10", () => {
+  it("first-time giver (lifetimeCount=0 treated as absent/falsy) returns the $25 default", () => {
     // 0 is treated as absent (non-positive)
-    expect(selectGiftAmountUSD({ gift_count_lifetime: 0 })).toBe(10);
+    expect(selectGiftAmountUSD({ gift_count_lifetime: 0 })).toBe(25);
+  });
+
+  it("first-time giver honors a per-variant default override (snapped to ladder)", () => {
+    expect(selectGiftAmountUSD({}, 50)).toBe(50);
+    expect(selectGiftAmountUSD({}, 5)).toBe(5);
+    expect(selectGiftAmountUSD({}, 100)).toBe(100);
+  });
+
+  it("clamps the default override to the $5–$100 experiment range", () => {
+    expect(selectGiftAmountUSD({}, 3)).toBe(5);     // below floor → 5
+    expect(selectGiftAmountUSD({}, 250)).toBe(100); // above ceiling → 100
+  });
+
+  it("falls back to the $25 default when override is non-finite", () => {
+    expect(selectGiftAmountUSD({}, Number.NaN)).toBe(25);
+    expect(selectGiftAmountUSD({}, Infinity)).toBe(25);
   });
 
   it("lapsed giver gets a lower amount than active giver with same history", () => {
@@ -353,6 +369,12 @@ describe("selectGiftAmountUSDByStrategy", () => {
     const noRecent = { gift_count_lifetime: 3, gift_count_past_3_to_36_months: 2, gift_amount_average: 30 };
     expect(selectGiftAmountUSDByStrategy(noRecent, "recent-gift")).toBe(selectGiftAmountUSD(noRecent));
   });
+
+  it("never-giver flows the per-variant default through every strategy", () => {
+    for (const s of ["avg-gift", "recent-gift", "max-gift", "blend"] as const) {
+      expect(selectGiftAmountUSDByStrategy({}, s, 50)).toBe(50);
+    }
+  });
 });
 
 describe("resolveLocalGiftAmount", () => {
@@ -374,6 +396,11 @@ describe("resolveLocalGiftAmount", () => {
   it("unknown currency falls back to USD", () => {
     const r = resolveLocalGiftAmount({ gift_currency_most_recent: "XYZ" }, "blend");
     expect(r.currencyCode).toBe("USD");
+  });
+
+  it("never-giver uses the per-variant default for amountUsd", () => {
+    const r = resolveLocalGiftAmount({}, "blend", 75);
+    expect(r.amountUsd).toBe(75);
   });
 });
 
@@ -401,5 +428,10 @@ describe("buildGivingDeeplink with strategy", () => {
     const blend = buildGivingDeeplink(attrs);
     const recent = buildGivingDeeplink(attrs, "recent-gift");
     expect(recent).not.toBe(blend);
+  });
+
+  it("never-giver deeplink carries the per-variant default amount", () => {
+    expect(buildGivingDeeplink({}, "blend", "monthly", 50)).toContain("amount=50");
+    expect(buildGivingDeeplink({})).toContain("amount=25");
   });
 });

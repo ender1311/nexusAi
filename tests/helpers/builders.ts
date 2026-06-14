@@ -81,6 +81,7 @@ export async function createVariant(
     subcategory?: string | null;
     iconImageUrl?: string | null;
     sourceTemplateId?: string | null;
+    actionFeatures?: Prisma.InputJsonValue;
   } = {}
 ) {
   return prisma.messageVariant.create({
