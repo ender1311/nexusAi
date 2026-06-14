@@ -148,6 +148,62 @@ describe("POST /api/agents/[id]/messages", () => {
     const inDb = await prisma.messageVariant.findUnique({ where: { id: added.id } });
     expect(inDb!.sourceTemplateId).toBe(template.id);
   });
+
+  it("copies category/subcategory/actionFeatures from the template into a new message (no sync-cron wait)", async () => {
+    const libAgent = await createAgent({ name: "Push Copy Library", status: "draft" });
+    const libMsg = await createMessage(libAgent.id, { channel: "push" });
+    const template = await createVariant(libMsg.id, {
+      name: "Dynamic Handle — Sower Ask $50",
+      body: "Give {{ask}} a month",
+      category: "giving",
+      subcategory: "dynamic-handle",
+      actionFeatures: { givingHandleStrategy: "blend", givingFrequency: "monthly", givingHandleDefaultUsd: 50 },
+    });
+
+    const agent = await createAgent();
+    const req = buildRequest("POST", {
+      name: "Recurring Ask",
+      channel: "push",
+      variants: [{ name: "V1", title: "Become a Sower", body: "Give {{ask}} a month", sourceTemplateId: template.id }],
+    });
+    const res = await postMessage(req as NextRequest, { params: Promise.resolve({ id: agent.id }) });
+    const body = await res.json();
+    expect(res.status).toBe(201);
+
+    const inDb = await prisma.messageVariant.findUniqueOrThrow({ where: { id: body.variants[0].id } });
+    expect(inDb.subcategory).toBe("dynamic-handle");
+    expect(inDb.category).toBe("giving");
+    expect((inDb.actionFeatures as Record<string, unknown>).givingHandleDefaultUsd).toBe(50);
+  });
+
+  it("copies category/subcategory/actionFeatures from the template when adding to an existing message", async () => {
+    const libAgent = await createAgent({ name: "Push Copy Library", status: "draft" });
+    const libMsg = await createMessage(libAgent.id, { channel: "push" });
+    const template = await createVariant(libMsg.id, {
+      name: "Dynamic Handle — Recurring (avg gift)",
+      body: "Make it {{ask}}/mo",
+      category: "giving",
+      subcategory: "dynamic-handle",
+      actionFeatures: { givingHandleStrategy: "avg-gift", givingFrequency: "monthly" },
+    });
+
+    const agent = await createAgent();
+    const message = await createMessage(agent.id, { channel: "push" });
+    await createVariant(message.id, { name: "V1", body: "Existing body" });
+
+    const req = buildRequest("POST", {
+      messageId: message.id,
+      variant: { name: "V2", title: "Turn your gift into monthly impact", body: "Make it {{ask}}/mo", sourceTemplateId: template.id },
+    });
+    const res = await postMessage(req as NextRequest, { params: Promise.resolve({ id: agent.id }) });
+    const body = await res.json();
+    expect(res.status).toBe(201);
+
+    const added = body.variants.find((v: { name: string }) => v.name === "V2");
+    const inDb = await prisma.messageVariant.findUniqueOrThrow({ where: { id: added.id } });
+    expect(inDb.subcategory).toBe("dynamic-handle");
+    expect((inDb.actionFeatures as Record<string, unknown>).givingHandleStrategy).toBe("avg-gift");
+  });
 });
 
 describe("PATCH/DELETE /api/variants/[id]", () => {

@@ -46,6 +46,36 @@ function sanitizeVariant(input: VariantInput) {
   };
 }
 
+// Library-template content metadata that defines behavior (e.g. dynamic-handle
+// giving config in actionFeatures). The picker POSTs only copy fields + the
+// sourceTemplateId, so copy these from the template at creation — otherwise a
+// freshly cloned variant is inert until the sync-template-variants cron runs.
+async function fetchTemplateConfig(ids: string[]) {
+  if (ids.length === 0) return new Map<string, { category: string | null; subcategory: string | null; actionFeatures: Prisma.JsonValue }>();
+  const rows = await prisma.messageVariant.findMany({
+    where: { id: { in: ids } },
+    select: { id: true, category: true, subcategory: true, actionFeatures: true },
+  });
+  return new Map(rows.map((r) => [r.id, { category: r.category, subcategory: r.subcategory, actionFeatures: r.actionFeatures }]));
+}
+
+type SanitizedVariant = ReturnType<typeof sanitizeVariant>;
+
+function applyTemplateConfig(
+  data: SanitizedVariant,
+  templates: Map<string, { category: string | null; subcategory: string | null; actionFeatures: Prisma.JsonValue }>,
+): SanitizedVariant & { category?: string | null; subcategory?: string | null; actionFeatures?: Prisma.InputJsonValue } {
+  if (!data.sourceTemplateId) return data;
+  const t = templates.get(data.sourceTemplateId);
+  if (!t) return data;
+  return {
+    ...data,
+    category: t.category,
+    subcategory: t.subcategory,
+    ...(t.actionFeatures != null ? { actionFeatures: t.actionFeatures as Prisma.InputJsonValue } : {}),
+  };
+}
+
 function toDetectVariant(input: {
   id?: string;
   messageId?: string;
@@ -143,10 +173,12 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
         return NextResponse.json({ error: completenessErr }, { status: 400 });
       }
 
+      const sanitized = sanitizeVariant(variant);
+      const templates = await fetchTemplateConfig(sanitized.sourceTemplateId ? [sanitized.sourceTemplateId] : []);
       const created = await prisma.messageVariant.create({
         data: {
           messageId,
-          ...sanitizeVariant(variant),
+          ...applyTemplateConfig(sanitized, templates),
         },
       });
 
@@ -204,6 +236,11 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
     }
 
     const sanitizedVariants = variants.map(sanitizeVariant);
+    const templateIds = [...new Set(
+      sanitizedVariants.map((v) => v.sourceTemplateId).filter((x): x is string => Boolean(x)),
+    )];
+    const templates = await fetchTemplateConfig(templateIds);
+    const enrichedVariants = sanitizedVariants.map((v) => applyTemplateConfig(v, templates));
 
     const message = await prisma.message.create({
       data: {
@@ -230,7 +267,7 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
           ),
         ),
         variants: {
-          create: sanitizedVariants,
+          create: enrichedVariants,
         },
       },
       include: {
