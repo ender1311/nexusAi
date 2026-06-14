@@ -378,6 +378,6 @@ export const getCachedFleetGiftStats = cache(
       };
     },
     ["fleet-gift-stats"],
-    { tags: ["dashboard-stats", "agents"], revalidate: TTL.STANDARD }
+    { tags: ["dashboard-stats", "agents"], revalidate: TTL.LONG }
   )
 );

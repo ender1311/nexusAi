@@ -2,7 +2,6 @@
 
 import { useState } from "react";
 import { Eye } from "lucide-react";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import {
   Dialog,
   DialogContent,
@@ -90,23 +89,21 @@ export function PushOpenRateCard({
 
   return (
     <>
-      <Card
-        className="cursor-pointer hover:ring-2 hover:ring-ring/20 hover:ring-offset-1 transition-all"
+      <div
+        className="rounded-2xl border bg-card px-5 pt-5 pb-4 flex flex-col gap-3 min-h-[148px] h-full cursor-pointer transition-colors hover:border-primary/40 hover:bg-muted/40"
         onClick={handleOpen}
       >
-        <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-          <CardTitle className="text-sm font-medium text-muted-foreground">
-            {title}
-          </CardTitle>
-          <Eye className="h-4 w-4 text-muted-foreground" />
-        </CardHeader>
-        <CardContent>
-          <div className="text-2xl font-bold">{value}</div>
+        <div className="inline-flex w-fit items-center justify-center rounded-xl p-2.5 bg-amber-500/10">
+          <Eye className="h-5 w-5 text-amber-500" />
+        </div>
+        <div>
+          <div className="text-3xl font-extrabold tracking-tight leading-none">{value}</div>
+          <p className="text-xs font-medium text-muted-foreground mt-1.5">{title}</p>
           {description && (
-            <p className="text-xs text-muted-foreground mt-1">{description}</p>
+            <p className="text-xs font-medium text-amber-500 mt-1">{description}</p>
           )}
-        </CardContent>
-      </Card>
+        </div>
+      </div>
 
       <Dialog open={open} onOpenChange={setOpen}>
         <DialogContent className="max-w-2xl max-h-[85vh] overflow-y-auto">

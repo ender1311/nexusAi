@@ -24,9 +24,10 @@ import {
   getCachedPreferredChannelStats,
   getCachedFleetRecoveryStats,
   getCachedFleetGiftStats,
+  getCachedAgentCardStats,
 } from "@/lib/cache";
 import { getCachedBrazeStats } from "@/lib/braze/analytics";
-import { formatNumber, formatDate } from "@/lib/utils";
+import { cn, formatNumber, formatDate } from "@/lib/utils";
 import { agentRowBadge } from "@/lib/dashboard-agent-row";
 import { getHiddenStatsForCurrentUser } from "@/lib/user-preferences";
 import { isStatHidden } from "@/lib/stat-visibility";
@@ -95,25 +96,42 @@ function ListCardSkeleton() {
 // Async sub-components — each owns its own data fetch, streams independently
 // ---------------------------------------------------------------------------
 
+// Core cards — backed by fast indexed queries (sentAt index, agent list, 24h TrackedUser count cache).
+// Intentionally excludes fleet recovery/gift stats so slow aggregates don't block this section.
 async function MetricCardsSection() {
-  const [{ sentLast24h, totalConversions, totalDecisions, totalPushSends }, agents, trackedUsers, hiddenStats, recovery, giftStats] =
-    await Promise.all([getCachedDashboardCounts(), getCachedAgentList(), getCachedTrackedUserCount(), getHiddenStatsForCurrentUser(), getCachedFleetRecoveryStats(), getCachedFleetGiftStats()]);
+  const [{ sentLast24h, totalConversions, totalDecisions, totalPushSends }, agents, trackedUsers, hiddenStats] =
+    await Promise.all([getCachedDashboardCounts(), getCachedAgentList(), getCachedTrackedUserCount(), getHiddenStatsForCurrentUser()]);
   const avgConvRate = totalDecisions > 0 ? (totalConversions / totalDecisions) * 100 : 0;
   const activeAgents = agents.filter((a) => a.status === "active").length;
 
   return (
     <>
-      {!isStatHidden(hiddenStats, "dashboard.trackedUsers") && <MetricCard title="Tracked Users" value={formatNumber(trackedUsers)} description="synced from Hightouch" icon={Users} />}
-      {!isStatHidden(hiddenStats, "dashboard.activeAgents") && <MetricCard title="Active Agents" value={activeAgents} description="currently running" icon={Bot} trend={0} href="/agents" />}
-      {!isStatHidden(hiddenStats, "dashboard.messagesSent24h") && <MetricCard title="Messages Sent (24h)" value={formatNumber(sentLast24h)} description="across all channels" icon={Send} />}
-      {avgConvRate > 0 && !isStatHidden(hiddenStats, "dashboard.avgConversionRate") && <MetricCard title="Avg Conversion Rate" value={`${avgConvRate.toFixed(2)}%`} description="last 30 days" icon={TrendingUp} />}
-      {!isStatHidden(hiddenStats, "dashboard.totalSends") && <MetricCard title="Total Sends" value={formatNumber(totalPushSends)} description="push, last 30 days" icon={Send} />}
+      {!isStatHidden(hiddenStats, "dashboard.trackedUsers") && <MetricCard title="Tracked Users" value={formatNumber(trackedUsers)} description="synced from Hightouch" icon={Users} accentColor="violet" />}
+      {!isStatHidden(hiddenStats, "dashboard.activeAgents") && <MetricCard title="Active Agents" value={activeAgents} description="currently running" icon={Bot} href="/agents" accentColor="cyan" />}
+      {!isStatHidden(hiddenStats, "dashboard.messagesSent24h") && <MetricCard title="Messages Sent (24h)" value={formatNumber(sentLast24h)} description="across all channels" icon={Send} accentColor="pink" />}
+      {avgConvRate > 0 && !isStatHidden(hiddenStats, "dashboard.avgConversionRate") && <MetricCard title="Avg Conversion Rate" value={`${avgConvRate.toFixed(2)}%`} description="last 30 days" icon={TrendingUp} accentColor="emerald" />}
+      {!isStatHidden(hiddenStats, "dashboard.totalSends") && <MetricCard title="Total Sends" value={formatNumber(totalPushSends)} description="push, last 30 days" icon={Send} accentColor="indigo" />}
+    </>
+  );
+}
+
+// Fleet aggregate cards — separate Suspense so slow aggregates never block the core cards above.
+async function FleetMetricCardsSection() {
+  const [recovery, giftStats, hiddenStats] = await Promise.all([
+    getCachedFleetRecoveryStats(),
+    getCachedFleetGiftStats(),
+    getHiddenStatsForCurrentUser(),
+  ]);
+
+  return (
+    <>
       {recovery.recoveries30d > 0 && !isStatHidden(hiddenStats, "dashboard.recoveries") && (
         <MetricCard
           title="Lapsed Recovered (30d)"
           value={formatNumber(recovery.recoveries30d)}
           description={`${recovery.fleetRecoveryRate.toFixed(1)}% fleet recovery rate`}
           icon={TrendingUp}
+          accentColor="green"
         />
       )}
       {giftStats.giftCount > 0 && !isStatHidden(hiddenStats, "dashboard.gifts") && (
@@ -122,6 +140,7 @@ async function MetricCardsSection() {
           value={formatNumber(giftStats.giftCount)}
           description={`$${formatNumber(Math.round(giftStats.giftRevenue))} attributed revenue`}
           icon={TrendingUp}
+          accentColor="amber"
         />
       )}
       {giftStats.sowerCount > 0 && !isStatHidden(hiddenStats, "dashboard.sowers") && (
@@ -130,6 +149,7 @@ async function MetricCardsSection() {
           value={formatNumber(giftStats.sowerCount)}
           description="recurring givers converted"
           icon={TrendingUp}
+          accentColor="orange"
         />
       )}
     </>
@@ -185,46 +205,67 @@ async function TimeSeriesSection() {
 }
 
 async function AgentsSidebar() {
-  const agents = await getCachedAgentList();
+  const [agents, cardStats] = await Promise.all([getCachedAgentList(), getCachedAgentCardStats()]);
+  const pushByAgent = new Map(cardStats.pushStats.map((s) => [s.agentId, s]));
 
   return (
     <Card>
-      <CardHeader className="flex flex-row items-center justify-between">
-        <Link
-          href="/agents"
-          className="group flex items-center gap-1 -m-1 p-1 rounded-md hover:text-primary transition-colors"
-        >
-          <CardTitle className="text-sm font-semibold group-hover:text-primary transition-colors">Agents</CardTitle>
-          <ChevronRight className="h-4 w-4 text-muted-foreground group-hover:text-primary transition-colors" />
-        </Link>
-        <Link href="/agents/new">
-          <Button size="sm" variant="outline" className="h-7 text-xs">
-            <Plus className="h-3 w-3 mr-1" />
-            New
-          </Button>
+      <CardHeader className="flex flex-row items-center justify-between pb-2">
+        <CardTitle className="text-base font-bold">Agents</CardTitle>
+        <Link href="/agents" className="text-sm text-primary font-medium hover:opacity-75 transition-opacity flex items-center gap-0.5">
+          See all <ChevronRight className="h-4 w-4" />
         </Link>
       </CardHeader>
-      <CardContent className="space-y-1.5">
-        {agents.map((agent) => (
-          <Link key={agent.id} href={`/agents/${agent.id}`}>
-            <div className="flex items-center justify-between gap-2 p-2 rounded-lg border bg-card hover:bg-muted hover:border-primary/40 active:bg-muted transition-colors cursor-pointer">
-              <div className="flex-1 min-w-0">
-                <p className="text-xs font-medium truncate">{agent.name}</p>
-                <p className="text-xs text-muted-foreground capitalize">{agent.status}</p>
+      <CardContent className="space-y-2">
+        {agents.map((agent) => {
+          const initial = agent.name.charAt(0).toUpperCase();
+          const stage = (agent.funnelStage ?? "wau").toUpperCase();
+          const badge = agentRowBadge(agent.status, agent._count.decisions);
+          const push = pushByAgent.get(agent.id);
+          const openRate = push && push.sends > 0 ? (push.opens / push.sends) * 100 : null;
+          const avatarColor = agent.color ?? "#6366f1";
+          const openRateCls = openRate === null ? "text-muted-foreground"
+            : openRate >= 12 ? "text-emerald-400"
+            : openRate >= 7  ? "text-green-500"
+            : openRate >= 4  ? "text-amber-400"
+            : "text-muted-foreground";
+          return (
+            <Link key={agent.id} href={`/agents/${agent.id}`}>
+              <div className="flex items-center gap-3 p-3 rounded-xl border bg-card hover:bg-muted hover:border-primary/40 transition-colors cursor-pointer">
+                <div
+                  className="h-11 w-11 rounded-xl flex items-center justify-center shrink-0"
+                  style={{ backgroundColor: avatarColor }}
+                >
+                  <span className="text-sm font-bold text-white">{initial}</span>
+                </div>
+                <div className="flex-1 min-w-0">
+                  <div className="flex items-center gap-1.5 flex-wrap">
+                    <span className="text-sm font-semibold">{agent.name}</span>
+                    <span className="text-[10px] font-semibold text-muted-foreground bg-muted px-1.5 py-0.5 rounded-full leading-tight shrink-0">{stage}</span>
+                  </div>
+                  {agent.description && (
+                    <p className="text-xs text-muted-foreground truncate mt-0.5">{agent.description}</p>
+                  )}
+                </div>
+                <div className="text-right shrink-0">
+                  {badge.kind === "draft" ? (
+                    <Badge variant="outline" className="text-xs">Draft</Badge>
+                  ) : (
+                    <>
+                      <p className="text-sm font-bold tabular-nums leading-tight">{formatNumber(badge.decisions)}</p>
+                      <p className="text-[10px] text-muted-foreground leading-tight">sends</p>
+                      {openRate !== null && (
+                        <p className={cn("text-[11px] font-semibold leading-tight mt-0.5", openRateCls)}>
+                          {openRate.toFixed(1)}% open
+                        </p>
+                      )}
+                    </>
+                  )}
+                </div>
               </div>
-              <div className="flex items-center gap-1.5 shrink-0">
-                {agentRowBadge(agent.status, agent._count.decisions).kind === "draft" ? (
-                  <Badge variant="outline" className="text-xs">Draft</Badge>
-                ) : (
-                  <span className="text-xs font-bold text-primary">
-                    {formatNumber(agent._count.decisions)} sends
-                  </span>
-                )}
-                <ChevronRight className="h-3.5 w-3.5 text-muted-foreground" />
-              </div>
-            </div>
-          </Link>
-        ))}
+            </Link>
+          );
+        })}
         {agents.length === 0 && (
           <p className="text-xs text-muted-foreground text-center py-4">No agents yet</p>
         )}
@@ -374,6 +415,7 @@ export default function DashboardPage() {
   void getCachedDashboardCounts();
   void getCachedTrackedUserCount();
   void getCachedAgentList();
+  void getCachedAgentCardStats();
   void getCachedBrazeStats();
   void getCachedDashboardTimeSeries();
   void getCachedRecentDecisions();
@@ -388,10 +430,13 @@ export default function DashboardPage() {
     <>
       <Header title="Dashboard" description="Nexus platform overview" />
       <div className="p-4 sm:p-6 space-y-4 sm:space-y-6">
-        {/* Metric cards row */}
+        {/* Metric cards row — two independent Suspense groups so core cards paint first */}
         <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3 sm:gap-4">
           <Suspense fallback={<MetricCardsSkeleton />}>
             <MetricCardsSection />
+          </Suspense>
+          <Suspense fallback={null}>
+            <FleetMetricCardsSection />
           </Suspense>
           <Suspense fallback={<PushRateSkeleton />}>
             <PushOpenRateSection />
