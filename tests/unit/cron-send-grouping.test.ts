@@ -183,6 +183,23 @@ describe("groupDecisionsByVariant", () => {
     expect(Object.values(groups)[0].body).toBe("1,200 apps");
   });
 
+  it("dynamic-handle variant with an explicit deeplink uses it (not the give URL), still substitutes copy", () => {
+    const variantMeta = new Map<string, VariantMeta>([
+      ["v1", meta({ body: "A monthly gift of {{ask}} → {{bibles}} Bibles. Find out more.", title: null, deeplink: "https://youversion.com/sowers", givingHandleStrategy: "blend" })],
+    ]);
+    const at = new Date("2026-05-30T12:00:00Z");
+    const groups = groupDecisionsByVariant(
+      [{ user: user("u1", null, {}), variantId: "v1", scheduledAt: at, inLocalTime: false }],
+      variantMeta,
+      new Map([["u1", "d1"]]),
+      undefined,
+      24,
+    );
+    const g = Object.values(groups)[0];
+    expect(g.deeplink).toBe("https://youversion.com/sowers");        // explicit deeplink wins
+    expect(g.body).toBe("A monthly gift of $25 → 600 Bibles. Find out more."); // copy still substituted
+  });
+
   it("bibles derive from the displayed (local) amount so ask × multiplier == bibles in any currency", () => {
     // EUR never-giver, $50 default → displayed ask snaps to €45 (50 × 0.858 → ladder).
     // Bibles must equal the DISPLAYED amount × multiplier (45 × 24 = 1,080), not the

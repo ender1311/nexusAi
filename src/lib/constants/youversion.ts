@@ -45,8 +45,8 @@ export const YOUVERSION_DEEPLINKS: PushDeeplink[] = [
   { label: "Audio Bible", value: "youversion://audio-bible", category: "Media" },
   { label: "Podcasts", value: "youversion://podcasts", category: "Media" },
   // Giving
-  { label: "Give a Gift", value: "youversion://giving", category: "Giving" },
-  { label: "Sower Program", value: "youversion://giving/sower", category: "Giving" },
+  { label: "Give a Gift", value: "https://www.bible.com/give?fund=YouVersion&frequency=monthly", category: "Giving" },
+  { label: "Sower Program", value: "https://youversion.com/sowers", category: "Giving" },
   // Web links (bible.com) — open in browser/app via universal links
   { label: "Find Plans (web)", value: "https://www.bible.com/reading-plans", category: "Web Links" },
   { label: "My Plans (web)", value: "https://www.bible.com/my-plans", category: "Web Links" },

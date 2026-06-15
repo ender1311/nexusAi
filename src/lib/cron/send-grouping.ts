@@ -125,7 +125,12 @@ export function groupDecisionsByVariant(
         title: meta.title != null ? substituteGivingCopy(meta.title, { amountDisplay, bibles }) : null,
         body: substituteGivingCopy(meta.body, { amountDisplay, bibles }),
       };
-      resolvedDeeplink = buildGivingDeeplink(attrs, strategy, meta.givingFrequency ?? "monthly", defaultUsd);
+      // An explicit deeplink (agent override or variant deeplink) wins — e.g. point
+      // "find out more" copy at the Sowers info page. Copy still gets {{ask}}/{{bibles}}.
+      // No explicit link (or the giving sentinel) → build the personalized give URL.
+      resolvedDeeplink = meta.deeplink && meta.deeplink !== GIVING_LINK_SENTINEL
+        ? meta.deeplink
+        : buildGivingDeeplink(attrs, strategy, meta.givingFrequency ?? "monthly", defaultUsd);
       // Per-user copy → batch only users sharing identical resolved copy. Always
       // key on resolved copy for dynamic-handle (the amount/impact is per-user on
       // every channel), so a non-push dynamic-handle variant can't collapse users

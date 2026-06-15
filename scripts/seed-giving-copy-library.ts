@@ -14,12 +14,16 @@ import type { Prisma } from "@/generated/prisma/client";
 
 const COMMIT = process.argv.includes("--commit");
 
-type Entry = { name: string; title: string; body: string; fit: "never" | "past" | "both"; tone: string };
+type Entry = { name: string; title: string; body: string; fit: "never" | "past" | "both"; tone: string; deeplink?: string };
+
+// "Find out more" / learn-about-Sowers copy points at the Sowers info page instead
+// of the personalized give URL (an explicit deeplink wins for dynamic-handle).
+const SOWERS_URL = "https://youversion.com/sowers";
 
 const ENTRIES: Entry[] = [
   // ── never-givers / both ───────────────────────────────────────────────────
   { name: "Giving Copy — Reach the world", title: "Let's reach the world!", body: "Give a monthly gift of {{ask}} to put the free Bible App in {{bibles}} more hands and help millions engage with God's Word.", fit: "never", tone: "urgency" },
-  { name: "Giving Copy — What happens when I give", title: "What happens when I give?", body: "A monthly gift of {{ask}} puts the free Bible App in {{bibles}} more hands. Tap to find out more.", fit: "never", tone: "question" },
+  { name: "Giving Copy — What happens when I give", title: "What happens when I give?", body: "A monthly gift of {{ask}} puts the free Bible App in {{bibles}} more hands. Tap to find out more.", fit: "never", tone: "question", deeplink: SOWERS_URL },
   { name: "Giving Copy — Love in action", title: "Your love in action", body: "Discover how {{ask}} a month can put the Bible App in {{bibles}} more hands and share God's Word with others.", fit: "both", tone: "empathy" },
   { name: "Giving Copy — 195 countries", title: "Reach all 195 countries", body: "Help take the Bible to all 195 countries. A monthly gift of {{ask}} puts the Bible App in {{bibles}} more hands.", fit: "never", tone: "urgency" },
   { name: "Giving Copy — Won't stop", title: "We won't stop until this happens", body: "Together we can get God's Word to the world. Set up a recurring gift to reach even more people.", fit: "never", tone: "urgency" },
@@ -53,7 +57,7 @@ async function main() {
     if (!COMMIT) { console.log(`  [dry-run] ${e.name}  [${e.fit}]\n      ${e.title} — ${e.body}`); created++; continue; }
     await prisma.messageVariant.create({
       data: {
-        messageId: message!.id, name: e.name, title: e.title, body: e.body, deeplink: null,
+        messageId: message!.id, name: e.name, title: e.title, body: e.body, deeplink: e.deeplink ?? null,
         category: "giving", subcategory: "dynamic-handle", status: "active",
         actionFeatures: {
           tone: e.tone, hasPersonalization: e.body.includes("{{"), ctaType: "deeplink", messageLengthBucket: "short",
