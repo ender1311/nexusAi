@@ -13,6 +13,15 @@ function verifyAuth(req: NextRequest): boolean {
   return token != null && constantTimeEqual(token, secret);
 }
 
+// Vercel Cron Jobs invoke routes with GET, so a GET handler is required for the
+// scheduled run to execute — without it the cron silently 405'd and segments
+// never materialized. Delegates to the same logic as POST.
+export async function GET(
+  req: NextRequest,
+): Promise<NextResponse<{ data: MaterializeSummary } | { error: string }>> {
+  return POST(req);
+}
+
 export async function POST(
   req: NextRequest,
 ): Promise<NextResponse<{ data: MaterializeSummary } | { error: string }>> {

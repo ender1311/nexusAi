@@ -1,12 +1,12 @@
 import { describe, it, expect, beforeAll, afterAll, beforeEach } from "bun:test";
 import { prisma } from "@/lib/db";
-import { POST } from "@/app/api/cron/materialize-segments/route";
+import { POST, GET } from "@/app/api/cron/materialize-segments/route";
 import { NextRequest } from "next/server";
 
-function cronRequest(token: string | null): NextRequest {
+function cronRequest(token: string | null, method: "POST" | "GET" = "POST"): NextRequest {
   const headers: Record<string, string> = { "content-type": "application/json" };
   if (token !== null) headers.authorization = `Bearer ${token}`;
-  return new NextRequest("http://localhost/api/cron/materialize-segments", { method: "POST", headers });
+  return new NextRequest("http://localhost/api/cron/materialize-segments", { method, headers });
 }
 
 describe("POST /api/cron/materialize-segments", () => {
@@ -37,5 +37,15 @@ describe("POST /api/cron/materialize-segments", () => {
     const runs = await prisma.cronRun.findMany({ where: { cronName: "materialize-segments" } });
     expect(runs).toHaveLength(1);
     expect(runs[0]?.status).toBe("completed");
+  });
+
+  // Vercel Cron Jobs invoke routes with GET — the route must handle GET or the
+  // scheduled run silently 405s and segments never materialize.
+  it("GET (the method Vercel cron uses) runs the same: 401 unauthed, 200 + CronRun authed", async () => {
+    expect((await GET(cronRequest(null, "GET"))).status).toBe(401);
+    const res = await GET(cronRequest(process.env.CRON_SECRET ?? "", "GET"));
+    expect(res.status).toBe(200);
+    const runs = await prisma.cronRun.findMany({ where: { cronName: "materialize-segments" } });
+    expect(runs).toHaveLength(1);
   });
 });
