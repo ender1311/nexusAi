@@ -45,7 +45,8 @@ import { loadVersePool } from "@/lib/cron/verse-pool";
 import { hasVotdTags, hasGpTags } from "@/lib/votd/votd-tags";
 import { prepareVotdContent } from "@/lib/votd/votd-content";
 import { prepareGpContent } from "@/lib/votd/guided-prayer-content";
-import { isGivingHandleStrategy, isGivingFrequency, DEFAULT_HANDLE_USD, type GivingHandleStrategy, type GivingFrequency } from "@/lib/engine/giving-link";
+import { type GivingHandleStrategy, type GivingFrequency } from "@/lib/engine/giving-link";
+import { deriveGivingStrategy, deriveGivingFrequency, deriveGivingDefaultUsd } from "@/lib/engine/giving-handle";
 import { parseMultiplier } from "@/lib/engine/giving-copy";
 import { isPushVariantComplete } from "@/lib/messages/push-completeness";
 import { snapshotEnrollmentFlags } from "@/lib/constants/interaction-flags";
@@ -71,40 +72,9 @@ function verifyAuth(req: NextRequest): boolean {
   return token != null && constantTimeEqual(token, secret);
 }
 
-// A dynamic-handle variant carries its amount strategy in actionFeatures.givingHandleStrategy.
-// Returns the strategy (defaulting to "blend") for dynamic-handle variants, else null.
-function deriveGivingStrategy(subcategory: string | null, actionFeatures: unknown): GivingHandleStrategy | null {
-  if (subcategory !== "dynamic-handle") return null;
-  const raw =
-    actionFeatures && typeof actionFeatures === "object"
-      ? (actionFeatures as Record<string, unknown>)["givingHandleStrategy"]
-      : undefined;
-  return isGivingHandleStrategy(raw) ? raw : "blend";
-}
-
-// Giving variants carry an optional one-time vs recurring choice in
-// actionFeatures.givingFrequency. Defaults to "monthly" (recurring) to preserve
-// existing behavior when unset.
-function deriveGivingFrequency(actionFeatures: unknown): GivingFrequency {
-  const raw =
-    actionFeatures && typeof actionFeatures === "object"
-      ? (actionFeatures as Record<string, unknown>)["givingFrequency"]
-      : undefined;
-  return isGivingFrequency(raw) ? raw : "monthly";
-}
-
-// Never-givers have no history to anchor on, so a dynamic-handle variant can
-// carry its own default ask in actionFeatures.givingHandleDefaultUsd. The engine
-// clamps it to $5–$100; multiple variants with different defaults let the bandit
-// (LinUCB context) learn the best opening ask per user / look-alike cohort.
-function deriveGivingDefaultUsd(actionFeatures: unknown): number {
-  const raw =
-    actionFeatures && typeof actionFeatures === "object"
-      ? (actionFeatures as Record<string, unknown>)["givingHandleDefaultUsd"]
-      : undefined;
-  const n = Number(raw);
-  return isFinite(n) && n > 0 ? n : DEFAULT_HANDLE_USD;
-}
+// deriveGivingStrategy / deriveGivingFrequency / deriveGivingDefaultUsd live in
+// @/lib/engine/giving-handle so the cron and the demo send path share one
+// definition (see import above).
 
 export async function POST(req: NextRequest) {
   if (!verifyAuth(req)) {

@@ -6,12 +6,11 @@ import {
   GIVING_LINK_SENTINEL,
   DEFAULT_HANDLE_USD,
   buildGivingDeeplink,
-  resolveLocalGiftAmount,
-  formatGiftAmount,
   type GivingHandleStrategy,
   type GivingFrequency,
 } from "@/lib/engine/giving-link";
-import { computeBibles, substituteGivingCopy, DEFAULT_DOLLARS_TO_BIBLES } from "@/lib/engine/giving-copy";
+import { DEFAULT_DOLLARS_TO_BIBLES } from "@/lib/engine/giving-copy";
+import { resolveGivingHandle, hasUnsubstitutedTokens } from "@/lib/engine/giving-handle";
 import { resolvePushLocaleStrict, type LocalizedCopy } from "@/lib/push-locale";
 import { VERSE_PUSH_SENTINEL, pickVerse, resolveVerseCopy, type VersePool, type VerseStrategy } from "@/lib/verse-content";
 import { VERSE_IMAGE_SENTINEL, DEFAULT_VERSE_IMAGE_ID, buildVerseImageUrls } from "@/lib/verse-image";
@@ -111,26 +110,21 @@ export function groupDecisionsByVariant(
     let gpImage: { ios: string | null; android: string | null } | undefined;
 
     if (meta.givingHandleStrategy != null) {
-      // Dynamic giving handle: resolve a per-user ask amount + impact figure, then
-      // substitute into copy and override the deeplink with the matching give-URL.
-      const strategy = meta.givingHandleStrategy;
-      const defaultUsd = meta.givingHandleDefaultUsd ?? DEFAULT_HANDLE_USD;
-      const { amountLocal, currencyCode } = resolveLocalGiftAmount(attrs, strategy, defaultUsd);
-      const amountDisplay = formatGiftAmount(amountLocal, currencyCode);
-      // Bibles derive from the DISPLAYED (local) amount so the copy is self-consistent:
-      // {{ask}} × multiplier == {{bibles}} in any currency. amountUsd is USD-normalized
-      // and equals amountLocal for USD users, so this is identical for them.
-      const bibles = computeBibles(amountLocal, givingMultiplier ?? DEFAULT_DOLLARS_TO_BIBLES);
-      copy = {
-        title: meta.title != null ? substituteGivingCopy(meta.title, { amountDisplay, bibles }) : null,
-        body: substituteGivingCopy(meta.body, { amountDisplay, bibles }),
-      };
-      // An explicit deeplink (agent override or variant deeplink) wins — e.g. point
-      // "find out more" copy at the Sowers info page. Copy still gets {{ask}}/{{bibles}}.
-      // No explicit link (or the giving sentinel) → build the personalized give URL.
-      resolvedDeeplink = meta.deeplink && meta.deeplink !== GIVING_LINK_SENTINEL
-        ? meta.deeplink
-        : buildGivingDeeplink(attrs, strategy, meta.givingFrequency ?? "monthly", defaultUsd);
+      // Dynamic giving handle: resolve the per-user ask + impact, substitute
+      // {{ask}}/{{bibles}}, and pick the deeplink. Shared with the demo send path
+      // via resolveGivingHandle so the two can't diverge.
+      const resolved = resolveGivingHandle({
+        title: meta.title,
+        body: meta.body,
+        explicitDeeplink: meta.deeplink,
+        strategy: meta.givingHandleStrategy,
+        frequency: meta.givingFrequency ?? "monthly",
+        defaultUsd: meta.givingHandleDefaultUsd ?? DEFAULT_HANDLE_USD,
+        attrs,
+        multiplier: givingMultiplier ?? DEFAULT_DOLLARS_TO_BIBLES,
+      });
+      copy = { title: resolved.title, body: resolved.body };
+      resolvedDeeplink = resolved.deeplink;
       // Per-user copy → batch only users sharing identical resolved copy. Always
       // key on resolved copy for dynamic-handle (the amount/impact is per-user on
       // every channel), so a non-push dynamic-handle variant can't collapse users
@@ -207,6 +201,14 @@ export function groupDecisionsByVariant(
         copy = localized;
       }
       copyKeyed = meta.channel === "push" && (isVotd || isGp || isVerse || (localization?.enabled ?? false));
+    }
+
+    // Defense in depth: never ship a push with an unsubstituted {{token}} — Braze
+    // renders unknown {{...}} as blank (the giving-handle demo bug). Skip + warn so
+    // a templating gap is visible instead of silently sending a broken message.
+    if (hasUnsubstitutedTokens(copy.title, copy.body)) {
+      console.warn(`[send-grouping] skip ${user.externalId} on variant ${variantId} — unresolved template token in resolved copy`);
+      continue;
     }
 
     // Resolve per-platform image URLs (payload-determining → folded into the group key).

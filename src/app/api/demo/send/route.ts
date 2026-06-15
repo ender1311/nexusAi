@@ -11,6 +11,8 @@ import { resolveVotdUserKey } from "@/lib/votd/votd-user-key";
 import { getVotdContent } from "@/lib/votd/votd-content";
 import { getGpContent, buildGpImageUrls } from "@/lib/votd/guided-prayer-content";
 import { VERSE_IMAGE_SENTINEL } from "@/lib/verse-image";
+import { parseMultiplier } from "@/lib/engine/giving-copy";
+import { deriveGivingStrategy, deriveGivingFrequency, deriveGivingDefaultUsd, resolveGivingHandle, hasUnsubstitutedTokens } from "@/lib/engine/giving-handle";
 
 type SendResult = {
   userId: string;
@@ -59,6 +61,8 @@ export async function POST(req: NextRequest) {
   const brazeClient = createBrazeClient();
   const factory = brazeClient ? new PayloadFactory() : null;
   const campaignId = process.env.BRAZE_NEXUS_CAMPAIGN_ID;
+  const multiplierSetting = await prisma.appSetting.findUnique({ where: { key: "giving_dollars_to_bibles_multiplier" } });
+  const givingMultiplier = parseMultiplier(multiplierSetting?.value);
 
   const results: SendResult[] = await Promise.all(
     (userIds as string[]).map(async (userId): Promise<SendResult> => {
@@ -74,7 +78,7 @@ export async function POST(req: NextRequest) {
               id: overrideVariantId,
               message: { agentId },
             },
-            select: { id: true, name: true, title: true, body: true, deeplink: true, iconImageUrl: true, brazeVariantId: true },
+            select: { id: true, name: true, title: true, body: true, deeplink: true, iconImageUrl: true, brazeVariantId: true, subcategory: true, actionFeatures: true },
           });
           if (!overrideVariant) return { userId, status: "failed", reason: "override variant not found for this agent" };
           variantId = overrideVariant.id;
@@ -83,10 +87,25 @@ export async function POST(req: NextRequest) {
 
           let title = overrideVariant.title ?? "";
           let body = overrideVariant.body;
+          let deeplink: string | undefined = overrideVariant.deeplink ?? undefined;
           let iosImageUrl: string | undefined;
           let androidImageUrl: string | undefined;
 
-          if (hasGpTags(overrideVariant.title, overrideVariant.body)) {
+          const givingStrategy = deriveGivingStrategy(overrideVariant.subcategory, overrideVariant.actionFeatures);
+          if (givingStrategy != null) {
+            // Dynamic giving handle — resolve {{ask}}/{{bibles}} + the give deeplink
+            // (same logic as the cron). Without this the demo shipped raw tokens.
+            const tu = await prisma.trackedUser.findUnique({ where: { externalId: userId }, select: { attributes: true } });
+            const resolved = resolveGivingHandle({
+              title: overrideVariant.title, body: overrideVariant.body, explicitDeeplink: overrideVariant.deeplink,
+              strategy: givingStrategy, frequency: deriveGivingFrequency(overrideVariant.actionFeatures),
+              defaultUsd: deriveGivingDefaultUsd(overrideVariant.actionFeatures),
+              attrs: (tu?.attributes ?? {}) as Record<string, unknown>, multiplier: givingMultiplier,
+            });
+            title = resolved.title ?? "";
+            body = resolved.body;
+            deeplink = resolved.deeplink;
+          } else if (hasGpTags(overrideVariant.title, overrideVariant.body)) {
             const trackedUserForGp = await prisma.trackedUser.findUnique({
               where: { externalId: userId },
               select: { attributes: true },
@@ -120,9 +139,10 @@ export async function POST(req: NextRequest) {
             }
           }
 
+          if (hasUnsubstitutedTokens(title, body)) return { userId, status: "failed", variantName, reason: "unresolved template tokens — not sent" };
           if (!brazeClient || !factory) return { userId, status: "failed", reason: "Braze not configured", variantName };
           const payload = factory.buildPushPayload(
-            { title, body, deeplink: overrideVariant.deeplink ?? undefined, iosImageUrl, androidImageUrl },
+            { title, body, deeplink, iosImageUrl, androidImageUrl },
             { externalUserIds: [userId] },
             campaignId,
             brazeVariantId ?? undefined,
@@ -147,16 +167,31 @@ export async function POST(req: NextRequest) {
             body: true,
             deeplink: true,
             iconImageUrl: true,
+            subcategory: true,
+            actionFeatures: true,
           },
         });
         if (!variant) return { userId, status: "failed", reason: "variant not found" };
 
         let title = variant.title ?? "";
         let body = variant.body;
+        let deeplink: string | undefined = variant.deeplink ?? decision.deeplink ?? undefined;
         let iosImageUrl: string | undefined;
         let androidImageUrl: string | undefined;
 
-        if (hasGpTags(variant.title, variant.body)) {
+        const givingStrategy = deriveGivingStrategy(variant.subcategory, variant.actionFeatures);
+        if (givingStrategy != null) {
+          const tu = await prisma.trackedUser.findUnique({ where: { externalId: userId }, select: { attributes: true } });
+          const resolved = resolveGivingHandle({
+            title: variant.title, body: variant.body, explicitDeeplink: variant.deeplink,
+            strategy: givingStrategy, frequency: deriveGivingFrequency(variant.actionFeatures),
+            defaultUsd: deriveGivingDefaultUsd(variant.actionFeatures),
+            attrs: (tu?.attributes ?? {}) as Record<string, unknown>, multiplier: givingMultiplier,
+          });
+          title = resolved.title ?? "";
+          body = resolved.body;
+          deeplink = resolved.deeplink;
+        } else if (hasGpTags(variant.title, variant.body)) {
           const trackedUserForGp = await prisma.trackedUser.findUnique({
             where: { externalId: userId },
             select: { attributes: true },
@@ -205,6 +240,9 @@ export async function POST(req: NextRequest) {
           }
         }
 
+        if (hasUnsubstitutedTokens(title, body)) {
+          return { userId, status: "failed", variantName: variant.name, reason: "unresolved template tokens — not sent" };
+        }
         if (!brazeClient || !factory) {
           return { userId, status: "failed", reason: "Braze not configured", variantName: variant.name };
         }
@@ -213,7 +251,7 @@ export async function POST(req: NextRequest) {
           {
             title,
             body,
-            deeplink: variant.deeplink ?? undefined,
+            deeplink,
             iosImageUrl,
             androidImageUrl,
           },
