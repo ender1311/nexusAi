@@ -3,8 +3,7 @@
 import { useState } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
-import { Goal } from "@/types/agent";
+import { Goal, GoalTier } from "@/types/agent";
 import { cn } from "@/lib/utils";
 import { Trash2, CheckCircle2 } from "lucide-react";
 import { InfoTip } from "@/components/ui/info-tip";
@@ -23,6 +22,15 @@ const BADGE_CLASSES: Record<GoalColorGroup, string> = {
   blue: "bg-blue-100 text-blue-700 border-blue-200 dark:bg-blue-900/30 dark:text-blue-400 dark:border-blue-800",
   red: "bg-red-100 text-red-700 border-red-200 dark:bg-red-900/30 dark:text-red-400 dark:border-red-800",
 };
+
+const TIER_OPTIONS: { value: GoalTier; label: string }[] = [
+  { value: "best", label: "Best (+10)" },
+  { value: "very_good", label: "Very good (+7)" },
+  { value: "good", label: "Good (+5)" },
+  { value: "bad", label: "Bad (−2)" },
+  { value: "very_bad", label: "Very bad (−5)" },
+  { value: "worst", label: "Worst (−10)" },
+];
 
 type GoalDraft = Omit<Goal, "id" | "agentId" | "conversionType"> & {
   id?: string;
@@ -74,6 +82,11 @@ export function GoalsEditor({ agentId, initialGoals }: Props) {
   };
 
   const removeGoal = (index: number) => setGoals((g) => g.filter((_, i) => i !== index));
+
+  // Editable after activation — saving PUTs the full list, which the bandit reads
+  // on the next decision/reward cycle (no re-activation needed).
+  const setGoalField = (index: number, patch: Partial<GoalDraft>) =>
+    setGoals((g) => g.map((goal, i) => (i === index ? { ...goal, ...patch } : goal)));
 
   const saveGoals = async () => {
     setSaving(true);
@@ -151,11 +164,28 @@ export function GoalsEditor({ agentId, initialGoals }: Props) {
                         <div className={cn("h-3 w-3 rounded-full", DOT_CLASSES[group])} />
                         <div>
                           <p className="text-sm font-medium">{g.eventName}</p>
-                          <div className="flex items-center gap-2 mt-0.5">
-                            <Badge variant="outline" className={cn("text-xs capitalize", BADGE_CLASSES[group])}>
-                              {g.tier.replace("_", " ")}
-                            </Badge>
-                            <span className="text-xs text-muted-foreground">weight: {g.valueWeight}</span>
+                          <div className="flex items-center gap-2 mt-1">
+                            <select
+                              value={g.tier}
+                              onChange={(e) => setGoalField(i, { tier: e.target.value as GoalTier })}
+                              className={cn("text-xs capitalize rounded-md border px-2 py-1 bg-background", BADGE_CLASSES[group])}
+                              aria-label={`${g.eventName} tier`}
+                            >
+                              {TIER_OPTIONS.map((t) => (
+                                <option key={t.value} value={t.value}>{t.label}</option>
+                              ))}
+                            </select>
+                            <label className="text-xs text-muted-foreground flex items-center gap-1">
+                              weight
+                              <input
+                                type="number"
+                                step="0.1"
+                                value={g.valueWeight}
+                                onChange={(e) => setGoalField(i, { valueWeight: Number(e.target.value) })}
+                                className="w-16 rounded-md border px-2 py-1 text-foreground"
+                                aria-label={`${g.eventName} weight`}
+                              />
+                            </label>
                           </div>
                         </div>
                       </div>
