@@ -775,10 +775,21 @@ export async function POST(req: NextRequest) {
     const storedStageRows = chunkRecoveryIds.length > 0
       ? await prisma.trackedUser.findMany({
           where: { externalId: { in: chunkRecoveryIds } },
-          select: { externalId: true, funnelStage: true, hasRecurringGift: true, hasRecurringGiftYouversion: true },
+          select: { externalId: true, funnelStage: true, hasRecurringGift: true, hasRecurringGiftYouversion: true, attributes: true },
         })
       : [];
     const storedStageByUser = new Map(storedStageRows.map((r) => [r.externalId, r.funnelStage]));
+    // Stored attributes for the whole chunk — merged with the incoming payload so a
+    // sync that omits fields (e.g. the broad MAU template carries no gift_* fields)
+    // never wipes data written by another sync (e.g. the givers sync). Incoming wins.
+    const storedAttrsByUser = new Map(
+      storedStageRows.map((r) => [
+        r.externalId,
+        r.attributes !== null && typeof r.attributes === "object" && !Array.isArray(r.attributes)
+          ? (r.attributes as Record<string, unknown>)
+          : {},
+      ]),
+    );
     // Prior observed YouVersion-specific recurring-gift flag — drives Sower-flip synthesis below.
     const storedRecurringByUser = new Map(storedStageRows.map((r) => [r.externalId, r.hasRecurringGiftYouversion]));
 
@@ -975,7 +986,10 @@ export async function POST(req: NextRequest) {
         }
       }
 
-      const attributes = raw as unknown as object;
+      // Merge incoming attributes over the stored ones (incoming wins per-key) so
+      // fields absent from this sync are preserved rather than dropped.
+      const storedAttrs = storedAttrsByUser.get(externalId) ?? {};
+      const attributes = { ...storedAttrs, ...raw } as unknown as object;
 
       const brazeAttrs: BrazeAttributes = {
         plan_day_last_plan_id:        raw["plan_day_last_plan_id"] as string | null,
