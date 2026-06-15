@@ -1,5 +1,4 @@
 // src/lib/votd/votd-content.ts
-import { buildVerseImageUrls } from "@/lib/verse-image";
 import { versionForLanguage } from "./version-map";
 import { resolveVotdUserKey, votdContentKey } from "./votd-user-key";
 
@@ -103,7 +102,6 @@ async function fetchVerse(
 async function fetchImageUrls(
   usfm: string,
   languageTag: string,
-  fallbackImageId: string | null,
 ): Promise<{ ios: string | null; android: string | null }> {
   try {
     const res = await fetch(
@@ -126,10 +124,9 @@ async function fetchImageUrls(
       }
     }
   } catch { /* image failure is non-fatal — text-only sends still work */ }
-  if (fallbackImageId) {
-    const { ios, android } = buildVerseImageUrls(fallbackImageId);
-    return { ios, android };
-  }
+  // No prerendered (verse-text) image available → send text-only. We deliberately
+  // do NOT fall back to the base/background master art (images/base/{id}), which
+  // has no verse on it — a verse image must always carry the verse.
   return { ios: null, android: null };
 }
 
@@ -157,11 +154,7 @@ export async function getVotdContent(
     const verse = await fetchVerse(entry.usfm, versionId);
     if (!verse) return null;
 
-    const images = await fetchImageUrls(
-      entry.usfm[0],
-      languageTag,
-      entry.image_id != null ? String(entry.image_id) : null,
-    );
+    const images = await fetchImageUrls(entry.usfm[0], languageTag);
 
     // @@unique([date, languageTag]) makes concurrent misses safe.
     return await prisma.votdDailyContent.upsert({

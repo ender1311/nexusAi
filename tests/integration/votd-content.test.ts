@@ -6,7 +6,6 @@ import {
   prepareVotdContent,
   __resetVotdCalendarCacheForTests,
 } from "@/lib/votd/votd-content";
-import { buildVerseImageUrls } from "@/lib/verse-image";
 import { votdContentKey } from "@/lib/votd/votd-user-key";
 
 const realFetch = globalThis.fetch;
@@ -80,12 +79,14 @@ describe("getVotdContent", () => {
     expect(content!.verseText).toBe("cached");
   });
 
-  it("image API failure falls back to the calendar image_id (nullable-safe)", async () => {
+  it("image API failure stores NULL images (text-only), never a base/background image", async () => {
+    // Verse images must be the prerendered (verse-text) card. The base/background
+    // master art is NOT a verse image, so on prerendered-API failure we send
+    // text-only rather than a background. (image_id 77058 is present but unused.)
     stubFetch({ failImages: true });
     const content = await getVotdContent(prisma, "2026-06-11", "en");
-    const { ios, android } = buildVerseImageUrls("77058");
-    expect(content!.imageUrlIos).toBe(ios);
-    expect(content!.imageUrlAndroid).toBe(android);
+    expect(content!.imageUrlIos).toBeNull();
+    expect(content!.imageUrlAndroid).toBeNull();
   });
 
   it("image API failure with no calendar image_id stores null image columns", async () => {
