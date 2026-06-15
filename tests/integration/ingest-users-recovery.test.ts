@@ -49,6 +49,30 @@ describe("POST /api/ingest/users — funnel recovery detection", () => {
     expect(transitions[0].recoveryRank).toBe(3);
   });
 
+  it("recovery does NOT credit a send older than the 30-day window", async () => {
+    const persona = await createPersona({ label: "Re-engager" });
+    const agent = await createAgent({ funnelStage: "lapsed" });
+    const msg = await createMessage(agent.id);
+    const variant = await createVariant(msg.id);
+    await createUser("usr_old", { personaId: persona.id, funnelStage: "lapsed_mau" });
+    const decision = await createUserDecision({
+      agentId: agent.id, userId: "usr_old", messageVariantId: variant.id,
+      sentAt: new Date(Date.now() - 40 * 24 * 60 * 60 * 1000), // 40d ago — outside window
+    });
+    await createUserAgentAssignment({ externalUserId: "usr_old", agentId: agent.id });
+
+    const res = await syncUser("usr_old", "dau4"); // recovery
+    expect(res.status).toBe(200);
+
+    // The stale send must not be credited...
+    const updated = await prisma.userDecision.findUnique({ where: { id: decision.id } });
+    expect(updated!.conversionEvent).toBeNull();
+    // ...and with no in-window decision the transition is organic (unattributed).
+    const transitions = await prisma.funnelTransition.findMany({ where: { externalUserId: "usr_old" } });
+    expect(transitions).toHaveLength(1);
+    expect(transitions[0].attributedDecisionId).toBeNull();
+  });
+
   it("unowned user recovery: organic transition, no reward, no release", async () => {
     const persona = await createPersona({ label: "Re-engager" });
     await createUser("usr_org", { personaId: persona.id, funnelStage: "lapsed_wau" });

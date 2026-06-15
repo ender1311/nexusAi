@@ -1073,9 +1073,11 @@ export async function POST(req: NextRequest) {
           let attributedDecisionId: string | null = null;
 
           if (assignment) {
-            // Owned: find the owning agent's most-recent unconverted decision for this user.
+            // Owned: find the owning agent's most-recent unconverted decision for this
+            // user, within the 30-day attribution window (shared with sower/giving) so a
+            // recovery can't credit an arbitrarily old send and inject reward noise.
             const decision = await prisma.userDecision.findFirst({
-              where: { userId: externalId, agentId: assignment.agentId, conversionAt: null },
+              where: { userId: externalId, agentId: assignment.agentId, conversionAt: null, sentAt: { gte: sowerWindowStart } },
               orderBy: { sentAt: "desc" },
               include: { agent: { include: { goals: true } } },
             });
