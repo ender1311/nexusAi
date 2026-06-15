@@ -8,7 +8,7 @@
 // this exercises the real query.)
 
 import { afterEach, beforeEach, describe, expect, it } from "bun:test";
-import { truncateAll } from "../helpers/db";
+import { truncateAll, prisma } from "../helpers/db";
 import { createUserSegment } from "../helpers/builders";
 import { getCachedSegments } from "@/lib/cache/segments";
 
@@ -32,9 +32,25 @@ describe("regression: getCachedSegments counts only hightouch-sourced rows", () 
     expect(givers[0]!.userCount).toBe(2);
   });
 
-  it("omits a segment that has only rule-materialized rows", async () => {
+  it("omits an orphan rule membership with no Segment definition", async () => {
     await createUserSegment("u1", "rule-only", "rule");
     const segments = await getCachedSegments();
     expect(segments.find((s) => s.name === "rule-only")).toBeUndefined();
+  });
+
+  it("includes a rule-segment DEFINITION (Segment table) so it's selectable in agent targeting", async () => {
+    // A rule segment that exists as a definition but hasn't materialized members yet
+    // must still appear in the picker (this was the bug: rule segments were invisible).
+    await prisma.segment.create({
+      data: {
+        name: "giving-has-given",
+        rule: { kind: "group", join: "AND", children: [{ kind: "condition", fieldId: "gift_count_lifetime", operator: "gte", value: 1 }] },
+        sizeExact: 123,
+      },
+    });
+    const segments = await getCachedSegments();
+    const s = segments.find((x) => x.name === "giving-has-given");
+    expect(s).toBeDefined();
+    expect(s!.userCount).toBe(123); // falls back to sizeExact when no hightouch members
   });
 });

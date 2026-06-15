@@ -14,15 +14,20 @@ export type SegmentInfo = { name: string; userCount: number; assignedTo: string 
 /** Distinct HT segments with member count and assigned agent. Busted by POST /api/ingest/segments. */
 export const getCachedSegments = unstable_cache(
   async (): Promise<SegmentInfo[]> => {
-    const [rows, agents] = await Promise.all([
+    const [rows, ruleDefs, agents] = await Promise.all([
       // source='hightouch' only: rule-materialized rows share segmentName and would
-      // otherwise double-count membership and surface a duplicate row in the sizes table.
+      // otherwise double-count membership against the rule definition below.
       prisma.userSegment.groupBy({
         by: ["segmentName"],
         where: { source: "hightouch" },
         _count: { _all: true },
         orderBy: { segmentName: "asc" },
       }),
+      // Rule-segment definitions (Segment table). Included so rule segments
+      // (source='rule', e.g. giving-*) are selectable in agent targeting even
+      // before they materialize — otherwise the picker only ever lists Hightouch
+      // segments and rule segments are invisible.
+      prisma.segment.findMany({ select: { name: true, sizeExact: true } }),
       prisma.agent.findMany({
         where: {
           OR: [
@@ -37,15 +42,18 @@ export const getCachedSegments = unstable_cache(
     for (const a of agents) {
       if (a.targetSegmentName) assignedTo.set(a.targetSegmentName, a.name);
       const st = parseSegmentTargeting(a.segmentTargeting);
-      for (const seg of st?.includes ?? []) {
+      for (const seg of [...(st?.includes ?? []), ...(st?.excludes ?? [])]) {
         if (!assignedTo.has(seg)) assignedTo.set(seg, a.name);
       }
     }
-    return rows.map((r) => ({
-      name: r.segmentName,
-      userCount: r._count._all,
-      assignedTo: assignedTo.get(r.segmentName) ?? null,
-    }));
+    // Merge Hightouch memberships with rule definitions (Hightouch count wins;
+    // rule-only segments use their computed sizeExact, null → 0 until materialized).
+    const countByName = new Map<string, number>();
+    for (const r of rows) countByName.set(r.segmentName, r._count._all);
+    for (const d of ruleDefs) if (!countByName.has(d.name)) countByName.set(d.name, d.sizeExact ?? 0);
+    return [...countByName.entries()]
+      .sort(([a], [b]) => a.localeCompare(b))
+      .map(([name, userCount]) => ({ name, userCount, assignedTo: assignedTo.get(name) ?? null }));
   },
   ["segments"],
   { tags: ["segments"], revalidate: TTL.STANDARD }
