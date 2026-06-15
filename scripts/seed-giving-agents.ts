@@ -30,22 +30,24 @@ const COMMIT = process.argv.includes("--commit");
 
 type SegmentDef = { name: string; rule: Prisma.InputJsonValue };
 
+// Segments are scoped to funnelStage=dau4 (habitual daily) — the funnelStage index
+// keeps materialization fast (no full-table JSON scan) and narrows the audience.
+// Never-givers needs no segment: it's the dau4 funnel-path audience minus givers
+// (the agent excludes giving-has-given). recurring ⊂ has-given, so excluding
+// has-given drops recurring too.
+const dau4 = { kind: "condition", fieldId: "funnelStage", operator: "in", value: ["dau4"] } as const;
 const SEGMENTS: SegmentDef[] = [
-  {
-    name: "giving-never-givers",
-    rule: { kind: "group", join: "AND", children: [
-      { kind: "condition", fieldId: "gift_count_lifetime", operator: "nexists", value: null },
-    ] },
-  },
   {
     name: "giving-has-given",
     rule: { kind: "group", join: "AND", children: [
+      dau4,
       { kind: "condition", fieldId: "gift_count_lifetime", operator: "gte", value: 1 },
     ] },
   },
   {
     name: "giving-recurring-active",
     rule: { kind: "group", join: "AND", children: [
+      dau4,
       { kind: "condition", fieldId: "has_recurring_gift", operator: "is_true", value: null },
     ] },
   },
@@ -55,6 +57,7 @@ type AgentDef = {
   name: string;
   description: string;
   algorithm: "linucb" | "thompson";
+  funnelStage: string;
   includes: string[];
   excludes: string[];
   templateNamePrefix: string; // library template names that start with this go on this agent
@@ -63,16 +66,20 @@ type AgentDef = {
 const AGENTS: AgentDef[] = [
   {
     name: "Giving: Become a Sower (Never-Givers)",
-    description: "Asks users with no gift history to start a monthly gift. Experiments on the opening ask ($5–$100) via LinUCB so the per-user context vector learns the best ask for each user and look-alike cohort.",
+    description: "Asks habitual-daily users with no gift history to start a monthly gift. Experiments on the opening ask ($5–$100) via LinUCB so the per-user context vector learns the best ask for each user and look-alike cohort.",
     algorithm: "linucb",
-    includes: ["giving-never-givers"],
-    excludes: ["giving-recurring-active"],
+    funnelStage: "dau4",
+    // No include segment: the dau4 funnel-path audience minus givers. recurring ⊂
+    // has-given, so excluding has-given removes recurring too.
+    includes: [],
+    excludes: ["giving-has-given"],
     templateNamePrefix: "Dynamic Handle — Sower Ask",
   },
   {
     name: "Giving: Recurring Upgrade (Past Givers)",
-    description: "Asks past one-time givers (not currently recurring) to convert to a monthly gift. Experiments on which gift signal anchors the ask (avg/recent/max/blend) via Thompson Sampling.",
+    description: "Asks habitual-daily past one-time givers (not currently recurring) to convert to a monthly gift. Experiments on which gift signal anchors the ask (avg/recent/max/blend) via Thompson Sampling.",
     algorithm: "thompson",
+    funnelStage: "dau4",
     includes: ["giving-has-given"],
     excludes: ["giving-recurring-active"],
     templateNamePrefix: "Dynamic Handle — Recurring",
@@ -134,6 +141,7 @@ async function main() {
         epsilon: 0.1,
         status: "draft",
         sendingPaused: true,
+        funnelStage: a.funnelStage,
         segmentTargeting: { includes: a.includes, excludes: a.excludes },
         goals: { create: GOALS },
         schedulingRule: { create: { frequencyCap: { maxSends: 1, period: "week" } } },
