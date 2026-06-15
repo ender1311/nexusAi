@@ -5,6 +5,8 @@ import { buildRequest } from "../helpers/request";
 import { createAgent, createGoal } from "../helpers/builders";
 
 import { POST, PUT } from "@/app/api/agents/[id]/goals/route";
+import { calculateReward } from "@/lib/engine/reward-calculator";
+import type { Goal } from "@/types/agent";
 
 function rawRequest(method: "POST" | "PUT", body: string): Request {
   return new Request("http://localhost/", {
@@ -255,5 +257,26 @@ describe("PUT /api/agents/[id]/goals", () => {
     expect(res.status).toBe(200);
     const goals = await prisma.goal.findMany({ where: { agentId: agent.id } });
     expect(goals[0]!.conversionType).toBeNull();
+  });
+
+  it("edits tier/weight on an ACTIVE agent: persists and the reward reflects the new values", async () => {
+    const agent = await createAgent({ status: "active" });
+    await createGoal(agent.id, { eventName: "plan_started", tier: "good", valueWeight: 5 });
+
+    // Retune to best/10 (the inline editor PUTs the whole list).
+    const res = await PUT(
+      buildRequest("PUT", [{ eventName: "plan_started", tier: "best", valueWeight: 10 }]) as NextRequest,
+      { params: Promise.resolve({ id: agent.id }) },
+    );
+    expect(res.status).toBe(200); // no status gate — active agents are editable
+
+    const goals = await prisma.goal.findMany({ where: { agentId: agent.id } });
+    expect(goals).toHaveLength(1);
+    expect(goals[0]!.tier).toBe("best");
+    expect(goals[0]!.valueWeight).toBe(10);
+
+    // The bandit reads goals fresh per conversion, so the new tier/weight take
+    // effect immediately: best(10) × 10 / 100 = 1.0 (was good(5) × 5 / 100 = 0.25).
+    expect(calculateReward("plan_started", goals as unknown as Goal[])).toBe(1);
   });
 });
