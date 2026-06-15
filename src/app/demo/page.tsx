@@ -92,8 +92,8 @@ export default function DemoPage() {
   const [groupNameInput, setGroupNameInput] = useState("");
   const [preview, setPreview] = useState<DemoPreviewResponse | null>(null);
   const [previewLoading, setPreviewLoading] = useState(false);
-  const [bypassQuietHours, setBypassQuietHours] = useState(false);
-  const [bypassFrequencyCap, setBypassFrequencyCap] = useState(false);
+  const [bypassQuietHours, setBypassQuietHours] = useState(true);
+  const [bypassFrequencyCap, setBypassFrequencyCap] = useState(true);
   const [variantOverrideId, setVariantOverrideId] = useState<string | null>(null);
   const [allVariants, setAllVariants] = useState<DemoVariantItem[]>([]);
 
@@ -102,9 +102,9 @@ export default function DemoPage() {
       .then((r) => r.json())
       .then((d: Agent[] | { data: Agent[] }) => {
         const list: Agent[] = Array.isArray(d) ? d : (d as { data: Agent[] }).data ?? [];
-        const active = list.filter((a) => a.status === "active");
-        setAgents(active);
-        if (active.length > 0) setSelectedAgentId(active[0].id);
+        // Include draft/paused agents too so they can be demoed before launch.
+        setAgents(list);
+        if (list.length > 0) setSelectedAgentId(list[0].id);
       })
       .catch(() => {});
 
@@ -271,7 +271,7 @@ export default function DemoPage() {
             </CardHeader>
             <CardContent className="space-y-1.5">
               {agents.length === 0 ? (
-                <p className="text-xs text-muted-foreground py-2">No active agents found.</p>
+                <p className="text-xs text-muted-foreground py-2">No agents found.</p>
               ) : (
                 agents.map((agent) => (
                   <button
@@ -283,7 +283,12 @@ export default function DemoPage() {
                         : "hover:bg-muted/50"
                     }`}
                   >
-                    <span className="truncate text-xs">{agent.name}</span>
+                    <span className="truncate text-xs flex items-center gap-1.5">
+                      {agent.name}
+                      {agent.status !== "active" && (
+                        <span className="text-[10px] uppercase tracking-wide rounded px-1 py-0.5 bg-muted text-muted-foreground shrink-0">{agent.status}</span>
+                      )}
+                    </span>
                     <span className="text-xs text-muted-foreground ml-2 shrink-0">{agent._count.decisions} sends</span>
                   </button>
                 ))

@@ -38,6 +38,12 @@ export type DecideInput = {
   /** Optional: pre-fetched agent data. When provided, skips the DB fetch for the agent. */
   preloadedAgent?: AgentWithVariants;
   /**
+   * Optional: set to true to allow deciding for a non-active (draft/paused) agent.
+   * Used by the demo send route so testers can demo agents before launch. The cron
+   * never sets this, so production sends still require status="active".
+   */
+  allowInactive?: boolean;
+  /**
    * Optional: set to true to skip scheduling rule checks (quiet hours, frequency cap,
    * smart suppression). Used by the cron route which performs bulk scheduling checks
    * before calling decideForUser, eliminating per-user DB queries for those checks.
@@ -79,11 +85,11 @@ export type DecideResult =
  * Returns DecideResult otherwise (may be suppressed if scheduling rules block the send).
  */
 export async function decideForUser(input: DecideInput): Promise<DecideResult | null> {
-  const { agentId, externalUserId, preloadedAgent, skipSchedulingChecks, bypassQuietHours, bypassFrequencyCap, context } = input;
+  const { agentId, externalUserId, preloadedAgent, skipSchedulingChecks, bypassQuietHours, bypassFrequencyCap, allowInactive, context } = input;
 
   // 1. Fetch agent with all active variants and scheduling rule (skip if preloaded)
   const agent = preloadedAgent ?? await prisma.agent.findFirst({
-    where: { id: agentId, status: "active" },
+    where: { id: agentId, ...(allowInactive ? {} : { status: "active" }) },
     include: {
       messages: {
         include: {

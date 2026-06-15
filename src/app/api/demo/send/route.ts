@@ -135,7 +135,7 @@ export async function POST(req: NextRequest) {
           return { userId, status: "sent", variantName };
         }
 
-        const decision = await decideForUser({ agentId, externalUserId: userId, bypassQuietHours: forceOverrideQuietHours, bypassFrequencyCap: forceOverrideFrequencyCap });
+        const decision = await decideForUser({ agentId, externalUserId: userId, bypassQuietHours: forceOverrideQuietHours, bypassFrequencyCap: forceOverrideFrequencyCap, allowInactive: true });
         if (!decision) return { userId, status: "failed", reason: "agent not found or no variants" };
         if (decision.suppressed) return { userId, status: "suppressed", reason: decision.reason };
 
