@@ -14,12 +14,13 @@ export function parseMultiplier(raw: string | null | undefined): number {
 }
 
 /**
- * Bibles distributed = round(amountUsd × multiplier). USD-based because the
- * relationship is dollars × multiplier. Non-finite/≤0 amounts yield 0.
+ * Bibles distributed = round(amount × multiplier). Pass the DISPLAYED (local)
+ * ask amount so the copy is self-consistent ({{ask}} × multiplier == {{bibles}}).
+ * Non-finite/≤0 amounts yield 0.
  */
-export function computeBibles(amountUsd: number, multiplier: number): number {
-  if (!Number.isFinite(amountUsd) || amountUsd <= 0) return 0;
-  return Math.round(amountUsd * multiplier);
+export function computeBibles(amount: number, multiplier: number): number {
+  if (!Number.isFinite(amount) || amount <= 0) return 0;
+  return Math.round(amount * multiplier);
 }
 
 /**

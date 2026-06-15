@@ -146,7 +146,7 @@ describe("groupDecisionsByVariant", () => {
       expect(g.body).not.toContain("{{bibles}}");
       expect(g.title).not.toContain("{{ask}}");
       expect(g.deeplink).toContain("https://www.bible.com/give?");
-      expect(g.deeplink).toContain("utm_campaign=nexus-giving");
+      expect(g.deeplink).toContain("utm_campaign=Nexus");
     }
   });
 
@@ -181,5 +181,23 @@ describe("groupDecisionsByVariant", () => {
       decisionIdByUser,
     );
     expect(Object.values(groups)[0].body).toBe("1,200 apps");
+  });
+
+  it("bibles derive from the displayed (local) amount so ask × multiplier == bibles in any currency", () => {
+    // EUR never-giver, $50 default → displayed ask snaps to €45 (50 × 0.858 → ladder).
+    // Bibles must equal the DISPLAYED amount × multiplier (45 × 24 = 1,080), not the
+    // USD amount × multiplier (50 × 24 = 1,200), so the copy is self-consistent.
+    const variantMeta = new Map<string, VariantMeta>([
+      ["v1", meta({ body: "{{ask}} a month → {{bibles}} Bibles", title: null, deeplink: null, givingHandleStrategy: "blend", givingHandleDefaultUsd: 50 })],
+    ]);
+    const at = new Date("2026-05-30T12:00:00Z");
+    const groups = groupDecisionsByVariant(
+      [{ user: user("u1", null, { gift_currency_most_recent: "EUR" }), variantId: "v1", scheduledAt: at, inLocalTime: false }],
+      variantMeta,
+      new Map([["u1", "d1"]]),
+      undefined,
+      24,
+    );
+    expect(Object.values(groups)[0].body).toBe("€45 a month → 1,080 Bibles");
   });
 });

@@ -232,7 +232,7 @@ describe("buildGivingDeeplink", () => {
     const url = buildGivingDeeplink({});
     expect(url).toContain("utm_medium=push");
     expect(url).toContain("utm_source=Nexus");
-    expect(url).toContain("utm_campaign=nexus-giving");
+    expect(url).toContain("utm_campaign=Nexus");
   });
 
   it("unknown currency falls back to USD", () => {

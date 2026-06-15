@@ -115,9 +115,12 @@ export function groupDecisionsByVariant(
       // substitute into copy and override the deeplink with the matching give-URL.
       const strategy = meta.givingHandleStrategy;
       const defaultUsd = meta.givingHandleDefaultUsd ?? DEFAULT_HANDLE_USD;
-      const { amountLocal, currencyCode, amountUsd } = resolveLocalGiftAmount(attrs, strategy, defaultUsd);
+      const { amountLocal, currencyCode } = resolveLocalGiftAmount(attrs, strategy, defaultUsd);
       const amountDisplay = formatGiftAmount(amountLocal, currencyCode);
-      const bibles = computeBibles(amountUsd, givingMultiplier ?? DEFAULT_DOLLARS_TO_BIBLES);
+      // Bibles derive from the DISPLAYED (local) amount so the copy is self-consistent:
+      // {{ask}} × multiplier == {{bibles}} in any currency. amountUsd is USD-normalized
+      // and equals amountLocal for USD users, so this is identical for them.
+      const bibles = computeBibles(amountLocal, givingMultiplier ?? DEFAULT_DOLLARS_TO_BIBLES);
       copy = {
         title: meta.title != null ? substituteGivingCopy(meta.title, { amountDisplay, bibles }) : null,
         body: substituteGivingCopy(meta.body, { amountDisplay, bibles }),

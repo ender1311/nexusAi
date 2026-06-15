@@ -298,7 +298,7 @@ export function buildGivingDeeplink(
     amount: String(amountLocal),
     utm_medium: "push",
     utm_source: "Nexus",
-    utm_campaign: "nexus-giving",
+    utm_campaign: "Nexus",
   });
   return `https://www.bible.com/give?${params.toString()}`;
 }
