@@ -30,17 +30,26 @@ const COMMIT = process.argv.includes("--commit");
 
 type SegmentDef = { name: string; rule: Prisma.InputJsonValue };
 
-// Segments are scoped to funnelStage=dau4 (habitual daily) — the funnelStage index
-// keeps materialization fast (no full-table JSON scan) and narrows the audience.
+// Segments are scoped to funnelStage=dau4 (habitual daily) and narrow the audience.
 // Never-givers needs no segment: it's the dau4 funnel-path audience minus givers
 // (the agent excludes giving-has-given). recurring ⊂ has-given, so excluding
 // has-given drops recurring too.
+//
+// IMPORTANT — performance: the gift attributes must be indexed for materialization
+// to finish within the cron's 60s per-segment timeout. Two PARTIAL expression
+// indexes are required on "User":
+//   ((attributes->>'gift_count_lifetime')::numeric) WHERE attributes ? 'gift_count_lifetime'
+//   ((attributes->>'has_recurring_gift')::boolean)   WHERE attributes ? 'has_recurring_gift'
+// AND each rule carries an explicit `exists` condition (below) so the planner can
+// match the partial-index predicate — without it the query falls back to a 35M-row
+// seq scan and times out (EXPLAIN-confirmed).
 const dau4 = { kind: "condition", fieldId: "funnelStage", operator: "in", value: ["dau4"] } as const;
 const SEGMENTS: SegmentDef[] = [
   {
     name: "giving-has-given",
     rule: { kind: "group", join: "AND", children: [
       dau4,
+      { kind: "condition", fieldId: "gift_count_lifetime", operator: "exists", value: null },
       { kind: "condition", fieldId: "gift_count_lifetime", operator: "gte", value: 1 },
     ] },
   },
@@ -48,6 +57,7 @@ const SEGMENTS: SegmentDef[] = [
     name: "giving-recurring-active",
     rule: { kind: "group", join: "AND", children: [
       dau4,
+      { kind: "condition", fieldId: "has_recurring_gift", operator: "exists", value: null },
       { kind: "condition", fieldId: "has_recurring_gift", operator: "is_true", value: null },
     ] },
   },
