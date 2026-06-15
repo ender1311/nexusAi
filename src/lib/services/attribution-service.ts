@@ -95,6 +95,13 @@ export async function applyConversion(args: {
         await updateLinUCBArm({
           agentId: decision.agentId, variantId, contextVec, reward,
         }).catch((err) => console.error("[attribution] LinUCBArm failed:", err));
+      } else {
+        // The conversion is credited but the LinUCB arm can't learn from it without
+        // the decision-time context vector. Warn so a silently-stalled learning loop
+        // is observable rather than invisible.
+        console.warn(
+          `[attribution] LinUCB arm not updated — missing/invalid decisionContext.contextVector for decision ${decision.id} (agent ${decision.agentId}, variant ${variantId})`,
+        );
       }
     }
   }

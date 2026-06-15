@@ -126,8 +126,11 @@ export function groupDecisionsByVariant(
         body: substituteGivingCopy(meta.body, { amountDisplay, bibles }),
       };
       resolvedDeeplink = buildGivingDeeplink(attrs, strategy, meta.givingFrequency ?? "monthly", defaultUsd);
-      // Per-user copy → batch only users sharing identical resolved copy.
-      copyKeyed = meta.channel === "push";
+      // Per-user copy → batch only users sharing identical resolved copy. Always
+      // key on resolved copy for dynamic-handle (the amount/impact is per-user on
+      // every channel), so a non-push dynamic-handle variant can't collapse users
+      // with different asks into one payload.
+      copyKeyed = true;
     } else {
       resolvedDeeplink = meta.deeplink === GIVING_LINK_SENTINEL
         ? buildGivingDeeplink(attrs, "blend", meta.givingFrequency ?? "monthly", meta.givingHandleDefaultUsd ?? DEFAULT_HANDLE_USD)
