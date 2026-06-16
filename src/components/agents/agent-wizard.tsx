@@ -89,10 +89,14 @@ const GOAL_TIERS: Array<{ value: GoalTier; label: string; color: string; weight:
   { value: "worst", label: "Worst", color: "bg-red-500", weight: -10 },
 ];
 
-// Channels offered in the agent message builder. SMS is intentionally excluded —
-// there is no SMS content library to pick from. Every channel here is backed by a
-// library: push via TemplatePicker, the rest via LibraryPicker.
-const CHANNELS: Channel[] = ["push", "email", "in-app", "modal-iam", "content-card"];
+// Channels offered in the agent message builder. Each is backed by a content
+// library AND a cron send path: push (TemplatePicker), email, in-app (slideup),
+// content-card (LibraryPicker). Excluded:
+//   - sms: no SMS content library.
+//   - modal-iam: library + picker exist, but send-grouping has no modal delivery
+//     path yet (needs a Braze modal canvas). Re-add here once that lands so we
+//     never expose a channel that silently won't send.
+const CHANNELS: Channel[] = ["push", "email", "in-app", "content-card"];
 const CHANNEL_LABELS: Partial<Record<Channel, string>> = {
   push: "Push",
   email: "Email",
