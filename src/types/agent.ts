@@ -138,7 +138,7 @@ export interface Message {
   variants?: MessageVariant[];
 }
 
-export type Channel = "push" | "email" | "sms";
+export type Channel = "push" | "email" | "sms" | "in-app" | "modal-iam" | "content-card";
 
 export type TestedVariable =
   | "title"

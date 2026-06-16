@@ -12,9 +12,12 @@ import type { Channel, TestedVariable } from "@/types/agent";
 import { maskPersonalization } from "@/lib/messages/personalization";
 
 const channelColors: Record<Channel, string> = {
-  push:  "bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400",
-  email: "bg-purple-100 text-purple-700 dark:bg-purple-900/30 dark:text-purple-400",
-  sms:   "bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400",
+  push:           "bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400",
+  email:          "bg-purple-100 text-purple-700 dark:bg-purple-900/30 dark:text-purple-400",
+  sms:            "bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400",
+  "in-app":       "bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400",
+  "modal-iam":    "bg-pink-100 text-pink-700 dark:bg-pink-900/30 dark:text-pink-400",
+  "content-card": "bg-teal-100 text-teal-700 dark:bg-teal-900/30 dark:text-teal-400",
 };
 
 type Variant = {

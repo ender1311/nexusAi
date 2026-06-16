@@ -20,6 +20,7 @@ import { PersonaSelector } from "@/components/personas/persona-selector";
 import { PersonaBadge } from "@/components/personas/persona-badge";
 import { GoalPresetPicker } from "@/components/agents/goal-preset-picker";
 import { TemplatePicker, type TemplatePickerHandle } from "@/components/agents/template-picker";
+import { LibraryPicker, type LibraryPickerHandle, type LibraryChannel } from "@/components/agents/library-picker";
 import { YouVersionGoalPreset } from "@/lib/constants/youversion";
 import { isInteractionFlag } from "@/lib/constants/interaction-flags";
 import { resolveSegmentTargeting } from "@/lib/agent-targeting";
@@ -88,7 +89,17 @@ const GOAL_TIERS: Array<{ value: GoalTier; label: string; color: string; weight:
   { value: "worst", label: "Worst", color: "bg-red-500", weight: -10 },
 ];
 
-const CHANNELS: Channel[] = ["push", "email", "sms"];
+// Channels offered in the agent message builder. SMS is intentionally excluded —
+// there is no SMS content library to pick from. Every channel here is backed by a
+// library: push via TemplatePicker, the rest via LibraryPicker.
+const CHANNELS: Channel[] = ["push", "email", "in-app", "modal-iam", "content-card"];
+const CHANNEL_LABELS: Partial<Record<Channel, string>> = {
+  push: "Push",
+  email: "Email",
+  "in-app": "In-App",
+  "modal-iam": "Modal",
+  "content-card": "Content Card",
+};
 
 
 const FREQ_PERIODS = [
@@ -259,21 +270,10 @@ export function AgentWizard({
     frequencyCapOverride: null,
   });
 
-  const makeEmptyDraft = (channel: Channel): MessageDraft => ({
-    name: "",
-    channel,
-    variants: [{ ...emptyVariant(), name: "V1" }],
-  });
-  // One draft per channel so switching channels never discards typed work.
+  // Selected channel in the Messages step. Push uses TemplatePicker (goal/sub-goal
+  // taxonomy); every other channel uses LibraryPicker against its content library.
   const [draftChannel, setDraftChannel] = useState<Channel>("push");
-  const [drafts, setDrafts] = useState<Record<Channel, MessageDraft>>({
-    push: makeEmptyDraft("push"),
-    email: makeEmptyDraft("email"),
-    sms: makeEmptyDraft("sms"),
-  });
-  const newMsg = drafts[draftChannel];
-  const setNewMsg = (updater: (m: MessageDraft) => MessageDraft) =>
-    setDrafts((d) => ({ ...d, [draftChannel]: updater(d[draftChannel]) }));
+  const libraryPickerRef = useRef<LibraryPickerHandle>(null);
   const [saving, setSaving] = useState(false);
   const [submitError, setSubmitError] = useState<string | null>(null);
   const [submitOk, setSubmitOk] = useState(false);
@@ -294,30 +294,38 @@ export function AgentWizard({
 
   const removeGoal = (i: number) => update("goals", form.goals.filter((_, idx) => idx !== i));
 
-  // Commits a channel's draft into form.messages and resets that draft.
-  // Uses functional setForm so multiple commits in one handler (goNext commits
-  // every qualifying channel) never clobber each other with stale closures.
-  const addMessage = (channel: Channel = draftChannel) => {
-    const draft = drafts[channel];
-    if (!draft.name.trim() || draft.variants.length === 0) return;
-    setForm((f) => ({ ...f, messages: [...f.messages, { ...draft }] }));
-    setDrafts((d) => ({ ...d, [channel]: makeEmptyDraft(channel) }));
-  };
-
-  // Called by TemplatePicker in draft mode (push channel wizard flow)
-  const addMessageFromTemplate = (msg: { name: string; channel: "push"; variants: Array<{ name: string; title?: string; body: string; deeplink?: string; iconImageUrl?: string; sourceTemplateId: string }> }) => {
+  // Commits a library/template selection into form.messages. Shared by the push
+  // TemplatePicker and the LibraryPicker (email/in-app/modal-iam/content-card) —
+  // both emit { name, channel, variants:[{…, sourceTemplateId}] }. Missing fields
+  // are filled from emptyVariant() so every variant matches the MessageDraft shape.
+  const addMessageFromLibrary = (msg: {
+    name: string;
+    channel: Channel;
+    variants: Array<{
+      name: string;
+      title?: string;
+      subject?: string;
+      body: string;
+      cta?: string;
+      deeplink?: string;
+      iconImageUrl?: string;
+      sourceTemplateId: string;
+    }>;
+  }) => {
     const variantsToSave = msg.variants.map((v) => ({
       ...emptyVariant(),
       name: v.name,
       title: v.title ?? "",
+      subject: v.subject ?? "",
       body: v.body,
+      cta: v.cta ?? "",
       deeplink: v.deeplink ?? "",
       iconImageUrl: v.iconImageUrl ?? "",
       sourceTemplateId: v.sourceTemplateId,
     }));
     setForm((f) => ({
       ...f,
-      messages: [...f.messages, { name: msg.name, channel: "push" as const, variants: variantsToSave }],
+      messages: [...f.messages, { name: msg.name, channel: msg.channel, variants: variantsToSave }],
     }));
   };
 
@@ -330,12 +338,11 @@ export function AgentWizard({
   // another channel before clicking Next is silently lost.
   const goNext = () => {
     if (step === 3) {
-      // Pending push templates (no-op when the picker isn't mounted/has nothing).
+      // Commit any picked-but-not-yet-"Add"-ed variants from whichever picker is
+      // open (only the active channel's picker is mounted). No-op if nothing is
+      // pending, so it's safe to call both.
       templatePickerRef.current?.commitPending();
-      // Every qualifying non-push draft (addMessage guards name/variants itself).
-      for (const channel of CHANNELS) {
-        if (channel !== "push") addMessage(channel);
-      }
+      libraryPickerRef.current?.commitPending();
     }
     setStep((s) => Math.min(5, s + 1));
   };
@@ -805,107 +812,43 @@ export function AgentWizard({
             </p>
           )}
 
-          {/* Push channel: use the full TemplatePicker in draft mode */}
-          {draftChannel === "push" ? (
-            <Card>
-              <CardHeader>
-                <div className="flex items-center justify-between">
-                  <CardTitle className="text-base">Add Push Message</CardTitle>
-                  <div className="flex rounded-md border overflow-hidden text-xs">
-                    {CHANNELS.map((c) => (
-                      <button
-                        key={c}
-                        type="button"
-                        onClick={() => setDraftChannel(c)}
-                        className={cn(
-                          "px-3 py-1.5 font-medium transition-colors border-l first:border-l-0",
-                          draftChannel === c
-                            ? "bg-primary text-primary-foreground"
-                            : "text-muted-foreground hover:text-foreground",
-                        )}
-                      >
-                        {c.toUpperCase()}
-                      </button>
-                    ))}
-                  </div>
+          {/* Channel selector — every channel pulls from its content library */}
+          <Card>
+            <CardHeader>
+              <div className="flex items-center justify-between gap-3 flex-wrap">
+                <CardTitle className="text-base">Add Message</CardTitle>
+                <div className="flex rounded-md border overflow-hidden text-xs">
+                  {CHANNELS.map((c) => (
+                    <button
+                      key={c}
+                      type="button"
+                      onClick={() => setDraftChannel(c)}
+                      className={cn(
+                        "px-3 py-1.5 font-medium transition-colors border-l first:border-l-0 whitespace-nowrap",
+                        draftChannel === c
+                          ? "bg-primary text-primary-foreground"
+                          : "text-muted-foreground hover:text-foreground",
+                      )}
+                    >
+                      {CHANNEL_LABELS[c] ?? c}
+                    </button>
+                  ))}
                 </div>
-              </CardHeader>
-              <CardContent>
-                <TemplatePicker ref={templatePickerRef} onAddToDraft={addMessageFromTemplate} />
-              </CardContent>
-            </Card>
-          ) : (
-            /* Email / SMS: manual variant form */
-            <Card>
-              <CardHeader>
-                <div className="flex items-center justify-between">
-                  <CardTitle className="text-base">Add Message</CardTitle>
-                  <div className="flex rounded-md border overflow-hidden text-xs">
-                    {CHANNELS.map((c) => (
-                      <button
-                        key={c}
-                        type="button"
-                        onClick={() => setDraftChannel(c)}
-                        className={cn(
-                          "px-3 py-1.5 font-medium transition-colors border-l first:border-l-0",
-                          draftChannel === c
-                            ? "bg-primary text-primary-foreground"
-                            : "text-muted-foreground hover:text-foreground",
-                        )}
-                      >
-                        {c.toUpperCase()}
-                      </button>
-                    ))}
-                  </div>
-                </div>
-              </CardHeader>
-              <CardContent className="space-y-3">
-              <Input
-                placeholder="Message name"
-                value={newMsg.name}
-                onChange={(e) => setNewMsg((m) => ({ ...m, name: e.target.value }))}
-              />
-              {newMsg.variants.map((v, vi) => (
-                <div key={vi} className="space-y-2 pt-2 border-t">
-                  <Input
-                    placeholder="Body text"
-                    value={v.body}
-                    onChange={(e) => {
-                      const variants = [...newMsg.variants];
-                      variants[vi] = { ...v, body: e.target.value };
-                      setNewMsg((m) => ({ ...m, variants }));
-                    }}
-                  />
-                  {newMsg.channel === "email" && (
-                    <Input
-                      placeholder="Subject line"
-                      value={v.subject}
-                      onChange={(e) => {
-                        const variants = [...newMsg.variants];
-                        variants[vi] = { ...v, subject: e.target.value };
-                        setNewMsg((m) => ({ ...m, variants }));
-                      }}
-                    />
-                  )}
-                </div>
-              ))}
-              <Button
-                size="sm"
-                variant="outline"
-                onClick={() => setNewMsg((m) => ({ ...m, variants: [...m.variants, { ...emptyVariant(), name: `V${m.variants.length + 1}` }] }))}
-              >
-                + Add Variant
-              </Button>
-              <Button
-                size="sm"
-                onClick={() => addMessage()}
-                disabled={!newMsg.name.trim() || newMsg.variants.length === 0}
-              >
-                Add Message
-              </Button>
-              </CardContent>
-            </Card>
-          )}
+              </div>
+            </CardHeader>
+            <CardContent>
+              {draftChannel === "push" ? (
+                <TemplatePicker ref={templatePickerRef} onAddToDraft={addMessageFromLibrary} />
+              ) : (
+                <LibraryPicker
+                  key={draftChannel}
+                  ref={libraryPickerRef}
+                  channel={draftChannel as LibraryChannel}
+                  onAddToDraft={addMessageFromLibrary}
+                />
+              )}
+            </CardContent>
+          </Card>
 
           {form.messages.map((m, i) => (
             <div key={i} className="border rounded-lg p-3 flex items-center justify-between">
