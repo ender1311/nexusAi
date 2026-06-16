@@ -16,6 +16,7 @@ import { prisma } from "@/lib/db";
 import { getAuth } from "@/lib/auth";
 import { getHiddenStatsForCurrentUser } from "@/lib/user-preferences";
 import { getCachedAgentConvergenceStates, getCachedAgentCardStats, getCachedKillSwitchSetting } from "@/lib/cache";
+import { withTimeout } from "@/lib/with-timeout";
 
 const PAGE_SIZE = 20;
 
@@ -64,7 +65,11 @@ async function AgentsContent({
         const agents = await prisma.agent.findMany({
           where,
           include: {
-            _count: { select: { goals: true, messages: true, decisions: true } },
+            // NOTE: `decisions` deliberately excluded — an all-time COUNT over the
+            // huge UserDecision table per agent made this list query hang on a cold
+            // cache (504s). goals/messages/variants counts are cheap (small tables).
+            // The decisions stat is sourced from the bounded card-stats cache below.
+            _count: { select: { goals: true, messages: true } },
             messages: { select: { _count: { select: { variants: true } } } },
           },
           orderBy: [{ sortOrder: "asc" }, { updatedAt: "desc" }],
@@ -81,8 +86,11 @@ async function AgentsContent({
       ["agents-list", search, safeStatus ?? "", safeStage ?? ""],
       { tags: ["agents"], revalidate: 900 },
     )(),
-    getCachedAgentConvergenceStates(),
-    getCachedAgentCardStats(),
+    // Bound the heavy per-agent aggregate caches: if they're recomputing on a cold
+    // cache and the underlying GROUP BYs are slow, the page renders with fallback
+    // stats instead of timing out (504). The caches still warm in the background.
+    withTimeout(getCachedAgentConvergenceStates(), 6000, {} as Awaited<ReturnType<typeof getCachedAgentConvergenceStates>>),
+    withTimeout(getCachedAgentCardStats(), 6000, { uniqueUsers: [], pushStats: [], assigned: [], decisions: [] }),
     getCachedKillSwitchSetting(),
   ]);
 
@@ -90,6 +98,7 @@ async function AgentsContent({
 
   const uniqueUsersMap = new Map(cardStats.uniqueUsers.map((r) => [r.agentId, r.count]));
   const assignedMap = new Map(cardStats.assigned.map((r) => [r.agentId, r.count]));
+  const decisionsMap = new Map(cardStats.decisions.map((r) => [r.agentId, r.count]));
   const pushStatsMap = new Map(
     cardStats.pushStats.map((r) => [r.agentId, { sends: r.sends, opens: r.opens }]),
   );
@@ -122,7 +131,7 @@ async function AgentsContent({
     _count: {
       goals: a._count.goals,
       messages: a._count.messages,
-      decisions: a._count.decisions,
+      decisions: decisionsMap.get(a.id) ?? 0,
       variants: a.messages.reduce((sum, m) => sum + m._count.variants, 0),
     },
   }));

@@ -154,7 +154,7 @@ export const getCachedAgentCardStats = unstable_cache(
           AND "sentAt" >= NOW() - INTERVAL '30 days'
         GROUP BY "agentId"
       `,
-      prisma.$queryRaw<Array<{ agentId: string; sends: bigint; opens: bigint }>>`
+      prisma.$queryRaw<Array<{ agentId: string; sends: bigint; opens: bigint; decisions: bigint }>>`
         SELECT "agentId",
                COUNT(*) FILTER (
                  WHERE "channel" = 'push'
@@ -168,7 +168,8 @@ export const getCachedAgentCardStats = unstable_cache(
                         END
                    )
                ) AS sends,
-               COUNT(*) FILTER (WHERE "channel" = 'push' AND "pushOpenAt" IS NOT NULL) AS opens
+               COUNT(*) FILTER (WHERE "channel" = 'push' AND "pushOpenAt" IS NOT NULL) AS opens,
+               COUNT(*) AS decisions
         FROM "UserDecision"
         WHERE "sentAt" >= NOW() - INTERVAL '30 days'
         GROUP BY "agentId"
@@ -186,6 +187,9 @@ export const getCachedAgentCardStats = unstable_cache(
       uniqueUsers: uniqueUserRows.map((r) => ({ agentId: r.agentId, count: Number(r.cnt) })),
       pushStats: pushRows.map((r) => ({ agentId: r.agentId, sends: Number(r.sends), opens: Number(r.opens) })),
       assigned: assignedRows.map((r) => ({ agentId: r.agentId, count: Number(r.cnt) })),
+      // 30-day decision count per agent (was an all-time per-agent COUNT in the
+      // list query — too slow on a cold cache; computed here in the same windowed scan).
+      decisions: pushRows.map((r) => ({ agentId: r.agentId, count: Number(r.decisions) })),
     };
   },
   ["agent-card-stats"],

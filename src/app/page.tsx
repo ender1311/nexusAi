@@ -26,6 +26,7 @@ import {
   getCachedFleetGiftStats,
   getCachedAgentCardStats,
 } from "@/lib/cache";
+import { withTimeout } from "@/lib/with-timeout";
 import { getCachedBrazeStats } from "@/lib/braze/analytics";
 import { cn, formatNumber, formatDate } from "@/lib/utils";
 import { agentRowBadge } from "@/lib/dashboard-agent-row";
@@ -118,7 +119,11 @@ async function MetricCardsSection() {
 // Fleet aggregate cards — separate Suspense so slow aggregates never block the core cards above.
 async function FleetMetricCardsSection() {
   const [recovery, giftStats, hiddenStats] = await Promise.all([
-    getCachedFleetRecoveryStats(),
+    withTimeout(
+      getCachedFleetRecoveryStats().catch(() => ({ recoveries30d: 0, attributedRecoveries30d: 0, fleetRecoveryRate: 0 })),
+      6000,
+      { recoveries30d: 0, attributedRecoveries30d: 0, fleetRecoveryRate: 0 },
+    ),
     getCachedFleetGiftStats(),
     getHiddenStatsForCurrentUser(),
   ]);
@@ -394,7 +399,11 @@ async function TopPersonaSection() {
 }
 
 async function FunnelBreakdownSection() {
-  const rows = await getCachedFunnelStageBreakdown().catch(() => []);
+  const rows = await withTimeout(
+    getCachedFunnelStageBreakdown().catch(() => []),
+    6000,
+    [] as Awaited<ReturnType<typeof getCachedFunnelStageBreakdown>>,
+  );
   return <FunnelStageBreakdown rows={rows} />;
 }
 

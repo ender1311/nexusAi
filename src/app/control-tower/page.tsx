@@ -14,6 +14,7 @@ import {
   getCachedFunnelStageBreakdown,
   getCachedKillSwitchSetting,
 } from "@/lib/cache";
+import { withTimeout } from "@/lib/with-timeout";
 
 // ── Sections ─────────────────────────────────────────────────────────────────
 // Each awaits exactly one cached fn so it streams independently — a slow section
@@ -38,7 +39,11 @@ async function KillSwitchSection() {
 }
 
 async function FunnelSection() {
-  const funnelBreakdown = await getCachedFunnelStageBreakdown().catch(() => []);
+  const funnelBreakdown = await withTimeout(
+    getCachedFunnelStageBreakdown().catch(() => []),
+    6000,
+    [] as Awaited<ReturnType<typeof getCachedFunnelStageBreakdown>>,
+  );
   if (funnelBreakdown.length === 0) return null;
   return <FunnelStageBreakdown rows={funnelBreakdown} title="Users by Stage" />;
 }
