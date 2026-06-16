@@ -180,6 +180,17 @@ export const getCachedPreferredChannelStats = cache(
 export const getCachedFunnelStageBreakdown = cache(
   unstable_cache(
     async () => {
+      // Prefer the precomputed snapshot written by the refresh-persona-counts cron.
+      // A live GROUP BY over ~39M User rows is a full-table scan (~120s) that no index
+      // can make fast — it blew the page/cron timeouts. Fall back to the live query
+      // only if the snapshot is missing (first run before the cron has written it).
+      const snap = await prisma.appSetting.findUnique({ where: { key: "funnel_stage_breakdown" } });
+      if (snap?.value) {
+        try {
+          const parsed = JSON.parse(snap.value) as { stage: string; count: number }[];
+          if (Array.isArray(parsed)) return parsed;
+        } catch { /* corrupt snapshot → fall through to live query */ }
+      }
       const rows = await prisma.trackedUser.groupBy({
         by: ["funnelStage"],
         _count: { _all: true },
