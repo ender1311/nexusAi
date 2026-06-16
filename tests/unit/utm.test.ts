@@ -33,6 +33,21 @@ describe("withNexusUtm", () => {
     expect(out).toContain("amount=25");
   });
 
+  it("realigns a legacy utm_medium=push to the actual channel (no false 'push' on non-push)", () => {
+    const out = withNexusUtm(
+      "https://www.bible.com/give?amount=25&utm_medium=push&utm_source=push&utm_campaign=nexus",
+      "content-card",
+    );
+    expect(out).toContain("utm_medium=content-card");
+    expect(out).not.toContain("utm_medium=push");
+    expect(out).toContain("utm_source=content-card");
+  });
+
+  it("does not add utm_medium to a link that never had one", () => {
+    const out = withNexusUtm("https://www.bible.com/today", "push");
+    expect(out).not.toContain("utm_medium");
+  });
+
   it("is idempotent for the same channel", () => {
     const once = withNexusUtm("https://www.bible.com/today", "push");
     expect(withNexusUtm(once, "push")).toBe(once);

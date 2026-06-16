@@ -33,6 +33,10 @@ export function withNexusUtm(
     const u = new URL(url);
     u.searchParams.set("utm_campaign", NEXUS_UTM_CAMPAIGN);
     u.searchParams.set("utm_source", source);
+    // buildGivingDeeplink seeds a legacy utm_medium=push; when this link is sent on
+    // a non-push channel that "push" is a lie. Realign medium to the channel when
+    // present (don't add one to links that never had it).
+    if (u.searchParams.has("utm_medium")) u.searchParams.set("utm_medium", source);
     return u.toString();
   } catch {
     return url;

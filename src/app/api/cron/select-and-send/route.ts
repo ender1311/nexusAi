@@ -31,7 +31,7 @@ import {
   isNewsletterOptedOut,
   DEFAULT_PUSH_TARGETING_MODE,
 } from "@/lib/engine/channel-preference";
-import { partitionByPreferredHour, trimToCap, resolveFetchLimit, resolvePerRunQuota } from "@/lib/cron/caps";
+import { partitionByPreferredHour, trimToCap, resolveFetchLimit, resolvePerRunQuota, MAX_FETCH_LIMIT } from "@/lib/cron/caps";
 import { runChunked } from "@/lib/cron/chunk";
 import { selectCohort } from "@/lib/cron/cohort-assignment";
 import { createSegmentMemberLoader } from "@/lib/cron/segment-member-cache";
@@ -705,11 +705,19 @@ export async function POST(req: NextRequest) {
     // know user externalIds until explorationUsers resolves; instead we filter
     // by agentId to limit scope, then reconcile after both resolve.
     const [explorationUsers, existingAssignments] = await Promise.all([
+      // Bound + project: this previously loaded EVERY user in the lapsed/connected
+      // personas as full rows (attributes/featureVector/channelStats JSON) with no
+      // limit — a 10k+ blow-up that ignored the per-run cap. Select only the fields
+      // buildEligibleAgentsByUser / classifyExplorationWindows read, capped at the
+      // same safety ceiling as recruitment.
       prisma.trackedUser.findMany({
         where: { personaId: { in: explorationPersonaIds } },
+        select: { externalId: true, personaId: true, funnelStage: true, attributes: true, channelStats: true },
+        take: MAX_FETCH_LIMIT,
       }),
       prisma.userAgentAssignment.findMany({
         where: { agentId: { in: explorationAgents.map((a) => a.id) } },
+        take: MAX_FETCH_LIMIT,
       }),
     ]);
     const assignmentByUser = new Map(existingAssignments.map((a) => [a.externalUserId, a]));
@@ -949,18 +957,28 @@ export async function POST(req: NextRequest) {
     const localization = { enabled: localizeEnabled, translationsByVariant, versePool, strategyByVariant, votdVariantIds, gpVariantIds };
     const initialAlpha = agent.algorithm !== "linucb" ? 1 : 0;
     const initialBeta  = agent.algorithm !== "linucb" ? 30 : 0;
-    await runChunked(
-      personaIds.flatMap((personaId) =>
-        allVariantIds.map((variantId) => ({ personaId, variantId }))
-      ),
-      DB_WRITE_CONCURRENCY,
-      ({ personaId, variantId }) =>
-        prisma.personaArmStats.upsert({
-          where: { personaId_agentId_variantId: { personaId, agentId: agent.id, variantId } },
-          create: { personaId, agentId: agent.id, variantId, alpha: initialAlpha, beta: initialBeta, tries: 0, wins: 0 },
-          update: {},
-        })
-    );
+    // Seed only the MISSING persona×variant arms. The old code upserted every
+    // combination every run (update:{} no-op for existing) — hundreds of no-op
+    // round-trips per agent per run. Load existing keys once, then a single
+    // createMany(skipDuplicates) for the gaps (steady state: 1 read, 0 writes).
+    {
+      const existingArms = await prisma.personaArmStats.findMany({
+        where: { agentId: agent.id },
+        select: { personaId: true, variantId: true },
+      });
+      const have = new Set(existingArms.map((a) => `${a.personaId} ${a.variantId}`));
+      const missingArms = personaIds.flatMap((personaId) =>
+        allVariantIds
+          .filter((variantId) => !have.has(`${personaId} ${variantId}`))
+          .map((variantId) => ({
+            personaId, agentId: agent.id, variantId,
+            alpha: initialAlpha, beta: initialBeta, tries: 0, wins: 0,
+          })),
+      );
+      if (missingArms.length > 0) {
+        await prisma.personaArmStats.createMany({ data: missingArms, skipDuplicates: true });
+      }
+    }
 
     // Seed LinUCBArm identity rows for each variant so cold-start LinUCB agents can select.
     if (agent.algorithm === "linucb") {

@@ -18,6 +18,7 @@ const VALID_STAGES = new Set(FUNNEL_STAGES);
 const VALID_ENROLLMENT = new Set(["fixed", "continuous"]);
 const VALID_ALGORITHMS = new Set(["thompson", "epsilon_greedy", "linucb"]);
 const VALID_CONV_TYPE = new Set(["first_interaction", "any_interaction"]);
+const VALID_CHANNELS = new Set(["push", "email", "sms", "in-app", "modal-iam", "content-card"]);
 
 agents.get("/", async (c) => {
   try {
@@ -183,8 +184,24 @@ agents.post("/", async (c) => {
     if (typeof m.name !== "string" || m.name.trim().length === 0) {
       return c.json({ error: "each message requires a non-empty name" }, 400);
     }
-    if (typeof m.channel !== "string" || m.channel.trim().length === 0) {
-      return c.json({ error: "each message requires a non-empty channel" }, 400);
+    if (typeof m.channel !== "string" || !VALID_CHANNELS.has(m.channel)) {
+      return c.json({ error: `each message requires a valid channel (one of: ${[...VALID_CHANNELS].join(", ")})` }, 400);
+    }
+    const variantList = Array.isArray(m.variants) ? (m.variants as Array<Record<string, unknown>>) : [];
+    if (variantList.length === 0) {
+      return c.json({ error: "each message requires at least one variant" }, 400);
+    }
+    const titleChannels = new Set(["push", "modal-iam", "content-card"]);
+    for (const v of variantList) {
+      if (typeof v.body !== "string" || v.body.trim().length === 0) {
+        return c.json({ error: "each variant requires a non-empty body" }, 400);
+      }
+      if (titleChannels.has(m.channel) && (typeof v.title !== "string" || v.title.trim().length === 0)) {
+        return c.json({ error: `each ${m.channel} variant requires a non-empty title` }, 400);
+      }
+      if (m.channel === "email" && (typeof v.subject !== "string" || v.subject.trim().length === 0)) {
+        return c.json({ error: "each email variant requires a non-empty subject" }, 400);
+      }
     }
   }
 

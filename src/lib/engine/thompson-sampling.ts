@@ -64,7 +64,13 @@ export class ThompsonSampling {
     let bestSample = -Infinity;
     const samples = arms.map((arm) => {
       const raw = this.sampleBeta(arm.stats.alpha, arm.stats.beta);
-      const multiplier = recencyPenalties?.[arm.id] ?? 1.0;
+      // Defensive guard: a negative multiplier would invert arm ordering and a
+      // non-finite one would NaN-poison selection. Treat invalid input (negative /
+      // NaN / Infinity) as "no penalty" (1.0) and cap above at 1.0. Legitimate
+      // heavy penalties in (0, 1) — e.g. recencyMultiplier()'s 0.2 floor — pass
+      // through unchanged; the floor itself is the caller's responsibility.
+      const rawMult = recencyPenalties?.[arm.id] ?? 1.0;
+      const multiplier = Number.isFinite(rawMult) && rawMult >= 0 ? Math.min(1.0, rawMult) : 1.0;
       return { arm, sample: raw * multiplier };
     });
 

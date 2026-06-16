@@ -12,6 +12,12 @@ import { applyConversion } from "@/lib/services/attribution-service";
 import { detectFlagConversions } from "@/lib/services/interaction-conversion";
 import { isInteractionFlag, normalizeFlag, detectTransitionedFlags, FLAG_ATTRIBUTION_WINDOW_MS } from "@/lib/constants/interaction-flags";
 import { bumpUserIngestMarker } from "@/lib/segments/ingest-marker";
+import { runChunked } from "@/lib/cron/chunk";
+
+// Max user-chains processed concurrently within a chunk. Each chain fires many
+// queries; this caps peak Neon connections so a large Hightouch sync can't
+// exhaust the pool and starve the send cron.
+const INGEST_USER_CONCURRENCY = 10;
 
 /**
  * POST /api/ingest/users
@@ -416,13 +422,24 @@ async function attributeEvents(
         ? event.properties.canvas_step_id
         : null;
       if (canvasStepId) {
+        // Claim the event id BEFORE crediting. attributeCanvasOpen increments arm
+        // stats directly (and may create a passive decision), which is NOT guarded
+        // by applyConversion's conversionAt-null idempotency. If the batch died
+        // after crediting but before the end-of-loop processedEventId write, a
+        // Hightouch retry would double-credit. A durable per-event claim here makes
+        // canvas opens at-most-once (a crash between claim and credit drops the
+        // credit — preferable to inflating arm stats).
+        const claim = await prisma.processedEventId
+          .createMany({ data: [{ eventId: event.event_id }], skipDuplicates: true })
+          .catch(() => ({ count: 0 }));
+        if (claim.count === 0) { unmatched++; continue; } // already claimed by a prior run
         const handled = await attributeCanvasOpen(event, canvasStepId, occurredAt, canonicalUserId, matchIds);
         if (handled) {
-          newlyProcessed.push(event.event_id);
           matched++;
           continue;
         }
-        // No variant found for this step ID — fall through to time-window path
+        // No variant found for this step ID — fall through to time-window path.
+        // (event id is already claimed; the fall-through path won't re-add it.)
       }
     }
 
@@ -955,7 +972,16 @@ export async function POST(req: NextRequest) {
       writeBrazeIdByIndex[j] = writeBrazeId;
     }
 
-    const results = await Promise.all(chunk.map(async (user, idx) => {
+    // Bound per-user concurrency. Each user's processing fires many queries
+    // (upsert + attribution: recovery/sower/flag/giving, each several round-trips).
+    // Running all CHUNK users in one Promise.all opened ~CHUNK×N concurrent
+    // connections and exhausted the Neon pool, starving the select-and-send cron
+    // (overnight 504s). runChunked caps in-flight user-chains; the per-chunk
+    // preloads above still run once per CHUNK for efficiency.
+    const results = await runChunked(
+      chunk.map((user, idx) => ({ user, idx })),
+      INGEST_USER_CONCURRENCY,
+      async ({ user, idx }) => {
       const externalUserId = user.external_user_id?.trim() || null;
       const brazeId = user.braze_id?.trim() || null;
       // Unverified users (no external_user_id): use braze_id as the Nexus primary key.
@@ -1208,7 +1234,12 @@ export async function POST(req: NextRequest) {
             for (const flagName of creditedFlags) {
               const flagDecision = flagDecisionByUserAgent.get(`${externalId}::${owningAgentId}`) ?? null;
               if (flagDecision === null) {
-                // No unconverted decision exists — flag fired but there was no prior send.
+                // No unconverted decision exists — the owner wanted to credit this
+                // flag but has no send to attribute it to. Un-mark it as handled so
+                // the 30-day tail path can still credit a DIFFERENT agent that does
+                // have a qualifying decision (otherwise the owner having a goal but
+                // no send silently suppresses everyone — mis-attributed ownership).
+                handledFlags.delete(flagName);
                 unmatchedFlagConversions++;
               } else if (!creditedDecisionIds.has(flagDecision.id)) {
                 await applyConversion({
@@ -1383,7 +1414,7 @@ export async function POST(req: NextRequest) {
       }
 
       return { upserted: 1, assigned: personaId ? 1 : 0, unmatchedFlagConversions };
-    }));
+    });
 
     for (const r of results) {
       upserted += r.upserted;

@@ -80,4 +80,21 @@ describe("ThompsonSampling", () => {
     }
     expect(winnerCount).toBeGreaterThan(800);
   });
+
+  it("clamps an out-of-range recency multiplier instead of corrupting ordering", () => {
+    const arms = [
+      { id: "winner", stats: { alpha: 90, beta: 10, tries: 100, wins: 90 } },
+      { id: "loser",  stats: { alpha: 10, beta: 90, tries: 100, wins: 10 } },
+    ];
+    // A negative multiplier would invert ordering (always pick the loser) if unclamped.
+    // Clamped to >= 0.2, the strong winner should still usually win.
+    let winnerCount = 0;
+    for (let i = 0; i < 1000; i++) {
+      if (ts.select(arms, { winner: -5 }).variantId === "winner") winnerCount++;
+    }
+    expect(winnerCount).toBeGreaterThan(700);
+
+    // Non-finite multiplier falls back to 1.0 (no crash, no NaN).
+    expect(() => ts.select(arms, { winner: NaN })).not.toThrow();
+  });
 });
