@@ -231,8 +231,10 @@ describe("buildGivingDeeplink", () => {
   it("contains all required utm params", () => {
     const url = buildGivingDeeplink({});
     expect(url).toContain("utm_medium=push");
-    expect(url).toContain("utm_source=Nexus");
-    expect(url).toContain("utm_campaign=Nexus");
+    expect(url).toContain("utm_source=push");
+    expect(url).toContain("utm_campaign=nexus");
+    expect(url).toContain("utm_content=");
+    expect(url).toMatch(/utm_content=\d+handle/);
   });
 
   it("unknown currency falls back to USD", () => {

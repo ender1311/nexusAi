@@ -1,4 +1,5 @@
 import { assetFileTypeFromUrl } from "@/lib/verse-image";
+import { withNexusUtm } from "@/lib/utm";
 
 interface PushMessage {
   title: string;
@@ -96,7 +97,7 @@ export class PayloadFactory {
     const androidMsg: Record<string, unknown> = {
       alert: msg.body,
       title: msg.title,
-      ...(msg.deeplink && { custom_uri: msg.deeplink }),
+      ...(msg.deeplink && { custom_uri: withNexusUtm(msg.deeplink, "push") }),
       ...(androidImage && { image_url: androidImage }),
       ...(msg.extraData && { extra: msg.extraData }),
       ...(resolvedAndroidVariantId && { message_variation_id: resolvedAndroidVariantId }),
@@ -105,7 +106,7 @@ export class PayloadFactory {
 
     const appleMsg: Record<string, unknown> = {
       alert: { body: msg.body, title: msg.title },
-      ...(msg.deeplink && { custom_uri: msg.deeplink }),
+      ...(msg.deeplink && { custom_uri: withNexusUtm(msg.deeplink, "push") }),
       ...(iosImage && { asset_url: iosImage, asset_file_type: assetFileTypeFromUrl(iosImage) }),
       ...(msg.extraData && { extra: msg.extraData }),
       ...(resolvedIosVariantId && { message_variation_id: resolvedIosVariantId }),
@@ -184,7 +185,10 @@ export class PayloadFactory {
       message: msg.message,
     };
     if (msg.cta) trigger_properties.cta = msg.cta;
-    if (msg.link) trigger_properties.link = msg.link;
+    if (msg.link) {
+      const link = withNexusUtm(msg.link, "content-card");
+      if (link) trigger_properties.link = link;
+    }
 
     // Build recipients array. When mixed braze_id/external_user_id batch,
     // use recipients[]; otherwise use the flatter external_user_ids format.
@@ -223,7 +227,7 @@ export class PayloadFactory {
       message: msg.message,
     };
     if (!slideupOnly && msg.title) canvas_entry_properties.title = msg.title;
-    if (msg.link) canvas_entry_properties.link = msg.link;
+    if (msg.link) canvas_entry_properties.link = withNexusUtm(msg.link, "in-app");
     if (msg.imageUrl) canvas_entry_properties.imageUrl = msg.imageUrl;
 
     const hasBrazeOnly = audience.recipients?.some((r) => "braze_id" in r);

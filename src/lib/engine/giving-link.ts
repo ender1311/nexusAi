@@ -297,8 +297,12 @@ export function buildGivingDeeplink(
     frequency,
     amount: String(amountLocal),
     utm_medium: "push",
-    utm_source: "Nexus",
-    utm_campaign: "Nexus",
+    // utm_source/utm_campaign are (re)set per outbound channel by withNexusUtm at
+    // payload-build time; the defaults here cover any path that bypasses it.
+    utm_source: "push",
+    utm_campaign: "nexus",
+    // Dynamic giving handle, e.g. a $25 ask → "25handle". Preserved by withNexusUtm.
+    utm_content: `${amountLocal}handle`,
   });
   return `https://www.bible.com/give?${params.toString()}`;
 }

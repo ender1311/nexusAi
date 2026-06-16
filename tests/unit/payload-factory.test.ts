@@ -46,6 +46,27 @@ describe("PayloadFactory.buildPushPayload", () => {
     expect(messages.apple_push.custom_uri).toBeUndefined();
   });
 
+  it("adds utm_campaign=nexus and utm_source=push to a web deeplink on both platforms", () => {
+    const payload = factory.buildPushPayload(
+      { title: "T", body: "B", deeplink: "https://www.bible.com/sowers" },
+      audience,
+    );
+    const messages = payload.messages as Record<string, Record<string, unknown>>;
+    const expected = "https://www.bible.com/sowers?utm_campaign=nexus&utm_source=push";
+    expect(messages.android_push.custom_uri).toBe(expected);
+    expect(messages.apple_push.custom_uri).toBe(expected);
+  });
+
+  it("leaves an app-scheme deeplink untagged (would corrupt verse ref)", () => {
+    const payload = factory.buildPushPayload(
+      { title: "T", body: "B", deeplink: "youversion://bible?reference=JHN.3.16" },
+      audience,
+    );
+    const messages = payload.messages as Record<string, Record<string, unknown>>;
+    expect(messages.android_push.custom_uri).toBe("youversion://bible?reference=JHN.3.16");
+    expect(messages.apple_push.custom_uri).toBe("youversion://bible?reference=JHN.3.16");
+  });
+
   it("sets external_user_ids from audience", () => {
     const payload = factory.buildPushPayload({ title: "T", body: "B" }, audience);
     expect(payload.external_user_ids).toEqual(["user-1", "user-2"]);

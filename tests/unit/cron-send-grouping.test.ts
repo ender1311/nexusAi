@@ -146,7 +146,7 @@ describe("groupDecisionsByVariant", () => {
       expect(g.body).not.toContain("{{bibles}}");
       expect(g.title).not.toContain("{{ask}}");
       expect(g.deeplink).toContain("https://www.bible.com/give?");
-      expect(g.deeplink).toContain("utm_campaign=Nexus");
+      expect(g.deeplink).toContain("utm_campaign=nexus");
     }
   });
 
