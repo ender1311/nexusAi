@@ -31,7 +31,7 @@ import {
   isNewsletterOptedOut,
   DEFAULT_PUSH_TARGETING_MODE,
 } from "@/lib/engine/channel-preference";
-import { partitionByPreferredHour, trimToCap, resolveFetchLimit } from "@/lib/cron/caps";
+import { partitionByPreferredHour, trimToCap, resolveFetchLimit, resolvePerRunQuota } from "@/lib/cron/caps";
 import { runChunked } from "@/lib/cron/chunk";
 import { selectCohort } from "@/lib/cron/cohort-assignment";
 import { createSegmentMemberLoader } from "@/lib/cron/segment-member-cache";
@@ -471,7 +471,15 @@ export async function POST(req: NextRequest) {
     const pool = eligibleUsersByAgent.get(agent.id) ?? [];
     if (pool.length === 0) continue;                // nothing eligible yet; retry next tick
 
-    const sample = selectCohort(pool, agent.uniqueUsersCap);
+    // Recount how many this agent already owns and only claim up to the cap's
+    // remaining headroom. A prior materialization that locked some users then hit
+    // the 300s timeout before stamping cohortAssignedAt leaves partial locks; a
+    // retry that sampled the full cap on top of those overshot the cap (Solomon
+    // ended at 10,891 vs 10,000). Capping new claims to (cap − alreadyOwned)
+    // keeps the total at or under the cap.
+    const alreadyOwned = await prisma.trackedUser.count({ where: { lockedByAgentId: agent.id } });
+    const headroom = Math.max(0, agent.uniqueUsersCap - alreadyOwned);
+    const sample = selectCohort(pool, headroom);
     // Lock only users not already locked by anyone — race-safe.
     await prisma.trackedUser.updateMany({
       where: { externalId: { in: sample }, lockedByAgentId: null },
@@ -802,9 +810,13 @@ export async function POST(req: NextRequest) {
       lotteryUserIds = partition.kept;
     }
 
-    // Daily send cap — stop / trim when the agent has already hit its daily limit.
-    // Counts only confirmed sends (brazeSendId set) to avoid counting Braze-failed attempts.
-    if (agent.dailySendCap != null) {
+    // Per-run send quota — the lesser of the remaining daily budget and the
+    // per-run ceiling (MAX_SENDS_PER_AGENT_PER_RUN). The per-run ceiling is what
+    // keeps a large cohort with a high dailySendCap from trying to dispatch the
+    // whole budget in one run and blowing the 300s timeout; the remainder of the
+    // daily budget rolls into later hourly runs. Counts only confirmed sends
+    // (brazeSendId set) so Braze-failed attempts don't burn the budget.
+    {
       const sentToday = await prisma.userDecision.count({
         where: {
           agentId:     agent.id,
@@ -812,7 +824,8 @@ export async function POST(req: NextRequest) {
           brazeSendId: { not: null },
         },
       });
-      const trimmed = trimToCap(lotteryUserIds, agent.dailySendCap - sentToday);
+      const quota = resolvePerRunQuota(agent.dailySendCap, sentToday);
+      const trimmed = trimToCap(lotteryUserIds, quota);
       lotteryUserIds = trimmed.kept;
       suppress.dailyCap += trimmed.suppressed;
     }

@@ -3,7 +3,9 @@ import {
   partitionByPreferredHour,
   trimToCap,
   resolveFetchLimit,
+  resolvePerRunQuota,
   MAX_FETCH_LIMIT,
+  MAX_SENDS_PER_AGENT_PER_RUN,
 } from "@/lib/cron/caps";
 
 describe("resolveFetchLimit", () => {
@@ -83,5 +85,29 @@ describe("partitionByPreferredHour", () => {
     });
     expect(res.kept).toEqual(["late"]);
     expect(res.deferred).toBe(0);
+  });
+});
+
+describe("resolvePerRunQuota", () => {
+  it("caps a large daily budget to the per-run ceiling (the 10k-cohort timeout fix)", () => {
+    expect(resolvePerRunQuota(10_000, 0)).toBe(MAX_SENDS_PER_AGENT_PER_RUN);
+  });
+
+  it("returns the remaining daily budget when it is below the per-run ceiling", () => {
+    expect(resolvePerRunQuota(10_000, 9_700)).toBe(300);
+  });
+
+  it("never returns negative once the daily budget is spent", () => {
+    expect(resolvePerRunQuota(1_000, 1_000)).toBe(0);
+    expect(resolvePerRunQuota(1_000, 5_000)).toBe(0);
+  });
+
+  it("bounds an unlimited (null) daily cap by the per-run ceiling", () => {
+    expect(resolvePerRunQuota(null, 0)).toBe(MAX_SENDS_PER_AGENT_PER_RUN);
+    expect(resolvePerRunQuota(null, 999_999)).toBe(MAX_SENDS_PER_AGENT_PER_RUN);
+  });
+
+  it("honors a small daily cap below the per-run ceiling", () => {
+    expect(resolvePerRunQuota(250, 0)).toBe(250);
   });
 });

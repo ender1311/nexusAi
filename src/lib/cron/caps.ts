@@ -31,6 +31,28 @@ export function resolveFetchLimit(dailySendCap: number | null, uniqueUsersCap: n
 }
 
 /**
+ * Per-agent send ceiling for a SINGLE cron run. `dailySendCap` is a *daily*
+ * budget; without a per-run bound, the first run of the day for a large cohort
+ * tries to dispatch the whole budget at once (a 10k cohort + dailySendCap=10000
+ * blew the 300s function timeout — 504, fleet-wide missed sends). The cron's
+ * send throughput is ~1k sends per run within budget, so cap each agent at that
+ * per run; the remaining daily budget rolls into subsequent hourly runs.
+ * Tune upward only with the per-run wall-clock headroom to back it.
+ */
+export const MAX_SENDS_PER_AGENT_PER_RUN = 1000;
+
+/**
+ * How many sends this agent may dispatch in the current run: the lesser of its
+ * remaining daily budget (`dailySendCap - sentToday`) and the per-run ceiling.
+ * A null `dailySendCap` (unlimited daily) is still bounded by the per-run ceiling
+ * so an unlimited agent can never run unbounded.
+ */
+export function resolvePerRunQuota(dailySendCap: number | null, sentToday: number): number {
+  const dailyRemaining = dailySendCap != null ? Math.max(0, dailySendCap - sentToday) : Infinity;
+  return Math.min(dailyRemaining, MAX_SENDS_PER_AGENT_PER_RUN);
+}
+
+/**
  * Trim a list to a remaining quota. `remaining <= 0` drops everything; otherwise
  * keeps the first `remaining`. Returns the kept ids and how many were dropped.
  */
