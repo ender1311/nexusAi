@@ -17,6 +17,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from 
 import { TestedVariable, MessageVariant, AgentStatus, FunnelStage } from "@/types/agent";
 import { getCachedAgent, getCachedActivePersonas, getCachedAgentAudienceData, getCachedAgentDecisionSplit, getCachedAgentAssignedCount } from "@/lib/cache";
 import { prisma } from "@/lib/db";
+import { withTimeout } from "@/lib/with-timeout";
 import { VERSE_PUSH_SENTINEL } from "@/lib/verse-content";
 import { getAuth } from "@/lib/auth";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -526,24 +527,32 @@ async function AudienceTabContent({
   // ── Multi-segment mode (new segmentTargeting field) ───────────────────────────
   const hasMultiSegment = (segmentTargeting?.includes?.length ?? 0) > 0;
   if (hasMultiSegment && segmentTargeting) {
-    const [includeAggs, excludeAggs] = await Promise.all([
-      Promise.all(segmentTargeting.includes.map((seg) =>
-        prisma.userSegment.aggregate({
-          where: { segmentName: seg },
-          _count: { _all: true },
-          _max: { syncedAt: true },
-        }).then((r) => ({ seg, count: r._count._all, lastSynced: r._max.syncedAt }))
-      )),
-      segmentTargeting.excludes.length > 0
-        ? Promise.all(segmentTargeting.excludes.map((seg) =>
-            prisma.userSegment.aggregate({
-              where: { segmentName: seg },
-              _count: { _all: true },
-              _max: { syncedAt: true },
-            }).then((r) => ({ seg, count: r._count._all, lastSynced: r._max.syncedAt }))
-          ))
-        : Promise.resolve([] as { seg: string; count: number; lastSynced: Date | null }[]),
-    ]);
+    // Bound the per-segment aggregate fan-out: each is a COUNT/_max over a large
+    // UserSegment membership, uncached, one per include/exclude segment. On a slow
+    // run the tab renders (sizes show as "—") instead of hanging its Suspense boundary.
+    type SegAgg = { seg: string; count: number; lastSynced: Date | null };
+    const [includeAggs, excludeAggs] = await withTimeout(
+      Promise.all([
+        Promise.all(segmentTargeting.includes.map((seg) =>
+          prisma.userSegment.aggregate({
+            where: { segmentName: seg },
+            _count: { _all: true },
+            _max: { syncedAt: true },
+          }).then((r): SegAgg => ({ seg, count: r._count._all, lastSynced: r._max.syncedAt }))
+        )),
+        segmentTargeting.excludes.length > 0
+          ? Promise.all(segmentTargeting.excludes.map((seg) =>
+              prisma.userSegment.aggregate({
+                where: { segmentName: seg },
+                _count: { _all: true },
+                _max: { syncedAt: true },
+              }).then((r): SegAgg => ({ seg, count: r._count._all, lastSynced: r._max.syncedAt }))
+            ))
+          : Promise.resolve([] as SegAgg[]),
+      ]),
+      6000,
+      [[], []] as [SegAgg[], SegAgg[]],
+    );
 
     const STALE_MS = 24 * 60 * 60 * 1000;
     const now = new Date();

@@ -187,6 +187,14 @@ model UserDecision {
   @@index([agentId, sentAt])          // per-agent performance page (agentId + 30d window)
   @@index([sentAt, brazeSendId])      // cron budget count (sentAt >= today AND brazeSendId NOT NULL)
   @@index([channel, sentAt])          // push-specific groupBy queries (WHERE channel='push' AND sentAt >= N)
+  // Perf indexes added directly in prod via SQL (2026-06-16) for the agent-card-stats
+  // aggregates. Documented (not declared) because Prisma @@index can't express partial
+  // (WHERE) indexes and a bare @@index would make `migrate dev` re-create indexes that
+  // already exist in prod. Recreate elsewhere with:
+  //   CREATE INDEX CONCURRENTLY "UserDecision_sent_agent_sentAt_user_idx"
+  //     ON "UserDecision" ("agentId","sentAt","userId") WHERE "brazeSendId" IS NOT NULL;
+  //   CREATE INDEX CONCURRENTLY "UserDecision_agent_convEvent_convAt_idx"
+  //     ON "UserDecision" ("agentId","conversionEvent","conversionAt");
 }
 
 // YouVersion app user — ingested from Hightouch/Braze, used by bandit engine
@@ -395,6 +403,12 @@ model UserAgentAssignment {
   @@index([agentId])
   @@index([releasedAt])
   @@index([windowCompletedAt])
+  // Perf indexes added directly in prod via SQL (2026-06-16); see the UserDecision
+  // note. Recreate elsewhere with:
+  //   CREATE INDEX CONCURRENTLY "UserAgentAssignment_active_agentId_idx"
+  //     ON "UserAgentAssignment" ("agentId") WHERE "releasedAt" IS NULL;
+  //   CREATE INDEX CONCURRENTLY "UserAgentAssignment_agent_startedAt_idx"
+  //     ON "UserAgentAssignment" ("agentId","startedAt");
 }
 
 model FunnelTransition {
