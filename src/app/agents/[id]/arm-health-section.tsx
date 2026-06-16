@@ -1,7 +1,8 @@
 import { prisma } from "@/lib/db";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { cn } from "@/lib/utils";
+import { cn, formatNumber } from "@/lib/utils";
+import { withTimeout } from "@/lib/with-timeout";
 
 type ActiveVariant = { id: string; name: string; warmupUntil: Date | null };
 
@@ -12,28 +13,47 @@ export async function ArmHealthSection({
   agentId: string;
   activeVariants: ActiveVariant[];
 }) {
-  const armHealthData = await prisma.personaArmStats.findMany({
-    where: { agentId },
-    orderBy: { id: "desc" },
-    take: 500,
-  });
+  // Per-variant SENDS + CONVERSIONS from UserDecision (the authoritative record).
+  // Previously this read PersonaArmStats.tries, which only increments on a
+  // conversion/open event — so a high-send agent with few attributed conversions
+  // showed "0 tries" on every variant. "tries" for a bandit arm = times it was
+  // pulled (sent), so count sends; surface conversions alongside. Scoped to the
+  // agent (uses the agentId index) and bounded so a high-volume agent can't hang
+  // the tab.
+  const sendStats = await withTimeout(
+    prisma.$queryRaw<Array<{ variantId: string; sends: bigint; conversions: bigint }>>`
+      SELECT "messageVariantId" AS "variantId",
+             COUNT(*)::bigint AS sends,
+             COUNT("conversionAt")::bigint AS conversions
+      FROM "UserDecision"
+      WHERE "agentId" = ${agentId} AND "messageVariantId" IS NOT NULL
+      GROUP BY "messageVariantId"
+    `,
+    6000,
+    [] as Array<{ variantId: string; sends: bigint; conversions: bigint }>,
+  );
+
+  const statsByVariant = new Map(
+    sendStats.map((r) => [r.variantId, { sends: Number(r.sends), conversions: Number(r.conversions) }]),
+  );
 
   const now = new Date();
-  const triesByVariant = new Map<string, number>();
-  for (const row of armHealthData) {
-    const current = triesByVariant.get(row.variantId) ?? 0;
-    if (row.tries > current) triesByVariant.set(row.variantId, row.tries);
-  }
-
-  const variantHealth = activeVariants.map((v) => ({
-    variantId: v.id,
-    variantName: v.name,
-    totalTries: triesByVariant.get(v.id) ?? 0,
-    hasStats: (triesByVariant.get(v.id) ?? 0) > 0,
-    // warmupUntil may be a Date or an ISO string after unstable_cache serialization —
-    // coerce via new Date() so the comparison is always Date vs Date.
-    inWarmup: v.warmupUntil !== null && new Date(v.warmupUntil as unknown as string) > now,
-  }));
+  const variantHealth = activeVariants.map((v) => {
+    const s = statsByVariant.get(v.id);
+    const sends = s?.sends ?? 0;
+    const conversions = s?.conversions ?? 0;
+    return {
+      variantId: v.id,
+      variantName: v.name,
+      sends,
+      conversions,
+      convRate: sends > 0 ? (conversions / sends) * 100 : null,
+      hasStats: sends > 0,
+      // warmupUntil may be a Date or an ISO string after unstable_cache serialization —
+      // coerce via new Date() so the comparison is always Date vs Date.
+      inWarmup: v.warmupUntil !== null && new Date(v.warmupUntil as unknown as string) > now,
+    };
+  });
 
   const variantsWithStats = variantHealth.filter((v) => v.hasStats).length;
   const variantsInWarmup = variantHealth.filter((v) => v.inWarmup).length;
@@ -109,7 +129,8 @@ export async function ArmHealthSection({
                   )}
                 </div>
                 <span className="text-xs text-muted-foreground font-mono">
-                  {v.totalTries} tries
+                  {formatNumber(v.sends)} sent · {formatNumber(v.conversions)} conv
+                  {v.convRate !== null && ` (${v.convRate.toFixed(1)}%)`}
                 </span>
               </div>
             ))}
