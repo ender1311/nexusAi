@@ -3,8 +3,9 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
-import { Power } from "lucide-react";
+import { Pause, Play } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { cn } from "@/lib/utils";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -17,9 +18,20 @@ import {
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
 
+/**
+ * Global send kill switch. Two concerns kept visually separate:
+ *  - a status pill showing the CURRENT global state (sending live vs. paused)
+ *  - an action button whose label/color/icon describe what CLICKING does
+ *    (the inverse of the current state), so red/green always map to the action,
+ *    not the state.
+ */
 export function KillSwitchToggle({ initialOn }: { initialOn: boolean }) {
   const router = useRouter();
   const [loading, setLoading] = useState(false);
+
+  // initialOn === true  → sending is globally PAUSED (kill switch engaged)
+  // initialOn === false → sending is LIVE
+  const paused = initialOn;
 
   async function setKill(on: boolean) {
     setLoading(true);
@@ -34,7 +46,7 @@ export function KillSwitchToggle({ initialOn }: { initialOn: boolean }) {
         throw new Error(body.error ?? "Failed to update kill switch");
       }
       router.refresh();
-      toast.success(on ? "Kill switch ON — all sending paused" : "Kill switch OFF — sending resumed");
+      toast.success(on ? "All sending paused" : "Sending resumed");
     } catch (err) {
       toast.error(err instanceof Error ? err.message : "Failed to update kill switch");
     } finally {
@@ -42,71 +54,78 @@ export function KillSwitchToggle({ initialOn }: { initialOn: boolean }) {
     }
   }
 
-  if (initialOn) {
-    return (
+  return (
+    <div className="flex items-center gap-3">
+      <span
+        className={cn(
+          "inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-xs font-medium",
+          paused
+            ? "bg-amber-500/15 text-amber-600 dark:text-amber-400"
+            : "bg-green-500/15 text-green-600 dark:text-green-400",
+        )}
+      >
+        <span
+          className={cn(
+            "h-1.5 w-1.5 rounded-full",
+            paused ? "bg-amber-500" : "bg-green-500 animate-pulse",
+          )}
+        />
+        {paused ? "All sending paused" : "Sending live"}
+      </span>
+
       <AlertDialog>
         <AlertDialogTrigger
           render={
-            <Button size="sm" variant="destructive" disabled={loading}>
-              <Power className="h-3.5 w-3.5 mr-1.5" />
-              {loading ? "Resuming…" : (
-                <>
-                  <span className="sm:hidden">Kill switch ON</span>
-                  <span className="hidden sm:inline">Kill switch ON — Resume all</span>
-                </>
-              )}
-            </Button>
+            paused ? (
+              <Button
+                size="sm"
+                disabled={loading}
+                className="bg-green-600 text-white hover:bg-green-700 border-transparent"
+              >
+                <Play className="h-3.5 w-3.5 mr-1.5" />
+                {loading ? "Resuming…" : "Resume all sending"}
+              </Button>
+            ) : (
+              <Button
+                size="sm"
+                variant="outline"
+                disabled={loading}
+                className="border-destructive/40 text-destructive hover:bg-destructive/10"
+              >
+                <Pause className="h-3.5 w-3.5 mr-1.5" />
+                {loading ? "Pausing…" : "Pause all sending"}
+              </Button>
+            )
           }
         />
         <AlertDialogContent size="sm">
           <AlertDialogHeader>
-            <AlertDialogTitle>Turn off kill switch?</AlertDialogTitle>
+            <AlertDialogTitle>
+              {paused ? "Resume all sending?" : "Pause all sending?"}
+            </AlertDialogTitle>
             <AlertDialogDescription>
-              This resumes ALL sending across every agent. Communications will start
-              going out again on the next cron run.
+              {paused
+                ? "This resumes sending across every active agent on the next cron run. Agents you paused individually stay paused."
+                : "This immediately pauses ALL sending across every agent — a global kill switch. Cohorts, assignments, and learning are preserved. You can resume at any time."}
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
             <AlertDialogCancel>Cancel</AlertDialogCancel>
-            <AlertDialogAction onClick={() => setKill(false)}>
-              Resume all sending
-            </AlertDialogAction>
+            {paused ? (
+              <AlertDialogAction
+                onClick={() => setKill(false)}
+                className="bg-green-600 text-white hover:bg-green-700"
+              >
+                Resume all sending
+              </AlertDialogAction>
+            ) : (
+              <AlertDialogAction variant="destructive" onClick={() => setKill(true)}>
+                Pause all sending
+              </AlertDialogAction>
+            )}
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
-    );
-  }
-
-  return (
-    <AlertDialog>
-      <AlertDialogTrigger
-        render={
-          <Button
-            size="sm"
-            variant="outline"
-            disabled={loading}
-            className="border-destructive/40 text-destructive hover:bg-destructive/10"
-          >
-            <Power className="h-3.5 w-3.5 mr-1.5" />
-            Kill switch
-          </Button>
-        }
-      />
-      <AlertDialogContent size="sm">
-        <AlertDialogHeader>
-          <AlertDialogTitle>Activate kill switch?</AlertDialogTitle>
-          <AlertDialogDescription>
-            This immediately pauses ALL sending across every agent. Cohorts, assignments,
-            and learning are preserved. You can turn it back off at any time.
-          </AlertDialogDescription>
-        </AlertDialogHeader>
-        <AlertDialogFooter>
-          <AlertDialogCancel>Cancel</AlertDialogCancel>
-          <AlertDialogAction variant="destructive" onClick={() => setKill(true)}>
-            Activate kill switch
-          </AlertDialogAction>
-        </AlertDialogFooter>
-      </AlertDialogContent>
-    </AlertDialog>
+    </div>
   );
 }
