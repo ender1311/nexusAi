@@ -151,3 +151,52 @@ describe("PayloadFactory.buildPushPayload", () => {
     expect(String(messages.android_push.title)).not.toContain("{{");
   });
 });
+
+describe("PayloadFactory.buildCanvasApiTriggerPayload", () => {
+  const factory = new PayloadFactory();
+  const audience = { externalUserIds: ["u1", "u2"] };
+
+  it("slideup-only (null title) sets slideupOnly=true and omits title", () => {
+    const p = factory.buildCanvasApiTriggerPayload(
+      { title: null, message: "Slide body", link: null, imageUrl: null },
+      audience,
+      "canvas-slideup",
+    );
+    const props = p.canvas_entry_properties as Record<string, unknown>;
+    expect(props.slideupOnly).toBe(true);
+    expect(props.title).toBeUndefined();
+    expect(props.message).toBe("Slide body");
+    expect(p.canvas_id).toBe("canvas-slideup");
+  });
+
+  it("modal (title + cta) sets slideupOnly=false, includes title+cta, tags link utm_source=modal-iam", () => {
+    const p = factory.buildCanvasApiTriggerPayload(
+      {
+        title: "You’re invited to join the Sowers Community!",
+        message: "A gift of $25 a month will distribute over 600 Bible apps this year.",
+        cta: "Give a Monthly Gift",
+        link: "https://www.bible.com/sowers",
+        imageUrl: null,
+      },
+      audience,
+      "canvas-modal",
+      "modal-iam",
+    );
+    const props = p.canvas_entry_properties as Record<string, unknown>;
+    expect(props.slideupOnly).toBe(false);
+    expect(props.title).toBe("You’re invited to join the Sowers Community!");
+    expect(props.cta).toBe("Give a Monthly Gift");
+    expect(p.canvas_id).toBe("canvas-modal");
+    expect(props.link).toBe("https://www.bible.com/sowers?utm_campaign=nexus&utm_source=modal-iam");
+  });
+
+  it("defaults utm_source to in-app when not specified (slideup link)", () => {
+    const p = factory.buildCanvasApiTriggerPayload(
+      { title: null, message: "m", link: "https://www.bible.com/today", imageUrl: null },
+      audience,
+      "canvas-slideup",
+    );
+    const props = p.canvas_entry_properties as Record<string, unknown>;
+    expect(props.link).toBe("https://www.bible.com/today?utm_campaign=nexus&utm_source=in-app");
+  });
+});

@@ -178,20 +178,20 @@ export async function POST(req: NextRequest) {
     console.warn(`[cron/select-and-send] skipped ${skippedIncompletePush} incomplete push variant(s)`);
   }
 
-  // Drop content-card variants with a missing title — the Braze campaign template
-  // requires trigger_properties.title; a null title sends an empty string and
-  // renders broken cards. Body is non-nullable in the schema so only title is checked.
+  // Drop content-card / modal variants with a missing title — the Braze template
+  // requires a title; a null title renders a broken card/modal. Body is
+  // non-nullable in the schema so only title is checked.
   let skippedIncompleteContentCard = 0;
   for (const agent of agents) {
     for (const msg of agent.messages) {
-      if (msg.channel !== "content-card") continue;
+      if (msg.channel !== "content-card" && msg.channel !== "modal-iam") continue;
       const complete = msg.variants.filter((v) => typeof v.title === "string" && v.title.trim().length > 0);
       if (complete.length !== msg.variants.length) {
         skippedIncompleteContentCard += msg.variants.length - complete.length;
         for (const v of msg.variants) {
           if (!(typeof v.title === "string" && v.title.trim().length > 0)) {
             console.warn(
-              `[cron/select-and-send] skipping content-card variant ${v.id} (agent ${agent.id}): missing title`
+              `[cron/select-and-send] skipping ${msg.channel} variant ${v.id} (agent ${agent.id}): missing title`
             );
           }
         }
@@ -200,7 +200,7 @@ export async function POST(req: NextRequest) {
     }
   }
   if (skippedIncompleteContentCard > 0) {
-    console.warn(`[cron/select-and-send] skipped ${skippedIncompleteContentCard} incomplete content-card variant(s)`);
+    console.warn(`[cron/select-and-send] skipped ${skippedIncompleteContentCard} incomplete content-card/modal variant(s)`);
   }
 
   void prisma.cronRun.update({
@@ -1330,6 +1330,7 @@ export async function POST(req: NextRequest) {
           const selectedMeta = variantMeta.get(selectedVariantId);
           const sendImmediately =
             selectedMeta?.channel === "content-card" ||
+            selectedMeta?.channel === "modal-iam" ||
             (selectedMeta?.channel === "in-app" && selectedMeta.title === null);
 
           let scheduledAt: Date;
@@ -1811,10 +1812,11 @@ export async function POST(req: NextRequest) {
             )!;
           }
 
-          // Content cards and slideup-only in-app messages send immediately.
+          // Content cards, modals, and slideup-only in-app messages send immediately.
           const selectedWindowMeta = variantMeta.get(selectedVariantId);
           const sendWindowImmediately =
             selectedWindowMeta?.channel === "content-card" ||
+            selectedWindowMeta?.channel === "modal-iam" ||
             (selectedWindowMeta?.channel === "in-app" && selectedWindowMeta.title === null);
 
           let scheduledAt: Date;

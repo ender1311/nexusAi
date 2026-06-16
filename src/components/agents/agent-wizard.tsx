@@ -90,13 +90,11 @@ const GOAL_TIERS: Array<{ value: GoalTier; label: string; color: string; weight:
 ];
 
 // Channels offered in the agent message builder. Each is backed by a content
-// library AND a cron send path: push (TemplatePicker), email, in-app (slideup),
-// content-card (LibraryPicker). Excluded:
-//   - sms: no SMS content library.
-//   - modal-iam: library + picker exist, but send-grouping has no modal delivery
-//     path yet (needs a Braze modal canvas). Re-add here once that lands so we
-//     never expose a channel that silently won't send.
-const CHANNELS: Channel[] = ["push", "email", "in-app", "content-card"];
+// library AND a cron send path: push (TemplatePicker) and email / in-app
+// (slideup) / modal-iam / content-card (LibraryPicker). modal-iam delivers via a
+// dedicated Braze Canvas (BRAZE_NEXUS_MODAL_CANVAS_ID) and dispatches immediately.
+// SMS is excluded — no SMS content library.
+const CHANNELS: Channel[] = ["push", "email", "in-app", "modal-iam", "content-card"];
 const CHANNEL_LABELS: Partial<Record<Channel, string>> = {
   push: "Push",
   email: "Email",

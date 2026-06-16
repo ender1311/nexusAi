@@ -15,7 +15,7 @@
 export const NEXUS_UTM_CAMPAIGN = "nexus";
 
 /** Canonical utm_source values, one per outbound channel. */
-export type NexusUtmSource = "push" | "email" | "content-card" | "in-app";
+export type NexusUtmSource = "push" | "email" | "content-card" | "in-app" | "modal-iam";
 
 /**
  * Set utm_campaign=nexus and utm_source=<source> on an http(s) URL, preserving

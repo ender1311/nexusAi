@@ -33,12 +33,15 @@ interface ContentCardMessage {
 }
 
 interface CanvasSlideupMessage {
-  /** Null title means slideup-only; non-null title sends push first, then slideup. */
+  /** Null title means slideup-only; non-null title sends push first, then slideup.
+   *  For a modal canvas, title is always present. */
   title: string | null;
   message: string;
   link: string | null;
-  /** Slideup image URL. */
+  /** Slideup / modal image URL. */
   imageUrl: string | null;
+  /** CTA button label (modal canvases use it; slideup canvases ignore it). */
+  cta?: string | null;
 }
 
 // Braze recipient: exactly one identifier per entry (external_user_id OR braze_id).
@@ -210,16 +213,19 @@ export class PayloadFactory {
   }
 
   /**
-   * Build a /canvas/trigger/send payload for a slideup (in-app) message.
+   * Build a /canvas/trigger/send payload for a slideup (in-app) or modal message.
    * Canvas entry properties drive the Decision Split (slideupOnly) and populate
    * the push step (title, message, link, image fields) and slideup step (imageUrl,
    * message, link). When title is null, slideupOnly=true routes through the
-   * slideup-only branch of the canvas Decision Split.
+   * slideup-only branch of the canvas Decision Split. A modal canvas always has a
+   * title (slideupOnly=false) and uses the cta label. `utmSource` tags the link
+   * per channel (slideup → "in-app", modal → "modal-iam").
    */
   buildCanvasApiTriggerPayload(
     msg: CanvasSlideupMessage,
     audience: AudienceTarget,
     canvasId: string,
+    utmSource: "in-app" | "modal-iam" = "in-app",
   ): Record<string, unknown> {
     const slideupOnly = msg.title === null;
     const canvas_entry_properties: Record<string, unknown> = {
@@ -227,7 +233,8 @@ export class PayloadFactory {
       message: msg.message,
     };
     if (!slideupOnly && msg.title) canvas_entry_properties.title = msg.title;
-    if (msg.link) canvas_entry_properties.link = withNexusUtm(msg.link, "in-app");
+    if (msg.cta) canvas_entry_properties.cta = msg.cta;
+    if (msg.link) canvas_entry_properties.link = withNexusUtm(msg.link, utmSource);
     if (msg.imageUrl) canvas_entry_properties.imageUrl = msg.imageUrl;
 
     const hasBrazeOnly = audience.recipients?.some((r) => "braze_id" in r);

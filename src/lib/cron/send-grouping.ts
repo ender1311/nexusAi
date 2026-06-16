@@ -439,6 +439,68 @@ export async function sendVariantGroup(
       }
     }
 
+    if (group.channel === "modal-iam") {
+      // Modal in-app message via a dedicated Braze Canvas (separate from the
+      // slideup canvas). Same trigger mechanics as in-app; a modal always carries
+      // a title + cta. Skips gracefully until BRAZE_NEXUS_MODAL_CANVAS_ID is set.
+      const modalCanvasId =
+        process.env.BRAZE_NEXUS_MODAL_CANVAS_ID ??
+        undefined;
+      if (!modalCanvasId) {
+        console.error("[cron/select-and-send] modal-iam send skipped: no canvas ID (set BRAZE_NEXUS_MODAL_CANVAS_ID)");
+        return { sent: 0, errors: batchUserIds.length };
+      }
+      payload = factory.buildCanvasApiTriggerPayload(
+        {
+          title: group.title ?? "",
+          message: group.body,
+          link: group.deeplink ?? null,
+          imageUrl: group.iosImageUrl ?? null,
+          cta: group.cta ?? null,
+        },
+        audience,
+        modalCanvasId,
+        "modal-iam",
+      );
+      // Modals are interruptive in-app messages shown on next session — dispatched
+      // immediately like content cards / slideup-only (no time-of-day scheduling).
+      const modalIsFuture = !!group.scheduledAt && group.scheduledAt.getTime() > Date.now() + 120_000;
+      const modalEndpoint = modalIsFuture
+        ? "/canvas/trigger/schedule/create"
+        : "/canvas/trigger/send";
+      if (modalIsFuture) {
+        payload = { ...payload, schedule: { time: group.scheduledAt!.toISOString() } };
+      }
+      const res = await brazeClient!.post(modalEndpoint, payload);
+      if (res.ok) {
+        const sendId = randomUUID();
+        let brazeScheduleId: string | null = null;
+        if (modalIsFuture) {
+          try {
+            const json = await res.json() as { schedule_id?: string };
+            brazeScheduleId = json.schedule_id ?? null;
+          } catch { /* ignore */ }
+        }
+        await prisma.userDecision.updateMany({
+          where: { id: { in: batchDecisionIds } },
+          data: { brazeSendId: sendId, ...(brazeScheduleId && { brazeScheduleId }) },
+        });
+        if (onSuccessfulBatch) onSuccessfulBatch(batchUserIds);
+        return { sent: batchUserIds.length, errors: 0 };
+      } else {
+        let responseBody: unknown;
+        try { responseBody = await res.json(); } catch { responseBody = null; }
+        const reason = `HTTP ${res.status}: ${JSON.stringify(responseBody)}`;
+        console.error("[cron/select-and-send] modal-iam Braze HTTP error:", reason, { variantId: group.variantId });
+        void prisma.failedBrazeSend.create({
+          data: { agentId, variantId: group.variantId, channel: group.channel, userIds: batchUserIds, decisionIds: batchDecisionIds, reason },
+        }).catch((dbErr: unknown) => {
+          console.error("[cron/select-and-send] Failed to write FailedBrazeSend record:", dbErr);
+        });
+        return { sent: 0, errors: batchUserIds.length };
+      }
+    }
+
     if (group.channel === "push") {
       payload = factory.buildPushPayload(
         {
