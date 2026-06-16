@@ -34,6 +34,7 @@ import {
 import { partitionByPreferredHour, trimToCap, resolveFetchLimit } from "@/lib/cron/caps";
 import { runChunked } from "@/lib/cron/chunk";
 import { selectCohort } from "@/lib/cron/cohort-assignment";
+import { createSegmentMemberLoader } from "@/lib/cron/segment-member-cache";
 import { classifyReleases, buildReleaseAgentInfo, type ReleaseAgentInfo, type ActiveAssignment } from "@/lib/cron/release-sweep";
 import {
   groupDecisionsByVariant,
@@ -304,6 +305,22 @@ export async function POST(req: NextRequest) {
   // preferredHourByAgent: agentId → Map<externalId, preferredSendHour | null>
   // Used by time-bucketed audience selection when prioritizeLastSeen is on.
   const preferredHourByAgent = new Map<string, Map<string, number | null>>();
+
+  // Per-run segment-membership cache. Each unique segment's members are pulled
+  // from UserSegment exactly once per cron run and shared across all agents,
+  // instead of every agent re-querying its include/exclude segments. A segment
+  // referenced by multiple agents — e.g. "giving-has-given" is Solomon's include
+  // AND Lydia's exclude — was previously loaded once per agent, every run (a
+  // ~105K-row pull each time), which contended with concurrent Hightouch ingest
+  // and pushed 9-agent runs past the 300s timeout. Memoizing on the Promise (not
+  // the resolved Set) also collapses the concurrent loads inside the Promise.all
+  // below into a single in-flight query per segment.
+  const loadSegmentMembers = createSegmentMemberLoader((segmentName) =>
+    prisma.userSegment
+      .findMany({ where: { segmentName }, select: { externalId: true } })
+      .then((rows) => rows.map((r) => r.externalId)),
+  );
+
   const [, cooldownSetting, multiplierSetting, pushTargetingModeSetting] = await Promise.all([
     Promise.all(
       agents.map(async (agent) => {
@@ -341,25 +358,18 @@ export async function POST(req: NextRequest) {
             : [];
         const effectiveExcludes: string[] = segTargeting?.excludes ?? [];
 
-        // Only called when effectiveExcludes.length > 0
+        // Only called when effectiveExcludes.length > 0. Union of each exclude
+        // segment's members, pulled from the shared per-run cache.
         const fetchExcludedIds = async (): Promise<Set<string>> => {
-          const rows = await prisma.userSegment.findMany({
-            where: { segmentName: { in: effectiveExcludes } },
-            select: { externalId: true },
-          });
-          return new Set(rows.map((r) => r.externalId));
+          const sets = await Promise.all(effectiveExcludes.map(loadSegmentMembers));
+          const merged = new Set<string>();
+          for (const s of sets) for (const id of s) merged.add(id);
+          return merged;
         };
 
         if (effectiveIncludes.length > 0) {
-          // Fetch all include segments in parallel, then intersect (AND logic)
-          const memberSets = await Promise.all(
-            effectiveIncludes.map((seg) =>
-              prisma.userSegment.findMany({
-                where: { segmentName: seg },
-                select: { externalId: true },
-              }).then((rows) => new Set(rows.map((r) => r.externalId)))
-            )
-          );
+          // Fetch all include segments (shared per-run cache), then intersect (AND logic)
+          const memberSets = await Promise.all(effectiveIncludes.map(loadSegmentMembers));
           // AND intersection: user must be in all include segments
           let memberIds = [...memberSets[0]];
           for (let i = 1; i < memberSets.length; i++) {
