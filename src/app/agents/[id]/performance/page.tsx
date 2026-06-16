@@ -1,4 +1,5 @@
 export const revalidate = 900;
+export const maxDuration = 30;
 
 import { Suspense } from "react";
 import { notFound } from "next/navigation";
@@ -16,6 +17,7 @@ import { formatNumber } from "@/lib/utils";
 import type { VariantMetric, TimeSeriesPoint, TimingHeatmapCell } from "@/types/metrics";
 import { liftSignificance } from "@/lib/engine/lift-significance";
 import { agentGiftMetrics } from "@/lib/cache/agent-gift-metrics";
+import { withTimeout } from "@/lib/with-timeout";
 
 /** Wilson score 95% CI for a binomial proportion. Returns [low, high] as percentages. */
 function wilsonCI(sends: number, conversions: number): { low: number; high: number } {
@@ -122,11 +124,18 @@ async function PerformanceContent({ id }: { id: string }) {
           select: { id: true, name: true },
         })
       : Promise.resolve([]),
-    prisma.$queryRaw<[{ fleet_sends: bigint; fleet_conversions: bigint }]>`
-      SELECT COUNT(*)::bigint AS fleet_sends, COUNT("conversionAt")::bigint AS fleet_conversions
-      FROM "UserDecision"
-      WHERE "sentAt" >= ${thirtyDaysAgo}
-    `,
+    // Fleet-wide COUNT over 30d of UserDecision (~35M rows, only a sentAt index).
+    // Bounded so a cold-cache recompute renders a fallback instead of 504ing the
+    // whole performance tab (single Suspense boundary).
+    withTimeout(
+      prisma.$queryRaw<[{ fleet_sends: bigint; fleet_conversions: bigint }]>`
+        SELECT COUNT(*)::bigint AS fleet_sends, COUNT("conversionAt")::bigint AS fleet_conversions
+        FROM "UserDecision"
+        WHERE "sentAt" >= ${thirtyDaysAgo}
+      `,
+      6000,
+      [{ fleet_sends: BigInt(0), fleet_conversions: BigInt(0) }] as [{ fleet_sends: bigint; fleet_conversions: bigint }],
+    ),
   ]);
 
   // ── Re-engagement (spec C1) ──
