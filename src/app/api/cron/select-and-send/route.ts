@@ -966,10 +966,10 @@ export async function POST(req: NextRequest) {
         where: { agentId: agent.id },
         select: { personaId: true, variantId: true },
       });
-      const have = new Set(existingArms.map((a) => `${a.personaId} ${a.variantId}`));
+      const have = new Set(existingArms.map((a) => `${a.personaId}:${a.variantId}`));
       const missingArms = personaIds.flatMap((personaId) =>
         allVariantIds
-          .filter((variantId) => !have.has(`${personaId} ${variantId}`))
+          .filter((variantId) => !have.has(`${personaId}:${variantId}`))
           .map((variantId) => ({
             personaId, agentId: agent.id, variantId,
             alpha: initialAlpha, beta: initialBeta, tries: 0, wins: 0,
