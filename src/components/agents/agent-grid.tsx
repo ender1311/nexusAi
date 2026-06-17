@@ -46,6 +46,7 @@ type SortMode =
   | "decisions" | "decisions-asc"
   | "cap" | "cap-desc"
   | "assigned" | "assigned-asc"
+  | "openrate" | "openrate-asc"
   | "created-desc" | "created-asc"
   | "updated-desc" | "updated-asc";
 type ViewMode = "grid" | "list";
@@ -166,6 +167,8 @@ const SORT_OPTIONS: { value: SortMode; label: string }[] = [
   { value: "cap-desc",      label: "Daily cap ↓" },
   { value: "assigned",      label: "Most assigned" },
   { value: "assigned-asc",  label: "Fewest assigned" },
+  { value: "openrate",      label: "Highest open rate" },
+  { value: "openrate-asc",  label: "Lowest open rate" },
   { value: "created-desc",  label: "Newest created" },
   { value: "created-asc",   label: "Oldest created" },
   { value: "updated-desc",  label: "Recently updated" },
@@ -185,6 +188,9 @@ function sortAgents(agents: Agent[], mode: SortMode): Agent[] {
     case "cap-desc":      copy.sort((a, b) => (b.dailySendCap ?? -Infinity) - (a.dailySendCap ?? -Infinity)); break;
     case "assigned":      copy.sort((a, b) => (b.assigned ?? 0) - (a.assigned ?? 0)); break;
     case "assigned-asc":  copy.sort((a, b) => (a.assigned ?? 0) - (b.assigned ?? 0)); break;
+    // Agents with no push data (null) always sort to the bottom, regardless of direction.
+    case "openrate":      copy.sort((a, b) => (b.pushOpenRate ?? -Infinity) - (a.pushOpenRate ?? -Infinity)); break;
+    case "openrate-asc":  copy.sort((a, b) => (a.pushOpenRate ?? Infinity) - (b.pushOpenRate ?? Infinity)); break;
     case "created-desc":  copy.sort((a, b) => b.createdAt.localeCompare(a.createdAt)); break;
     case "created-asc":   copy.sort((a, b) => a.createdAt.localeCompare(b.createdAt)); break;
     case "updated-desc":  copy.sort((a, b) => b.updatedAt.localeCompare(a.updatedAt)); break;
