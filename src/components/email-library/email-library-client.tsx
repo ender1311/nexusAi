@@ -1,9 +1,16 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { Mail, Maximize2, Search, LayoutGrid, List, X } from "lucide-react";
+import { Mail, Maximize2, Search, LayoutGrid, List, X, ArrowUpDown } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { cn } from "@/lib/utils";
@@ -18,9 +25,31 @@ export type EmailGroup = {
 };
 
 type ViewMode = "grid" | "list";
+type SortMode = "default" | "name-asc" | "name-desc" | "langs-desc";
 type HtmlCache = { en: string; langs: Record<string, string> };
 
 type Props = { groups: EmailGroup[] };
+
+const SORT_OPTIONS: { value: SortMode; label: string }[] = [
+  { value: "default",    label: "Default order" },
+  { value: "name-asc",   label: "Name A–Z" },
+  { value: "name-desc",  label: "Name Z–A" },
+  { value: "langs-desc", label: "Most languages" },
+];
+
+const LS_SORT = "email-library-sort";
+
+function sortVariants(variants: EmailVariant[], mode: SortMode): EmailVariant[] {
+  if (mode === "default") return variants;
+  const copy = [...variants];
+  switch (mode) {
+    case "name-asc":   copy.sort((a, b) => a.name.localeCompare(b.name)); break;
+    case "name-desc":  copy.sort((a, b) => b.name.localeCompare(a.name)); break;
+    // +1 for the base "en" template, which isn't in the translations array.
+    case "langs-desc": copy.sort((a, b) => (b.translations.length - a.translations.length) || a.name.localeCompare(b.name)); break;
+  }
+  return copy;
+}
 
 const categoryOrder = EMAIL_CATEGORIES.map((c) => c.value);
 
@@ -54,6 +83,7 @@ export function EmailLibraryClient({ groups }: Props) {
   const [search, setSearch] = useState("");
   const [categoryFilter, setCategoryFilter] = useState<string | null>(null);
   const [viewMode, setViewMode] = useState<ViewMode>("grid");
+  const [sortMode, setSortMode] = useState<SortMode>("default");
   const [collapsed, setCollapsed] = useState<Record<string, boolean>>({});
   const [serverItems, setServerItems] = useState<EmailVariant[] | null>(null);
   const [serverLoading, setServerLoading] = useState(false);
@@ -67,11 +97,18 @@ export function EmailLibraryClient({ groups }: Props) {
   const [expandOpen, setExpandOpen] = useState(false);
   const loadPromiseRef = useRef<Map<string, Promise<HtmlCache>>>(new Map());
 
-  // Restore view preference after hydration
+  // Restore view + sort preferences after hydration
   useEffect(() => {
-    const saved = localStorage.getItem("email-library-view") as ViewMode | null;
-    if (saved === "grid" || saved === "list") setViewMode(saved);
+    const savedView = localStorage.getItem("email-library-view") as ViewMode | null;
+    if (savedView === "grid" || savedView === "list") setViewMode(savedView);
+    const savedSort = localStorage.getItem(LS_SORT) as SortMode | null;
+    if (savedSort && SORT_OPTIONS.some((o) => o.value === savedSort)) setSortMode(savedSort);
   }, []);
+
+  function setSort(mode: SortMode) {
+    setSortMode(mode);
+    localStorage.setItem(LS_SORT, mode);
+  }
 
   const filterActive = !!(search.trim() || categoryFilter);
 
@@ -242,7 +279,9 @@ export function EmailLibraryClient({ groups }: Props) {
             <p className="text-xs text-muted-foreground pb-1">
               {flatVariants.length} result{flatVariants.length !== 1 ? "s" : ""}
             </p>
-            {viewMode === "grid" ? renderGrid(flatVariants) : renderList(flatVariants)}
+            {viewMode === "grid"
+              ? renderGrid(sortVariants(flatVariants, sortMode))
+              : renderList(sortVariants(flatVariants, sortMode))}
           </div>
         )
       ) : allVariants.length === 0 ? (
@@ -277,8 +316,8 @@ export function EmailLibraryClient({ groups }: Props) {
 
                 {!isCollapsed &&
                   (viewMode === "grid"
-                    ? renderGrid(group.variants)
-                    : renderList(group.variants))}
+                    ? renderGrid(sortVariants(group.variants, sortMode))
+                    : renderList(sortVariants(group.variants, sortMode)))}
               </section>
             );
           })}
@@ -301,6 +340,18 @@ export function EmailLibraryClient({ groups }: Props) {
               onChange={(e) => setSearch(e.target.value)}
             />
           </div>
+
+          <Select value={sortMode} onValueChange={(v) => v && setSort(v as SortMode)}>
+            <SelectTrigger className="h-9 w-[160px] shrink-0" aria-label="Sort templates">
+              <ArrowUpDown className="h-3.5 w-3.5 text-muted-foreground" />
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              {SORT_OPTIONS.map((opt) => (
+                <SelectItem key={opt.value} value={opt.value}>{opt.label}</SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
 
           <div className="flex items-center border rounded-lg overflow-hidden shrink-0">
             <button
