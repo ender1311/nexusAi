@@ -1,4 +1,5 @@
 import { ImageResponse } from "next/og";
+import { NexusMarkSvg } from "@/components/layout/nexus-mark";
 
 export const size = { width: 180, height: 180 };
 export const contentType = "image/png";
@@ -39,24 +40,12 @@ export default function AppleIcon() {
             display: "flex",
           }}
         />
-        <svg
-          width="102"
-          height="102"
-          viewBox="0 0 24 24"
-          fill="none"
+        <NexusMarkSvg
+          size={102}
           stroke="white"
-          strokeWidth="1.35"
-          strokeLinecap="round"
-          strokeLinejoin="round"
+          strokeWidth={1.35}
           style={{ filter: "drop-shadow(0px 2px 5px rgba(0,0,0,0.25))" }}
-        >
-          <path d="M12 8V4H8" />
-          <rect width="16" height="12" x="4" y="8" rx="2" />
-          <path d="M2 14h2" />
-          <path d="M20 14h2" />
-          <path d="M15 13v2" />
-          <path d="M9 13v2" />
-        </svg>
+        />
       </div>
     ),
     { ...size },

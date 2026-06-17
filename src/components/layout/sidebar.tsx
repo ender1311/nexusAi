@@ -2,9 +2,10 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { ChevronLeft, ChevronRight, ChevronDown, Zap } from "lucide-react";
+import { ChevronLeft, ChevronRight, ChevronDown } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useEffect, useMemo, useState, useSyncExternalStore } from "react";
+import { NexusMark } from "@/components/layout/nexus-mark";
 import { SignOutButton } from "@/components/layout/sign-out-button";
 import { ThemeToggle } from "@/components/layout/theme-toggle";
 import {
@@ -151,7 +152,7 @@ export function Sidebar({ user }: { user: SidebarUser | null }) {
       <div className="flex items-center justify-between h-16 px-4 border-b">
         {!collapsed && (
           <div className="flex items-center gap-2">
-            <Zap className="h-5 w-5 text-primary" />
+            <NexusMark className="h-5 w-5" />
             <span className="font-semibold text-sm">Nexus</span>
             <span className="rounded-full bg-amber-500/15 px-1.5 py-0.5 text-[10px] font-bold uppercase leading-none tracking-wide text-amber-600 dark:text-amber-400">
               Beta
@@ -160,7 +161,7 @@ export function Sidebar({ user }: { user: SidebarUser | null }) {
         )}
         {collapsed && (
           <div className="mx-auto flex flex-col items-center gap-0.5">
-            <Zap className="h-5 w-5 text-primary" />
+            <NexusMark className="h-5 w-5" />
             <span className="text-[8px] font-bold uppercase leading-none tracking-wide text-amber-600 dark:text-amber-400">
               Beta
             </span>

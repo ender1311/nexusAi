@@ -1,4 +1,4 @@
-import { Zap } from "lucide-react";
+import { NexusMark } from "@/components/layout/nexus-mark";
 
 const ERROR_MESSAGES: Record<string, string> = {
   unauthorized:
@@ -20,7 +20,7 @@ export default async function LoginPage({
       <div className="w-full max-w-sm space-y-6 rounded-xl border bg-card p-8 shadow-sm">
         <div className="flex flex-col items-center gap-3 text-center">
           <div className="flex h-12 w-12 items-center justify-center rounded-full bg-primary/10">
-            <Zap className="h-6 w-6 text-primary" />
+            <NexusMark className="h-6 w-6" />
           </div>
           <div>
             <h1 className="text-2xl font-bold">Nexus</h1>

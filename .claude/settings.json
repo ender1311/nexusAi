@@ -1,10 +1,4 @@
 {
-  "model": "opusplan",
-  "env": {
-    "ANTHROPIC_DEFAULT_OPUS_MODEL": "claude-fable-5",
-    "ANTHROPIC_DEFAULT_SONNET_MODEL": "claude-sonnet-4-6",
-    "CLAUDE_CODE_AUTO_COMPACT_WINDOW": "200000"
-  },
   "hooks": {
     "PostToolUse": [
       {
