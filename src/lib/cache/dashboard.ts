@@ -36,6 +36,9 @@ export const getCachedDashboardCounts = cache(
       const thirtyDaysAgo = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000);
       // Single aggregated pass with a WHERE on sentAt so Postgres uses @@index([sentAt])
       // instead of a full table scan. "total_decisions" etc. are now 30-day figures.
+      // Push sends require brazeSendId IS NOT NULL — never-sent lottery rows (sentAt
+      // defaults to now() at insert) would otherwise inflate the denominator and deflate
+      // the open rate (matches the "Braze Currents" panel + getCachedAgentCardStats).
       // trackedUser.count() is intentionally excluded — it's a full-table scan on 19M+ rows.
       // Use getCachedTrackedUserCount() separately (24h TTL, not busted by hourly cron).
       const rows = await prisma.$queryRaw<[{
@@ -49,8 +52,8 @@ export const getCachedDashboardCounts = cache(
           COUNT(*) FILTER (WHERE "sentAt" >= ${twentyFourHoursAgo})                          AS sent_last24h,
           COUNT(*)                                                                             AS total_decisions,
           COUNT(*) FILTER (WHERE "conversionAt" IS NOT NULL)                                  AS total_conversions,
-          COUNT(*) FILTER (WHERE "channel" = 'push')                                          AS total_push_sends,
-          COUNT(*) FILTER (WHERE "channel" = 'push' AND "pushOpenAt" IS NOT NULL)             AS total_push_opens
+          COUNT(*) FILTER (WHERE "channel" = 'push' AND "brazeSendId" IS NOT NULL)            AS total_push_sends,
+          COUNT(*) FILTER (WHERE "channel" = 'push' AND "brazeSendId" IS NOT NULL AND "pushOpenAt" IS NOT NULL) AS total_push_opens
         FROM "UserDecision"
         WHERE "sentAt" >= ${thirtyDaysAgo}
       `;
