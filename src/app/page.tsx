@@ -356,7 +356,11 @@ async function RecentSendsSection() {
 }
 
 async function PersonaChartSection() {
-  const personasRaw = await getCachedPersonaDistribution();
+  const personasRaw = await withTimeout(
+    getCachedPersonaDistribution().catch(() => []),
+    6000,
+    [] as Awaited<ReturnType<typeof getCachedPersonaDistribution>>,
+  );
   const totalPersonaUsers = personasRaw.reduce((s, p) => s + (p.userCount ?? 0), 0);
   const personaData = personasRaw
     .filter((p) => (p.userCount ?? 0) > 0)
@@ -384,7 +388,11 @@ async function PersonaChartSection() {
 }
 
 async function TopPersonaSection() {
-  const personasRaw = await getCachedPersonaDistribution();
+  const personasRaw = await withTimeout(
+    getCachedPersonaDistribution().catch(() => []),
+    6000,
+    [] as Awaited<ReturnType<typeof getCachedPersonaDistribution>>,
+  );
   const topPersona = personasRaw[0];
 
   return (
