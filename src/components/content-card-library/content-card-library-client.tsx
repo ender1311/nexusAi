@@ -9,6 +9,8 @@ import { cn } from "@/lib/utils";
 import { ContentCardCard, type ContentCardVariant } from "./content-card-card";
 import { ContentCardListRow } from "./content-card-list-row";
 import { CONTENT_CARD_CATEGORIES } from "@/lib/content-card-categories";
+import { sortLibraryVariants } from "@/lib/library-sort";
+import { LibrarySortSelect, useLibrarySort } from "@/components/library/library-sort";
 
 export type ContentCardGroup = {
   category: string;
@@ -51,6 +53,7 @@ export function ContentCardLibraryClient({ groups }: Props) {
   const [search, setSearch] = useState("");
   const [categoryFilter, setCategoryFilter] = useState<string | null>(null);
   const [viewMode, setViewMode] = useState<ViewMode>("grid");
+  const [sortMode, setSortMode] = useLibrarySort("content-card-library-sort");
   const [collapsed, setCollapsed] = useState<Record<string, boolean>>({});
   const [serverItems, setServerItems] = useState<ContentCardVariant[] | null>(null);
   const [serverLoading, setServerLoading] = useState(false);
@@ -140,6 +143,7 @@ export function ContentCardLibraryClient({ groups }: Props) {
               onChange={(e) => setSearch(e.target.value)}
             />
           </div>
+          <LibrarySortSelect value={sortMode} onChange={setSortMode} />
           <div className="flex items-center border rounded-lg overflow-hidden shrink-0">
             <button
               title="Grid view"
@@ -223,7 +227,9 @@ export function ContentCardLibraryClient({ groups }: Props) {
             <p className="text-xs text-muted-foreground pb-1">
               {flatVariants.length} result{flatVariants.length !== 1 ? "s" : ""}
             </p>
-            {viewMode === "grid" ? renderGrid(flatVariants) : renderList(flatVariants)}
+            {viewMode === "grid"
+              ? renderGrid(sortLibraryVariants(flatVariants, sortMode))
+              : renderList(sortLibraryVariants(flatVariants, sortMode))}
           </div>
         )
       ) : allVariants.length === 0 ? (
@@ -257,7 +263,9 @@ export function ContentCardLibraryClient({ groups }: Props) {
                 </button>
 
                 {!isCollapsed && (
-                  viewMode === "grid" ? renderGrid(group.variants) : renderList(group.variants)
+                  viewMode === "grid"
+                    ? renderGrid(sortLibraryVariants(group.variants, sortMode))
+                    : renderList(sortLibraryVariants(group.variants, sortMode))
                 )}
               </section>
             );

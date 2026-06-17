@@ -50,6 +50,16 @@ export function PushLibraryClient({ groups, canManageLibrary }: Props) {
   const [serverItems, setServerItems] = useState<TemplateVariant[] | null>(null);
   const [selected, setSelected] = useState<Set<string>>(new Set());
 
+  // Persist the sort choice across sessions.
+  useEffect(() => {
+    const saved = localStorage.getItem("push-library-sort");
+    if (saved === "createdAt" || saved === "name") setSort(saved);
+  }, []);
+  function changeSort(next: "createdAt" | "name") {
+    setSort(next);
+    try { localStorage.setItem("push-library-sort", next); } catch { /* ignore */ }
+  }
+
   // Local copy of grouped data so drag-reorder is reflected immediately.
   const [localGroups, setLocalGroups] = useState<TemplateGroup[]>(groups);
   useEffect(() => { setLocalGroups(groups); }, [groups]);
@@ -255,7 +265,7 @@ export function PushLibraryClient({ groups, canManageLibrary }: Props) {
         <div className="flex items-center justify-between gap-2 sm:contents">
           <select
             value={sort}
-            onChange={(e) => setSort(e.target.value as "createdAt" | "name")}
+            onChange={(e) => changeSort(e.target.value as "createdAt" | "name")}
             className="h-9 rounded-md border bg-background px-2 text-xs shrink-0"
             aria-label="Sort"
           >

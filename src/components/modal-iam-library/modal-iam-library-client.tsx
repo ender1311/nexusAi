@@ -9,6 +9,8 @@ import { cn } from "@/lib/utils";
 import { ModalIamCard, type ModalIamVariant } from "./modal-iam-card";
 import { ModalIamListRow } from "./modal-iam-list-row";
 import { MODAL_IAM_CATEGORIES } from "@/lib/modal-iam-categories";
+import { sortLibraryVariants } from "@/lib/library-sort";
+import { LibrarySortSelect, useLibrarySort } from "@/components/library/library-sort";
 
 export type ModalIamGroup = {
   category: string;
@@ -50,6 +52,7 @@ export function ModalIamLibraryClient({ groups }: Props) {
   const [search, setSearch] = useState("");
   const [categoryFilter, setCategoryFilter] = useState<string | null>(null);
   const [viewMode, setViewMode] = useState<ViewMode>("grid");
+  const [sortMode, setSortMode] = useLibrarySort("modal-iam-library-sort");
   const [collapsed, setCollapsed] = useState<Record<string, boolean>>({});
   const [serverItems, setServerItems] = useState<ModalIamVariant[] | null>(null);
   const [serverTotal, setServerTotal] = useState<number | null>(null);
@@ -151,6 +154,7 @@ export function ModalIamLibraryClient({ groups }: Props) {
               onChange={(e) => setSearch(e.target.value)}
             />
           </div>
+          <LibrarySortSelect value={sortMode} onChange={setSortMode} />
           <div className="flex items-center border rounded-lg overflow-hidden shrink-0">
             <button
               title="Grid view"
@@ -250,7 +254,9 @@ export function ModalIamLibraryClient({ groups }: Props) {
                 ? `Showing ${flatVariants.length} of ${serverTotal} results`
                 : `${flatVariants.length} result${flatVariants.length !== 1 ? "s" : ""}`}
             </p>
-            {viewMode === "grid" ? renderGrid(flatVariants) : renderList(flatVariants)}
+            {viewMode === "grid"
+              ? renderGrid(sortLibraryVariants(flatVariants, sortMode))
+              : renderList(sortLibraryVariants(flatVariants, sortMode))}
           </div>
         )
       ) : allVariants.length === 0 ? (
@@ -284,7 +290,9 @@ export function ModalIamLibraryClient({ groups }: Props) {
                 </button>
 
                 {!isCollapsed && (
-                  viewMode === "grid" ? renderGrid(group.variants) : renderList(group.variants)
+                  viewMode === "grid"
+                    ? renderGrid(sortLibraryVariants(group.variants, sortMode))
+                    : renderList(sortLibraryVariants(group.variants, sortMode))
                 )}
               </section>
             );
