@@ -25,6 +25,7 @@ import {
   getCachedFleetRecoveryStats,
   getCachedFleetGiftStats,
   getCachedAgentCardStats,
+  getCachedKillSwitchSetting,
 } from "@/lib/cache";
 import { withTimeout } from "@/lib/with-timeout";
 import { getCachedBrazeStats } from "@/lib/braze/analytics";
@@ -100,20 +101,27 @@ function ListCardSkeleton() {
 // Core cards — backed by fast indexed queries (sentAt index, agent list, 24h TrackedUser count cache).
 // Intentionally excludes fleet recovery/gift stats so slow aggregates don't block this section.
 async function MetricCardsSection() {
-  const [{ sentLast24h, totalConversions, totalDecisions, totalPushSends }, agents, trackedUsers, hiddenStats] =
+  const [{ sentLast24h, totalConversions, totalDecisions, totalPushSends }, agents, trackedUsers, hiddenStats, killSwitch] =
     await Promise.all([
       getCachedDashboardCounts(),
       getCachedAgentList(),
       withTimeout(getCachedTrackedUserCount().catch(() => 0), 6000, 0),
       getHiddenStatsForCurrentUser(),
+      getCachedKillSwitchSetting(),
     ]);
   const avgConvRate = totalDecisions > 0 ? (totalConversions / totalDecisions) * 100 : 0;
-  const activeAgents = agents.filter((a) => a.status === "active").length;
+  // "Running" = agents that would actually send right now: status active, not
+  // individually paused, and not globally halted by the kill switch.
+  const killSwitchOn = killSwitch?.value === "true";
+  const runningAgents = killSwitchOn
+    ? 0
+    : agents.filter((a) => a.status === "active" && !a.sendingPaused).length;
+  const activeConfigured = agents.filter((a) => a.status === "active").length;
 
   return (
     <>
       {!isStatHidden(hiddenStats, "dashboard.trackedUsers") && <MetricCard title="Tracked Users" value={formatNumber(trackedUsers)} description="synced from Hightouch" icon={Users} accentColor="violet" />}
-      {!isStatHidden(hiddenStats, "dashboard.activeAgents") && <MetricCard title="Active Agents" value={activeAgents} description="currently running" icon={Bot} href="/agents" accentColor="cyan" />}
+      {!isStatHidden(hiddenStats, "dashboard.activeAgents") && <MetricCard title="Active Agents" value={runningAgents} description={killSwitchOn ? `kill switch on · ${activeConfigured} paused` : "currently running"} icon={Bot} href="/agents" accentColor="cyan" />}
       {!isStatHidden(hiddenStats, "dashboard.messagesSent24h") && <MetricCard title="Messages Sent (24h)" value={formatNumber(sentLast24h)} description="across all channels" icon={Send} accentColor="pink" />}
       {avgConvRate > 0 && !isStatHidden(hiddenStats, "dashboard.avgConversionRate") && <MetricCard title="Avg Conversion Rate" value={`${avgConvRate.toFixed(2)}%`} description="last 30 days" icon={TrendingUp} accentColor="emerald" />}
       {!isStatHidden(hiddenStats, "dashboard.totalSends") && <MetricCard title="Total Sends" value={formatNumber(totalPushSends)} description="push, last 30 days" icon={Send} accentColor="indigo" />}
