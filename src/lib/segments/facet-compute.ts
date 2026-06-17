@@ -1,6 +1,5 @@
 import { fieldSqlExpr } from "./compile-sql";
-import { prisma } from "@/lib/db";
-import type { Prisma } from "@/generated/prisma/client";
+import { prisma, type DbExecutor } from "@/lib/db";
 import type { FieldDef } from "./field-catalog";
 import type { FieldFacet, ValueCount } from "./facet-types";
 
@@ -64,7 +63,7 @@ export function rangeFacetSql(fieldId: string, pct: number): string {
 }
 
 /** Planner row estimate for the User table (instant; no scan). -1/0 when never analyzed → full scan. */
-async function estimatedUserRows(tx: Prisma.TransactionClient): Promise<number> {
+async function estimatedUserRows(tx: DbExecutor): Promise<number> {
   const rows = await tx.$queryRawUnsafe<Array<{ est: bigint | number | null }>>(
     `SELECT reltuples::bigint AS est FROM pg_class WHERE relname = 'User'`,
   );

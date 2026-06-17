@@ -1,7 +1,6 @@
 import { parseSegmentTargeting } from "@/lib/agent-targeting";
-import type { Prisma } from "@/generated/prisma/client";
 import type { CompiledWhere } from "./compile-sql";
-import { prisma } from "@/lib/db";
+import { prisma, type DbExecutor } from "@/lib/db";
 import { parseSegmentRule } from "./parse-rule";
 import { compileSegmentRule } from "./compile-sql";
 import { readUserIngestMarker } from "./ingest-marker";
@@ -40,7 +39,7 @@ export const MATERIALIZE_TX_TIMEOUT_MS = SEGMENT_TIMEOUT_MS + 1_000;
  *  fixed segmentName/runStart params are appended after them so the WHERE's
  *  placeholder numbering never needs rewriting. */
 export async function materializeSegment(
-  tx: Prisma.TransactionClient,
+  tx: DbExecutor,
   args: { segmentName: string; where: CompiledWhere; runStart: Date },
 ): Promise<{ matched: number; deleted: number }> {
   const { segmentName, where, runStart } = args;
