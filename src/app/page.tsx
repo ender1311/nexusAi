@@ -101,7 +101,12 @@ function ListCardSkeleton() {
 // Intentionally excludes fleet recovery/gift stats so slow aggregates don't block this section.
 async function MetricCardsSection() {
   const [{ sentLast24h, totalConversions, totalDecisions, totalPushSends }, agents, trackedUsers, hiddenStats] =
-    await Promise.all([getCachedDashboardCounts(), getCachedAgentList(), getCachedTrackedUserCount(), getHiddenStatsForCurrentUser()]);
+    await Promise.all([
+      getCachedDashboardCounts(),
+      getCachedAgentList(),
+      withTimeout(getCachedTrackedUserCount().catch(() => 0), 6000, 0),
+      getHiddenStatsForCurrentUser(),
+    ]);
   const avgConvRate = totalDecisions > 0 ? (totalConversions / totalDecisions) * 100 : 0;
   const activeAgents = agents.filter((a) => a.status === "active").length;
 
@@ -344,14 +349,14 @@ async function RecentSendsSection() {
 
 async function PersonaChartSection() {
   const personasRaw = await getCachedPersonaDistribution();
-  const totalPersonaUsers = personasRaw.reduce((s, p) => s + p._count.trackedUsers, 0);
+  const totalPersonaUsers = personasRaw.reduce((s, p) => s + (p.userCount ?? 0), 0);
   const personaData = personasRaw
-    .filter((p) => p._count.trackedUsers > 0)
+    .filter((p) => (p.userCount ?? 0) > 0)
     .map((p) => ({
       name: p.name,
       label: p.label ?? p.name,
-      value: p._count.trackedUsers,
-      percent: totalPersonaUsers > 0 ? Math.round((p._count.trackedUsers / totalPersonaUsers) * 100) : 0,
+      value: p.userCount ?? 0,
+      percent: totalPersonaUsers > 0 ? Math.round(((p.userCount ?? 0) / totalPersonaUsers) * 100) : 0,
       color: p.color,
     }));
 
@@ -380,13 +385,13 @@ async function TopPersonaSection() {
         <CardTitle className="text-sm font-semibold">Top Persona</CardTitle>
       </CardHeader>
       <CardContent>
-        {topPersona && topPersona._count.trackedUsers > 0 ? (
+        {topPersona && (topPersona.userCount ?? 0) > 0 ? (
           <div className="rounded-lg p-2 -m-2">
             <p className="text-sm font-medium">{topPersona.name}</p>
             <p className="text-xs text-muted-foreground mt-0.5">{topPersona.label ?? topPersona.name}</p>
             <div className="flex items-center gap-3 mt-2">
               <span className="text-xs text-muted-foreground">
-                <span className="font-semibold text-foreground">{formatNumber(topPersona._count.trackedUsers)}</span> users
+                <span className="font-semibold text-foreground">{formatNumber(topPersona.userCount ?? 0)}</span> users
               </span>
             </div>
           </div>
@@ -408,7 +413,11 @@ async function FunnelBreakdownSection() {
 }
 
 async function ChannelBreakdownSection() {
-  const stats = await getCachedPreferredChannelStats().catch(() => null);
+  const stats = await withTimeout(
+    getCachedPreferredChannelStats().catch(() => null),
+    6000,
+    null,
+  );
   if (!stats) return null;
   return <ChannelPreferenceBreakdown stats={stats} />;
 }

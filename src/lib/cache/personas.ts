@@ -19,14 +19,19 @@ export const getCachedActivePersonas = unstable_cache(
   { tags: ["personas"], revalidate: TTL.STANDARD }
 );
 
-/** Persona distribution with user counts for the dashboard chart. */
+/**
+ * Persona distribution with user counts for the dashboard chart.
+ * Reads the precomputed `userCount` column (refreshed by the refresh-persona-counts
+ * cron) instead of a live `_count.trackedUsers`, which is a correlated COUNT over
+ * the ~39M-row User table per persona (~100s — blew the 30s page timeout).
+ */
 export const getCachedPersonaDistribution = cache(
   unstable_cache(
     () =>
       prisma.persona.findMany({
         where: { isActive: true },
-        select: { name: true, label: true, color: true, _count: { select: { trackedUsers: true } } },
-        orderBy: { trackedUsers: { _count: "desc" } },
+        select: { name: true, label: true, color: true, userCount: true },
+        orderBy: { userCount: { sort: "desc", nulls: "last" } },
         take: 20,
       }),
     ["personas-distribution"],

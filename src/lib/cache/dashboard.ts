@@ -14,7 +14,15 @@ import { TTL } from "./ttl";
  */
 export const getCachedTrackedUserCount = cache(
   unstable_cache(
-    () => prisma.trackedUser.count(),
+    async () => {
+      // Prefer the snapshot written by the refresh-persona-counts cron. A live
+      // COUNT(*) over the ~39M-row User table is a ~120s full scan that hung the
+      // dashboard's core metric cards on a cold cache.
+      const snap = await prisma.appSetting.findUnique({ where: { key: "tracked_user_count" } });
+      const n = snap?.value ? Number(snap.value) : NaN;
+      if (Number.isFinite(n)) return n;
+      return prisma.trackedUser.count();
+    },
     ["tracked-user-count"],
     { tags: ["user-count"], revalidate: TTL.DAY }
   )
@@ -132,6 +140,18 @@ export type PreferredChannelStats = {
 export const getCachedPreferredChannelStats = cache(
   unstable_cache(
     async (): Promise<PreferredChannelStats> => {
+      // Prefer the snapshot written by the refresh-persona-counts cron. The live
+      // query is an unfiltered COUNT FILTER over ~39M User rows (~144s) that no
+      // index can speed up — too slow to recompute on a cold page cache.
+      const snap = await prisma.appSetting.findUnique({ where: { key: "preferred_channel_stats" } });
+      if (snap?.value) {
+        try {
+          const parsed = JSON.parse(snap.value) as PreferredChannelStats;
+          if (parsed && typeof parsed.total === "number") return parsed;
+        } catch {
+          // fall through to live query
+        }
+      }
       const rows = await prisma.$queryRaw<[{
         total: bigint;
         ext_push: bigint;
