@@ -4,6 +4,7 @@ import { useState } from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { ExternalLink, Layout } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { LibraryDeleteButton } from "@/components/library/library-delete-button";
 
 export type ContentCardVariant = {
   id: string;
@@ -17,7 +18,7 @@ export type ContentCardVariant = {
   sortOrder: number;
 };
 
-export function ContentCardCard({ variant }: { variant: ContentCardVariant }) {
+export function ContentCardCard({ variant, canManage }: { variant: ContentCardVariant; canManage?: boolean }) {
   const [open, setOpen] = useState(false);
 
   return (
@@ -26,6 +27,14 @@ export function ContentCardCard({ variant }: { variant: ContentCardVariant }) {
         className="group relative flex flex-col rounded-xl border border-border/60 bg-card shadow-sm hover:border-border hover:shadow-md transition-all duration-200 cursor-pointer overflow-hidden"
         onClick={() => setOpen(true)}
       >
+        {canManage && (
+          <LibraryDeleteButton
+            apiPath="/api/content-card-library"
+            variantId={variant.id}
+            variantName={variant.name}
+            className="absolute right-2 top-2 z-10 bg-card/80 opacity-0 backdrop-blur-sm transition-opacity group-hover:opacity-100"
+          />
+        )}
         {/* Category breadcrumb */}
         {(variant.category || variant.subcategory) && (
           <div className="flex items-center gap-1 px-4 pt-3">

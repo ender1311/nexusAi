@@ -28,7 +28,7 @@ type ViewMode = "grid" | "list";
 type SortMode = "default" | "name-asc" | "name-desc" | "langs-desc";
 type HtmlCache = { en: string; langs: Record<string, string> };
 
-type Props = { groups: EmailGroup[] };
+type Props = { groups: EmailGroup[]; canManage?: boolean };
 
 const SORT_OPTIONS: { value: SortMode; label: string }[] = [
   { value: "default",    label: "Default order" },
@@ -79,7 +79,7 @@ function GroupLabel({ category, subcategory }: { category: string; subcategory: 
   );
 }
 
-export function EmailLibraryClient({ groups }: Props) {
+export function EmailLibraryClient({ groups, canManage }: Props) {
   const [search, setSearch] = useState("");
   const [categoryFilter, setCategoryFilter] = useState<string | null>(null);
   const [viewMode, setViewMode] = useState<ViewMode>("grid");
@@ -231,6 +231,7 @@ export function EmailLibraryClient({ groups }: Props) {
             variant={v}
             onSelect={handleSelect}
             selected={selectedVariant?.id === v.id}
+            canManage={canManage}
           />
         ))}
       </div>
@@ -246,6 +247,7 @@ export function EmailLibraryClient({ groups }: Props) {
             variant={v}
             onSelect={handleSelect}
             selected={selectedVariant?.id === v.id}
+            canManage={canManage}
           />
         ))}
       </div>

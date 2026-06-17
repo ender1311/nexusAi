@@ -19,7 +19,7 @@ export type SlideupGroup = {
 };
 
 type ViewMode = "grid" | "list";
-type Props = { groups: SlideupGroup[] };
+type Props = { groups: SlideupGroup[]; canManage?: boolean };
 
 const categoryOrder = SLIDEUP_CATEGORIES.map((c) => c.value);
 
@@ -49,7 +49,7 @@ function GroupLabel({ category, subcategory }: { category: string; subcategory: 
   );
 }
 
-export function SlideupLibraryClient({ groups }: Props) {
+export function SlideupLibraryClient({ groups, canManage }: Props) {
   const [search, setSearch] = useState("");
   const [categoryFilter, setCategoryFilter] = useState<string | null>(null);
   const [viewMode, setViewMode] = useState<ViewMode>("grid");
@@ -116,7 +116,7 @@ export function SlideupLibraryClient({ groups }: Props) {
   function renderGrid(variants: SlideupVariant[]) {
     return (
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
-        {variants.map((v) => <SlideupCard key={v.id} variant={v} />)}
+        {variants.map((v) => <SlideupCard key={v.id} variant={v} canManage={canManage} />)}
       </div>
     );
   }
@@ -124,7 +124,7 @@ export function SlideupLibraryClient({ groups }: Props) {
   function renderList(variants: SlideupVariant[]) {
     return (
       <div className="rounded-xl border overflow-hidden">
-        {variants.map((v) => <SlideupListRow key={v.id} variant={v} />)}
+        {variants.map((v) => <SlideupListRow key={v.id} variant={v} canManage={canManage} />)}
       </div>
     );
   }

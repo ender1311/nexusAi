@@ -5,8 +5,9 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/u
 import { ExternalLink, Layout } from "lucide-react";
 import { cn } from "@/lib/utils";
 import type { ContentCardVariant } from "./content-card-card";
+import { LibraryDeleteButton } from "@/components/library/library-delete-button";
 
-export function ContentCardListRow({ variant }: { variant: ContentCardVariant }) {
+export function ContentCardListRow({ variant, canManage }: { variant: ContentCardVariant; canManage?: boolean }) {
   const [open, setOpen] = useState(false);
 
   const catLabel = [variant.category, variant.subcategory]
@@ -58,6 +59,15 @@ export function ContentCardListRow({ variant }: { variant: ContentCardVariant })
         {/* Link indicator */}
         {variant.deeplink && (
           <ExternalLink className="h-3.5 w-3.5 text-muted-foreground/40 shrink-0 hidden sm:block" />
+        )}
+
+        {canManage && (
+          <LibraryDeleteButton
+            apiPath="/api/content-card-library"
+            variantId={variant.id}
+            variantName={variant.name}
+            className="shrink-0 opacity-0 group-hover:opacity-100 transition-opacity"
+          />
         )}
       </div>
 

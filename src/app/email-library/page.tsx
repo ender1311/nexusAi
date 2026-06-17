@@ -1,11 +1,13 @@
 export const revalidate = 60;
 
 import { prisma } from "@/lib/db";
+import { getAuth } from "@/lib/auth";
 import { Header } from "@/components/layout/header";
 import { EmailLibraryClient, type EmailGroup } from "@/components/email-library/email-library-client";
 import type { EmailVariant } from "@/components/email-library/email-card";
 
 export default async function EmailLibraryPage() {
+  const { canManageLibrary } = await getAuth();
   const variants = await prisma.messageVariant.findMany({
     where: { message: { agentId: null, channel: "email" }, status: { not: "archived" } },
     select: {
@@ -47,7 +49,7 @@ export default async function EmailLibraryPage() {
     <>
       <Header title="Email Library" description={description} />
       <div className="p-4 sm:p-6 space-y-4">
-        <EmailLibraryClient groups={groups} />
+        <EmailLibraryClient groups={groups} canManage={canManageLibrary} />
       </div>
     </>
   );

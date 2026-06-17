@@ -4,14 +4,16 @@ import { Button } from "@/components/ui/button";
 import { Eye, Mail } from "lucide-react";
 import { cn } from "@/lib/utils";
 import type { EmailVariant } from "./email-card";
+import { LibraryDeleteButton } from "@/components/library/library-delete-button";
 
 type Props = {
   variant: EmailVariant;
   onSelect: (variant: EmailVariant, lang?: string) => void;
   selected?: boolean;
+  canManage?: boolean;
 };
 
-export function EmailListRow({ variant, onSelect, selected }: Props) {
+export function EmailListRow({ variant, onSelect, selected, canManage }: Props) {
   const activeLangs = variant.translations.map((t) => t.language);
 
   const catLabel = [variant.category, variant.subcategory]
@@ -98,6 +100,15 @@ export function EmailListRow({ variant, onSelect, selected }: Props) {
       >
         <Eye className="h-4 w-4" />
       </Button>
+
+      {canManage && (
+        <LibraryDeleteButton
+          apiPath="/api/email-library"
+          variantId={variant.id}
+          variantName={variant.name}
+          className="shrink-0 opacity-0 group-hover:opacity-100 transition-opacity"
+        />
+      )}
     </div>
   );
 }

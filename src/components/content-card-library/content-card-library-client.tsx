@@ -19,7 +19,7 @@ export type ContentCardGroup = {
 };
 
 type ViewMode = "grid" | "list";
-type Props = { groups: ContentCardGroup[] };
+type Props = { groups: ContentCardGroup[]; canManage?: boolean };
 
 const categoryOrder = CONTENT_CARD_CATEGORIES.map((c) => c.value);
 
@@ -49,7 +49,7 @@ function GroupLabel({ category, subcategory }: { category: string; subcategory: 
   );
 }
 
-export function ContentCardLibraryClient({ groups }: Props) {
+export function ContentCardLibraryClient({ groups, canManage }: Props) {
   const [search, setSearch] = useState("");
   const [categoryFilter, setCategoryFilter] = useState<string | null>(null);
   const [viewMode, setViewMode] = useState<ViewMode>("grid");
@@ -116,7 +116,7 @@ export function ContentCardLibraryClient({ groups }: Props) {
   function renderGrid(variants: ContentCardVariant[]) {
     return (
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
-        {variants.map((v) => <ContentCardCard key={v.id} variant={v} />)}
+        {variants.map((v) => <ContentCardCard key={v.id} variant={v} canManage={canManage} />)}
       </div>
     );
   }
@@ -124,7 +124,7 @@ export function ContentCardLibraryClient({ groups }: Props) {
   function renderList(variants: ContentCardVariant[]) {
     return (
       <div className="rounded-xl border overflow-hidden">
-        {variants.map((v) => <ContentCardListRow key={v.id} variant={v} />)}
+        {variants.map((v) => <ContentCardListRow key={v.id} variant={v} canManage={canManage} />)}
       </div>
     );
   }

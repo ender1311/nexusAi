@@ -5,6 +5,7 @@ import { ExternalLink, Image as ImageIcon, X } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { cn } from "@/lib/utils";
+import { LibraryDeleteButton } from "@/components/library/library-delete-button";
 
 export type ModalIamVariant = {
   id: string;
@@ -20,13 +21,14 @@ export type ModalIamVariant = {
   sortOrder: number;
 };
 
-type Props = { variant: ModalIamVariant };
+type Props = { variant: ModalIamVariant; canManage?: boolean };
 
-export function ModalIamCard({ variant }: Props) {
+export function ModalIamCard({ variant, canManage }: Props) {
   const [open, setOpen] = useState(false);
 
   return (
     <>
+      <div className="relative group">
       <button
         onClick={() => setOpen(true)}
         className="group/card w-full text-left rounded-xl border bg-card hover:shadow-md transition-shadow overflow-hidden flex flex-col"
@@ -95,6 +97,15 @@ export function ModalIamCard({ variant }: Props) {
           </div>
         </div>
       </button>
+        {canManage && (
+          <LibraryDeleteButton
+            apiPath="/api/modal-iam-library"
+            variantId={variant.id}
+            variantName={variant.name}
+            className="absolute right-2 top-2 z-10 bg-card/80 opacity-0 backdrop-blur-sm transition-opacity group-hover:opacity-100"
+          />
+        )}
+      </div>
 
       <Dialog open={open} onOpenChange={setOpen}>
         <DialogContent className="max-w-lg">

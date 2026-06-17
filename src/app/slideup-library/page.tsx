@@ -1,11 +1,13 @@
 export const revalidate = 60;
 
 import { prisma } from "@/lib/db";
+import { getAuth } from "@/lib/auth";
 import { Header } from "@/components/layout/header";
 import { SlideupLibraryClient, type SlideupGroup } from "@/components/slideup-library/slideup-library-client";
 import type { SlideupVariant } from "@/components/slideup-library/slideup-card";
 
 export default async function SlideupLibraryPage() {
+  const { canManageLibrary } = await getAuth();
   const variants = await prisma.messageVariant.findMany({
     where: { message: { agentId: null, channel: "in-app" }, status: { not: "archived" } },
     select: {
@@ -37,7 +39,7 @@ export default async function SlideupLibraryPage() {
     <>
       <Header title="Slideup Library" description={description} />
       <div className="p-4 sm:p-6 space-y-4">
-        <SlideupLibraryClient groups={groups} />
+        <SlideupLibraryClient groups={groups} canManage={canManageLibrary} />
       </div>
     </>
   );

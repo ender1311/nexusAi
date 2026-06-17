@@ -6,17 +6,19 @@ import { Badge } from "@/components/ui/badge";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { cn } from "@/lib/utils";
 import type { ModalIamVariant } from "./modal-iam-card";
+import { LibraryDeleteButton } from "@/components/library/library-delete-button";
 
-type Props = { variant: ModalIamVariant };
+type Props = { variant: ModalIamVariant; canManage?: boolean };
 
-export function ModalIamListRow({ variant }: Props) {
+export function ModalIamListRow({ variant, canManage }: Props) {
   const [open, setOpen] = useState(false);
 
   return (
     <>
+      <div className="relative group border-b last:border-0">
       <button
         onClick={() => setOpen(true)}
-        className="w-full text-left flex items-center gap-3 px-4 py-3 border-b last:border-0 hover:bg-muted/40 transition-colors"
+        className="w-full text-left flex items-center gap-3 px-4 py-3 hover:bg-muted/40 transition-colors"
       >
         {variant.iconImageUrl ? (
           // eslint-disable-next-line @next/next/no-img-element
@@ -41,6 +43,15 @@ export function ModalIamListRow({ variant }: Props) {
           )}
         </div>
       </button>
+        {canManage && (
+          <LibraryDeleteButton
+            apiPath="/api/modal-iam-library"
+            variantId={variant.id}
+            variantName={variant.name}
+            className="absolute right-2 top-1/2 -translate-y-1/2 bg-card/80 opacity-0 backdrop-blur-sm transition-opacity group-hover:opacity-100"
+          />
+        )}
+      </div>
 
       <Dialog open={open} onOpenChange={setOpen}>
         <DialogContent className="max-w-lg">

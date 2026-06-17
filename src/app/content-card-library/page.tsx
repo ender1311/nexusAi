@@ -1,11 +1,13 @@
 export const revalidate = 60;
 
 import { prisma } from "@/lib/db";
+import { getAuth } from "@/lib/auth";
 import { Header } from "@/components/layout/header";
 import { ContentCardLibraryClient, type ContentCardGroup } from "@/components/content-card-library/content-card-library-client";
 import type { ContentCardVariant } from "@/components/content-card-library/content-card-card";
 
 export default async function ContentCardLibraryPage() {
+  const { canManageLibrary } = await getAuth();
   const variants = await prisma.messageVariant.findMany({
     where: { message: { agentId: null, channel: "content-card" }, status: { not: "archived" } },
     select: {
@@ -37,7 +39,7 @@ export default async function ContentCardLibraryPage() {
     <>
       <Header title="Content Card Library" description={description} />
       <div className="p-4 sm:p-6 space-y-4">
-        <ContentCardLibraryClient groups={groups} />
+        <ContentCardLibraryClient groups={groups} canManage={canManageLibrary} />
       </div>
     </>
   );

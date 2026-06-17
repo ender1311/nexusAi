@@ -3,6 +3,19 @@ import { Prisma } from "@/generated/prisma/client";
 import { prisma } from "@/lib/db";
 import { ok, fail, handleRouteError } from "@/lib/api/respond";
 import { EMAIL_CATEGORY_VALUES, EMAIL_SUBCATEGORIES } from "@/lib/email-categories";
+import { requireLibraryEditor } from "@/lib/auth";
+import { archiveLibraryVariant } from "@/lib/api/archive-library-variant";
+
+export async function DELETE(req: NextRequest) {
+  const forbidden = await requireLibraryEditor();
+  if (forbidden) return forbidden;
+  const id = new URL(req.url).searchParams.get("id");
+  try {
+    return await archiveLibraryVariant(id);
+  } catch (err) {
+    return handleRouteError("DELETE /api/email-library", err);
+  }
+}
 
 const FILTER_PARAMS = ["q", "category", "subcategory", "status", "sort", "dir", "limit", "cursor"];
 const SORT_FIELDS = new Set(["createdAt", "name", "sortOrder"]);

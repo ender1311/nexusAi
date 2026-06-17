@@ -19,7 +19,7 @@ export type ModalIamGroup = {
 };
 
 type ViewMode = "grid" | "list";
-type Props = { groups: ModalIamGroup[] };
+type Props = { groups: ModalIamGroup[]; canManage?: boolean };
 
 const categoryOrder = MODAL_IAM_CATEGORIES.map((c) => c.value);
 
@@ -48,7 +48,7 @@ function GroupLabel({ category, subcategory }: { category: string; subcategory: 
   );
 }
 
-export function ModalIamLibraryClient({ groups }: Props) {
+export function ModalIamLibraryClient({ groups, canManage }: Props) {
   const [search, setSearch] = useState("");
   const [categoryFilter, setCategoryFilter] = useState<string | null>(null);
   const [viewMode, setViewMode] = useState<ViewMode>("grid");
@@ -127,7 +127,7 @@ export function ModalIamLibraryClient({ groups }: Props) {
   function renderGrid(variants: ModalIamVariant[]) {
     return (
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
-        {variants.map((v) => <ModalIamCard key={v.id} variant={v} />)}
+        {variants.map((v) => <ModalIamCard key={v.id} variant={v} canManage={canManage} />)}
       </div>
     );
   }
@@ -135,7 +135,7 @@ export function ModalIamLibraryClient({ groups }: Props) {
   function renderList(variants: ModalIamVariant[]) {
     return (
       <div className="rounded-xl border overflow-hidden">
-        {variants.map((v) => <ModalIamListRow key={v.id} variant={v} />)}
+        {variants.map((v) => <ModalIamListRow key={v.id} variant={v} canManage={canManage} />)}
       </div>
     );
   }
