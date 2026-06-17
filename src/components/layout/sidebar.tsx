@@ -153,9 +153,19 @@ export function Sidebar({ user }: { user: SidebarUser | null }) {
           <div className="flex items-center gap-2">
             <Zap className="h-5 w-5 text-primary" />
             <span className="font-semibold text-sm">Nexus</span>
+            <span className="rounded-full bg-amber-500/15 px-1.5 py-0.5 text-[10px] font-bold uppercase leading-none tracking-wide text-amber-600 dark:text-amber-400">
+              Beta
+            </span>
           </div>
         )}
-        {collapsed && <Zap className="h-5 w-5 text-primary mx-auto" />}
+        {collapsed && (
+          <div className="mx-auto flex flex-col items-center gap-0.5">
+            <Zap className="h-5 w-5 text-primary" />
+            <span className="text-[8px] font-bold uppercase leading-none tracking-wide text-amber-600 dark:text-amber-400">
+              Beta
+            </span>
+          </div>
+        )}
         <button
           onClick={() => setCollapsed(!collapsed)}
           aria-label={collapsed ? "Expand sidebar" : "Collapse sidebar"}

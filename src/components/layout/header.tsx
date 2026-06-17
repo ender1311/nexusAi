@@ -24,7 +24,13 @@ export function Header({ title, titleNode, description, backHref, backLabel, chi
             {backLabel ?? "Back"}
           </Link>
         )}
-        {titleNode ?? <h1 className="text-lg font-semibold">{title}</h1>}
+        <div className="flex items-center gap-2">
+          {titleNode ?? <h1 className="text-lg font-semibold">{title}</h1>}
+          {/* Beta badge — mobile only; desktop shows it next to the sidebar logo. */}
+          <span className="lg:hidden rounded-full bg-amber-500/15 px-1.5 py-0.5 text-[10px] font-bold uppercase leading-none tracking-wide text-amber-600 dark:text-amber-400">
+            Beta
+          </span>
+        </div>
         {description && (
           <p className="text-sm text-muted-foreground">{description}</p>
         )}
