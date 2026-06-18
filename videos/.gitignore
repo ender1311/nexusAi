@@ -1,0 +1,15 @@
+# HyperFrames authoring workspace — ignore heavy/generated artifacts.
+# Source kept in git: index.html, beats.json, design.md, lib/
+node_modules/
+out/
+.tts-tmp/
+.hyperframes/
+renders/
+narration.wav
+narration.json
+transcript.json
+timings.js
+*.log
+
+# Stray renders (canonical copies live in public/videos/)
+*.mp4

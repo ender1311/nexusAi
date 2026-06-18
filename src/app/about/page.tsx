@@ -4,6 +4,7 @@ import Link from "next/link";
 import { Header } from "@/components/layout/header";
 import { prisma } from "@/lib/db";
 import { unstable_cache } from "next/cache";
+import { NexusVideoPlayer } from "@/components/video/nexus-video-player";
 
 const RED = "#E63946";
 
@@ -228,6 +229,30 @@ export default async function AboutPage() {
                 <span key={n} className="text-base sm:text-lg font-semibold text-muted-foreground/60 tracking-tight">{n}</span>
               ))}
             </div>
+          </section>
+
+          {/* ── Watch the tour ───────────────────────────────────────── */}
+          <section className="px-4 sm:px-16 pb-12 sm:pb-20">
+            <div className="max-w-3xl mb-6 sm:mb-8">
+              <div className="text-[11px] font-mono tracking-widest uppercase mb-3" style={{ color: RED }}>WATCH</div>
+              <h2 className="text-2xl sm:text-4xl font-semibold tracking-tight leading-tight">
+                The whole idea, in a minute — or five.
+              </h2>
+              <p className="text-sm text-muted-foreground leading-relaxed mt-3">
+                Pick a length, pick a narrator. Same story, your pace.
+              </p>
+            </div>
+            <NexusVideoPlayer
+              basePath="/videos/nexus-about"
+              lengths={[
+                { key: "1min", label: "1 min" },
+                { key: "5min", label: "5 min" },
+              ]}
+              defaultLength="1min"
+              defaultVoice="heart"
+              accent={RED}
+              className="max-w-4xl"
+            />
           </section>
 
           {/* ── Feature grid ─────────────────────────────────────────── */}

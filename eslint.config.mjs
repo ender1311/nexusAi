@@ -9,6 +9,10 @@ const eslintConfig = defineConfig([
   globalIgnores([
     // Git worktrees (duplicate checkouts) — not primary source
     ".worktrees/**",
+    // Installed agent skills (third-party tooling) — not project code
+    ".agents/**",
+    // HyperFrames video authoring workspace — standalone compositions, own conventions
+    "videos/**",
     // Default ignores of eslint-config-next:
     ".next/**",
     "out/**",

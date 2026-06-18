@@ -60,6 +60,6 @@ export const config = {
     // /api/revalidate) authenticate per-request via API key / CRON_SECRET;
     // they don't need WorkOS session middleware, and skipping it here eliminates
     // ~600K+ unnecessary middleware invocations per 14 days.
-    "/((?!_next/static|_next/image|favicon\\.ico|api/ingest/|api/cron/|api/decide|api/admin/|api/revalidate|.*\\.(?:svg|png|jpg|jpeg|gif|webp)$).*)",
+    "/((?!_next/static|_next/image|favicon\\.ico|api/ingest/|api/cron/|api/decide|api/admin/|api/revalidate|.*\\.(?:svg|png|jpg|jpeg|gif|webp|mp4|webm)$).*)",
   ],
 };

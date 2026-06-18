@@ -1,0 +1,17 @@
+Most messages are sent blind. The same notification, to everyone, at the same time, hoping it lands.
+
+Nexus works differently. You write a handful of messages. Think of each one as a seed.
+
+Nexus decides who gets which seed. It sends, it watches what grows, and it steers the next round toward what's actually working.
+
+Here's the idea. Picture your audience as soil. Some people respond to encouragement. Some to a gentle reminder. Some to a question that makes them stop and think.
+
+No single message works for everyone. So Nexus learns which seed thrives in which soil, and quietly plants more of what bears fruit.
+
+It does this every hour, across push, email, and in-app. The longer it runs, the smarter it gets.
+
+No more one size fits all. No more guessing. Just the right message, for the right person, every single time.
+
+In production, that's a thirty four percent lift over sending to everyone.
+
+Nexus. Stop sowing blind.

@@ -1,0 +1,394 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=1920, height=1080" />
+    <script src="https://cdn.jsdelivr.net/npm/gsap@3.14.2/dist/gsap.min.js"></script>
+    <style>
+      :root {
+        --ink: #121212; --fg: #fcfafa; --red: #ff3d4d; --red-soft: #ff6976;
+        --green: #5fb87a; --green-deep: #57a16c; --muted: #9a9494;
+        --card: #1c1a1a; --line: #302726; --blue: #6f9bd1;
+      }
+      * { margin: 0; padding: 0; box-sizing: border-box; }
+      html, body { width: 1920px; height: 1080px; overflow: hidden; background: var(--ink);
+        font-family: "Inter", sans-serif; color: var(--fg); }
+      .mono { font-family: "JetBrains Mono", monospace; }
+      .scene { position: absolute; inset: 0; width: 1920px; height: 1080px; overflow: hidden;
+        background: var(--ink); display: flex; flex-direction: column; align-items: center; justify-content: center;
+        padding: 120px 160px 200px; }
+      #scene2,#scene3,#scene4,#scene5,#scene6,#scene7,#scene8,#scene9,#scene10,#scene11,#scene12 { opacity: 0; }
+      #scene1{z-index:1}#scene2{z-index:2}#scene3{z-index:3}#scene4{z-index:4}#scene5{z-index:5}#scene6{z-index:6}
+      #scene7{z-index:7}#scene8{z-index:8}#scene9{z-index:9}#scene10{z-index:10}#scene11{z-index:11}#scene12{z-index:12}
+
+      .step-badge { font-size: 19px; letter-spacing: 0.06em; color: var(--green); font-weight: 700; font-family: "JetBrains Mono", monospace; }
+      .kicker { font-size: 21px; letter-spacing: 0.34em; text-transform: uppercase; color: var(--green); font-weight: 700; }
+      .stitle { font-size: 52px; font-weight: 700; letter-spacing: -0.03em; margin-top: 10px; text-align: center; max-width: 1300px; }
+      .ssub { font-size: 25px; color: var(--muted); margin-top: 16px; text-align: center; max-width: 1150px; line-height: 1.4; }
+      .ssub b { color: var(--fg); font-weight: 600; }
+      .panel { background: var(--card); border: 1px solid var(--line); border-radius: 18px; }
+
+      .pill-row { display: flex; gap: 14px; margin-top: 40px; flex-wrap: wrap; justify-content: center; max-width: 1100px; }
+      .pill { padding: 12px 22px; border-radius: 999px; background: var(--card); border: 1px solid var(--line); font-size: 20px; color: var(--muted); }
+      .pill b { color: var(--fg); }
+
+      .flow { display: flex; align-items: center; gap: 40px; }
+      .flow-box { width: 290px; height: 150px; border-radius: 18px; background: var(--card); border: 1px solid var(--line);
+        display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 10px; }
+      .flow-box .fb-t { font-size: 30px; font-weight: 700; }
+      .flow-box .fb-s { font-size: 19px; color: var(--muted); }
+      .flow-pipe { width: 160px; height: 3px; background: var(--green-deep); position: relative; border-radius: 2px; }
+      .flow-pkt { position: absolute; top: -6px; left: 0; width: 15px; height: 15px; border-radius: 50%; background: var(--green); box-shadow: 0 0 16px var(--green); }
+      .rec { margin-top: 44px; width: 880px; padding: 22px 28px; border-radius: 14px; background: var(--card); border: 1px solid var(--line);
+        display: flex; gap: 26px; justify-content: space-between; font-size: 19px; }
+      .rec .rk { color: var(--muted); } .rec .rv { color: var(--fg); font-weight: 600; }
+
+      .vec { display: flex; align-items: flex-end; gap: 18px; height: 280px; }
+      .vbar-wrap { display: flex; flex-direction: column; align-items: center; gap: 14px; width: 96px; }
+      .vbar-track { height: 220px; width: 40px; display: flex; align-items: flex-end; }
+      .vbar { width: 100%; border-radius: 6px 6px 0 0; background: linear-gradient(to top, var(--green-deep), var(--green)); transform-origin: bottom; transform: scaleY(0); }
+      .vlabel { font-size: 16px; color: var(--muted); text-align: center; height: 40px; line-height: 1.2; }
+
+      .scatter { position: relative; width: 760px; height: 440px; }
+      .pt { position: absolute; width: 20px; height: 20px; border-radius: 50%; }
+      .ctr { position: absolute; width: 30px; height: 30px; border-radius: 50%; border: 3px solid var(--fg); opacity: 0; }
+
+      .cfg { width: 940px; border-radius: 18px; background: var(--card); border: 1px solid var(--line); overflow: hidden; }
+      .cfg-head { padding: 24px 32px; border-bottom: 1px solid var(--line); display: flex; justify-content: space-between; align-items: center; }
+      .cfg-head .ct { font-size: 30px; font-weight: 700; } .cfg-head .cs { font-size: 18px; color: var(--green); }
+      .cfg-row { padding: 20px 32px; border-top: 1px solid var(--line); display: flex; justify-content: space-between; font-size: 23px; }
+      .cfg-row:first-child { border-top: none; }
+      .cfg-row .ck { color: var(--muted); } .cfg-row .cv { font-weight: 600; }
+      .cfg-row .cv b { color: var(--red-soft); font-weight: 600; }
+
+      .funnel { display: flex; flex-direction: column; align-items: center; gap: 14px; }
+      .fn-row { display: flex; align-items: center; gap: 26px; }
+      .fn-bar { height: 58px; border-radius: 12px; background: linear-gradient(90deg, var(--green-deep), var(--green));
+        display: flex; align-items: center; justify-content: flex-end; padding-right: 20px; font-size: 22px; font-weight: 700; color: #06210f;
+        transform-origin: center; transform: scaleX(0); }
+      .fn-label { width: 360px; font-size: 22px; color: var(--muted); text-align: right; }
+      .fn-label b { color: var(--fg); font-weight: 600; }
+
+      .arms { display: flex; gap: 34px; }
+      .arm { width: 320px; padding: 26px; border-radius: 18px; background: var(--card); border: 1px solid var(--line); position: relative; }
+      .arm.win { border-color: var(--green); box-shadow: 0 0 36px rgba(95,184,122,0.35); }
+      .arm-t { font-size: 24px; font-weight: 700; margin-bottom: 4px; }
+      .arm-ab { font-size: 19px; color: var(--muted); margin-bottom: 14px; }
+      .arm-ab b { color: var(--fg); }
+      .beta-svg { width: 268px; height: 128px; display: block; }
+      .arm-flag { position: absolute; top: -16px; right: 18px; padding: 6px 16px; border-radius: 999px; background: var(--green); color: #06210f; font-size: 18px; font-weight: 700; opacity: 0; }
+
+      .send-row { display: flex; align-items: center; gap: 46px; }
+      .nexus-node { width: 200px; height: 120px; border-radius: 18px; background: var(--card); border: 1px solid var(--line);
+        display: grid; place-items: center; font-size: 30px; font-weight: 800; }
+      .nexus-node .x { color: var(--red); }
+      .chans { display: flex; flex-direction: column; gap: 16px; }
+      .chan { width: 260px; padding: 16px 24px; border-radius: 12px; background: var(--card); border: 1px solid var(--line); font-size: 24px; display: flex; align-items: center; gap: 14px; }
+      .chan .cd { width: 12px; height: 12px; border-radius: 50%; background: var(--red); }
+      .send-pipe { width: 130px; height: 3px; background: var(--red); border-radius: 2px; position: relative; }
+      .send-pkt { position: absolute; top: -7px; left: 0; width: 16px; height: 16px; border-radius: 50%; background: var(--red); box-shadow: 0 0 16px var(--red); }
+      .ret-pipe { width: 200px; height: 3px; background: var(--green-deep); border-radius: 2px; position: relative; }
+      .ret-pkt { position: absolute; top: -8px; right: 0; width: 17px; height: 17px; border-radius: 50%; background: var(--green); box-shadow: 0 0 16px var(--green); }
+      .match-badge { margin-top: 50px; padding: 14px 28px; border-radius: 999px; background: rgba(95,184,122,0.12); border: 1px solid var(--green);
+        color: var(--green); font-size: 23px; font-weight: 600; }
+      .event-chip { padding: 12px 22px; border-radius: 12px; background: var(--card); border: 1px solid var(--line); font-size: 24px; }
+      .event-chip b { color: var(--green); }
+
+      .reward-wrap { display: flex; flex-direction: column; align-items: center; gap: 28px; }
+      .formula { font-size: 30px; padding: 18px 30px; border-radius: 14px; background: var(--card); border: 1px solid var(--line); }
+      .formula b { color: var(--green); }
+      .ab-update { display: flex; gap: 50px; }
+      .ab-box { text-align: center; } .ab-box .v { font-size: 92px; font-weight: 800; line-height: 1; }
+      .ab-box .l { font-size: 22px; color: var(--muted); margin-top: 8px; }
+      .ab-a .v { color: var(--green); } .ab-b .v { color: var(--muted); }
+
+      .rounds { display: flex; gap: 60px; align-items: flex-end; }
+      .round { text-align: center; } .round .rl { font-size: 20px; color: var(--muted); margin-top: 14px; } .round svg { display: block; }
+
+      .outro-mark { font-size: 150px; font-weight: 800; letter-spacing: -0.05em; }
+      .outro-mark .x { color: var(--red); }
+      .outro-tag { font-size: 36px; font-weight: 500; color: var(--muted); margin-top: 26px; text-align: center; }
+
+      #scrim { position: absolute; left:0; right:0; bottom:0; height: 320px; z-index: 90;
+        background: linear-gradient(to top, rgba(10,10,10,0.92), transparent); pointer-events: none; }
+      #cap-layer { position: absolute; left:0; right:0; bottom: 84px; z-index: 100; height: 120px; }
+      .cap { position: absolute; left:0; right:0; text-align: center; font-size: 40px; font-weight: 600;
+        line-height: 1.25; opacity: 0; padding: 0 190px; text-shadow: 0 2px 18px rgba(0,0,0,0.7); }
+    </style>
+  </head>
+  <body>
+    <div id="root" data-composition-id="main" data-start="0" data-duration="219.691"
+         data-width="1920" data-height="1080">
+
+      <div id="scene1" class="scene" data-layout-allow-overlap>
+        <div class="kicker">The architecture</div>
+        <div class="stitle">How Nexus makes a decision,<br/>ten steps end to end</div>
+        <div class="pill-row" id="s1-pills"></div>
+      </div>
+
+      <div id="scene2" class="scene" data-layout-allow-overlap>
+        <div class="step-badge" id="s2-b" style="margin-bottom:14px;">STEP 01</div>
+        <div class="kicker" id="s2-k" style="margin-bottom:40px;">Data sync</div>
+        <div class="flow">
+          <div class="flow-box" id="s2-crm"><div class="fb-t">Your CRM</div><div class="fb-s">events · attributes</div></div>
+          <div class="flow-pipe" id="s2-pipe"><div class="flow-pkt" id="s2-pkt"></div></div>
+          <div class="flow-box" id="s2-nx"><div class="fb-t">Nexus</div><div class="fb-s">TrackedUser</div></div>
+        </div>
+        <div class="rec mono" id="s2-rec">
+          <span><span class="rk">channels</span> <span class="rv">push,email</span></span>
+          <span><span class="rk">lastSeen</span> <span class="rv">3d</span></span>
+          <span><span class="rk">funnel</span> <span class="rv">dau4</span></span>
+          <span><span class="rk">giving</span> <span class="rv">tier2</span></span>
+        </div>
+      </div>
+
+      <div id="scene3" class="scene" data-layout-allow-overlap>
+        <div class="step-badge" id="s3-b" style="margin-bottom:14px;">STEP 02</div>
+        <div class="kicker" id="s3-k" style="margin-bottom:8px;">Feature vector</div>
+        <div class="ssub" id="s3-sub" style="margin-top:6px;margin-bottom:26px;">10 behavioral signals per user, each a single number</div>
+        <div class="vec panel" id="s3-vec" style="padding:34px 30px 24px;"></div>
+      </div>
+
+      <div id="scene4" class="scene" data-layout-allow-overlap>
+        <div class="step-badge" id="s4-b" style="margin-bottom:14px;">STEP 03</div>
+        <div class="kicker" id="s4-k" style="margin-bottom:30px;">Persona discovery · k-means</div>
+        <div class="scatter" id="s4-scatter"></div>
+      </div>
+
+      <div id="scene5" class="scene" data-layout-allow-overlap>
+        <div class="step-badge" id="s5-b" style="margin-bottom:14px;">STEP 04</div>
+        <div class="kicker" id="s5-k" style="margin-bottom:30px;">Agents &amp; variants — the only human step</div>
+        <div class="cfg" id="s5-cfg">
+          <div class="cfg-head"><span class="ct">Agent · Streak Recovery</span><span class="cs">● active</span></div>
+          <div class="cfg-row" id="s5-r0"><span class="ck">Message variants (arms)</span><span class="cv"><b>4 candidates</b></span></div>
+          <div class="cfg-row" id="s5-r1"><span class="ck">Target personas</span><span class="cv">Streak Builder · Quiet Returner</span></div>
+          <div class="cfg-row" id="s5-r2"><span class="ck">Frequency cap · quiet hours</span><span class="cv">3 / week · 9p–8a</span></div>
+          <div class="cfg-row" id="s5-r3"><span class="ck">Audience cap</span><span class="cv">120,000 users</span></div>
+        </div>
+      </div>
+
+      <div id="scene6" class="scene" data-layout-allow-overlap>
+        <div class="step-badge" id="s6-b" style="margin-bottom:14px;">STEP 05</div>
+        <div class="kicker" id="s6-k" style="margin-bottom:34px;">Hourly eligibility check</div>
+        <div class="funnel" id="s6-funnel"></div>
+      </div>
+
+      <div id="scene7" class="scene" data-layout-allow-overlap>
+        <div class="step-badge" id="s7-b" style="margin-bottom:14px;">STEP 06</div>
+        <div class="kicker" id="s7-k" style="margin-bottom:8px;">Arm selection · Thompson sampling</div>
+        <div class="ssub" id="s7-sub" style="margin-top:6px;margin-bottom:32px;">per persona, sample each arm's <b>Beta(α, β)</b> · send the highest draw</div>
+        <div class="arms" id="s7-arms"></div>
+      </div>
+
+      <div id="scene8" class="scene" data-layout-allow-overlap>
+        <div class="step-badge" id="s8-b" style="margin-bottom:14px;">STEP 07</div>
+        <div class="kicker" id="s8-k" style="margin-bottom:40px;">Dispatch via Braze · log the decision</div>
+        <div class="send-row">
+          <div class="nexus-node" id="s8-nx">NE<span class="x">X</span>US</div>
+          <div class="send-pipe" id="s8-pipe"><div class="send-pkt" id="s8-pkt"></div></div>
+          <div class="chans" id="s8-chans">
+            <div class="chan" id="s8-c0"><span class="cd"></span>Push</div>
+            <div class="chan" id="s8-c1"><span class="cd"></span>Email</div>
+            <div class="chan" id="s8-c2"><span class="cd"></span>In-app</div>
+          </div>
+        </div>
+      </div>
+
+      <div id="scene9" class="scene" data-layout-allow-overlap>
+        <div class="step-badge" id="s9-b" style="margin-bottom:14px;">STEP 08</div>
+        <div class="kicker" id="s9-k" style="margin-bottom:40px;">Observe engagement</div>
+        <div class="send-row">
+          <div class="event-chip mono" id="s9-evt">event · <b>session_started</b></div>
+          <div class="ret-pipe" id="s9-pipe"><div class="ret-pkt" id="s9-pkt"></div></div>
+          <div class="nexus-node" id="s9-nx">NE<span class="x">X</span>US</div>
+        </div>
+        <div class="match-badge" id="s9-match">matched to the logged decision · by user id · ≤ 24h</div>
+      </div>
+
+      <div id="scene10" class="scene" data-layout-allow-overlap>
+        <div class="step-badge" id="s10-b" style="margin-bottom:14px;">STEP 09</div>
+        <div class="kicker" id="s10-k" style="margin-bottom:32px;">Reward &amp; update</div>
+        <div class="reward-wrap">
+          <div class="formula mono" id="s10-formula">reward = <b>goal&nbsp;tier</b> × time-discount &nbsp;→&nbsp; [ −1 .. +1 ]</div>
+          <div class="ab-update">
+            <div class="ab-box ab-a"><div class="v mono" id="s10-a">14</div><div class="l">α · success</div></div>
+            <div class="ab-box ab-b"><div class="v mono" id="s10-bb">4</div><div class="l">β · no convert</div></div>
+          </div>
+        </div>
+      </div>
+
+      <div id="scene11" class="scene" data-layout-allow-overlap>
+        <div class="step-badge" id="s11-b" style="margin-bottom:14px;">STEP 10</div>
+        <div class="kicker" id="s11-k" style="margin-bottom:8px;">The loop tightens</div>
+        <div class="ssub" id="s11-sub" style="margin-top:6px;margin-bottom:34px;">each persona's picture comes into focus — <b>more precise with every cycle</b></div>
+        <div class="rounds" id="s11-rounds"></div>
+      </div>
+
+      <div id="scene12" class="scene" data-layout-allow-overlap>
+        <div class="ssub" id="s12-pre" style="margin-bottom:18px;">Ten steps · every hour · on a loop</div>
+        <div class="outro-mark" id="s12-mark">NE<span class="x">X</span>US</div>
+        <div class="outro-tag" id="s12-tag">A contextual bandit for lifecycle messaging.</div>
+      </div>
+
+      <div id="scrim"></div>
+      <div id="cap-layer"></div>
+
+      <audio id="vo" src="narration.wav" data-start="0" data-duration="219.251" data-track-index="9" data-volume="1"></audio>
+    </div>
+
+    <script src="timings.js"></script>
+    <script>
+      window.__timelines = window.__timelines || {};
+      var tl = gsap.timeline({ paused: true });
+      var T = window.__VIDEO_TIMINGS;
+      var B = T.beats;
+      function sc(n){ return T.scenes[n]; }
+      function sceneSpan(n){ var f=null,l=null; B.forEach(function(x){ if(x.scene===n){ if(f===null)f=x.start; l=x.end; } }); return [f,l]; }
+      function w(n, frac){ var s=sceneSpan(n); return s[0]+(s[1]-s[0])*frac; }
+      function mulberry32(a){ return function(){ a|=0; a=a+0x6D2B79F5|0; var t=Math.imul(a^a>>>15,1|a); t=t+Math.imul(t^t>>>7,61|t)^t; return ((t^t>>>14)>>>0)/4294967296; }; }
+      function betaPath(a, bb, ww, h){ var N=64, ys=[], maxY=0;
+        for (var i=0;i<=N;i++){ var x=i/N; var y=Math.pow(x,a-1)*Math.pow(1-x,bb-1); ys.push(y); if(y>maxY)maxY=y; }
+        var pts=[]; for (var j=0;j<=N;j++){ var px=(j/N)*ww; var py=h-(ys[j]/maxY)*(h-6)-3; pts.push(px.toFixed(1)+","+py.toFixed(1)); } return "M"+pts.join(" L"); }
+      function betaSVG(a, bb, color){ var ww=268,h=128;
+        return '<svg class="beta-svg" viewBox="0 0 '+ww+' '+h+'" fill="none"><line x1="0" y1="'+(h-3)+'" x2="'+ww+'" y2="'+(h-3)+'" stroke="#302726" stroke-width="2"/>'+
+          '<path d="'+betaPath(a,bb,ww,h)+'" stroke="'+color+'" stroke-width="4" fill="none" stroke-linejoin="round"/></svg>'; }
+
+      // S1 pills (10 steps)
+      var steps=["Data sync","Feature vector","Personas","Agents & variants","Eligibility","Arm selection","Send","Engagement","Reward","The loop"];
+      var pr=document.getElementById("s1-pills");
+      steps.forEach(function(s,i){ var el=document.createElement("div"); el.className="pill"; el.id="pill-"+i; el.innerHTML='<b>'+(i+1)+'</b> · '+s; pr.appendChild(el); });
+
+      // S3 feature vector
+      var vlabels=["push\nopen","email\nclick","morning","evening","weekend","conv\nrate","recency","giving","depth","freq"];
+      var vheights=[0.82,0.55,0.7,0.4,0.3,0.62,0.9,0.5,0.66,0.75];
+      var vec=document.getElementById("s3-vec");
+      vlabels.forEach(function(l,i){ var wr=document.createElement("div"); wr.className="vbar-wrap";
+        wr.innerHTML='<div class="vbar-track"><div class="vbar" id="vb-'+i+'" style="height:'+Math.round(vheights[i]*220)+'px"></div></div><div class="vlabel mono">'+l.replace("\n","<br>")+'</div>'; vec.appendChild(wr); });
+
+      // S4 scatter
+      var rnd=mulberry32(7); var centers=[[180,140],[560,150],[360,340]]; var ccolors=["#ff6976","#6f9bd1","#5fb87a"];
+      var scat=document.getElementById("s4-scatter"); var PTS=[];
+      for (var c=0;c<3;c++){ for (var k=0;k<13;k++){ var ang=rnd()*6.283, rad=rnd()*68;
+        var fx=centers[c][0]+Math.cos(ang)*rad, fy=centers[c][1]+Math.sin(ang)*rad; var sx=rnd()*720, sy=rnd()*400;
+        var el=document.createElement("div"); el.className="pt"; el.id="pt-"+PTS.length; el.style.left=sx+"px"; el.style.top=sy+"px"; el.style.background="#5a5454"; scat.appendChild(el);
+        PTS.push({el:el,fx:fx,fy:fy,color:ccolors[c]}); } }
+      centers.forEach(function(ct,i){ var d=document.createElement("div"); d.className="ctr"; d.id="ctr-"+i; d.style.left=(ct[0]-1)+"px"; d.style.top=(ct[1]-1)+"px"; d.style.borderColor=ccolors[i]; scat.appendChild(d); });
+
+      // S6 funnel
+      var fn=[["Persona audience","120k",100],["Channel subscribed","96k",80],["Cap not exhausted","71k",59],["Outside quiet hours","64k",53],["Eligible now","58k",48]];
+      var fh=document.getElementById("s6-funnel");
+      fn.forEach(function(r,i){ var row=document.createElement("div"); row.className="fn-row"; row.id="fn-"+i;
+        row.innerHTML='<div class="fn-label">'+r[0]+'</div><div class="fn-bar" id="fnb-'+i+'" style="width:'+(r[2]/100*820)+'px">'+r[1]+'</div>'; fh.appendChild(row); });
+
+      // S7 arms
+      var armData=[{t:"“We saved your spot.”",a:14,b:4,win:true},{t:"“7 days. Keep going.”",a:8,b:8,win:false},{t:"“What stayed with you?”",a:5,b:12,win:false}];
+      var ah=document.getElementById("s7-arms");
+      armData.forEach(function(d,i){ var el=document.createElement("div"); el.className="arm"+(d.win?" win":""); el.id="arm-"+i; var color=d.win?"#5fb87a":"#ff6976";
+        el.innerHTML='<div class="arm-flag" id="armflag-'+i+'">✓ highest draw</div><div class="arm-t">'+d.t+'</div><div class="arm-ab mono">α=<b>'+d.a+'</b> &nbsp; β=<b>'+d.b+'</b></div>'+betaSVG(d.a,d.b,color); ah.appendChild(el); });
+
+      // S11 rounds
+      var rounds=[{l:"round 1",a:3,b:2},{l:"round 10",a:9,b:5},{l:"round 50",a:34,b:11}];
+      var rh=document.getElementById("s11-rounds");
+      rounds.forEach(function(r,i){ var el=document.createElement("div"); el.className="round"; el.id="rnd-"+i;
+        el.innerHTML='<svg width="300" height="150" viewBox="0 0 300 150" fill="none"><line x1="0" y1="147" x2="300" y2="147" stroke="#302726" stroke-width="2"/>'+
+          '<path d="'+betaPath(r.a,r.b,300,150)+'" stroke="#5fb87a" stroke-width="4" fill="none" stroke-linejoin="round"/></svg><div class="rl mono">'+r.l+'</div>'; rh.appendChild(el); });
+
+      // captions
+      var capLayer=document.getElementById("cap-layer");
+      B.forEach(function(g,i){ var el=document.createElement("div"); el.className="cap"; el.id="cg-"+i; el.textContent=g.text; capLayer.appendChild(el); });
+
+      function reveal(n){ tl.to("#scene"+n,{opacity:1,duration:0.6,ease:"power2.out"},sc(n).fadeStart); }
+      function hide(n){ if(sc(n).hideAt!=null) tl.set("#scene"+n,{opacity:0,visibility:"hidden"},sc(n).hideAt); }
+      function head(n,bs){ // animate step badge + kicker for scene n at scene start
+        tl.from("#s"+n+"-b",{y:18,opacity:0,duration:0.45,ease:"power2.out"},bs+0.15);
+        tl.from("#s"+n+"-k",{y:20,opacity:0,duration:0.5,ease:"power2.out"},bs+0.3);
+      }
+
+      // ============ TIMELINE ============
+      // S1
+      tl.from("#scene1 .kicker",{y:20,opacity:0,duration:0.5,ease:"power2.out"},w(1,0.0)+0.15);
+      tl.from("#scene1 .stitle",{y:28,opacity:0,duration:0.6,ease:"expo.out"},w(1,0.1));
+      tl.from("#s1-pills .pill",{y:20,opacity:0,duration:0.4,ease:"back.out(1.3)",stagger:0.07},w(1,0.4));
+
+      // S2
+      reveal(2); head(2, sc(2).fadeStart);
+      tl.from("#s2-crm",{x:-40,opacity:0,duration:0.5,ease:"expo.out"},w(2,0.2));
+      tl.from("#s2-nx",{x:40,opacity:0,duration:0.5,ease:"expo.out"},w(2,0.3));
+      tl.from("#s2-pipe",{scaleX:0,transformOrigin:"left center",opacity:0,duration:0.4},w(2,0.4));
+      tl.fromTo("#s2-pkt",{x:0,opacity:1},{x:160,duration:0.9,ease:"power1.inOut",repeat:2},w(2,0.45));
+      tl.from("#s2-rec",{y:24,opacity:0,duration:0.5,ease:"power2.out"},w(2,0.7));
+
+      // S3
+      reveal(3); head(3, sc(3).fadeStart);
+      tl.from("#s3-sub",{y:18,opacity:0,duration:0.5,ease:"power2.out"},w(3,0.18));
+      tl.to("#s3-vec .vbar",{scaleY:1,duration:0.55,ease:"power2.out",stagger:0.06},w(3,0.35));
+
+      // S4
+      reveal(4); head(4, sc(4).fadeStart);
+      tl.from("#s4-scatter .pt",{opacity:0,duration:0.4,stagger:0.008},w(4,0.2));
+      PTS.forEach(function(p,i){ tl.to(p.el,{left:p.fx+"px",top:p.fy+"px",backgroundColor:p.color,duration:0.8,ease:"power2.inOut"},w(4,0.45)+(i%6)*0.012); });
+      tl.to("#s4-scatter .ctr",{opacity:1,scale:1.1,duration:0.5,ease:"back.out(1.6)",stagger:0.1},w(4,0.78));
+
+      // S5
+      reveal(5); head(5, sc(5).fadeStart);
+      tl.from("#s5-cfg",{y:30,opacity:0,duration:0.55,ease:"power2.out"},w(5,0.2));
+      tl.from(["#s5-r0","#s5-r1","#s5-r2","#s5-r3"],{x:-26,opacity:0,duration:0.4,ease:"power2.out",stagger:0.5},w(5,0.4));
+
+      // S6
+      reveal(6); head(6, sc(6).fadeStart);
+      tl.from("#s6-funnel .fn-row",{opacity:0,duration:0.3,stagger:0.2},w(6,0.2));
+      tl.to("#s6-funnel .fn-bar",{scaleX:1,duration:0.5,ease:"power2.out",stagger:0.28},w(6,0.3));
+
+      // S7
+      reveal(7); head(7, sc(7).fadeStart);
+      tl.from("#s7-sub",{y:18,opacity:0,duration:0.5,ease:"power2.out"},w(7,0.16));
+      tl.from("#s7-arms .arm",{y:40,opacity:0,duration:0.5,ease:"back.out(1.3)",stagger:0.16},w(7,0.3));
+      tl.to("#armflag-0",{opacity:1,y:0,duration:0.4,ease:"back.out(1.8)"},w(7,0.72));
+      tl.to(["#arm-1","#arm-2"],{opacity:0.45,duration:0.4},w(7,0.76));
+
+      // S8
+      reveal(8); head(8, sc(8).fadeStart);
+      tl.from("#s8-nx",{scale:0.8,opacity:0,duration:0.5,ease:"back.out(1.5)"},w(8,0.2));
+      tl.from("#s8-pipe",{scaleX:0,transformOrigin:"left center",opacity:0,duration:0.4},w(8,0.35));
+      tl.from("#s8-chans .chan",{x:40,opacity:0,duration:0.45,ease:"expo.out",stagger:0.12},w(8,0.45));
+      tl.fromTo("#s8-pkt",{x:0,opacity:1},{x:130,duration:0.8,ease:"power1.in",repeat:1},w(8,0.55));
+
+      // S9
+      reveal(9); head(9, sc(9).fadeStart);
+      tl.from("#s9-nx",{scale:0.8,opacity:0,duration:0.5,ease:"back.out(1.5)"},w(9,0.2));
+      tl.from("#s9-evt",{x:-30,opacity:0,duration:0.45,ease:"power2.out"},w(9,0.32));
+      tl.from("#s9-pipe",{scaleX:0,transformOrigin:"right center",opacity:0,duration:0.4},w(9,0.42));
+      tl.fromTo("#s9-pkt",{x:0,opacity:1},{x:-200,duration:0.9,ease:"power1.inOut",repeat:1},w(9,0.5));
+      tl.from("#s9-match",{y:20,opacity:0,duration:0.5,ease:"power2.out"},w(9,0.74));
+
+      // S10
+      reveal(10); head(10, sc(10).fadeStart);
+      tl.from("#s10-formula",{y:22,opacity:0,duration:0.5,ease:"power2.out"},w(10,0.2));
+      tl.from(".ab-update .ab-box",{y:24,opacity:0,duration:0.45,ease:"back.out(1.4)",stagger:0.18},w(10,0.45));
+      var aV={v:14};
+      tl.to(aV,{v:15,duration:0.5,ease:"power1.inOut",onUpdate:function(){document.getElementById("s10-a").textContent=Math.round(aV.v);}},w(10,0.8));
+      tl.from("#s10-a",{scale:1.25,duration:0.4,ease:"back.out(2)",transformOrigin:"center"},w(10,0.8));
+
+      // S11
+      reveal(11); head(11, sc(11).fadeStart);
+      tl.from("#s11-sub",{y:18,opacity:0,duration:0.5,ease:"power2.out"},w(11,0.16));
+      tl.from("#s11-rounds .round",{y:30,opacity:0,duration:0.5,ease:"power2.out",stagger:0.3},w(11,0.35));
+
+      // S12
+      reveal(12);
+      tl.from("#s12-pre",{y:18,opacity:0,duration:0.5,ease:"power2.out"},w(12,0.1));
+      tl.from("#s12-mark",{scale:0.85,opacity:0,duration:0.6,ease:"expo.out"},w(12,0.35));
+      tl.from("#s12-tag",{y:20,opacity:0,duration:0.5,ease:"power2.out"},w(12,0.6));
+      tl.to(["#s12-pre","#s12-mark","#s12-tag"],{opacity:0,duration:0.7,ease:"power2.in"},T.total-0.6);
+
+      [1,2,3,4,5,6,7,8,9,10,11].forEach(hide);
+
+      B.forEach(function(g,i){ var id="#cg-"+i;
+        tl.fromTo(id,{opacity:0,y:22},{opacity:1,y:0,duration:0.28,ease:"power2.out",overwrite:"auto"},g.start);
+        tl.to(id,{opacity:0,y:-10,duration:0.18,ease:"power2.in",overwrite:"auto"},g.end-0.14);
+        tl.set(id,{opacity:0,y:22},g.end); });
+
+      window.__timelines["main"]=tl;
+    </script>
+  </body>
+</html>

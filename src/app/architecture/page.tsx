@@ -1,6 +1,7 @@
 import { Header } from "@/components/layout/header";
 import { Card, CardContent } from "@/components/ui/card";
 import { CollapsibleVideos } from "@/components/architecture/collapsible-videos";
+import { NexusVideoPlayer } from "@/components/video/nexus-video-player";
 import { ConvergenceSection } from "./convergence-section";
 import Link from "next/link";
 import { BookOpen, ExternalLink } from "lucide-react";
@@ -100,6 +101,23 @@ export default function ArchitecturePage() {
               calculus, lift measurement, and send-time optimization in detail.
             </p>
           </div>
+        </div>
+
+        {/* Walkthrough video */}
+        <div className="space-y-3">
+          <p className="text-[11px] font-mono tracking-widest uppercase text-[#57a16c] font-semibold">
+            Watch the walkthrough
+          </p>
+          <NexusVideoPlayer
+            basePath="/videos/nexus-architecture"
+            lengths={[
+              { key: "1min", label: "1 min" },
+              { key: "5min", label: "5 min" },
+            ]}
+            defaultLength="1min"
+            defaultVoice="michael"
+            accent="#57a16c"
+          />
         </div>
 
         {/* Steps grid */}
