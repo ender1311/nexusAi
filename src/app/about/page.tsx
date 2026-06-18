@@ -122,6 +122,29 @@ export default async function AboutPage() {
 
         <div className="relative z-10">
 
+          {/* ── Watch the tour (top) ─────────────────────────────────── */}
+          <section className="px-4 sm:px-16 pt-10 sm:pt-16 pb-8 sm:pb-12 flex flex-col items-center text-center">
+            <div className="text-[11px] font-mono tracking-widest uppercase mb-3" style={{ color: RED }}>WATCH</div>
+            <h2 className="text-2xl sm:text-4xl font-semibold tracking-tight leading-tight">
+              The whole idea, in a minute — or five.
+            </h2>
+            <p className="text-sm text-muted-foreground leading-relaxed mt-3">
+              Pick a length, pick a narrator. Same story, your pace.
+            </p>
+            <NexusVideoPlayer
+              basePath="/videos/nexus-about"
+              lengths={[
+                { key: "1min", label: "1 min" },
+                { key: "5min", label: "5 min" },
+              ]}
+              defaultLength="1min"
+              defaultVoice="heart"
+              accent={RED}
+              className="mt-7 w-full max-w-2xl"
+            />
+            <span className="mt-6 text-xs text-muted-foreground/70 animate-pulse">↓ more below</span>
+          </section>
+
           {/* ── Hero — split ──────────────────────────────────────────── */}
           <section className="px-4 sm:px-16 pt-12 sm:pt-24 pb-12 sm:pb-20 grid grid-cols-1 lg:grid-cols-2 gap-10 lg:gap-18 items-center">
             <div>
@@ -229,30 +252,6 @@ export default async function AboutPage() {
                 <span key={n} className="text-base sm:text-lg font-semibold text-muted-foreground/60 tracking-tight">{n}</span>
               ))}
             </div>
-          </section>
-
-          {/* ── Watch the tour ───────────────────────────────────────── */}
-          <section className="px-4 sm:px-16 pb-12 sm:pb-20">
-            <div className="max-w-3xl mb-6 sm:mb-8">
-              <div className="text-[11px] font-mono tracking-widest uppercase mb-3" style={{ color: RED }}>WATCH</div>
-              <h2 className="text-2xl sm:text-4xl font-semibold tracking-tight leading-tight">
-                The whole idea, in a minute — or five.
-              </h2>
-              <p className="text-sm text-muted-foreground leading-relaxed mt-3">
-                Pick a length, pick a narrator. Same story, your pace.
-              </p>
-            </div>
-            <NexusVideoPlayer
-              basePath="/videos/nexus-about"
-              lengths={[
-                { key: "1min", label: "1 min" },
-                { key: "5min", label: "5 min" },
-              ]}
-              defaultLength="1min"
-              defaultVoice="heart"
-              accent={RED}
-              className="max-w-4xl"
-            />
           </section>
 
           {/* ── Feature grid ─────────────────────────────────────────── */}
