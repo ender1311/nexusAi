@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { NexusVideoPlayer } from "@/components/video/nexus-video-player";
 
 const CHAPTERS = [
   {
@@ -89,6 +90,30 @@ export default function DeepDiveOverviewPage() {
           references point to real functions — cross-reference with the source
           for implementation details not covered here.
         </p>
+      </div>
+
+      <div className="my-8 rounded-xl border bg-card/40 p-5">
+        <div className="text-[11px] font-mono tracking-widest uppercase mb-1 text-[#57a16c]">
+          Watch
+        </div>
+        <p className="text-sm font-semibold mb-1">
+          The whole engine, explained — in one minute, five, or ten.
+        </p>
+        <p className="text-xs text-muted-foreground mb-4">
+          Same deep-dive, three depths. Pick a length and a narrator.
+        </p>
+        <NexusVideoPlayer
+          basePath="/videos/nexus-advanced"
+          lengths={[
+            { key: "1min", label: "1 min" },
+            { key: "5min", label: "5 min" },
+            { key: "10min", label: "10 min" },
+          ]}
+          defaultLength="1min"
+          defaultVoice="heart"
+          accent="#57a16c"
+          portrait
+        />
       </div>
 
       <h2 className="text-lg font-bold mt-8 mb-3">Chapters</h2>

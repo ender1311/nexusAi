@@ -1,0 +1,76 @@
+[
+  { "scene": 1, "text": "Nexus is a contextual multi-armed bandit." },
+  { "scene": 1, "text": "Its objective is to maximize a scalar reward derived from engagement — opens, conversions, donations, and reading-plan completions — across push, email, and in-app.", "caption": "maximize a scalar engagement reward" },
+  { "scene": 1, "text": "Over the next ten minutes we'll walk the full pipeline, from a user becoming a vector to proving the whole thing works." },
+
+  { "scene": 2, "text": "Start with representation. Every user in Nexus is a point in a ten-dimensional feature space." },
+  { "scene": 2, "text": "The dimensions fall into two bands: zero through five are behavioral, six through nine are semantic.", "caption": "behavioral [0–5] · semantic [6–9]" },
+
+  { "scene": 3, "text": "The behavioral band. Dimension zero is push conversion rate; dimension one is email — deliberately not normalized against each other, because absolute channel preference matters.", "caption": "[0] push rate   [1] email rate" },
+  { "scene": 3, "text": "Dimensions two, three, and four are temporal ratios — the share of engagement in the morning, the evening, and on weekends.", "caption": "[2,3,4] morning · evening · weekend" },
+  { "scene": 3, "text": "They're independent windows, so they don't sum to one. Dimension five is the overall conversion rate.", "caption": "[5] overall conversion rate" },
+
+  { "scene": 4, "text": "The semantic band, synced from YouVersion through Hightouch. Dimension six is a recency score — a linear decay over ninety days since last open.", "caption": "[6] recency = 1 − min(1, days/90)" },
+  { "scene": 4, "text": "Dimension seven is the giving tier — zero, one-half, or one. Dimension eight is spiritual depth, a composite of five reading and prayer signals.", "caption": "[7] giving tier   [8] spiritual depth" },
+  { "scene": 4, "text": "Dimension nine is engagement frequency, log-scaled sends per week. Every dimension is normalized to roughly zero to one.", "caption": "[9] frequency · all ~[0, 1]" },
+
+  { "scene": 5, "text": "This replaced an older forty-four dimension layout, where correlated histogram bins dominated the distance metric.", "caption": "44 dims → 10 interpretable dims" },
+  { "scene": 5, "text": "Collapsing them into a handful of interpretable ratios gives a denser vector, better convergence, and cleaner arm separation." },
+
+  { "scene": 6, "text": "Distance matters because Nexus compares users by cosine similarity, not Euclidean distance.", "caption": "cosine, not Euclidean" },
+  { "scene": 6, "text": "Cosine measures the angle between two vectors — invariant to magnitude. Cosine distance is one minus that.", "caption": "d(a,b) = 1 − cos(a, b)" },
+  { "scene": 6, "text": "New users have an all-zero vector, undefined under cosine, so they're skipped until their first conversion lands.", "caption": "cold start: all-zero vector → skipped" },
+
+  { "scene": 7, "text": "Now clustering. Nexus discovers personas with k-means plus plus over cosine distance.", "caption": "k-means++ initialization" },
+  { "scene": 7, "text": "Pick the first centroid at random, then sample each next one with probability proportional to its squared distance from the nearest chosen centroid.", "caption": "P(i) = D(i)² / Σ D(j)²" },
+  { "scene": 7, "text": "That spreads the seeds across the space and converges faster." },
+
+  { "scene": 8, "text": "Then it iterates. The assignment step puts each user in the cluster whose centroid maximizes cosine similarity.", "caption": "assign: argmax cosine similarity" },
+  { "scene": 8, "text": "The update step recomputes each centroid as the mean of its members.", "caption": "update: centroid = mean of members" },
+  { "scene": 8, "text": "It repeats until no assignment changes, usually within fifteen to thirty iterations." },
+
+  { "scene": 9, "text": "But how many personas? Nexus doesn't fix k. It runs every k in a range and scores each with the silhouette coefficient.", "caption": "s(i) = (b − a) / max(a, b)" },
+  { "scene": 9, "text": "It keeps the k with the highest mean silhouette, provided it clears a floor of zero point two five.", "caption": "keep best k · floor 0.25" },
+  { "scene": 9, "text": "Initialization is stochastic, so it runs five stability runs per k and keeps the best. A rule layer can then override for high-signal archetypes.", "caption": "5 stability runs + rule overrides" },
+
+  { "scene": 10, "text": "The payoff of clustering: each persona gets its own independent set of arm statistics.", "caption": "one bandit per persona" },
+  { "scene": 10, "text": "Variant A can beat Variant B for one segment while the reverse holds for another." },
+
+  { "scene": 11, "text": "Now the decision layer — three algorithms. The default is Thompson Sampling.", "caption": "Algorithm 1 · Thompson Sampling" },
+  { "scene": 11, "text": "Each arm carries a Beta distribution: alpha, accumulated weighted success, and beta, accumulated failure.", "caption": "Beta(α, β) · E[θ] = α/(α+β)" },
+  { "scene": 11, "text": "Draw one sample from every arm's Beta and send the highest. That single rule is both exploration and exploitation.", "caption": "draw all · send argmax" },
+
+  { "scene": 12, "text": "New arms are initialized pessimistically, at Beta one, thirty — an expected value near three percent, matching real push click-through.", "caption": "Beta(1, 30) ≈ 3%" },
+  { "scene": 12, "text": "Beta samples come from two Gamma samples using Marsaglia-Tsang with a Box-Muller normal — order-one amortized, no math library.", "caption": "Marsaglia-Tsang + Box-Muller" },
+  { "scene": 12, "text": "Selection can also be deflated by a recency penalty, so one variant doesn't dominate a single user's history." },
+
+  { "scene": 13, "text": "The second algorithm is LinUCB — a contextual bandit. It conditions on the feature vector that Thompson Sampling ignores.", "caption": "Algorithm 2 · LinUCB" },
+  { "scene": 13, "text": "Each arm keeps an inverse design matrix A-inverse, ten by ten, and a reward vector b. The weights are theta equals A-inverse times b.", "caption": "θ = A⁻¹ b" },
+  { "scene": 13, "text": "The score is theta-transpose x, the exploit term, plus alpha times the square root of x-transpose A-inverse x, the exploration bonus.", "caption": "score = θᵀx + α·√(xᵀA⁻¹x)" },
+
+  { "scene": 14, "text": "That bonus is large when the context points somewhere the arm hasn't seen, so unfamiliar users get explored.", "caption": "unfamiliar context → uncertainty bonus" },
+  { "scene": 14, "text": "A full inverse would be order d-cubed every step; the Sherman-Morrison formula does a rank-one update in order d-squared.", "caption": "Sherman-Morrison: O(d³) → O(d²)" },
+  { "scene": 14, "text": "Use Thompson Sampling when the bandit is persona-segmented; reach for LinUCB for fine-grained, within-segment personalization." },
+
+  { "scene": 15, "text": "The third is Epsilon-Greedy, the legacy fallback. With probability epsilon, pick a random arm; otherwise pick the highest win rate.", "caption": "Algorithm 3 · ε-greedy" },
+  { "scene": 15, "text": "Simple and auditable, but its exploration is blind, and epsilon decays toward a floor of one percent.", "caption": "ε decays → floor 1%" },
+
+  { "scene": 16, "text": "Next: how engagement becomes reward. Goals are tiered — best plus ten, down to disabling push at minus ten.", "caption": "tiers: +10 best … −10 worst" },
+  { "scene": 16, "text": "The raw reward is the tier base times a weight, divided by a hundred and clamped to minus one through one.", "caption": "r = clamp(base × weight / 100, −1, 1)" },
+  { "scene": 16, "text": "The update is asymmetric: a positive reward adds its value to alpha, while any failure adds exactly one to beta.", "caption": "r>0: α += r   else: β += 1" },
+  { "scene": 16, "text": "Statistics live at two levels — a shared persona prior and a per-user posterior — blended by observation count.", "caption": "persona prior + per-user posterior" },
+
+  { "scene": 17, "text": "Attribution connects send to outcome: forty-eight hours standard, thirty days for long-horizon goals, ninety days retroactive for disabling push.", "caption": "48h · 30d · 90d retroactive" },
+  { "scene": 17, "text": "And after each update, alpha and beta both decay by zero point nine nine — a half-life of about sixty-nine updates.", "caption": "α, β ×= 0.99 · half-life ≈ 69" },
+
+  { "scene": 18, "text": "Timing matters too. From each user's last-seen time, Nexus derives a preferred send hour, then schedules ten minutes earlier.", "caption": "preferred hour − 10 min" },
+  { "scene": 18, "text": "If there's no signal or the time has passed, it falls back to a default hour and advances to tomorrow, because Braze rejects past timestamps." },
+  { "scene": 18, "text": "A timing lottery then admits only users whose preferred time is near the next batch, spreading sends across the day.", "caption": "timing lottery spreads sends" },
+
+  { "scene": 19, "text": "Finally — does it work? Lift is the treatment rate minus a uniform-random baseline, over that baseline.", "caption": "Lift = (CTRₜ − CTR_c) / CTR_c" },
+  { "scene": 19, "text": "A two-proportion z-test pools the proportions and rejects the null when the absolute z exceeds one point nine six.", "caption": "reject H₀ when |Z| > 1.96" },
+  { "scene": 19, "text": "But Thompson Sampling concentrates traffic on winners, breaking the equal-split assumption, so wide intervals at low sample sizes are shown honestly.", "caption": "let CIs narrow — don't poll early" },
+
+  { "scene": 20, "text": "That's the full pipeline. Represent, cluster, choose, reward, decay, schedule, and measure — every hour, across every channel.", "caption": "represent · cluster · choose · reward · decay · schedule · measure" },
+  { "scene": 20, "text": "In production, a thirty-four percent lift over random. That's Nexus.", "caption": "+34% lift in production" }
+]

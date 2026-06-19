@@ -1,0 +1,1089 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=1920, height=1080" />
+    <script src="https://cdn.jsdelivr.net/npm/gsap@3.14.2/dist/gsap.min.js"></script>
+    <style>
+      :root {
+        --ink: #121212;
+        --fg: #fcfafa;
+        --red: #ff3d4d;
+        --red-deep: #e6323f;
+        --red-soft: #ff6976;
+        --green: #57a16c;
+        --muted: #9a9494;
+        --card: #1c1a1a;
+        --line: #302726;
+        --blue: #6f8fd6;
+      }
+      * { margin: 0; padding: 0; box-sizing: border-box; }
+      html, body {
+        width: 1920px; height: 1080px; overflow: hidden;
+        background: var(--ink);
+        font-family: "Inter", sans-serif;
+        color: var(--fg);
+      }
+      .mono { font-family: "JetBrains Mono", monospace; font-variant-numeric: tabular-nums; }
+      .scene {
+        position: absolute; inset: 0; width: 1920px; height: 1080px;
+        overflow: hidden; background: var(--ink);
+        display: flex; flex-direction: column;
+        align-items: center; justify-content: center;
+        padding: 120px 160px 230px;
+      }
+      .scene:not(#scene1) { opacity: 0; }
+      #scene1{z-index:1}#scene2{z-index:2}#scene3{z-index:3}#scene4{z-index:4}
+      #scene5{z-index:5}#scene6{z-index:6}#scene7{z-index:7}#scene8{z-index:8}
+      #scene9{z-index:9}#scene10{z-index:10}#scene11{z-index:11}#scene12{z-index:12}
+      #scene13{z-index:13}#scene14{z-index:14}#scene15{z-index:15}#scene16{z-index:16}
+      #scene17{z-index:17}#scene18{z-index:18}#scene19{z-index:19}#scene20{z-index:20}
+
+      .kicker {
+        font-size: 22px; letter-spacing: 0.32em; text-transform: uppercase;
+        color: var(--red); font-weight: 700;
+      }
+      .ghost {
+        position: absolute; font-weight: 800; letter-spacing: -0.04em;
+        color: #ffffff; opacity: 0.035; font-size: 340px; white-space: nowrap; top: 80px;
+      }
+      .scene-title { font-size: 58px; font-weight: 800; letter-spacing: -0.03em; text-align: center; }
+      .scene-sub { font-size: 26px; color: var(--muted); margin-top: 14px; text-align: center; }
+      .scene-sub b { color: var(--fg); font-weight: 600; }
+      .formula {
+        font-size: 28px; color: var(--fg); background: var(--card);
+        border: 1px solid var(--line); border-radius: 14px; padding: 16px 26px; margin-top: 26px;
+      }
+      .formula .hl { color: var(--red); }
+      .formula .g { color: var(--green); }
+      .formula .bl { color: var(--blue); }
+      .note { font-size: 22px; color: var(--muted); margin-top: 22px; text-align: center; }
+      .note b { color: var(--fg); font-weight: 600; }
+
+      /* Scene 1 — title */
+      .wordmark { font-size: 150px; font-weight: 800; letter-spacing: -0.05em; line-height: 1; }
+      .wordmark .x { color: var(--red); }
+      .title-sub { font-size: 38px; color: var(--muted); margin-top: 20px; font-weight: 500; }
+      .pipe-strip { display: flex; gap: 14px; margin-top: 54px; }
+      .pipe-step {
+        padding: 12px 22px; border-radius: 999px; background: var(--card);
+        border: 1px solid var(--line); font-size: 20px; font-weight: 600; color: var(--muted);
+        letter-spacing: 0.02em;
+      }
+      .pipe-step.lit { color: var(--fg); border-color: var(--red); box-shadow: 0 0 26px rgba(255,61,77,0.4); }
+
+      /* Vector cells */
+      .fv-wrap { display: flex; align-items: center; gap: 46px; margin-top: 40px; }
+      .fv-user {
+        width: 140px; height: 140px; border-radius: 50%; background: var(--card);
+        border: 2px solid var(--line); display: grid; place-items: center; font-size: 34px;
+        position: relative; flex-shrink: 0; color: var(--muted); font-weight: 800; letter-spacing: 0.04em;
+      }
+      .fv-arrow { font-size: 50px; color: var(--muted); }
+      .fv-vec { display: flex; gap: 11px; }
+      .fv-cell {
+        width: 86px; height: 200px; border-radius: 12px; background: var(--card);
+        border: 1px solid var(--line); position: relative; overflow: hidden;
+        display: flex; align-items: flex-end; justify-content: center;
+      }
+      .fv-cell .fvb { width: 100%; transform-origin: bottom; transform: scaleY(0); }
+      .fv-cell.beh .fvb { background: var(--red); }
+      .fv-cell.sem .fvb { background: var(--blue); }
+      .fv-cell .fvk { position: absolute; top: 8px; left: 0; right: 0; text-align: center; font-size: 16px; color: var(--muted); }
+      .fv-cell.dim { opacity: 0.28; }
+      .fv-bands { display: flex; gap: 250px; margin-top: 22px; font-size: 22px; }
+      .fv-bands .bb { color: var(--red); font-weight: 600; }
+      .fv-bands .bs { color: var(--blue); font-weight: 600; }
+      .band-labels { display: flex; gap: 14px; margin-top: 18px; }
+      .band-labels .bl-item { width: 86px; text-align: center; font-size: 16px; color: var(--muted); }
+
+      /* Beta legend */
+      .beta-legend { display: flex; gap: 40px; margin-top: 24px; font-size: 23px; }
+      .beta-legend .li { display: flex; align-items: center; gap: 12px; color: var(--muted); }
+      .beta-legend .sw { width: 26px; height: 6px; border-radius: 3px; }
+
+      /* Persona cards */
+      .pcard-row { display: flex; gap: 40px; margin-top: 44px; }
+      .pcard {
+        width: 360px; background: var(--card); border: 1.5px solid var(--line);
+        border-radius: 20px; padding: 28px; display: flex; flex-direction: column; gap: 16px;
+      }
+      .pcard .pc-name { font-size: 26px; font-weight: 700; }
+      .pcard .pc-name span { color: var(--red); }
+      .arm-mini { display: flex; align-items: center; gap: 14px; }
+      .arm-mini .am-tag { width: 36px; font-size: 20px; font-weight: 700; }
+      .arm-mini .am-track { flex: 1; height: 18px; border-radius: 9px; background: #2a2626; overflow: hidden; }
+      .arm-mini .am-fill { height: 100%; transform-origin: left; transform: scaleX(0); border-radius: 9px; }
+      .arm-mini .am-val { width: 96px; font-size: 17px; color: var(--muted); }
+
+      /* Matrix grid (LinUCB) */
+      .mat-wrap { display: flex; align-items: center; gap: 60px; margin-top: 44px; }
+      .mat-grid { display: grid; grid-template-columns: repeat(10, 34px); grid-template-rows: repeat(10, 34px); gap: 4px; }
+      .mat-cell { width: 34px; height: 34px; border-radius: 5px; background: #221f1f; }
+      .mat-cell.diag { background: var(--green); }
+      .mat-label { font-size: 30px; font-weight: 700; color: var(--fg); }
+      .vec-b { display: grid; grid-template-rows: repeat(10, 34px); gap: 4px; }
+      .vec-b .vb-cell { width: 60px; height: 34px; border-radius: 5px; background: var(--card); border: 1px solid var(--line); display: grid; place-items: center; font-size: 14px; color: var(--blue); }
+
+      /* Tier ladder */
+      .tier-ladder { display: flex; flex-direction: column; gap: 8px; margin-top: 30px; }
+      .tier-row { display: flex; align-items: center; gap: 18px; }
+      .tier-row .tr-bar { height: 34px; border-radius: 8px; }
+      .tier-row .tr-lab { font-size: 22px; width: 320px; }
+      .tier-row .tr-val { font-size: 22px; font-weight: 700; width: 60px; text-align: right; }
+
+      /* Clock / timeline */
+      .clock-face { position: relative; }
+
+      /* Loop nodes */
+      .loop-row { display: flex; align-items: center; gap: 0; margin-bottom: 8px; flex-wrap: wrap; justify-content: center; }
+      .loop-node {
+        width: 150px; height: 96px; border-radius: 16px; background: var(--card);
+        border: 1.5px solid var(--line); display: flex; flex-direction: column;
+        align-items: center; justify-content: center; gap: 6px;
+      }
+      .loop-node.lit { border-color: var(--red); box-shadow: 0 0 26px rgba(255,61,77,0.45); }
+      .loop-node .ln-n { font-size: 15px; color: var(--red); font-weight: 700; }
+      .loop-node .ln-t { font-size: 21px; font-weight: 700; }
+      .loop-arrow { width: 30px; height: 2px; background: var(--line); position: relative; }
+      .loop-arrow.lit { background: var(--red); }
+      .loop-arrow::after {
+        content: ""; position: absolute; right: -2px; top: -5px;
+        border-left: 10px solid currentColor; border-top: 5px solid transparent; border-bottom: 5px solid transparent;
+        color: inherit;
+      }
+      .loop-arrow { color: var(--line); }
+      .loop-arrow.lit { color: var(--red); }
+      .bignum { font-size: 180px; font-weight: 800; letter-spacing: -0.05em; line-height: 1; color: var(--red); margin-top: 30px; }
+      .bignum-sub { font-size: 30px; font-weight: 600; color: var(--muted); margin-top: 4px; }
+
+      /* Captions */
+      #scrim {
+        position: absolute; left: 0; right: 0; bottom: 0; height: 300px; z-index: 90;
+        background: linear-gradient(to top, rgba(10,10,10,0.92), transparent);
+        pointer-events: none;
+      }
+      #cap-layer { position: absolute; left: 0; right: 0; bottom: 92px; z-index: 100; height: 120px; }
+      .cap {
+        position: absolute; left: 0; right: 0; text-align: center;
+        font-size: 40px; font-weight: 600; line-height: 1.25; opacity: 0;
+        padding: 0 220px; text-shadow: 0 2px 18px rgba(0,0,0,0.7);
+      }
+      .cap.code { font-family: "JetBrains Mono", monospace; font-size: 36px; color: var(--green); }
+    </style>
+  </head>
+  <body>
+    <div id="root" data-composition-id="main" data-start="0" data-duration="382.42"
+         data-width="1920" data-height="1080">
+
+      <!-- Scene 1 — Title + roadmap -->
+      <div id="scene1" class="scene" data-layout-allow-overlap>
+        <div class="ghost">NEXUS</div>
+        <div class="kicker" id="s1-kicker">Advanced · Data Science Deep-Dive</div>
+        <div class="wordmark" id="s1-mark" style="margin-top:16px;">NE<span class="x">X</span>US</div>
+        <div class="title-sub mono" id="s1-sub">contextual multi-armed bandit</div>
+        <div class="pipe-strip" id="s1-pipe"></div>
+      </div>
+
+      <!-- Scene 2 — Representation -->
+      <div id="scene2" class="scene" data-layout-allow-overlap>
+        <div class="ghost">VECTOR</div>
+        <div class="kicker">Step 1 · Represent the user</div>
+        <div class="scene-title" style="margin-top:14px;">A 10-dimensional feature vector</div>
+        <div class="fv-wrap" id="s2-wrap">
+          <div class="fv-user" id="s2-user">USER</div>
+          <div class="fv-arrow" id="s2-arrow">→</div>
+          <div class="fv-vec" id="s2-vec"></div>
+        </div>
+        <div class="fv-bands" id="s2-bands">
+          <div class="bb">behavioral&nbsp;&nbsp;[0–5]</div>
+          <div class="bs">semantic&nbsp;&nbsp;[6–9]</div>
+        </div>
+      </div>
+
+      <!-- Scene 3 — Behavioral band -->
+      <div id="scene3" class="scene" data-layout-allow-overlap>
+        <div class="ghost">BEHAVIOR</div>
+        <div class="kicker">Behavioral band · [0–5]</div>
+        <div class="scene-title" style="margin-top:14px;">What the user does</div>
+        <div class="fv-vec" id="s3-vec" style="margin-top:46px;"></div>
+        <div class="band-labels" id="s3-labels"></div>
+      </div>
+
+      <!-- Scene 4 — Semantic band -->
+      <div id="scene4" class="scene" data-layout-allow-overlap>
+        <div class="ghost">SEMANTIC</div>
+        <div class="kicker">Semantic band · [6–9]</div>
+        <div class="scene-title" style="margin-top:14px;">Who the user is</div>
+        <div class="fv-vec" id="s4-vec" style="margin-top:40px;"></div>
+        <div class="band-labels" id="s4-labels"></div>
+        <div class="formula mono" id="s4-f" style="margin-top:34px;">recency = 1 − min(1, <span class="bl">days</span>/90)</div>
+      </div>
+
+      <!-- Scene 5 — 44 to 10 -->
+      <div id="scene5" class="scene" data-layout-allow-overlap>
+        <div class="ghost">REDUCE</div>
+        <div class="kicker">Dimensionality</div>
+        <div class="scene-title" id="s5-title" style="margin-top:14px;">From 44 dims to 10</div>
+        <div id="s5-old" style="display:flex;flex-wrap:wrap;gap:6px;width:740px;justify-content:center;margin-top:40px;"></div>
+        <div class="fv-arrow" id="s5-arrow" style="margin:14px 0;">↓</div>
+        <div id="s5-new" style="display:flex;gap:10px;"></div>
+        <div class="note" id="s5-note">denser vector · faster convergence · cleaner arm separation</div>
+      </div>
+
+      <!-- Scene 6 — Cosine -->
+      <div id="scene6" class="scene" data-layout-allow-overlap>
+        <div class="ghost">COSINE</div>
+        <div class="kicker">Distance metric</div>
+        <div class="scene-title" style="margin-top:14px;margin-bottom:24px;">Cosine, not Euclidean</div>
+        <svg id="s6-svg" width="640" height="380" viewBox="0 0 640 380" fill="none"></svg>
+        <div class="formula mono" id="s6-f" style="margin-top:18px;">d(a,b) = 1 − <span class="hl">cos(a, b)</span></div>
+        <div class="note" id="s6-note">cold start: all-zero vector → <b>skipped</b></div>
+      </div>
+
+      <!-- Scene 7 — k-means++ seeding -->
+      <div id="scene7" class="scene" data-layout-allow-overlap>
+        <div class="ghost">SEED</div>
+        <div class="kicker">Step 2 · Cluster into personas</div>
+        <div class="scene-title" style="margin-top:14px;margin-bottom:24px;">k-means++ seeding</div>
+        <svg id="s7-svg" width="880" height="400" viewBox="0 0 880 400" fill="none"></svg>
+        <div class="formula mono" id="s7-f" style="margin-top:18px;">P(i) = <span class="hl">D(i)²</span> / Σ D(j)²</div>
+      </div>
+
+      <!-- Scene 8 — k-means loop -->
+      <div id="scene8" class="scene" data-layout-allow-overlap>
+        <div class="ghost">ITERATE</div>
+        <div class="kicker">k-means · the loop</div>
+        <div class="scene-title" style="margin-top:14px;margin-bottom:24px;">Assign, then update</div>
+        <svg id="s8-svg" width="900" height="420" viewBox="0 0 900 420" fill="none"></svg>
+      </div>
+
+      <!-- Scene 9 — Silhouette -->
+      <div id="scene9" class="scene" data-layout-allow-overlap>
+        <div class="ghost">k = ?</div>
+        <div class="kicker">Choosing k</div>
+        <div class="scene-title" style="margin-top:14px;margin-bottom:24px;">Silhouette coefficient</div>
+        <svg id="s9-svg" width="900" height="400" viewBox="0 0 900 400" fill="none"></svg>
+        <div class="formula mono" id="s9-f" style="margin-top:16px;">s = (b − a) / max(a, b) &nbsp;·&nbsp; <span class="g">5 stability runs</span></div>
+      </div>
+
+      <!-- Scene 10 — One bandit per persona -->
+      <div id="scene10" class="scene" data-layout-allow-overlap>
+        <div class="ghost">PERSONA</div>
+        <div class="kicker">Payoff of clustering</div>
+        <div class="scene-title" style="margin-top:14px;">One bandit per persona</div>
+        <div class="pcard-row" id="s10-row"></div>
+      </div>
+
+      <!-- Scene 11 — Thompson Sampling -->
+      <div id="scene11" class="scene" data-layout-allow-overlap>
+        <div class="ghost">SAMPLE</div>
+        <div class="kicker">Algorithm 1 · Decision layer</div>
+        <div class="scene-title" style="margin-top:14px;margin-bottom:14px;">Thompson Sampling</div>
+        <svg id="s11-svg" width="1080" height="400" viewBox="0 0 1080 400" fill="none"></svg>
+        <div class="beta-legend mono" id="s11-legend">
+          <div class="li"><span class="sw" style="background:#ff3d4d"></span>Arm A · Beta(30, 6)</div>
+          <div class="li"><span class="sw" style="background:#6f8fd6"></span>Arm B · Beta(10, 12)</div>
+          <div class="li"><span class="sw" style="background:#9a9494"></span>Arm C · Beta(2, 5)</div>
+        </div>
+        <div class="formula mono" id="s11-f" style="margin-top:18px;">draw all · send argmax &nbsp;·&nbsp; E[θ] = α/(α+β)</div>
+      </div>
+
+      <!-- Scene 12 — Pessimistic prior -->
+      <div id="scene12" class="scene" data-layout-allow-overlap>
+        <div class="ghost">PRIOR</div>
+        <div class="kicker">Initialization</div>
+        <div class="scene-title" style="margin-top:14px;margin-bottom:24px;">A pessimistic prior</div>
+        <svg id="s12-svg" width="980" height="360" viewBox="0 0 980 360" fill="none"></svg>
+        <div class="formula mono" id="s12-f" style="margin-top:16px;"><span class="hl">Beta(1, 30)</span> ≈ 3% &nbsp;vs&nbsp; <span class="bl">Beta(1, 1)</span> uniform</div>
+        <div class="note" id="s12-note">sampling: <b>Marsaglia-Tsang + Box-Muller</b></div>
+      </div>
+
+      <!-- Scene 13 — LinUCB structures -->
+      <div id="scene13" class="scene" data-layout-allow-overlap>
+        <div class="ghost">LINUCB</div>
+        <div class="kicker">Algorithm 2 · contextual</div>
+        <div class="scene-title" style="margin-top:14px;">LinUCB · per-arm structures</div>
+        <div class="mat-wrap" id="s13-wrap">
+          <div style="display:flex;flex-direction:column;align-items:center;gap:14px;">
+            <div class="mat-label mono">A⁻¹ <span style="color:var(--muted);font-size:20px;">(10×10)</span></div>
+            <div class="mat-grid" id="s13-grid"></div>
+          </div>
+          <div class="mat-label mono" style="font-size:46px;color:var(--muted);">·</div>
+          <div style="display:flex;flex-direction:column;align-items:center;gap:14px;">
+            <div class="mat-label mono">b</div>
+            <div class="vec-b" id="s13-vecb"></div>
+          </div>
+        </div>
+        <div class="formula mono" id="s13-f" style="margin-top:30px;">θ = <span class="g">A⁻¹</span> b</div>
+      </div>
+
+      <!-- Scene 14 — LinUCB score -->
+      <div id="scene14" class="scene" data-layout-allow-overlap>
+        <div class="ghost">SCORE</div>
+        <div class="kicker">LinUCB · scoring</div>
+        <div class="scene-title" style="margin-top:14px;margin-bottom:30px;">Exploit plus explore</div>
+        <div class="formula mono" id="s14-f" style="font-size:42px;padding:30px 44px;">
+          score = <span class="g">θᵀx</span> + α·<span class="hl">√(xᵀA⁻¹x)</span>
+        </div>
+        <div style="display:flex;gap:80px;margin-top:26px;">
+          <div class="note" id="s14-l1" style="margin-top:0;"><b style="color:var(--green)">θᵀx</b><br/>exploit · expected reward</div>
+          <div class="note" id="s14-l2" style="margin-top:0;"><b style="color:var(--red)">α·√(xᵀA⁻¹x)</b><br/>explore · uncertainty bonus</div>
+        </div>
+        <div class="formula mono" id="s14-f2" style="margin-top:30px;font-size:24px;">Sherman-Morrison: <span class="hl">O(d³) → O(d²)</span></div>
+      </div>
+
+      <!-- Scene 15 — Epsilon-greedy -->
+      <div id="scene15" class="scene" data-layout-allow-overlap>
+        <div class="ghost">ε-GREEDY</div>
+        <div class="kicker">Algorithm 3 · fallback</div>
+        <div class="scene-title" style="margin-top:14px;margin-bottom:36px;">ε-greedy</div>
+        <svg id="s15-svg" width="980" height="340" viewBox="0 0 980 340" fill="none"></svg>
+        <div class="formula mono" id="s15-f" style="margin-top:20px;">ε decays → <span class="hl">floor 1%</span></div>
+      </div>
+
+      <!-- Scene 16 — Reward calculus -->
+      <div id="scene16" class="scene" data-layout-allow-overlap>
+        <div class="ghost">REWARD</div>
+        <div class="kicker">Step 4 · Reward &amp; update</div>
+        <div class="scene-title" style="margin-top:14px;">Engagement becomes reward</div>
+        <div class="tier-ladder" id="s16-ladder"></div>
+        <div class="formula mono" id="s16-f1" style="margin-top:24px;">r = clamp(base × weight / 100, <span class="hl">−1</span>, <span class="g">1</span>)</div>
+        <div style="display:flex;gap:20px;margin-top:14px;">
+          <div class="formula mono" id="s16-f2" style="margin-top:0;">r&gt;0: <span class="g">α += r</span></div>
+          <div class="formula mono" id="s16-f3" style="margin-top:0;">else: <span class="hl">β += 1</span></div>
+        </div>
+        <div class="note" id="s16-note">persona prior + per-user posterior · blended by count</div>
+      </div>
+
+      <!-- Scene 17 — Attribution & decay -->
+      <div id="scene17" class="scene" data-layout-allow-overlap>
+        <div class="ghost">DECAY</div>
+        <div class="kicker">Attribution &amp; decay</div>
+        <div class="scene-title" style="margin-top:14px;margin-bottom:24px;">From send to outcome</div>
+        <svg id="s17-svg" width="980" height="400" viewBox="0 0 980 400" fill="none"></svg>
+        <div class="formula mono" id="s17-f" style="margin-top:16px;">α, β <span class="hl">×= 0.99</span> &nbsp;·&nbsp; half-life ≈ 69</div>
+      </div>
+
+      <!-- Scene 18 — Send-time -->
+      <div id="scene18" class="scene" data-layout-allow-overlap>
+        <div class="ghost">TIMING</div>
+        <div class="kicker">Send-time optimization</div>
+        <div class="scene-title" style="margin-top:14px;margin-bottom:24px;">When to send</div>
+        <svg id="s18-svg" width="1080" height="380" viewBox="0 0 1080 380" fill="none"></svg>
+        <div class="note" id="s18-note">preferred hour − 10 min · fallback → tomorrow · timing lottery</div>
+      </div>
+
+      <!-- Scene 19 — Lift & significance -->
+      <div id="scene19" class="scene" data-layout-allow-overlap>
+        <div class="ghost">PROOF</div>
+        <div class="kicker">Step 7 · Measure</div>
+        <div class="scene-title" style="margin-top:14px;margin-bottom:18px;">Lift &amp; significance</div>
+        <svg id="s19-svg" width="900" height="380" viewBox="0 0 900 380" fill="none"></svg>
+        <div class="formula mono" id="s19-f" style="margin-top:14px;">Lift = (CTRₜ − CTR_c) / CTR_c &nbsp;·&nbsp; reject H₀ when <span class="hl">|Z| &gt; 1.96</span></div>
+      </div>
+
+      <!-- Scene 20 — Outro -->
+      <div id="scene20" class="scene" data-layout-allow-overlap>
+        <div class="ghost">NEXUS</div>
+        <div class="kicker" id="s20-kicker">The full pipeline</div>
+        <div class="loop-row" id="s20-pipe" style="margin-top:30px;"></div>
+        <div class="bignum mono" id="s20-num">+0%</div>
+        <div class="bignum-sub" id="s20-sub">lift over random assignment</div>
+        <div class="wordmark" id="s20-mark" style="font-size:90px;margin-top:30px;">NE<span class="x">X</span>US</div>
+      </div>
+
+      <div id="scrim"></div>
+      <div id="cap-layer"></div>
+
+      <audio id="vo" src="narration.wav" data-start="0" data-duration="381.98"
+             data-track-index="9" data-volume="1"></audio>
+    </div>
+
+    <script src="timings.js"></script>
+    <script>
+window.__timelines = window.__timelines || {};
+var tl = gsap.timeline({ paused: true });
+var T = window.__VIDEO_TIMINGS;
+var B = T.beats;
+function b(i) { return B[i] ? B[i].start : 0; }
+function sc(n) { return T.scenes[n]; }
+var SVGNS = "http://www.w3.org/2000/svg";
+function svg(tag, attrs) {
+  var e = document.createElementNS(SVGNS, tag);
+  for (var k in attrs) e.setAttribute(k, attrs[k]);
+  return e;
+}
+
+// ---------- deterministic helpers ----------
+function betaPath(a, bb, x0, y0, w, h, N) {
+  var vals = [], max = 0;
+  for (var i = 0; i <= N; i++) {
+    var x = i / N;
+    var v = Math.pow(x, a - 1) * Math.pow(1 - x, bb - 1);
+    if (!isFinite(v) || isNaN(v)) v = 0;
+    vals.push(v); if (v > max) max = v;
+  }
+  if (max === 0) max = 1;
+  var pts = [];
+  for (var j = 0; j <= N; j++) {
+    var px = x0 + (j / N) * w;
+    var py = y0 + h - (vals[j] / max) * h;
+    pts.push(px.toFixed(1) + "," + py.toFixed(1));
+  }
+  return pts.join(" ");
+}
+function polyLen(str) {
+  var p = str.split(" ").map(function (s) { return s.split(",").map(Number); });
+  var L = 0;
+  for (var i = 1; i < p.length; i++) {
+    var dx = p[i][0] - p[i - 1][0], dy = p[i][1] - p[i - 1][1];
+    L += Math.sqrt(dx * dx + dy * dy);
+  }
+  return L;
+}
+function makePoly(parent, ptsStr, color, width, dashDraw) {
+  var poly = svg("polyline", {
+    points: ptsStr, stroke: color, "stroke-width": width,
+    fill: "none", "stroke-linejoin": "round", "stroke-linecap": "round"
+  });
+  if (dashDraw) {
+    var len = polyLen(ptsStr);
+    poly.style.strokeDasharray = len; poly.style.strokeDashoffset = len;
+  }
+  parent.appendChild(poly);
+  return poly;
+}
+
+var PIPE = ["represent", "cluster", "choose", "reward", "decay", "schedule", "measure"];
+
+// ---------- Scene 1 : pipeline strip ----------
+(function () {
+  var p = document.getElementById("s1-pipe");
+  PIPE.forEach(function (s, i) {
+    var el = document.createElement("div");
+    el.className = "pipe-step"; el.id = "s1pipe-" + i; el.textContent = s;
+    p.appendChild(el);
+  });
+})();
+
+// ---------- Scene 2 : 10-dim vector ----------
+var fvVals = [0.74, 0.18, 0.62, 0.30, 0.40, 0.55, 0.80, 0.50, 0.66, 0.45];
+(function () {
+  var vec = document.getElementById("s2-vec");
+  fvVals.forEach(function (v, i) {
+    var cell = document.createElement("div");
+    cell.className = "fv-cell " + (i < 6 ? "beh" : "sem"); cell.id = "s2fv-" + i;
+    var bar = document.createElement("div"); bar.className = "fvb"; bar.id = "s2fvb-" + i;
+    bar.style.height = Math.round(v * 165) + "px";
+    var k = document.createElement("div"); k.className = "fvk mono"; k.textContent = i;
+    cell.appendChild(k); cell.appendChild(bar); vec.appendChild(cell);
+  });
+})();
+
+// ---------- Scene 3 : behavioral band ----------
+var behLabels = ["push", "email", "morn", "eve", "wknd", "overall"];
+(function () {
+  var vec = document.getElementById("s3-vec");
+  var labs = document.getElementById("s3-labels");
+  fvVals.forEach(function (v, i) {
+    var on = i < 6;
+    var cell = document.createElement("div");
+    cell.className = "fv-cell beh" + (on ? "" : " dim"); cell.id = "s3fv-" + i;
+    var bar = document.createElement("div"); bar.className = "fvb";
+    bar.style.height = Math.round(v * 165) + "px"; bar.style.transform = "scaleY(1)";
+    var k = document.createElement("div"); k.className = "fvk mono"; k.textContent = i;
+    cell.appendChild(k); cell.appendChild(bar); vec.appendChild(cell);
+    var lb = document.createElement("div");
+    lb.className = "bl-item mono"; lb.id = "s3lab-" + i;
+    lb.textContent = on ? behLabels[i] : "";
+    lb.style.color = on ? "var(--red)" : "transparent";
+    labs.appendChild(lb);
+  });
+})();
+
+// ---------- Scene 4 : semantic band ----------
+var semLabels = { 6: "recency", 7: "giving", 8: "depth", 9: "freq" };
+(function () {
+  var vec = document.getElementById("s4-vec");
+  var labs = document.getElementById("s4-labels");
+  fvVals.forEach(function (v, i) {
+    var on = i >= 6;
+    var cell = document.createElement("div");
+    cell.className = "fv-cell sem" + (on ? "" : " dim"); cell.id = "s4fv-" + i;
+    var bar = document.createElement("div"); bar.className = "fvb";
+    bar.style.height = Math.round(v * 165) + "px"; bar.style.transform = "scaleY(1)";
+    var k = document.createElement("div"); k.className = "fvk mono"; k.textContent = i;
+    cell.appendChild(k); cell.appendChild(bar); vec.appendChild(cell);
+    var lb = document.createElement("div");
+    lb.className = "bl-item mono"; lb.id = "s4lab-" + i;
+    lb.textContent = on ? semLabels[i] : "";
+    lb.style.color = on ? "var(--blue)" : "transparent";
+    labs.appendChild(lb);
+  });
+})();
+
+// ---------- Scene 5 : 44 -> 10 ----------
+(function () {
+  var old = document.getElementById("s5-old");
+  for (var i = 0; i < 44; i++) {
+    var c = document.createElement("div");
+    c.className = "s5old-cell"; c.id = "s5old-" + i;
+    c.style.cssText = "width:24px;height:24px;border-radius:4px;background:#221f1f;border:1px solid var(--line);opacity:0.5;";
+    old.appendChild(c);
+  }
+  var nw = document.getElementById("s5-new");
+  for (var j = 0; j < 10; j++) {
+    var d = document.createElement("div");
+    d.className = "s5new-cell"; d.id = "s5new-" + j;
+    d.style.cssText = "width:54px;height:54px;border-radius:8px;background:" + (j < 6 ? "var(--red)" : "var(--blue)") + ";";
+    nw.appendChild(d);
+  }
+})();
+
+// ---------- Scene 6 : cosine ----------
+(function () {
+  var s = document.getElementById("s6-svg");
+  var ox = 90, oy = 320;
+  // axes
+  s.appendChild(svg("line", { x1: ox, y1: oy, x2: ox + 480, y2: oy, stroke: "#302726", "stroke-width": 2 }));
+  s.appendChild(svg("line", { x1: ox, y1: oy, x2: ox, y2: 40, stroke: "#302726", "stroke-width": 2 }));
+  // two vectors, same angle (~38deg) different length
+  var ang = -38 * Math.PI / 180;
+  function vecLine(len, color, id) {
+    var x2 = ox + Math.cos(ang) * len, y2 = oy + Math.sin(ang) * len;
+    var l = makePoly(s, ox + "," + oy + " " + x2.toFixed(1) + "," + y2.toFixed(1), color, 6, true);
+    l.setAttribute("id", id);
+    var dot = svg("circle", { cx: x2.toFixed(1), cy: y2.toFixed(1), r: 9, fill: color, id: id + "-d", opacity: 0 });
+    s.appendChild(dot);
+    return l;
+  }
+  vecLine(440, "#ff3d4d", "s6-a");
+  vecLine(260, "#6f8fd6", "s6-b");
+  // arc for theta
+  var arc = svg("path", {
+    d: "M " + (ox + 70) + " " + oy + " A 70 70 0 0 1 " + (ox + Math.cos(ang) * 70).toFixed(1) + " " + (oy + Math.sin(ang) * 70).toFixed(1),
+    stroke: "#57a16c", "stroke-width": 4, fill: "none", id: "s6-arc", opacity: 0
+  });
+  s.appendChild(arc);
+  var th = svg("text", { x: ox + 92, y: oy - 26, fill: "#57a16c", "font-size": 30, "font-family": "JetBrains Mono, monospace", "font-weight": 700, id: "s6-theta", opacity: 0 });
+  th.textContent = "θ"; s.appendChild(th);
+})();
+
+// ---------- Scene 7 : k-means++ seeding ----------
+var s7points = [
+  [120, 110], [160, 90], [100, 150], [180, 140], [140, 70], [90, 100],
+  [620, 90], [680, 120], [640, 160], [700, 90], [600, 130], [660, 70],
+  [340, 300], [400, 320], [360, 350], [420, 290], [310, 330], [440, 340],
+  [430, 130], [500, 200], [250, 240], [560, 280], [200, 320]
+];
+var s7seeds = [4, 9, 14]; // spread-apart indices
+(function () {
+  var s = document.getElementById("s7-svg");
+  s7points.forEach(function (p, i) {
+    s.appendChild(svg("circle", { cx: p[0], cy: p[1], r: 12, fill: "#4a4646", id: "s7p-" + i, opacity: 0 }));
+  });
+  s7seeds.forEach(function (idx, k) {
+    var p = s7points[idx];
+    var ring = svg("circle", { cx: p[0], cy: p[1], r: 22, fill: "none", stroke: "#ff3d4d", "stroke-width": 3, id: "s7seed-" + k, opacity: 0 });
+    s.appendChild(ring);
+  });
+})();
+
+// ---------- Scene 8 : k-means loop ----------
+var s8clusters = [
+  { cx: 200, cy: 130, color: "#ff3d4d", pts: [[160, 100], [230, 120], [190, 170], [250, 90], [150, 150], [210, 80]] },
+  { cx: 680, cy: 130, color: "#6f8fd6", pts: [[640, 100], [710, 120], [660, 170], [720, 90], [620, 150], [690, 100]] },
+  { cx: 430, cy: 320, color: "#57a16c", pts: [[390, 300], [470, 310], [420, 360], [480, 300], [380, 340], [450, 280]] }
+];
+(function () {
+  var s = document.getElementById("s8-svg");
+  s8clusters.forEach(function (cl, ci) {
+    cl.pts.forEach(function (p, pi) {
+      s.appendChild(svg("circle", { cx: p[0], cy: p[1], r: 12, fill: "#4a4646", id: "s8d-" + ci + "-" + pi, opacity: 0 }));
+    });
+  });
+  s8clusters.forEach(function (cl, ci) {
+    var star = svg("path", {
+      d: "M " + cl.cx + " " + (cl.cy - 16) + " l 5 13 l 14 0 l -11 8 l 4 14 l -12 -8 l -12 8 l 4 -14 l -11 -8 l 14 0 z",
+      fill: cl.color, id: "s8c-" + ci, opacity: 0
+    });
+    s.appendChild(star);
+  });
+  // cycle arrows label
+  var t1 = svg("text", { x: 130, y: 405, fill: "#9a9494", "font-size": 22, "font-family": "Inter, sans-serif", id: "s8-assign", opacity: 0 });
+  t1.textContent = "① assign → nearest centroid"; s.appendChild(t1);
+  var t2 = svg("text", { x: 560, y: 405, fill: "#9a9494", "font-size": 22, "font-family": "Inter, sans-serif", id: "s8-update", opacity: 0 });
+  t2.textContent = "② update → mean of members"; s.appendChild(t2);
+})();
+
+// ---------- Scene 9 : silhouette bars ----------
+var s9data = [
+  { k: 3, s: 0.41 }, { k: 4, s: 0.52 }, { k: 5, s: 0.63 },
+  { k: 6, s: 0.49 }, { k: 7, s: 0.38 }, { k: 8, s: 0.31 }, { k: 9, s: 0.27 }
+];
+(function () {
+  var s = document.getElementById("s9-svg");
+  var bx = 90, by = 330, bw = 740, bh = 280, maxS = 0.7;
+  s.appendChild(svg("line", { x1: bx, y1: by, x2: bx + bw, y2: by, stroke: "#302726", "stroke-width": 2 }));
+  // floor line 0.25
+  var fy = by - (0.25 / maxS) * bh;
+  s.appendChild(svg("line", { x1: bx, y1: fy, x2: bx + bw, y2: fy, stroke: "#9a9494", "stroke-width": 2, "stroke-dasharray": "8 8" }));
+  s.appendChild((function () { var t = svg("text", { x: bx + bw - 90, y: fy - 8, fill: "#9a9494", "font-size": 16, "font-family": "JetBrains Mono, monospace" }); t.textContent = "floor 0.25"; return t; })());
+  var gap = bw / s9data.length;
+  s9data.forEach(function (d, i) {
+    var h = (d.s / maxS) * bh;
+    var x = bx + i * gap + gap * 0.18;
+    var w = gap * 0.64;
+    var peak = d.k === 5;
+    var r = svg("rect", { x: x, y: by, width: w, height: 0, rx: 6, fill: peak ? "#57a16c" : "#4a4646", id: "s9bar-" + i });
+    r.dataset.h = h; r.dataset.y = by - h;
+    s.appendChild(r);
+    var lab = svg("text", { x: x + w / 2 - 16, y: by + 28, fill: "#9a9494", "font-size": 18, "font-family": "JetBrains Mono, monospace" });
+    lab.textContent = "k=" + d.k; s.appendChild(lab);
+  });
+})();
+
+// ---------- Scene 10 : persona cards ----------
+var s10cards = [
+  { name: "The ", hl: "Daily Reader", arms: [{ t: "A", v: 0.78, c: "#ff3d4d", lab: "α30 β8" }, { t: "B", v: 0.44, c: "#6f8fd6", lab: "α12 β14" }] },
+  { name: "The ", hl: "Weekend Giver", arms: [{ t: "A", v: 0.40, c: "#6f8fd6", lab: "α9 β13" }, { t: "B", v: 0.71, c: "#ff3d4d", lab: "α26 β10" }] },
+  { name: "The ", hl: "Lapsed User", arms: [{ t: "A", v: 0.30, c: "#9a9494", lab: "α4 β9" }, { t: "B", v: 0.52, c: "#ff3d4d", lab: "α15 β13" }] }
+];
+(function () {
+  var row = document.getElementById("s10-row");
+  s10cards.forEach(function (c, ci) {
+    var card = document.createElement("div"); card.className = "pcard"; card.id = "s10c-" + ci;
+    var name = document.createElement("div"); name.className = "pc-name";
+    name.innerHTML = c.name + "<span>" + c.hl + "</span>";
+    card.appendChild(name);
+    c.arms.forEach(function (a, ai) {
+      var row2 = document.createElement("div"); row2.className = "arm-mini";
+      row2.innerHTML =
+        '<div class="am-tag mono" style="color:' + a.c + '">' + a.t + '</div>' +
+        '<div class="am-track"><div class="am-fill" id="s10f-' + ci + '-' + ai + '" style="background:' + a.c + '"></div></div>' +
+        '<div class="am-val mono">' + a.lab + '</div>';
+      row2.querySelector(".am-fill").dataset.v = a.v;
+      card.appendChild(row2);
+    });
+    row.appendChild(card);
+  });
+})();
+
+// ---------- Scene 11 : Thompson Sampling 3 Beta curves ----------
+var s11arms = [
+  { a: 30, b: 6, color: "#ff3d4d", draw: 0.81, id: "A" },
+  { a: 10, b: 12, color: "#6f8fd6", draw: 0.46, id: "B" },
+  { a: 2, b: 5, color: "#9a9494", draw: 0.30, id: "C" }
+];
+(function () {
+  var s = document.getElementById("s11-svg");
+  var X0 = 60, Y0 = 20, W = 960, H = 300;
+  s.appendChild(svg("line", { x1: X0, y1: Y0 + H, x2: X0 + W, y2: Y0 + H, stroke: "#302726", "stroke-width": 2 }));
+  var l0 = svg("text", { x: X0, y: Y0 + H + 26, fill: "#9a9494", "font-size": 18, "font-family": "JetBrains Mono, monospace" }); l0.textContent = "0.0"; s.appendChild(l0);
+  var l1 = svg("text", { x: X0 + W - 28, y: Y0 + H + 26, fill: "#9a9494", "font-size": 18, "font-family": "JetBrains Mono, monospace" }); l1.textContent = "1.0"; s.appendChild(l1);
+  var xl = svg("text", { x: X0 + W / 2 - 70, y: Y0 + H + 26, fill: "#9a9494", "font-size": 18, "font-family": "JetBrains Mono, monospace" }); xl.textContent = "conversion rate θ"; s.appendChild(xl);
+  s11arms.forEach(function (d, i) {
+    var p = makePoly(s, betaPath(d.a, d.b, X0, Y0, W, H, 120), d.color, 5, true);
+    p.setAttribute("id", "s11bc-" + i);
+  });
+  s11arms.forEach(function (d, i) {
+    var dx = X0 + d.draw * W;
+    var ln = svg("line", { x1: dx, y1: Y0 + H, x2: dx, y2: Y0 + 26, stroke: d.color, "stroke-width": 2, "stroke-dasharray": "6 6", id: "s11dl-" + i, opacity: 0 });
+    s.appendChild(ln);
+    var dot = svg("circle", { cx: dx, cy: Y0 + 26, r: 11, fill: d.color, id: "s11dd-" + i, opacity: 0 });
+    s.appendChild(dot);
+  });
+  var tag = svg("text", { x: X0 + 0.81 * W - 40, y: Y0 + 12, fill: "#ff3d4d", "font-size": 26, "font-weight": 800, "font-family": "Inter, sans-serif", id: "s11-send", opacity: 0 });
+  tag.textContent = "SEND ✓"; s.appendChild(tag);
+})();
+
+// ---------- Scene 12 : pessimistic vs uniform ----------
+(function () {
+  var s = document.getElementById("s12-svg");
+  var X0 = 60, Y0 = 20, W = 860, H = 280;
+  s.appendChild(svg("line", { x1: X0, y1: Y0 + H, x2: X0 + W, y2: Y0 + H, stroke: "#302726", "stroke-width": 2 }));
+  var l0 = svg("text", { x: X0, y: Y0 + H + 26, fill: "#9a9494", "font-size": 18, "font-family": "JetBrains Mono, monospace" }); l0.textContent = "0.0"; s.appendChild(l0);
+  var l1 = svg("text", { x: X0 + W - 28, y: Y0 + H + 26, fill: "#9a9494", "font-size": 18, "font-family": "JetBrains Mono, monospace" }); l1.textContent = "1.0"; s.appendChild(l1);
+  // uniform Beta(1,1) flat line near top-ish (flat density)
+  var flat = makePoly(s, X0 + "," + (Y0 + H * 0.45) + " " + (X0 + W) + "," + (Y0 + H * 0.45), "#6f8fd6", 5, true);
+  flat.setAttribute("id", "s12-flat");
+  // pessimistic Beta(1,30) tall spike near 0.03
+  var p = makePoly(s, betaPath(1, 30, X0, Y0, W, H, 160), "#ff3d4d", 5, true);
+  p.setAttribute("id", "s12-pess");
+  var t1 = svg("text", { x: X0 + 40, y: Y0 + 30, fill: "#ff3d4d", "font-size": 20, "font-family": "JetBrains Mono, monospace", id: "s12-lab1", opacity: 0 }); t1.textContent = "Beta(1,30) ≈ 0.03"; s.appendChild(t1);
+  var t2 = svg("text", { x: X0 + W - 250, y: Y0 + H * 0.45 - 14, fill: "#6f8fd6", "font-size": 20, "font-family": "JetBrains Mono, monospace", id: "s12-lab2", opacity: 0 }); t2.textContent = "Beta(1,1) uniform"; s.appendChild(t2);
+})();
+
+// ---------- Scene 13 : LinUCB matrix + vector ----------
+(function () {
+  var grid = document.getElementById("s13-grid");
+  for (var r = 0; r < 10; r++) {
+    for (var c = 0; c < 10; c++) {
+      var cell = document.createElement("div");
+      cell.className = "mat-cell" + (r === c ? " diag" : "");
+      cell.id = "s13m-" + r + "-" + c;
+      grid.appendChild(cell);
+    }
+  }
+  var vb = document.getElementById("s13-vecb");
+  var bvals = ["0.4", "1.2", "0.1", "0.8", "0.3", "0.6", "0.9", "0.2", "0.5", "0.7"];
+  bvals.forEach(function (v, i) {
+    var c = document.createElement("div"); c.className = "vb-cell mono"; c.id = "s13b-" + i; c.textContent = v;
+    vb.appendChild(c);
+  });
+})();
+
+// ---------- Scene 15 : epsilon-greedy split ----------
+(function () {
+  var s = document.getElementById("s15-svg");
+  // greedy block 90%
+  var gW = 980 * 0.9 - 20;
+  var g = svg("rect", { x: 0, y: 40, width: gW, height: 130, rx: 14, fill: "#57a16c", id: "s15-greedy", opacity: 0.95 });
+  s.appendChild(g);
+  var gt = svg("text", { x: gW / 2 - 150, y: 115, fill: "#0d1410", "font-size": 30, "font-weight": 800, "font-family": "Inter, sans-serif" }); gt.textContent = "1 − ε  ·  exploit best arm"; s.appendChild(gt);
+  // epsilon block 10%
+  var eX = gW + 20;
+  var e = svg("rect", { x: eX, y: 40, width: 980 - eX, height: 130, rx: 14, fill: "#ff3d4d", id: "s15-eps" });
+  s.appendChild(e);
+  var et = svg("text", { x: 975, y: 200, "text-anchor": "end", fill: "#ff3d4d", "font-size": 22, "font-weight": 700, "font-family": "Inter, sans-serif" }); et.textContent = "ε · random arm"; s.appendChild(et);
+  var etin = svg("text", { x: eX + (980 - eX) / 2, y: 115, "text-anchor": "middle", fill: "#fcfafa", "font-size": 26, "font-weight": 800, "font-family": "Inter, sans-serif" }); etin.textContent = "ε"; s.appendChild(etin);
+  // decay arrow
+  var arr = makePoly(s, "60,290 700,290", "#9a9494", 3, true); arr.setAttribute("id", "s15-decay");
+  arr.setAttribute("marker-end", ""); 
+  var ah = svg("path", { d: "M 700 290 l -16 -8 l 0 16 z", fill: "#9a9494", id: "s15-arrh", opacity: 0 }); s.appendChild(ah);
+  var dt = svg("text", { x: 720, y: 297, fill: "#9a9494", "font-size": 22, "font-family": "JetBrains Mono, monospace", id: "s15-dlab", opacity: 0 }); dt.textContent = "ε ↓ floor 1%"; s.appendChild(dt);
+})();
+
+// ---------- Scene 16 : tier ladder ----------
+var s16tiers = [
+  { lab: "subscribed / gift given", v: 10, c: "#57a16c" },
+  { lab: "conversion", v: 6, c: "#6fa37f" },
+  { lab: "open / click", v: 3, c: "#8a9b8e" },
+  { lab: "no engagement", v: -3, c: "#b07a72" },
+  { lab: "disable push (90d)", v: -10, c: "#ff3d4d" }
+];
+(function () {
+  var lad = document.getElementById("s16-ladder");
+  s16tiers.forEach(function (t, i) {
+    var row = document.createElement("div"); row.className = "tier-row"; row.id = "s16r-" + i;
+    var w = Math.abs(t.v) / 10 * 260;
+    row.innerHTML =
+      '<div class="tr-lab">' + t.lab + '</div>' +
+      '<div class="tr-bar" id="s16bar-' + i + '" style="background:' + t.c + ';width:0px;" data-w="' + w + '"></div>' +
+      '<div class="tr-val mono" style="color:' + t.c + '">' + (t.v > 0 ? "+" + t.v : t.v) + '</div>';
+    lad.appendChild(row);
+  });
+})();
+
+// ---------- Scene 17 : attribution timeline + decay ----------
+(function () {
+  var s = document.getElementById("s17-svg");
+  var bx = 70, by = 150, bw = 840;
+  s.appendChild(svg("line", { x1: bx, y1: by, x2: bx + bw, y2: by, stroke: "#302726", "stroke-width": 3, id: "s17-base" }));
+  var marks = [{ x: 0.0, lab: "send", c: "#fcfafa" }, { x: 0.18, lab: "48h", c: "#57a16c" }, { x: 0.5, lab: "30d", c: "#6f8fd6" }, { x: 0.92, lab: "90d", c: "#ff3d4d" }];
+  marks.forEach(function (m, i) {
+    var x = bx + m.x * bw;
+    s.appendChild(svg("line", { x1: x, y1: by - 16, x2: x, y2: by + 16, stroke: m.c, "stroke-width": 3, id: "s17m-" + i, opacity: 0 }));
+    var t = svg("text", { x: x - 16, y: by - 26, fill: m.c, "font-size": 20, "font-family": "JetBrains Mono, monospace", id: "s17t-" + i, opacity: 0 }); t.textContent = m.lab; s.appendChild(t);
+  });
+  // 90d retroactive (leftward red arrow)
+  var ra = svg("path", { d: "M " + (bx + 0.92 * bw) + " " + (by + 40) + " L " + (bx + 0.18 * bw) + " " + (by + 40), stroke: "#ff3d4d", "stroke-width": 2, "stroke-dasharray": "6 6", id: "s17-retro", opacity: 0 }); s.appendChild(ra);
+  var rt = svg("text", { x: bx + 0.4 * bw, y: by + 62, fill: "#ff3d4d", "font-size": 18, "font-family": "JetBrains Mono, monospace", id: "s17-retrolab", opacity: 0 }); rt.textContent = "90d retroactive (disable push)"; s.appendChild(rt);
+  // decay curve
+  var dpts = [];
+  for (var i = 0; i <= 60; i++) { var x = i / 60; var y = Math.pow(0.99, i * 4); dpts.push((bx + x * bw).toFixed(1) + "," + (by + 220 - y * 130).toFixed(1)); }
+  var d = makePoly(s, dpts.join(" "), "#57a16c", 4, true); d.setAttribute("id", "s17-decay");
+})();
+
+// ---------- Scene 18 : send-time clock/timeline ----------
+(function () {
+  var s = document.getElementById("s18-svg");
+  var bx = 70, by = 180, bw = 940;
+  s.appendChild(svg("line", { x1: bx, y1: by, x2: bx + bw, y2: by, stroke: "#302726", "stroke-width": 3 }));
+  // hour ticks 0..24
+  for (var h = 0; h <= 24; h += 3) {
+    var x = bx + (h / 24) * bw;
+    s.appendChild(svg("line", { x1: x, y1: by - 8, x2: x, y2: by + 8, stroke: "#4a4646", "stroke-width": 2 }));
+    var t = svg("text", { x: x - 8, y: by + 30, fill: "#9a9494", "font-size": 16, "font-family": "JetBrains Mono, monospace" }); t.textContent = h; s.appendChild(t);
+  }
+  // timing lottery window band (~ around hour 9-11)
+  var w0 = bx + (8.5 / 24) * bw, w1 = bx + (11.5 / 24) * bw;
+  s.appendChild(svg("rect", { x: w0, y: by - 70, width: w1 - w0, height: 140, rx: 10, fill: "#57a16c", opacity: 0.0, id: "s18-window" }));
+  var wt = svg("text", { x: w0 - 10, y: by - 84, fill: "#57a16c", "font-size": 18, "font-family": "JetBrains Mono, monospace", id: "s18-wlab", opacity: 0 }); wt.textContent = "timing lottery window"; s.appendChild(wt);
+  // last-seen marker (hour 10)
+  var ls = bx + (10 / 24) * bw;
+  s.appendChild(svg("circle", { cx: ls, cy: by, r: 10, fill: "#6f8fd6", id: "s18-lastseen", opacity: 0 }));
+  var lt = svg("text", { x: ls - 40, y: by - 30, fill: "#6f8fd6", "font-size": 18, "font-family": "JetBrains Mono, monospace", id: "s18-lslab", opacity: 0 }); lt.textContent = "last-seen"; s.appendChild(lt);
+  // preferred hour marker (hour 10) with -10min offset arrow leftward
+  var pf = bx + (9.83 / 24) * bw;
+  s.appendChild(svg("line", { x1: pf, y1: by - 50, x2: pf, y2: by + 50, stroke: "#ff3d4d", "stroke-width": 3, id: "s18-pref", opacity: 0 }));
+  var pt = svg("text", { x: pf - 80, y: by + 78, fill: "#ff3d4d", "font-size": 18, "font-family": "JetBrains Mono, monospace", id: "s18-preflab", opacity: 0 }); pt.textContent = "send − 10 min"; s.appendChild(pt);
+  // fallback->tomorrow arrow at the end
+  var fb = svg("path", { d: "M " + (bx + bw - 60) + " " + (by + 110) + " L " + (bx + bw + 6) + " " + (by + 110), stroke: "#9a9494", "stroke-width": 2, id: "s18-fb", opacity: 0 }); s.appendChild(fb);
+  var ft = svg("text", { x: bx + bw - 200, y: by + 100, fill: "#9a9494", "font-size": 16, "font-family": "JetBrains Mono, monospace", id: "s18-fblab", opacity: 0 }); ft.textContent = "no signal → tomorrow"; s.appendChild(ft);
+})();
+
+// ---------- Scene 19 : normal curve + CI ----------
+(function () {
+  var s = document.getElementById("s19-svg");
+  var bx = 60, by = 280, bw = 780, bh = 220, mid = bx + bw / 2;
+  s.appendChild(svg("line", { x1: bx, y1: by, x2: bx + bw, y2: by, stroke: "#302726", "stroke-width": 2 }));
+  // normal curve points
+  function norm(x) { return Math.exp(-x * x / 2); }
+  var pts = [], range = 3.2;
+  for (var i = 0; i <= 120; i++) {
+    var xv = -range + (i / 120) * 2 * range;
+    var px = mid + (xv / range) * (bw / 2);
+    var py = by - norm(xv) * bh;
+    pts.push(px.toFixed(1) + "," + py.toFixed(1));
+  }
+  var curve = makePoly(s, pts.join(" "), "#fcfafa", 4, true); curve.setAttribute("id", "s19-curve");
+  // rejection tails at +-1.96 (z = 1.96 / range scaling)
+  function tailPath(sign) {
+    var z = 1.96;
+    var p = [];
+    var startX = sign > 0 ? z : -range;
+    var endX = sign > 0 ? range : -z;
+    p.push((mid + (startX / range) * (bw / 2)).toFixed(1) + "," + by);
+    for (var i = 0; i <= 40; i++) {
+      var xv = startX + (i / 40) * (endX - startX);
+      var px = mid + (xv / range) * (bw / 2);
+      var py = by - norm(xv) * bh;
+      p.push(px.toFixed(1) + "," + py.toFixed(1));
+    }
+    p.push((mid + (endX / range) * (bw / 2)).toFixed(1) + "," + by);
+    return "M " + p.join(" L ") + " Z";
+  }
+  s.appendChild(svg("path", { d: tailPath(1), fill: "#ff3d4d", opacity: 0, id: "s19-tailR" }));
+  s.appendChild(svg("path", { d: tailPath(-1), fill: "#ff3d4d", opacity: 0, id: "s19-tailL" }));
+  // 1.96 labels
+  var zr = svg("text", { x: mid + (1.96 / range) * (bw / 2) - 18, y: by + 26, fill: "#ff3d4d", "font-size": 16, "font-family": "JetBrains Mono, monospace", id: "s19-zr", opacity: 0 }); zr.textContent = "+1.96"; s.appendChild(zr);
+  var zl = svg("text", { x: mid - (1.96 / range) * (bw / 2) - 18, y: by + 26, fill: "#ff3d4d", "font-size": 16, "font-family": "JetBrains Mono, monospace", id: "s19-zl", opacity: 0 }); zl.textContent = "−1.96"; s.appendChild(zl);
+  // 95% CI bar above zero (green) sitting top-right
+  var ciY = 60;
+  s.appendChild(svg("line", { x1: mid + 120, y1: ciY, x2: mid + 320, y2: ciY, stroke: "#57a16c", "stroke-width": 6, id: "s19-ci", opacity: 0 }));
+  s.appendChild(svg("line", { x1: mid + 120, y1: ciY - 12, x2: mid + 120, y2: ciY + 12, stroke: "#57a16c", "stroke-width": 4, id: "s19-cil", opacity: 0 }));
+  s.appendChild(svg("line", { x1: mid + 320, y1: ciY - 12, x2: mid + 320, y2: ciY + 12, stroke: "#57a16c", "stroke-width": 4, id: "s19-cir", opacity: 0 }));
+  var ct = svg("text", { x: mid + 130, y: ciY - 20, fill: "#57a16c", "font-size": 18, "font-family": "JetBrains Mono, monospace", id: "s19-cilab", opacity: 0 }); ct.textContent = "95% CI > 0"; s.appendChild(ct);
+})();
+
+// ---------- Scene 20 : pipeline lights + outro ----------
+(function () {
+  var row = document.getElementById("s20-pipe");
+  PIPE.forEach(function (s, i) {
+    var node = document.createElement("div"); node.className = "loop-node"; node.id = "s20n-" + i;
+    node.innerHTML = '<div class="ln-n mono">0' + (i + 1) + '</div><div class="ln-t" style="font-size:17px;">' + s + '</div>';
+    row.appendChild(node);
+    if (i < PIPE.length - 1) {
+      var a = document.createElement("div"); a.className = "loop-arrow"; a.id = "s20a-" + i; row.appendChild(a);
+    }
+  });
+})();
+
+// ---------- captions ----------
+(function () {
+  var capLayer = document.getElementById("cap-layer");
+  B.forEach(function (g, i) {
+    var el = document.createElement("div");
+    el.className = "cap" + (/[α-ωΑ-Ω×→=√²³ᵀ]|Beta|clamp|CTR|min\(|D\(i\)/.test(g.text) ? " code" : "");
+    el.id = "cg-" + i; el.textContent = g.text; capLayer.appendChild(el);
+  });
+})();
+
+function reveal(n) { tl.to("#scene" + n, { opacity: 1, duration: 0.55, ease: "power2.out" }, sc(n).fadeStart); }
+function hide(n) { if (sc(n).hideAt != null) tl.set("#scene" + n, { opacity: 0, visibility: "hidden" }, sc(n).hideAt); }
+function titleIn(n, fs) {
+  tl.from("#scene" + n + " .kicker", { y: 20, opacity: 0, duration: 0.5, ease: "power2.out" }, sc(n).fadeStart + 0.2);
+  tl.from("#scene" + n + " .scene-title", { y: 24, opacity: 0, duration: 0.5, ease: "expo.out" }, sc(n).fadeStart + 0.35);
+}
+
+// ================= TIMELINE =================
+
+// Scene 1 (beats 0-2)
+tl.from("#s1-kicker", { y: 20, opacity: 0, duration: 0.5, ease: "power3.out" }, b(0) + 0.2);
+tl.from("#s1-mark", { y: 44, opacity: 0, duration: 0.6, ease: "expo.out" }, b(0) + 0.4);
+tl.from("#s1-sub", { y: 20, opacity: 0, duration: 0.5, ease: "power2.out" }, b(0) + 0.8);
+tl.from("#s1-pipe .pipe-step", { y: 24, opacity: 0, duration: 0.45, ease: "back.out(1.4)", stagger: 0.1 }, b(2));
+
+// Scene 2 (beats 3-4)
+reveal(2); titleIn(2);
+tl.from("#s2-user", { scale: 0.6, opacity: 0, duration: 0.5, ease: "back.out(1.6)" }, b(3) + 0.2);
+tl.from("#s2-arrow", { opacity: 0, x: -20, duration: 0.4 }, b(3) + 0.5);
+tl.from("#s2-vec .fv-cell", { opacity: 0, y: 30, duration: 0.4, ease: "power2.out", stagger: 0.05 }, b(3) + 0.7);
+tl.to("#s2-vec .fvb", { scaleY: 1, duration: 0.6, ease: "power2.out", stagger: 0.04 }, b(3) + 1.1);
+tl.from("#s2-bands", { opacity: 0, y: 16, duration: 0.5 }, b(4) + 0.2);
+
+// Scene 3 (beats 5-7) behavioral
+reveal(3); titleIn(3);
+tl.from("#s3-vec .fv-cell", { opacity: 0, y: 24, duration: 0.4, ease: "power2.out", stagger: 0.05 }, b(5) + 0.2);
+tl.from(["#s3lab-0", "#s3lab-1"], { opacity: 0, y: 10, duration: 0.4, stagger: 0.1 }, b(5) + 0.8);
+tl.from(["#s3lab-2", "#s3lab-3", "#s3lab-4"], { opacity: 0, y: 10, duration: 0.4, stagger: 0.1 }, b(6) + 0.2);
+tl.from("#s3lab-5", { opacity: 0, y: 10, duration: 0.4 }, b(7) + 0.2);
+
+// Scene 4 (beats 8-10) semantic
+reveal(4); titleIn(4);
+tl.from("#s4-vec .fv-cell", { opacity: 0, y: 24, duration: 0.4, ease: "power2.out", stagger: 0.05 }, b(8) + 0.2);
+tl.from("#s4lab-6", { opacity: 0, y: 10, duration: 0.4 }, b(8) + 0.8);
+tl.from("#s4-f", { opacity: 0, y: 14, duration: 0.5 }, b(8) + 1.1);
+tl.from(["#s4lab-7", "#s4lab-8"], { opacity: 0, y: 10, duration: 0.4, stagger: 0.12 }, b(9) + 0.2);
+tl.from("#s4lab-9", { opacity: 0, y: 10, duration: 0.4 }, b(10) + 0.2);
+
+// Scene 5 (beats 11-12) 44->10
+reveal(5); titleIn(5);
+tl.from("#s5-old .s5old-cell", { opacity: 0, scale: 0, transformOrigin: "center", duration: 0.3, ease: "power1.out", stagger: 0.01 }, b(11) + 0.2);
+tl.from("#s5-arrow", { opacity: 0, y: -10, duration: 0.4 }, b(11) + 1.0);
+tl.from("#s5-new .s5new-cell", { opacity: 0, scale: 0, transformOrigin: "center", duration: 0.45, ease: "back.out(1.6)", stagger: 0.05 }, b(11) + 1.3);
+tl.from("#s5-note", { opacity: 0, y: 14, duration: 0.5 }, b(12) + 0.3);
+
+// Scene 6 (beats 13-15) cosine
+reveal(6); titleIn(6);
+tl.to("#s6-a", { strokeDashoffset: 0, duration: 0.7, ease: "power2.out" }, b(13) + 0.2);
+tl.to("#s6-a-d", { opacity: 1, duration: 0.3 }, b(13) + 0.8);
+tl.to("#s6-b", { strokeDashoffset: 0, duration: 0.7, ease: "power2.out" }, b(13) + 0.5);
+tl.to("#s6-b-d", { opacity: 1, duration: 0.3 }, b(13) + 1.1);
+tl.to(["#s6-arc", "#s6-theta"], { opacity: 1, duration: 0.5, ease: "power2.out" }, b(14) + 0.2);
+tl.from("#s6-f", { opacity: 0, y: 14, duration: 0.5 }, b(14) + 0.5);
+tl.from("#s6-note", { opacity: 0, y: 14, duration: 0.5 }, b(15) + 0.2);
+
+// Scene 7 (beats 16-18) k-means++ seeding
+reveal(7); titleIn(7);
+tl.to("#s7-svg circle[id^='s7p-']", { opacity: 1, scale: 1, transformOrigin: "center", duration: 0.4, ease: "back.out(1.5)", stagger: 0.02 }, b(16) + 0.2);
+tl.to("#s7seed-0", { opacity: 1, duration: 0.4, ease: "back.out(2)" }, b(17) + 0.2);
+tl.to("#s7seed-1", { opacity: 1, duration: 0.4, ease: "back.out(2)" }, b(17) + 0.5);
+tl.to("#s7seed-2", { opacity: 1, duration: 0.4, ease: "back.out(2)" }, b(17) + 0.8);
+tl.from("#s7-f", { opacity: 0, y: 14, duration: 0.5 }, b(17) + 1.1);
+
+// Scene 8 (beats 19-21) k-means loop
+reveal(8); titleIn(8);
+s8clusters.forEach(function (cl, ci) {
+  tl.to("#s8-svg circle[id^='s8d-" + ci + "-']", { fill: cl.color, opacity: 1, duration: 0.4, ease: "power2.out", stagger: 0.03 }, b(19) + 0.2 + ci * 0.15);
+});
+tl.to("#s8-assign", { opacity: 1, duration: 0.4 }, b(19) + 1.0);
+s8clusters.forEach(function (cl, ci) {
+  tl.to("#s8c-" + ci, { opacity: 1, scale: 1.2, transformOrigin: "center", duration: 0.4, ease: "back.out(2)" }, b(20) + 0.2 + ci * 0.12);
+});
+tl.to("#s8-update", { opacity: 1, duration: 0.4 }, b(20) + 0.8);
+
+// Scene 9 (beats 22-24) silhouette
+reveal(9); titleIn(9);
+document.querySelectorAll("#s9-svg rect[id^='s9bar-']").forEach(function (r) {
+  tl.to(r, { attr: { y: r.dataset.y, height: r.dataset.h }, duration: 0.6, ease: "power2.out" }, b(22) + 0.2 + 0.06 * parseInt(r.id.split("-")[1]));
+});
+tl.to("#s9bar-2", { attr: { fill: "#57a16c" }, duration: 0.4 }, b(23) + 0.2);
+tl.from("#s9-f", { opacity: 0, y: 14, duration: 0.5 }, b(24) + 0.2);
+
+// Scene 10 (beats 25-26) one bandit per persona
+reveal(10); titleIn(10);
+tl.from("#s10-row .pcard", { y: 30, opacity: 0, duration: 0.5, ease: "back.out(1.4)", stagger: 0.15 }, b(25) + 0.2);
+document.querySelectorAll("#s10-row .am-fill").forEach(function (f) {
+  tl.to(f, { scaleX: parseFloat(f.dataset.v), duration: 0.7, ease: "power2.out" }, b(26));
+});
+
+// Scene 11 (beats 27-29) Thompson
+reveal(11); titleIn(11);
+tl.to("#s11bc-0", { strokeDashoffset: 0, duration: 1.0, ease: "power1.inOut" }, b(28));
+tl.to("#s11bc-1", { strokeDashoffset: 0, duration: 1.0, ease: "power1.inOut" }, b(28) + 0.2);
+tl.to("#s11bc-2", { strokeDashoffset: 0, duration: 1.0, ease: "power1.inOut" }, b(28) + 0.4);
+tl.from("#s11-legend", { opacity: 0, y: 16, duration: 0.5 }, b(28) + 0.6);
+tl.to(["#s11dl-0", "#s11dd-0"], { opacity: 1, duration: 0.35 }, b(29) + 0.1);
+tl.to(["#s11dl-1", "#s11dd-1"], { opacity: 1, duration: 0.35 }, b(29) + 0.3);
+tl.to(["#s11dl-2", "#s11dd-2"], { opacity: 1, duration: 0.35 }, b(29) + 0.5);
+tl.to("#s11-send", { opacity: 1, duration: 0.4, ease: "back.out(2)" }, b(29) + 0.9);
+tl.from("#s11-f", { opacity: 0, y: 14, duration: 0.5 }, b(29) + 1.1);
+
+// Scene 12 (beats 30-32) pessimistic prior
+reveal(12); titleIn(12);
+tl.to("#s12-flat", { strokeDashoffset: 0, duration: 0.8, ease: "power1.inOut" }, b(30) + 0.3);
+tl.to("#s12-lab2", { opacity: 1, duration: 0.4 }, b(30) + 0.9);
+tl.to("#s12-pess", { strokeDashoffset: 0, duration: 0.9, ease: "power1.inOut" }, b(30) + 0.6);
+tl.to("#s12-lab1", { opacity: 1, duration: 0.4 }, b(30) + 1.2);
+tl.from("#s12-note", { opacity: 0, y: 14, duration: 0.5 }, b(31) + 0.3);
+
+// Scene 13 (beats 33-35) LinUCB structures
+reveal(13); titleIn(13);
+tl.from("#s13-grid .mat-cell", { opacity: 0, scale: 0, transformOrigin: "center", duration: 0.25, ease: "power1.out", stagger: 0.004 }, b(34));
+tl.to("#s13-grid .mat-cell.diag", { boxShadow: "0 0 14px rgba(87,161,108,0.7)", duration: 0.4 }, b(34) + 0.8);
+tl.from("#s13-vecb .vb-cell", { opacity: 0, x: 20, duration: 0.3, ease: "power2.out", stagger: 0.05 }, b(34) + 0.4);
+tl.from("#s13-f", { opacity: 0, y: 14, duration: 0.5 }, b(34) + 1.2);
+
+// Scene 14 (beats 36-38) LinUCB score
+reveal(14); titleIn(14);
+tl.from("#s14-f", { opacity: 0, scale: 0.92, duration: 0.6, ease: "back.out(1.4)" }, b(36) + 0.2);
+tl.from("#s14-l1", { opacity: 0, y: 14, duration: 0.5 }, b(36) + 0.8);
+tl.from("#s14-l2", { opacity: 0, y: 14, duration: 0.5 }, b(37) + 0.2);
+tl.from("#s14-f2", { opacity: 0, y: 14, duration: 0.5 }, b(37) + 0.8);
+
+// Scene 15 (beats 39-40) epsilon-greedy
+reveal(15); titleIn(15);
+tl.from("#s15-greedy", { scaleX: 0, transformOrigin: "left center", opacity: 0, duration: 0.6, ease: "power2.out" }, b(39) + 0.2);
+tl.from("#s15-eps", { scaleX: 0, transformOrigin: "left center", opacity: 0, duration: 0.4, ease: "power2.out" }, b(39) + 0.6);
+tl.to("#s15-decay", { strokeDashoffset: 0, duration: 0.7, ease: "power2.out" }, b(40) + 0.2);
+tl.to(["#s15-arrh", "#s15-dlab"], { opacity: 1, duration: 0.3 }, b(40) + 0.8);
+tl.from("#s15-f", { opacity: 0, y: 14, duration: 0.5 }, b(40) + 0.6);
+
+// Scene 16 (beats 41-44) reward
+reveal(16); titleIn(16);
+document.querySelectorAll("#s16-ladder .tr-bar").forEach(function (bar, i) {
+  tl.to(bar, { width: bar.dataset.w + "px", duration: 0.5, ease: "power2.out" }, b(41) + 0.2 + i * 0.1);
+});
+tl.from("#s16-f1", { opacity: 0, y: 14, duration: 0.5 }, b(42) + 0.2);
+tl.from(["#s16-f2", "#s16-f3"], { opacity: 0, y: 14, duration: 0.5, stagger: 0.15 }, b(43) + 0.2);
+tl.from("#s16-note", { opacity: 0, y: 14, duration: 0.5 }, b(44) + 0.2);
+
+// Scene 17 (beats 45-46) attribution & decay
+reveal(17); titleIn(17);
+[0, 1, 2, 3].forEach(function (i) {
+  tl.to(["#s17m-" + i, "#s17t-" + i], { opacity: 1, duration: 0.35 }, b(45) + 0.2 + i * 0.25);
+});
+tl.to(["#s17-retro", "#s17-retrolab"], { opacity: 1, duration: 0.5 }, b(45) + 1.4);
+tl.to("#s17-decay", { strokeDashoffset: 0, duration: 1.0, ease: "power2.out" }, b(46) + 0.2);
+tl.from("#s17-f", { opacity: 0, y: 14, duration: 0.5 }, b(46) + 0.6);
+
+// Scene 18 (beats 47-49) send-time
+reveal(18); titleIn(18);
+tl.to(["#s18-lastseen", "#s18-lslab"], { opacity: 1, duration: 0.4 }, b(47) + 0.3);
+tl.to(["#s18-pref", "#s18-preflab"], { opacity: 1, duration: 0.4 }, b(47) + 1.0);
+tl.to(["#s18-fb", "#s18-fblab"], { opacity: 1, duration: 0.4 }, b(48) + 0.3);
+tl.to("#s18-window", { opacity: 0.18, duration: 0.5 }, b(49) + 0.2);
+tl.to("#s18-wlab", { opacity: 1, duration: 0.4 }, b(49) + 0.4);
+
+// Scene 19 (beats 50-52) lift & significance
+reveal(19); titleIn(19);
+tl.to("#s19-curve", { strokeDashoffset: 0, duration: 1.0, ease: "power2.out" }, b(50) + 0.3);
+tl.to(["#s19-tailR", "#s19-tailL", "#s19-zr", "#s19-zl"], { opacity: 0.85, duration: 0.5 }, b(51) + 0.3);
+tl.to(["#s19-ci", "#s19-cil", "#s19-cir", "#s19-cilab"], { opacity: 1, duration: 0.5 }, b(52) + 0.2);
+tl.from("#s19-f", { opacity: 0, y: 14, duration: 0.5 }, b(52) + 0.5);
+
+// Scene 20 (beats 53-54) outro
+reveal(20);
+tl.from("#s20-kicker", { y: 20, opacity: 0, duration: 0.5 }, sc(20).fadeStart + 0.2);
+PIPE.forEach(function (p, i) {
+  tl.to("#s20n-" + i, { duration: 0.01 }, b(53) + 0.2 + i * 0.18);
+  tl.fromTo("#s20n-" + i, { scale: 0.7, opacity: 0 }, { scale: 1, opacity: 1, duration: 0.35, ease: "back.out(1.5)" }, b(53) + 0.2 + i * 0.18);
+  tl.to("#s20n-" + i, { className: "loop-node lit", duration: 0.01 }, b(53) + 0.3 + i * 0.18);
+  if (i < PIPE.length - 1) tl.to("#s20a-" + i, { className: "loop-arrow lit", duration: 0.01 }, b(53) + 0.4 + i * 0.18);
+});
+tl.from("#s20-num", { scale: 0.7, opacity: 0, duration: 0.5, ease: "back.out(1.5)" }, b(54) + 0.1);
+var stat20 = { v: 0 };
+tl.to(stat20, { v: 34, duration: 1.4, ease: "power2.out",
+  onUpdate: function () { document.getElementById("s20-num").textContent = "+" + Math.round(stat20.v) + "%"; } }, b(54) + 0.2);
+tl.from("#s20-sub", { y: 16, opacity: 0, duration: 0.5 }, b(54) + 0.8);
+tl.from("#s20-mark", { y: 30, opacity: 0, duration: 0.6, ease: "expo.out" }, b(54) + 1.2);
+
+// hide outgoing scenes
+[1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19].forEach(hide);
+
+// captions
+B.forEach(function (g, i) {
+  var id = "#cg-" + i;
+  tl.fromTo(id, { opacity: 0, y: 22 }, { opacity: 1, y: 0, duration: 0.28, ease: "power2.out", overwrite: "auto" }, g.start);
+  tl.to(id, { opacity: 0, y: -10, duration: 0.18, ease: "power2.in", overwrite: "auto" }, g.end - 0.14);
+  tl.set(id, { opacity: 0, y: 22 }, g.end);
+});
+
+window.__timelines["main"] = tl;
+
+    </script>
+  </body>
+</html>

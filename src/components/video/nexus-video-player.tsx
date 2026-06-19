@@ -11,6 +11,11 @@ const VOICES: Option[] = [
   { key: "emma", label: "Emma", sublabel: "British" },
 ];
 
+const ASPECTS: Option[] = [
+  { key: "wide", label: "16:9" },
+  { key: "tall", label: "9:16" },
+];
+
 type NexusVideoPlayerProps = {
   /** Public path prefix, e.g. "/videos/nexus-about". Files resolve to `${basePath}-${length}__${voice}.mp4`. */
   basePath: string;
@@ -19,6 +24,8 @@ type NexusVideoPlayerProps = {
   defaultVoice?: string;
   accent?: string;
   className?: string;
+  /** When true, show a 16:9 / 9:16 aspect toggle. The 9:16 variant resolves to `${basePath}-portrait-${length}__${voice}.mp4`. */
+  portrait?: boolean;
 };
 
 export function NexusVideoPlayer({
@@ -28,24 +35,31 @@ export function NexusVideoPlayer({
   defaultVoice = "heart",
   accent = "#ff3d4d",
   className,
+  portrait = false,
 }: NexusVideoPlayerProps) {
   const [length, setLength] = useState(defaultLength ?? lengths[0].key);
   const [voice, setVoice] = useState(defaultVoice);
+  const [aspect, setAspect] = useState("wide");
   const videoRef = useRef<HTMLVideoElement>(null);
 
-  const src = useMemo(() => `${basePath}-${length}__${voice}.mp4`, [basePath, length, voice]);
+  const src = useMemo(() => {
+    const base = portrait && aspect === "tall" ? `${basePath}-portrait` : basePath;
+    return `${base}-${length}__${voice}.mp4`;
+  }, [basePath, length, voice, aspect, portrait]);
 
   // Reload the element whenever the chosen variant changes.
   useEffect(() => {
     videoRef.current?.load();
   }, [src]);
 
+  const tall = portrait && aspect === "tall";
+
   return (
     <div className={cn("rounded-2xl border bg-card overflow-hidden", className)}>
-      <div className="aspect-video bg-[#121212]">
+      <div className={cn("bg-[#121212] flex justify-center", tall ? "py-4" : "aspect-video")}>
         <video
           ref={videoRef}
-          className="h-full w-full"
+          className={cn(tall ? "h-[70vh] max-h-[680px] aspect-[9/16]" : "h-full w-full")}
           controls
           playsInline
           preload="metadata"
@@ -62,6 +76,15 @@ export function NexusVideoPlayer({
           onChange={setLength}
           accent={accent}
         />
+        {portrait && (
+          <Segmented
+            label="Aspect"
+            options={ASPECTS}
+            value={aspect}
+            onChange={setAspect}
+            accent={accent}
+          />
+        )}
         <Segmented
           label="Voice"
           options={VOICES}

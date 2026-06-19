@@ -1,0 +1,11 @@
+Nexus is a contextual multi-armed bandit. Its job is to pick the right message for every user, on every channel, and to get measurably better with each send.
+
+It starts with the user. Ten signals — per-channel conversion rates, when someone engages, how deeply they read, whether they give — become a ten-dimensional feature vector.
+
+Nearby vectors cluster into personas: behavioral archetypes discovered by k-means over cosine distance. Each persona gets its own learning model.
+
+Now the choice. Every message variant is an arm. Thompson Sampling models each arm's success rate as a Beta distribution, draws a random sample from each one, and sends the highest draw. Strong arms win often, but uncertain arms still earn a shot. That's exploration and exploitation in a single rule.
+
+When the user converts — an open, a reading plan, a donation — that becomes a reward. It's normalized, clamped, and folded back in. Good outcomes raise alpha; misses raise beta. And old evidence quietly decays, so the model stays current.
+
+Send, observe, update — every hour, across push, email, and in-app. In production, that's a thirty-four percent lift over random. That's Nexus.

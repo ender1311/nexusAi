@@ -1,0 +1,47 @@
+[
+  { "scene": 1, "text": "Nexus is a contextual multi-armed bandit." },
+  { "scene": 1, "text": "The objective is easy to state and hard to do well:" },
+  { "scene": 1, "text": "for every user, on every channel, choose the message that maximizes a scalar reward derived from engagement.", "caption": "maximize a scalar reward from engagement" },
+
+  { "scene": 2, "text": "To choose well, Nexus first has to represent the user." },
+  { "scene": 2, "text": "Every user becomes a point in a ten-dimensional feature space.", "caption": "Each user → a point in 10-D feature space" },
+
+  { "scene": 3, "text": "The first six dimensions are behavioral, pulled from Nexus's own decision and conversion logs:", "caption": "Behavioral [0–5] — from decision & conversion logs" },
+  { "scene": 3, "text": "push and email conversion rates, three temporal ratios for morning, evening, and weekend, and an overall conversion rate.", "caption": "channel rates · morning/evening/weekend · overall rate" },
+
+  { "scene": 4, "text": "The last four are semantic, synced from YouVersion through Hightouch:", "caption": "Semantic [6–9] — synced via Hightouch" },
+  { "scene": 4, "text": "a recency score that decays over ninety days, a giving tier, a spiritual-depth composite of five signals, and a log-scaled engagement frequency.", "caption": "recency · giving tier · spiritual depth · frequency" },
+  { "scene": 4, "text": "Every dimension is normalized to roughly zero to one, so no single signal can dominate.", "caption": "all normalized to ~[0, 1]" },
+
+  { "scene": 5, "text": "Why normalize? Because Nexus compares users by cosine distance, not Euclidean distance." },
+  { "scene": 5, "text": "Cosine measures the angle between two vectors, so it's invariant to magnitude.", "caption": "cosine = angle, invariant to magnitude" },
+  { "scene": 5, "text": "A user with a thousand sends and one with ten, at the same rate, point the same direction." },
+
+  { "scene": 6, "text": "Those vectors are clustered into personas with k-means plus plus over cosine distance.", "caption": "k-means++ over cosine distance" },
+  { "scene": 6, "text": "Seed centroids far apart, then alternate an assignment step and an update step until no user changes cluster.", "caption": "assign → update → repeat until stable" },
+
+  { "scene": 7, "text": "It doesn't fix the number of personas. It runs every k, scores each with the mean silhouette, and keeps the cleanest separation.", "caption": "silhouette score picks the best k" },
+  { "scene": 7, "text": "as long as it clears a minimum of zero point two five. Five stability runs guard against an unlucky start.", "caption": "min silhouette 0.25 · 5 stability runs" },
+  { "scene": 7, "text": "Each persona then gets its own independent bandit." },
+
+  { "scene": 8, "text": "Now the decision. Each message variant is an arm, and the default algorithm is Thompson Sampling." },
+  { "scene": 8, "text": "Every arm carries a Beta distribution: alpha, the accumulated success, and beta, the accumulated failure.", "caption": "each arm = Beta(α, β)" },
+  { "scene": 8, "text": "The expected rate is alpha over alpha plus beta, and the variance shrinks as evidence accumulates.", "caption": "E[θ] = α / (α + β)" },
+  { "scene": 8, "text": "At send time, draw one sample from every arm and send whichever draws highest.", "caption": "draw θ ~ Beta(α,β) · send argmax" },
+
+  { "scene": 9, "text": "A confident arm draws high most of the time, but an uncertain, wide arm occasionally draws higher and earns an exploratory send.", "caption": "explore & exploit in one rule" },
+  { "scene": 9, "text": "New arms don't start neutral. They're initialized at Beta one, thirty — an expected value near three percent.", "caption": "pessimistic prior Beta(1, 30) ≈ 3%" },
+  { "scene": 9, "text": "A uniform prior would flood unproven variants with traffic. It takes about thirty sends to compete on merit." },
+
+  { "scene": 10, "text": "When a decision resolves, engagement becomes reward. Goals are tiered — a plan completion is worth far more than an open." },
+  { "scene": 10, "text": "The raw reward is divided by a hundred and clamped, so even a top conversion nudges alpha by about a tenth.", "caption": "r = clamp(raw / 100, −1, 1)" },
+  { "scene": 10, "text": "The update is asymmetric: a success adds the fractional reward to alpha, a failure adds exactly one to beta.", "caption": "r>0: α += r   else: β += 1" },
+
+  { "scene": 11, "text": "Attribution links each send to its outcome: forty-eight hours for standard goals, thirty days for long-horizon ones,", "caption": "48h standard · 30d long-horizon" },
+  { "scene": 11, "text": "and a ninety-day retroactive penalty when a user disables push — the most aggressive signal in the system.", "caption": "push disabled → 90-day penalty" },
+  { "scene": 11, "text": "And after every update, alpha and beta both decay by zero point nine nine — a half-life of about sixty-nine updates.", "caption": "α, β ×= 0.99 · half-life ≈ 69" },
+
+  { "scene": 12, "text": "Put it together and you have a loop: represent, cluster, sample, send, observe, update, decay — every hour.", "caption": "represent · cluster · sample · send · observe · update · decay" },
+  { "scene": 12, "text": "Against a uniform-random baseline, Nexus delivers a thirty-four percent lift in production,", "caption": "+34% lift over random" },
+  { "scene": 12, "text": "and a two-proportion z-test, with confidence intervals, tells you when that lift is real. That's the core of Nexus.", "caption": "z-test + CIs confirm significance" }
+]

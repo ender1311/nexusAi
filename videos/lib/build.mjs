@@ -35,14 +35,31 @@ function ffprobeDuration(file) {
   return parseFloat(out);
 }
 
+// Kokoro TTS occasionally crashes a single beat (transient). Retry before giving up.
+function sleepSync(ms) {
+  Atomics.wait(new Int32Array(new SharedArrayBuffer(4)), 0, 0, ms);
+}
+function ttsWithRetry(text, raw, attempts = 4) {
+  for (let a = 1; a <= attempts; a++) {
+    try {
+      execFileSync("npx", ["-y", "hyperframes", "tts", text, "--voice", voice, "--output", raw], {
+        stdio: ["ignore", "ignore", "inherit"],
+      });
+      return;
+    } catch (e) {
+      if (a === attempts) throw e;
+      process.stderr.write(`\n  tts beat retry ${a}/${attempts - 1}...\n`);
+      sleepSync(2000);
+    }
+  }
+}
+
 // 1) TTS each beat, pad with trailing gap, normalize format.
 const padded = [];
 const durations = [];
 beats.forEach((b, i) => {
   const raw = join(tmp, `s${i}.wav`);
-  execFileSync("npx", ["-y", "hyperframes", "tts", b.text, "--voice", voice, "--output", raw], {
-    stdio: ["ignore", "ignore", "inherit"],
-  });
+  ttsWithRetry(b.text, raw);
   const d = ffprobeDuration(raw);
   durations.push(d);
   const pad = join(tmp, `p${i}.wav`);

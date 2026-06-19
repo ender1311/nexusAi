@@ -1,0 +1,378 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=1080, height=1920" />
+    <script src="https://cdn.jsdelivr.net/npm/gsap@3.14.2/dist/gsap.min.js"></script>
+    <style>
+      :root {
+        --ink: #121212; --fg: #fcfafa; --red: #ff3d4d; --red-soft: #ff6976;
+        --green: #57a16c; --muted: #9a9494; --card: #1c1a1a; --line: #302726; --blue: #6f8fd6;
+      }
+      * { margin: 0; padding: 0; box-sizing: border-box; }
+      html, body {
+        width: 1080px; height: 1920px; overflow: hidden;
+        background: var(--ink); font-family: "Inter", sans-serif; color: var(--fg);
+      }
+      .mono { font-family: "JetBrains Mono", monospace; font-variant-numeric: tabular-nums; }
+      .scene {
+        position: absolute; inset: 0; width: 1080px; height: 1920px;
+        overflow: hidden; background: var(--ink);
+        display: flex; flex-direction: column; align-items: center; justify-content: center;
+        padding: 160px 70px 320px; text-align: center;
+      }
+      #scene2,#scene3,#scene4,#scene5,#scene6 { opacity: 0; }
+      #scene1 { z-index: 1; } #scene2 { z-index: 2; } #scene3 { z-index: 3; }
+      #scene4 { z-index: 4; } #scene5 { z-index: 5; } #scene6 { z-index: 6; }
+
+      .kicker { font-size: 26px; letter-spacing: 0.3em; text-transform: uppercase; color: var(--red); font-weight: 700; }
+      .ghost { position: absolute; font-weight: 800; letter-spacing: -0.04em; color: #ffffff; opacity: 0.035; font-size: 300px; white-space: nowrap; top: 220px; }
+      .scene-title { font-size: 66px; font-weight: 800; letter-spacing: -0.03em; line-height: 1.05; }
+      .formula { font-size: 34px; color: var(--fg); background: var(--card); border: 1px solid var(--line); border-radius: 16px; padding: 20px 30px; margin-top: 34px; }
+      .formula .hl { color: var(--red); } .formula .g { color: var(--green); }
+
+      .wordmark { font-size: 200px; font-weight: 800; letter-spacing: -0.05em; line-height: 1; }
+      .wordmark .x { color: var(--red); }
+      .title-sub { font-size: 46px; color: var(--muted); margin-top: 28px; font-weight: 500; }
+      .arm-tease { display: flex; gap: 22px; margin-top: 80px; align-items: flex-end; height: 200px; }
+      .arm-tease .at-bar { width: 86px; border-radius: 12px 12px 0 0; background: #4a4646; transform-origin: bottom; }
+      .arm-tease .at-bar.win { background: var(--red); box-shadow: 0 0 40px rgba(255,61,77,0.6); }
+
+      .fv-wrap { display: flex; flex-direction: column; align-items: center; gap: 30px; margin-top: 56px; }
+      .fv-user { width: 170px; height: 170px; border-radius: 50%; background: var(--card); border: 2px solid var(--line); display: grid; place-items: center; font-size: 76px; }
+      .fv-arrow { font-size: 60px; color: var(--muted); transform: rotate(90deg); }
+      .fv-vec { display: grid; grid-template-columns: repeat(5, 1fr); gap: 16px; width: 880px; }
+      .fv-cell { height: 230px; border-radius: 14px; background: var(--card); border: 1px solid var(--line); position: relative; overflow: hidden; display: flex; align-items: flex-end; justify-content: center; }
+      .fv-cell .fvb { width: 100%; transform-origin: bottom; transform: scaleY(0); }
+      .fv-cell.beh .fvb { background: var(--red); } .fv-cell.sem .fvb { background: var(--blue); }
+      .fv-cell .fvk { position: absolute; top: 12px; left: 0; right: 0; text-align: center; font-size: 22px; color: var(--muted); }
+      .fv-bands { display: flex; gap: 90px; margin-top: 30px; font-size: 30px; }
+      .fv-bands .bb { color: var(--red); font-weight: 600; } .fv-bands .bs { color: var(--blue); font-weight: 600; }
+
+      .cl-label { font-size: 32px; color: var(--muted); margin-top: 40px; }
+      .cl-label b { color: var(--fg); font-weight: 600; }
+      .beta-legend { display: flex; flex-direction: column; gap: 16px; margin-top: 36px; font-size: 32px; }
+      .beta-legend .li { display: flex; align-items: center; gap: 16px; color: var(--muted); }
+      .beta-legend .sw { width: 34px; height: 8px; border-radius: 4px; }
+
+      .loop-col { display: flex; flex-direction: column; align-items: center; gap: 0; margin-bottom: 16px; }
+      .loop-node { width: 360px; height: 130px; border-radius: 20px; background: var(--card); border: 1.5px solid var(--line); display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 8px; }
+      .loop-node .ln-n { font-size: 22px; color: var(--red); font-weight: 700; }
+      .loop-node .ln-t { font-size: 40px; font-weight: 700; }
+      .loop-arrow-v { width: 2px; height: 40px; background: var(--red); position: relative; }
+      .loop-arrow-v::after { content: ""; position: absolute; bottom: -2px; left: -5px; border-top: 12px solid var(--red); border-left: 6px solid transparent; border-right: 6px solid transparent; }
+      .chip-row { display: flex; gap: 22px; margin-top: 50px; }
+      .chip { padding: 18px 32px; border-radius: 999px; background: var(--card); border: 1px solid var(--line); font-size: 30px; font-weight: 600; display: flex; align-items: center; gap: 14px; }
+      .chip .cdot { width: 14px; height: 14px; border-radius: 50%; background: var(--red); }
+      .bignum { font-size: 280px; font-weight: 800; letter-spacing: -0.05em; line-height: 1; color: var(--red); margin-top: 40px; }
+      .bignum-sub { font-size: 40px; font-weight: 600; color: var(--muted); margin-top: 8px; }
+
+      #scrim { position: absolute; left: 0; right: 0; bottom: 0; height: 420px; z-index: 90; background: linear-gradient(to top, rgba(10,10,10,0.92), transparent); pointer-events: none; }
+      #cap-layer { position: absolute; left: 0; right: 0; bottom: 150px; z-index: 100; height: 200px; }
+      .cap { position: absolute; left: 0; right: 0; text-align: center; font-size: 50px; font-weight: 600; line-height: 1.25; opacity: 0; padding: 0 80px; text-shadow: 0 2px 18px rgba(0,0,0,0.7); }
+      .cap.code { font-family: "JetBrains Mono", monospace; font-size: 44px; color: var(--green); }
+    </style>
+  </head>
+  <body>
+    <div id="root" data-composition-id="main" data-start="0" data-duration="67.293"
+         data-width="1080" data-height="1920">
+
+      <div id="scene1" class="scene" data-layout-allow-overlap>
+        <div class="ghost" id="s1-ghost">BANDIT</div>
+        <div class="kicker" id="s1-kicker">Advanced · How Nexus learns</div>
+        <div class="wordmark" id="s1-mark" style="margin-top:22px;">NE<span class="x">X</span>US</div>
+        <div class="title-sub mono" id="s1-sub">contextual multi-armed bandit</div>
+        <div class="arm-tease" id="s1-arms"></div>
+      </div>
+
+      <div id="scene2" class="scene" data-layout-allow-overlap>
+        <div class="kicker" id="s2-kicker">Step 1 · Represent the user</div>
+        <div class="scene-title" id="s2-title" style="margin-top:18px;">A 10-dimensional<br/>feature vector</div>
+        <div class="fv-wrap" id="s2-wrap">
+          <div class="fv-user" id="s2-user">🧑</div>
+          <div class="fv-arrow" id="s2-arrow">→</div>
+          <div class="fv-vec" id="s2-vec"></div>
+        </div>
+        <div class="fv-bands" id="s2-bands">
+          <div class="bb">behavioral [0–5]</div>
+          <div class="bs">semantic [6–9]</div>
+        </div>
+      </div>
+
+      <div id="scene3" class="scene" data-layout-allow-overlap>
+        <div class="kicker" id="s3-kicker">Step 2 · Cluster into personas</div>
+        <div class="scene-title" id="s3-title" style="margin-top:18px;margin-bottom:40px;">Behavioral<br/>archetypes</div>
+        <svg id="s3-svg" width="820" height="520" viewBox="0 0 820 520" fill="none"></svg>
+        <div class="cl-label" id="s3-label"><b>k-means++</b> · cosine distance</div>
+      </div>
+
+      <div id="scene4" class="scene" data-layout-allow-overlap>
+        <div class="kicker" id="s4-kicker">Step 3 · Sample the arms</div>
+        <div class="scene-title" id="s4-title" style="margin-top:18px;margin-bottom:30px;">Thompson Sampling</div>
+        <svg id="s4-svg" width="940" height="470" viewBox="0 0 940 470" fill="none"></svg>
+        <div class="beta-legend mono" id="s4-legend">
+          <div class="li"><span class="sw" style="background:#ff3d4d"></span>Arm A · Beta(30, 6)</div>
+          <div class="li"><span class="sw" style="background:#6f8fd6"></span>Arm B · Beta(10, 12)</div>
+          <div class="li"><span class="sw" style="background:#9a9494"></span>Arm C · Beta(2, 5)</div>
+        </div>
+      </div>
+
+      <div id="scene5" class="scene" data-layout-allow-overlap>
+        <div class="kicker" id="s5-kicker">Step 4 · Reward &amp; update</div>
+        <div class="scene-title" id="s5-title" style="margin-top:18px;margin-bottom:30px;">The α / β update</div>
+        <svg id="s5-svg" width="820" height="380" viewBox="0 0 820 380" fill="none"></svg>
+        <div class="formula mono" id="s5-f1">if r &gt; 0: <span class="g">α += r</span>&nbsp;&nbsp;else: <span class="hl">β += 1</span></div>
+        <div class="formula mono" id="s5-f2" style="margin-top:18px;">α, β <span class="hl">×= 0.99</span></div>
+      </div>
+
+      <div id="scene6" class="scene" data-layout-allow-overlap>
+        <div class="kicker" id="s6-kicker" style="margin-bottom:36px;">The loop · every hour</div>
+        <div class="loop-col" id="s6-loop"></div>
+        <div class="chip-row" id="s6-chips"></div>
+        <div class="bignum mono" id="s6-num">+0%</div>
+        <div class="bignum-sub" id="s6-sub">lift over random assignment</div>
+      </div>
+
+      <div id="scrim"></div>
+      <div id="cap-layer"></div>
+
+      <audio id="vo" src="narration.wav" data-start="0" data-duration="66.853"
+             data-track-index="9" data-volume="1"></audio>
+    </div>
+
+    <script src="timings.js"></script>
+    <script>
+      window.__timelines = window.__timelines || {};
+      var tl = gsap.timeline({ paused: true });
+      var T = window.__VIDEO_TIMINGS;
+      var B = T.beats;
+      function b(i) { return B[i] ? B[i].start : 0; }
+      function sc(n) { return T.scenes[n]; }
+
+      function betaPath(a, bb, x0, y0, w, h, N) {
+        var vals = [], max = 0;
+        for (var i = 0; i <= N; i++) {
+          var x = i / N;
+          var v = Math.pow(x, a - 1) * Math.pow(1 - x, bb - 1);
+          if (!isFinite(v) || isNaN(v)) v = 0;
+          vals.push(v); if (v > max) max = v;
+        }
+        var pts = [];
+        for (var j = 0; j <= N; j++) {
+          var px = x0 + (j / N) * w;
+          var py = y0 + h - (vals[j] / max) * h;
+          pts.push(px.toFixed(1) + "," + py.toFixed(1));
+        }
+        return pts.join(" ");
+      }
+      function polyLen(str) {
+        var p = str.split(" ").map(function (s) { return s.split(",").map(Number); });
+        var L = 0;
+        for (var i = 1; i < p.length; i++) { var dx = p[i][0] - p[i - 1][0], dy = p[i][1] - p[i - 1][1]; L += Math.sqrt(dx * dx + dy * dy); }
+        return L;
+      }
+      var SVGNS = "http://www.w3.org/2000/svg";
+
+      // Scene 1 arms
+      var s1arms = [0.55, 0.82, 0.4, 0.66, 0.5];
+      var s1wrap = document.getElementById("s1-arms");
+      s1arms.forEach(function (v, i) {
+        var bar = document.createElement("div");
+        bar.className = "at-bar" + (i === 1 ? " win" : ""); bar.id = "at-" + i;
+        bar.style.height = Math.round(v * 200) + "px"; s1wrap.appendChild(bar);
+      });
+
+      // Scene 2 vector (5x2 grid)
+      var fvVals = [0.74, 0.18, 0.62, 0.30, 0.40, 0.55, 0.80, 0.50, 0.66, 0.45];
+      var fvVec = document.getElementById("s2-vec");
+      fvVals.forEach(function (v, i) {
+        var cell = document.createElement("div");
+        cell.className = "fv-cell " + (i < 6 ? "beh" : "sem"); cell.id = "fv-" + i;
+        var bar = document.createElement("div"); bar.className = "fvb"; bar.id = "fvb-" + i;
+        bar.style.height = Math.round(v * 190) + "px";
+        var k = document.createElement("div"); k.className = "fvk mono"; k.textContent = i;
+        cell.appendChild(k); cell.appendChild(bar); fvVec.appendChild(cell);
+      });
+
+      // Scene 3 clusters
+      var clusters = [
+        { cx: 200, cy: 150, color: "#ff3d4d", pts: [[160,120],[230,140],[190,190],[250,110],[150,170],[210,100]] },
+        { cx: 600, cy: 140, color: "#6f8fd6", pts: [[570,110],[640,130],[590,180],[650,100],[550,160],[620,160]] },
+        { cx: 400, cy: 380, color: "#57a16c", pts: [[360,360],[440,370],[390,420],[450,410],[350,400],[420,340]] }
+      ];
+      var s3svg = document.getElementById("s3-svg");
+      clusters.forEach(function (cl, ci) {
+        cl.pts.forEach(function (p, pi) {
+          var c = document.createElementNS(SVGNS, "circle");
+          c.setAttribute("cx", p[0]); c.setAttribute("cy", p[1]); c.setAttribute("r", 15);
+          c.setAttribute("fill", cl.color); c.setAttribute("id", "cd-" + ci + "-" + pi); c.setAttribute("class", "cdot");
+          s3svg.appendChild(c);
+        });
+      });
+      clusters.forEach(function (cl, ci) {
+        var st = document.createElementNS(SVGNS, "path");
+        st.setAttribute("d", "M " + cl.cx + " " + (cl.cy - 20) + " l 6 16 l 17 0 l -13 10 l 6 17 l -15 -10 l -15 10 l 6 -17 l -13 -10 l 17 0 z");
+        st.setAttribute("fill", "#fcfafa"); st.setAttribute("id", "cen-" + ci); st.setAttribute("opacity", "0");
+        s3svg.appendChild(st);
+      });
+
+      // Scene 4 beta curves
+      var s4 = document.getElementById("s4-svg");
+      var X0 = 50, Y0 = 20, W = 840, H = 360;
+      (function () {
+        var ax = document.createElementNS(SVGNS, "line");
+        ax.setAttribute("x1", X0); ax.setAttribute("y1", Y0 + H); ax.setAttribute("x2", X0 + W); ax.setAttribute("y2", Y0 + H);
+        ax.setAttribute("stroke", "#302726"); ax.setAttribute("stroke-width", "2"); s4.appendChild(ax);
+        var xlab = document.createElementNS(SVGNS, "text");
+        xlab.setAttribute("x", X0 + W / 2 - 80); xlab.setAttribute("y", Y0 + H + 30); xlab.setAttribute("fill", "#9a9494"); xlab.setAttribute("font-size", "22"); xlab.setAttribute("font-family", "JetBrains Mono, monospace"); xlab.textContent = "conversion rate θ"; s4.appendChild(xlab);
+      })();
+      var armDefs = [
+        { a: 30, b: 6, color: "#ff3d4d", draw: 0.81 },
+        { a: 10, b: 12, color: "#6f8fd6", draw: 0.46 },
+        { a: 2, b: 5, color: "#9a9494", draw: 0.30 }
+      ];
+      armDefs.forEach(function (d, i) {
+        var poly = document.createElementNS(SVGNS, "polyline");
+        var ptsStr = betaPath(d.a, d.b, X0, Y0, W, H, 120);
+        poly.setAttribute("points", ptsStr);
+        poly.setAttribute("stroke", d.color); poly.setAttribute("stroke-width", "5");
+        poly.setAttribute("fill", "none"); poly.setAttribute("stroke-linejoin", "round"); poly.setAttribute("id", "bc-" + i);
+        var len = polyLen(ptsStr); poly.style.strokeDasharray = len; poly.style.strokeDashoffset = len;
+        s4.appendChild(poly);
+      });
+      armDefs.forEach(function (d, i) {
+        var dx = X0 + d.draw * W;
+        var ln = document.createElementNS(SVGNS, "line");
+        ln.setAttribute("x1", dx); ln.setAttribute("y1", Y0 + H); ln.setAttribute("x2", dx); ln.setAttribute("y2", Y0 + 34);
+        ln.setAttribute("stroke", d.color); ln.setAttribute("stroke-width", "2"); ln.setAttribute("stroke-dasharray", "6 6");
+        ln.setAttribute("id", "dl-" + i); ln.setAttribute("opacity", "0"); s4.appendChild(ln);
+        var dot = document.createElementNS(SVGNS, "circle");
+        dot.setAttribute("cx", dx); dot.setAttribute("cy", Y0 + 34); dot.setAttribute("r", 13);
+        dot.setAttribute("fill", d.color); dot.setAttribute("id", "dd-" + i); dot.setAttribute("opacity", "0"); s4.appendChild(dot);
+      });
+      var sendTag = document.createElementNS(SVGNS, "text");
+      sendTag.setAttribute("x", X0 + 0.81 * W - 46); sendTag.setAttribute("y", Y0 + 16);
+      sendTag.setAttribute("fill", "#ff3d4d"); sendTag.setAttribute("font-size", "30"); sendTag.setAttribute("font-weight", "800");
+      sendTag.setAttribute("font-family", "Inter, sans-serif"); sendTag.setAttribute("id", "send-tag"); sendTag.setAttribute("opacity", "0");
+      sendTag.textContent = "SEND ✓"; s4.appendChild(sendTag);
+
+      // Scene 5 update curves
+      var s5 = document.getElementById("s5-svg");
+      var P0 = 40, Q0 = 14, PW = 740, PH = 300;
+      var ax5 = document.createElementNS(SVGNS, "line");
+      ax5.setAttribute("x1", P0); ax5.setAttribute("y1", Q0 + PH); ax5.setAttribute("x2", P0 + PW); ax5.setAttribute("y2", Q0 + PH);
+      ax5.setAttribute("stroke", "#302726"); ax5.setAttribute("stroke-width", "2"); s5.appendChild(ax5);
+      var before5 = document.createElementNS(SVGNS, "polyline");
+      before5.setAttribute("points", betaPath(30, 6, P0, Q0, PW, PH, 120));
+      before5.setAttribute("stroke", "#5a5454"); before5.setAttribute("stroke-width", "4"); before5.setAttribute("fill", "none");
+      before5.setAttribute("stroke-dasharray", "8 8"); before5.setAttribute("id", "b5-before"); s5.appendChild(before5);
+      var after5 = document.createElementNS(SVGNS, "polyline");
+      after5.setAttribute("points", betaPath(38, 7, P0, Q0, PW, PH, 120));
+      after5.setAttribute("stroke", "#57a16c"); after5.setAttribute("stroke-width", "5"); after5.setAttribute("fill", "none");
+      after5.setAttribute("stroke-linejoin", "round"); after5.setAttribute("id", "b5-after"); after5.setAttribute("opacity", "0"); s5.appendChild(after5);
+
+      // Scene 6 loop (vertical) + chips
+      var loopNodes = [["01", "Sample"], ["02", "Send"], ["03", "Observe"], ["04", "Update"]];
+      var lr = document.getElementById("s6-loop");
+      loopNodes.forEach(function (n, i) {
+        var el = document.createElement("div"); el.className = "loop-node"; el.id = "lp-" + i;
+        el.innerHTML = '<div class="ln-n mono">' + n[0] + '</div><div class="ln-t">' + n[1] + "</div>";
+        lr.appendChild(el);
+        if (i < loopNodes.length - 1) { var a = document.createElement("div"); a.className = "loop-arrow-v"; a.id = "lpa-" + i; lr.appendChild(a); }
+      });
+      var chips = ["Push", "Email", "In-app"];
+      var cr = document.getElementById("s6-chips");
+      chips.forEach(function (c, i) { var el = document.createElement("div"); el.className = "chip"; el.id = "ch-" + i; el.innerHTML = '<span class="cdot"></span>' + c; cr.appendChild(el); });
+
+      // captions
+      var capLayer = document.getElementById("cap-layer");
+      B.forEach(function (g, i) {
+        var el = document.createElement("div");
+        el.className = "cap" + (/[α-ωΑ-Ω×→=]|Beta|clamp/.test(g.text) ? " code" : "");
+        el.id = "cg-" + i; el.textContent = g.text; capLayer.appendChild(el);
+      });
+
+      function reveal(n) { tl.to("#scene" + n, { opacity: 1, duration: 0.55, ease: "power2.out" }, sc(n).fadeStart); }
+      function hide(n) { if (sc(n).hideAt != null) tl.set("#scene" + n, { opacity: 0, visibility: "hidden" }, sc(n).hideAt); }
+
+      // Scene 1
+      tl.from("#s1-ghost", { opacity: 0, duration: 0.9 }, b(0) + 0.1);
+      tl.from("#s1-kicker", { y: 20, opacity: 0, duration: 0.5, ease: "power3.out" }, b(0) + 0.2);
+      tl.from("#s1-mark", { y: 44, opacity: 0, duration: 0.6, ease: "expo.out" }, b(0) + 0.35);
+      tl.from("#s1-sub", { y: 20, opacity: 0, duration: 0.5, ease: "power2.out" }, b(0) + 0.7);
+      tl.from("#s1-arms .at-bar", { scaleY: 0, opacity: 0, duration: 0.5, ease: "back.out(1.5)", stagger: 0.08 }, b(1));
+      tl.to("#at-1", { boxShadow: "0 0 44px rgba(255,61,77,0.9)", duration: 0.5, repeat: 1, yoyo: true, ease: "sine.inOut" }, b(2));
+
+      // Scene 2
+      reveal(2);
+      tl.from("#s2-kicker", { y: 20, opacity: 0, duration: 0.5, ease: "power2.out" }, sc(2).fadeStart + 0.2);
+      tl.from("#s2-title", { y: 24, opacity: 0, duration: 0.55, ease: "expo.out" }, sc(2).fadeStart + 0.35);
+      tl.from("#s2-user", { scale: 0.6, opacity: 0, duration: 0.5, ease: "back.out(1.6)" }, b(3) + 0.1);
+      tl.from("#s2-arrow", { opacity: 0, y: -20, duration: 0.4 }, b(4) - 0.2);
+      tl.from("#s2-vec .fv-cell", { opacity: 0, y: 30, duration: 0.4, ease: "power2.out", stagger: 0.04 }, b(4));
+      tl.to("#s2-vec .fvb", { scaleY: 1, duration: 0.6, ease: "power2.out", stagger: 0.035 }, b(5));
+      tl.from("#s2-bands", { opacity: 0, y: 16, duration: 0.5 }, b(5) + 0.3);
+
+      // Scene 3
+      reveal(3);
+      tl.from("#s3-kicker", { y: 20, opacity: 0, duration: 0.5, ease: "power2.out" }, sc(3).fadeStart + 0.2);
+      tl.from("#s3-title", { y: 24, opacity: 0, duration: 0.5, ease: "expo.out" }, sc(3).fadeStart + 0.35);
+      tl.from("#s3-svg .cdot", { opacity: 0, scale: 0, transformOrigin: "center", duration: 0.5, ease: "back.out(1.6)", stagger: 0.02 }, b(6) + 0.1);
+      tl.to("#cen-0", { opacity: 1, duration: 0.4, ease: "back.out(2)" }, b(7) + 0.2);
+      tl.to("#cen-1", { opacity: 1, duration: 0.4, ease: "back.out(2)" }, b(7) + 0.4);
+      tl.to("#cen-2", { opacity: 1, duration: 0.4, ease: "back.out(2)" }, b(7) + 0.6);
+      tl.from("#s3-label", { y: 18, opacity: 0, duration: 0.5, ease: "power2.out" }, b(8) + 0.1);
+
+      // Scene 4
+      reveal(4);
+      tl.from("#s4-kicker", { y: 20, opacity: 0, duration: 0.5, ease: "power2.out" }, sc(4).fadeStart + 0.2);
+      tl.from("#s4-title", { y: 24, opacity: 0, duration: 0.5, ease: "expo.out" }, sc(4).fadeStart + 0.35);
+      tl.to("#bc-0", { strokeDashoffset: 0, duration: 1.0, ease: "power1.inOut" }, b(10));
+      tl.to("#bc-1", { strokeDashoffset: 0, duration: 1.0, ease: "power1.inOut" }, b(10) + 0.2);
+      tl.to("#bc-2", { strokeDashoffset: 0, duration: 1.0, ease: "power1.inOut" }, b(10) + 0.4);
+      tl.from("#s4-legend", { opacity: 0, y: 16, duration: 0.5 }, b(10) + 0.5);
+      tl.to(["#dl-0", "#dd-0"], { opacity: 1, duration: 0.35, ease: "power2.out" }, b(11));
+      tl.to(["#dl-1", "#dd-1"], { opacity: 1, duration: 0.35, ease: "power2.out" }, b(11) + 0.2);
+      tl.to(["#dl-2", "#dd-2"], { opacity: 1, duration: 0.35, ease: "power2.out" }, b(11) + 0.4);
+      tl.to("#send-tag", { opacity: 1, duration: 0.4, ease: "back.out(2)" }, b(11) + 1.0);
+      tl.to("#dd-0", { r: 17, duration: 0.4, repeat: 1, yoyo: true, ease: "sine.inOut" }, b(12));
+
+      // Scene 5
+      reveal(5);
+      tl.from("#s5-kicker", { y: 20, opacity: 0, duration: 0.5, ease: "power2.out" }, sc(5).fadeStart + 0.2);
+      tl.from("#s5-title", { y: 24, opacity: 0, duration: 0.5, ease: "expo.out" }, sc(5).fadeStart + 0.35);
+      tl.from("#b5-before", { opacity: 0, duration: 0.5 }, b(13) + 0.2);
+      tl.from("#s5-f1", { opacity: 0, y: 18, duration: 0.5, ease: "power2.out" }, b(15));
+      tl.to("#b5-after", { opacity: 1, duration: 0.7, ease: "power2.out" }, b(15) + 0.3);
+      tl.from("#s5-f2", { opacity: 0, y: 18, duration: 0.5, ease: "power2.out" }, b(16));
+
+      // Scene 6
+      reveal(6);
+      tl.from("#s6-kicker", { y: 20, opacity: 0, duration: 0.5, ease: "power2.out" }, sc(6).fadeStart + 0.2);
+      tl.from("#lp-0", { scale: 0.7, opacity: 0, duration: 0.4, ease: "back.out(1.5)" }, b(17) + 0.1);
+      tl.from("#lpa-0", { scaleY: 0, transformOrigin: "top center", opacity: 0, duration: 0.25 }, b(17) + 0.35);
+      tl.from("#lp-1", { scale: 0.7, opacity: 0, duration: 0.4, ease: "back.out(1.5)" }, b(17) + 0.5);
+      tl.from("#lpa-1", { scaleY: 0, transformOrigin: "top center", opacity: 0, duration: 0.25 }, b(17) + 0.75);
+      tl.from("#lp-2", { scale: 0.7, opacity: 0, duration: 0.4, ease: "back.out(1.5)" }, b(17) + 0.9);
+      tl.from("#lpa-2", { scaleY: 0, transformOrigin: "top center", opacity: 0, duration: 0.25 }, b(17) + 1.15);
+      tl.from("#lp-3", { scale: 0.7, opacity: 0, duration: 0.4, ease: "back.out(1.5)" }, b(17) + 1.3);
+      tl.from("#s6-chips .chip", { y: 20, opacity: 0, duration: 0.4, ease: "back.out(1.5)", stagger: 0.12 }, b(17) + 1.6);
+      tl.from("#s6-num", { scale: 0.7, opacity: 0, duration: 0.5, ease: "back.out(1.5)" }, b(18) + 0.05);
+      var stat = { v: 0 };
+      tl.to(stat, { v: 34, duration: 1.4, ease: "power2.out",
+        onUpdate: function () { document.getElementById("s6-num").textContent = "+" + Math.round(stat.v) + "%"; } }, b(18) + 0.15);
+      tl.from("#s6-sub", { y: 16, opacity: 0, duration: 0.5, ease: "power2.out" }, b(19) - 0.1);
+
+      [1, 2, 3, 4, 5].forEach(hide);
+
+      B.forEach(function (g, i) {
+        var id = "#cg-" + i;
+        tl.fromTo(id, { opacity: 0, y: 22 }, { opacity: 1, y: 0, duration: 0.28, ease: "power2.out", overwrite: "auto" }, g.start);
+        tl.to(id, { opacity: 0, y: -10, duration: 0.18, ease: "power2.in", overwrite: "auto" }, g.end - 0.14);
+        tl.set(id, { opacity: 0, y: 22 }, g.end);
+      });
+
+      window.__timelines["main"] = tl;
+    </script>
+  </body>
+</html>
