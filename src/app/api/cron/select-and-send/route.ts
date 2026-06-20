@@ -51,6 +51,7 @@ import { deriveGivingStrategy, deriveGivingFrequency, deriveGivingDefaultUsd } f
 import { parseMultiplier } from "@/lib/engine/giving-copy";
 import { isPushVariantComplete } from "@/lib/messages/push-completeness";
 import { snapshotEnrollmentFlags } from "@/lib/constants/interaction-flags";
+import { resolveTranslationsByVariant } from "@/lib/cron/translation-resolver";
 
 // Allow up to 300s execution time on Vercel
 export const maxDuration = 300;
@@ -917,19 +918,23 @@ export async function POST(req: NextRequest) {
     // concurrent decideForUser calls don't race on the upsert — run in parallel.
     const allVariantIds = agent.messages.flatMap((m) => m.variants.map((v) => v.id));
     // Push localization: load active translations for this agent's variants once
-    // per run (batch — avoids N+1). Built into variantId -> (canonical lang -> copy).
+    // per run (batch — avoids N+1). Cloned variants (sourceTemplateId != null) have
+    // no translation rows of their own — translations live on the template variant.
+    // Resolve by loading translations for the union of (variantIds ∪ templateIds),
+    // then inheriting the template map for any clone with no own rows.
     const localizeEnabled = agent.localizePush;
-    const translationsByVariant = new Map<string, Map<string, import("@/lib/push-locale").LocalizedCopy>>();
+    let translationsByVariant = new Map<string, Map<string, import("@/lib/push-locale").LocalizedCopy>>();
     if (localizeEnabled && allVariantIds.length > 0) {
+      const allVariants = agent.messages.flatMap((m) => m.variants);
+      const templateIds = allVariants
+        .map((v) => v.sourceTemplateId)
+        .filter((id): id is string => id != null);
+      const lookupIds = Array.from(new Set([...allVariantIds, ...templateIds]));
       const rows = await prisma.messageVariantTranslation.findMany({
-        where: { messageVariantId: { in: allVariantIds }, status: "active" },
+        where: { messageVariantId: { in: lookupIds }, status: "active" },
         select: { messageVariantId: true, language: true, title: true, body: true },
       });
-      for (const r of rows) {
-        let m = translationsByVariant.get(r.messageVariantId);
-        if (!m) { m = new Map(); translationsByVariant.set(r.messageVariantId, m); }
-        m.set(r.language, { title: r.title, body: r.body });
-      }
+      translationsByVariant = resolveTranslationsByVariant(rows, allVariants);
     }
     // Verse-push experiment: variants flagged with VERSE_PUSH_SENTINEL resolve
     // their copy from the CampaignContent verse pool at send time.
