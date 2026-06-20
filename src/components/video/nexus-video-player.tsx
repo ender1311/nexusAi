@@ -1,7 +1,22 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState, useSyncExternalStore } from "react";
 import { cn } from "@/lib/utils";
+
+const MOBILE_QUERY = "(max-width: 768px), (pointer: coarse)";
+
+/** Live, SSR-safe "is this a mobile device" signal (server snapshot = false → desktop). */
+function useIsMobile() {
+  return useSyncExternalStore(
+    (cb) => {
+      const mq = window.matchMedia(MOBILE_QUERY);
+      mq.addEventListener("change", cb);
+      return () => mq.removeEventListener("change", cb);
+    },
+    () => window.matchMedia(MOBILE_QUERY).matches,
+    () => false,
+  );
+}
 
 type Option = { key: string; label: string; sublabel?: string };
 
@@ -39,7 +54,10 @@ export function NexusVideoPlayer({
 }: NexusVideoPlayerProps) {
   const [length, setLength] = useState(defaultLength ?? lengths[0].key);
   const [voice, setVoice] = useState(defaultVoice);
-  const [aspect, setAspect] = useState("wide");
+  // Aspect defaults to the device (mobile → 9:16, desktop → 16:9); a manual pick overrides it.
+  const isMobile = useIsMobile();
+  const [manualAspect, setManualAspect] = useState<string | null>(null);
+  const aspect = manualAspect ?? (portrait && isMobile ? "tall" : "wide");
   const videoRef = useRef<HTMLVideoElement>(null);
 
   const src = useMemo(() => {
@@ -81,7 +99,7 @@ export function NexusVideoPlayer({
             label="Aspect"
             options={ASPECTS}
             value={aspect}
-            onChange={setAspect}
+            onChange={setManualAspect}
             accent={accent}
           />
         )}
