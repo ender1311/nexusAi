@@ -959,6 +959,30 @@ export async function POST(req: NextRequest) {
       }
     }
     const localization = { enabled: localizeEnabled, translationsByVariant, versePool, strategyByVariant, votdVariantIds, gpVariantIds };
+
+    // Follow-up #5: for localized agents, restrict the in-memory language filter
+    // to languages the agent can actually serve (avoids recruiting users who will
+    // ALL be strict-skipped at send time).
+    //
+    // Servable prefixes = {"en"} ∪ {distinct languages in translationsByVariant}.
+    // For Chinese (zh), do NOT collapse zh_CN / zh_TW to bare "zh" — sending
+    // Simplified to a Traditional reader is worse than skipping.  For all other
+    // languages, the translation key (e.g. "es", "pt", "fr") is also the
+    // startsWith prefix that correctly matches regional variants (es_MX, pt_BR).
+    let servableLanguagePrefixes: Set<string> | null = null;
+    if (localizeEnabled) {
+      const prefixes = new Set<string>(["en"]);
+      for (const langMap of translationsByVariant.values()) {
+        for (const lang of langMap.keys()) {
+          // lang is a stored key like "es", "pt", "zh_CN", "zh_TW".
+          // Use as-is: it already serves as a startsWith prefix for regional
+          // variants (es_MX.startsWith("es") = true) and for exact zh tags
+          // (zh_CN.startsWith("zh_CN") = true, zh_TW.startsWith("zh_CN") = false).
+          prefixes.add(lang);
+        }
+      }
+      servableLanguagePrefixes = prefixes;
+    }
     const initialAlpha = agent.algorithm !== "linucb" ? 1 : 0;
     const initialBeta  = agent.algorithm !== "linucb" ? 30 : 0;
     // Seed only the MISSING persona×variant arms. The old code upserted every
@@ -1203,20 +1227,34 @@ export async function POST(req: NextRequest) {
       suppress.targetFilter += channelFiltered.length - prefFiltered.length;
 
       // Language filter: English-only sends by default. When the agent opts into
-      // localization, do NOT force EN — every recipient gets copy (English fallback
-      // or strict skip if no translation). Applies to all channels, not just push.
+      // localization, restrict to servable languages (en + translation languages)
+      // so users with no matching translation are not recruited (they would all be
+      // strict-skipped at send time, wasting quota).  Applies to all channels.
       const hasSendableMessages = agent.messages.length > 0;
       const effectiveAgentLang =
         agent.languageFilter && agent.languageFilter !== "all"
           ? agent.languageFilter
           : (hasSendableMessages && !localizeEnabled) ? "en" : null;
-      const langFiltered = effectiveAgentLang
+      const langFiltered = servableLanguagePrefixes
+        // Localized agent: filter to users whose language_tag starts with at
+        // least one of the servable prefixes.  Note effectiveAgentLang is null
+        // here (localizeEnabled=true, no explicit languageFilter), so the
+        // single-prefix check below would otherwise be skipped entirely.
         ? prefFiltered.filter((u) => {
             const attrs = u.attributes as Record<string, unknown>;
-            const lang = attrs?.language_tag as string | undefined;
-            return lang?.startsWith(effectiveAgentLang) === true;
+            const lang = (attrs?.language_tag as string | undefined) ?? "";
+            for (const prefix of servableLanguagePrefixes!) {
+              if (lang.startsWith(prefix)) return true;
+            }
+            return false;
           })
-        : prefFiltered;
+        : effectiveAgentLang
+          ? prefFiltered.filter((u) => {
+              const attrs = u.attributes as Record<string, unknown>;
+              const lang = attrs?.language_tag as string | undefined;
+              return lang?.startsWith(effectiveAgentLang) === true;
+            })
+          : prefFiltered;
       suppress.targetFilter += prefFiltered.length - langFiltered.length;
 
       // Apply targetFilter in-memory on the already-loaded page (V1: no SQL-side JSON filtering)
@@ -1663,7 +1701,19 @@ export async function POST(req: NextRequest) {
           suppress.targetFilter++;
           return false;
         }
-        if (windowEffectiveLang) {
+        if (servableLanguagePrefixes) {
+          // Localized agent: only window-users whose language we can serve.
+          const lang = (attrs.language_tag as string | undefined) ?? "";
+          let servable = false;
+          for (const prefix of servableLanguagePrefixes) {
+            if (lang.startsWith(prefix)) { servable = true; break; }
+          }
+          if (!servable) {
+            totalSuppressed++;
+            suppress.targetFilter++;
+            return false;
+          }
+        } else if (windowEffectiveLang) {
           const lang = attrs.language_tag as string | undefined;
           if (lang?.startsWith(windowEffectiveLang) !== true) {
             totalSuppressed++;
