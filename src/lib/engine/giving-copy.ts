@@ -27,12 +27,26 @@ export function computeBibles(amount: number, multiplier: number): number {
  * Replace {{ask}} (already-formatted currency string) and {{bibles}} (integer,
  * rendered with locale thousands separators) in copy. Unknown tokens are left
  * untouched; text with no placeholders passes through unchanged.
+ *
+ * Pass the recipient's BCP 47 locale tag (e.g. "de", "es_MX") as `locale`
+ * to format {{bibles}} with the appropriate thousands separator.  Falls back
+ * to "en-US" when absent so callers that do not have a locale still work.
  */
 export function substituteGivingCopy(
   text: string,
   vals: { amountDisplay: string; bibles: number },
+  locale?: string | null,
 ): string {
+  // Normalise the stored tag (e.g. "es_MX" → "es-MX") to a BCP 47 form that
+  // Intl.NumberFormat accepts; fall back to "en-US" for blank / unparseable values.
+  const bcp47 = locale?.trim().replace(/_/g, "-") || "en-US";
+  let biblesFormatted: string;
+  try {
+    biblesFormatted = vals.bibles.toLocaleString(bcp47);
+  } catch {
+    biblesFormatted = vals.bibles.toLocaleString("en-US");
+  }
   return text
     .replaceAll("{{ask}}", vals.amountDisplay)
-    .replaceAll("{{bibles}}", vals.bibles.toLocaleString("en-US"));
+    .replaceAll("{{bibles}}", biblesFormatted);
 }

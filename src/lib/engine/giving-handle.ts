@@ -52,6 +52,10 @@ export type ResolvedGiving = { title: string | null; body: string; deeplink: str
  * Resolve a dynamic-handle variant for one user: substitute {{ask}}/{{bibles}}
  * and pick the deeplink (an explicit deeplink wins, e.g. a "find out more" link
  * to the Sowers page; otherwise build the personalized give URL).
+ *
+ * `locale` — optional BCP 47 tag from the user's `attributes.language_tag`.
+ * When supplied, {{bibles}} is formatted with the recipient's locale thousands
+ * separator; when absent it falls back to "en-US".
  */
 export function resolveGivingHandle(params: {
   title: string | null;
@@ -63,13 +67,16 @@ export function resolveGivingHandle(params: {
   defaultUsd: number;
   attrs: Record<string, unknown>;
   multiplier: number;
+  /** BCP 47 locale tag for number formatting (e.g. "de", "es_MX"). */
+  locale?: string | null;
 }): ResolvedGiving {
   const { amountLocal, currencyCode } = resolveLocalGiftAmount(params.attrs, params.strategy, params.defaultUsd);
   const amountDisplay = formatGiftAmount(amountLocal, currencyCode);
   const bibles = computeBibles(amountLocal, params.multiplier || DEFAULT_DOLLARS_TO_BIBLES);
+  const locale = params.locale ?? (typeof params.attrs.language_tag === "string" ? params.attrs.language_tag : null);
   return {
-    title: params.title != null ? substituteGivingCopy(params.title, { amountDisplay, bibles }) : null,
-    body: substituteGivingCopy(params.body, { amountDisplay, bibles }),
+    title: params.title != null ? substituteGivingCopy(params.title, { amountDisplay, bibles }, locale) : null,
+    body: substituteGivingCopy(params.body, { amountDisplay, bibles }, locale),
     deeplink: params.explicitDeeplink && params.explicitDeeplink !== GIVING_LINK_SENTINEL
       ? params.explicitDeeplink
       : buildGivingDeeplink(params.attrs, params.strategy, params.frequency, params.defaultUsd),

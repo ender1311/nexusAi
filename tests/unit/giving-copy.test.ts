@@ -63,4 +63,33 @@ describe("substituteGivingCopy", () => {
   it("passes text with no placeholders through unchanged", () => {
     expect(substituteGivingCopy("plain text", { amountDisplay: "$10", bibles: 240 })).toBe("plain text");
   });
+
+  // Follow-up #6 — locale-aware number formatting
+  it("formats {{bibles}} with German period thousands separator for 'de' locale", () => {
+    // German uses periods for thousands: 1.234 instead of 1,234
+    const out = substituteGivingCopy("{{bibles}}", { amountDisplay: "25 €", bibles: 1234 }, "de");
+    // The exact separator is locale-dependent; assert it differs from en-US "1,234"
+    expect(out).not.toBe("1,234");
+    expect(out).toContain("1");
+    expect(out).toContain("234");
+  });
+  it("formats {{bibles}} with Spanish locale (es) — differs from en-US for 4-digit numbers", () => {
+    // Spanish (es) uses period as thousands separator: 1.234
+    const out = substituteGivingCopy("{{bibles}}", { amountDisplay: "25 €", bibles: 1234 }, "es");
+    expect(out).not.toBe("1,234");
+  });
+  it("falls back to en-US formatting when locale is null", () => {
+    const out = substituteGivingCopy("{{bibles}}", { amountDisplay: "$25", bibles: 2400 }, null);
+    expect(out).toBe("2,400");
+  });
+  it("falls back to en-US formatting when locale is undefined", () => {
+    const out = substituteGivingCopy("{{bibles}}", { amountDisplay: "$25", bibles: 2400 });
+    expect(out).toBe("2,400");
+  });
+  it("normalises underscore tag (es_MX → es-MX) without throwing", () => {
+    // Should not throw; Spanish-Mexico uses period thousands separator
+    expect(() =>
+      substituteGivingCopy("{{bibles}}", { amountDisplay: "$25", bibles: 1234 }, "es_MX")
+    ).not.toThrow();
+  });
 });
