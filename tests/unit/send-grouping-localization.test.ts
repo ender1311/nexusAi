@@ -1,6 +1,5 @@
 import { describe, it, expect } from "bun:test";
-import { groupDecisionsByVariant } from "@/lib/cron/send-grouping";
-import type { VariantMeta } from "@/lib/cron/send-grouping";
+import { groupDecisionsByVariant, type VariantMeta } from "@/lib/cron/send-grouping";
 import type { LocalizedCopy } from "@/lib/push-locale";
 
 const meta: VariantMeta = { channel: "push", body: "EN body", title: "EN title", deeplink: null, brazeCampaignId: "c1", brazeVariantId: "bv1", givingHandleStrategy: null, cta: null, iconImageUrl: null };
@@ -49,4 +48,39 @@ describe("groupDecisionsByVariant localization", () => {
     const allSent = list.flatMap((g) => g.externalUserIds).sort();
     expect(allSent).toEqual(["a", "b", "c", "d"]);
   });
+});
+
+const baseMeta = (channel: string): VariantMeta => ({
+  channel, body: "Hello", title: "Hi", cta: null, deeplink: null,
+  brazeCampaignId: null, brazeVariantId: null, givingHandleStrategy: null, iconImageUrl: null,
+});
+const user2 = (lang: string) => ({ externalId: `u-${lang}`, brazeId: null, attributes: { language_tag: lang } });
+
+describe("send-grouping localization is channel-agnostic", () => {
+  for (const channel of ["email", "content-card", "in-app", "modal-iam"]) {
+    it(`localizes ${channel} copy for a non-English user with a translation`, () => {
+      const meta2 = new Map([["v1", baseMeta(channel)]]);
+      const decisionIds = new Map([["u-es", "d1"]]);
+      const translations = new Map([["v1", new Map([["es", { title: "Hola", body: "Hola mundo" }]])]]);
+      const groups = groupDecisionsByVariant(
+        [{ user: user2("es"), variantId: "v1", scheduledAt: new Date("2026-06-20T12:00:00Z"), inLocalTime: false }],
+        meta2, decisionIds,
+        { enabled: true, translationsByVariant: translations },
+      );
+      const g = Object.values(groups)[0];
+      expect(g.body).toBe("Hola mundo");
+      expect(g.title).toBe("Hola");
+    });
+
+    it(`strict-skips ${channel} for a non-English user with NO translation`, () => {
+      const meta2 = new Map([["v1", baseMeta(channel)]]);
+      const decisionIds = new Map([["u-es", "d1"]]);
+      const groups = groupDecisionsByVariant(
+        [{ user: user2("es"), variantId: "v1", scheduledAt: new Date("2026-06-20T12:00:00Z"), inLocalTime: false }],
+        meta2, decisionIds,
+        { enabled: true, translationsByVariant: new Map([["v1", new Map()]]) },
+      );
+      expect(Object.keys(groups)).toHaveLength(0);
+    });
+  }
 });

@@ -138,8 +138,8 @@ export function groupDecisionsByVariant(
       // VOTD liquid-tag arms resolve today's (user-local) localized verse from
       // the pre-fetched content map; verse-push arms (body sentinel) resolve a
       // rotated verse; otherwise fall back to the standard translation path.
-      const isVotd = (localization?.votdVariantIds?.has(variantId) ?? false) && meta.channel === "push";
-      const isGp   = (localization?.gpVariantIds?.has(variantId) ?? false) && meta.channel === "push";
+      const isVotd = (localization?.votdVariantIds?.has(variantId) ?? false);
+      const isGp   = (localization?.gpVariantIds?.has(variantId) ?? false);
       const verseStrategy = localization?.strategyByVariant?.get(variantId);
       const isVerse =
         !isVotd && !isGp && meta.body === VERSE_PUSH_SENTINEL && verseStrategy != null && localization?.versePool != null;
@@ -189,7 +189,7 @@ export function groupDecisionsByVariant(
         if (!verse) continue;
         copy = resolveVerseCopy(verse, tag, verseStrategy!);
         verseImageId = verse.imageId;
-      } else if (localization?.enabled && meta.channel === "push") {
+      } else if (localization?.enabled) {
         // Strict localization: skip recipients we cannot serve in their own language
         // rather than falling back to the English copy.
         const localized = resolvePushLocaleStrict(
@@ -200,7 +200,7 @@ export function groupDecisionsByVariant(
         if (!localized) continue;
         copy = localized;
       }
-      copyKeyed = meta.channel === "push" && (isVotd || isGp || isVerse || (localization?.enabled ?? false));
+      copyKeyed = isVotd || isGp || isVerse || (localization?.enabled ?? false);
     }
 
     // Defense in depth: never ship a push with an unsubstituted {{token}} — Braze
@@ -214,16 +214,17 @@ export function groupDecisionsByVariant(
     // Resolve per-platform image URLs (payload-determining → folded into the group key).
     let iosImageUrl: string | null = null;
     let androidImageUrl: string | null = null;
+    const imageCapableChannel = meta.channel === "push" || meta.channel === "in-app" || meta.channel === "modal-iam";
     if (meta.iconImageUrl === VERSE_IMAGE_SENTINEL) {
-      if (votdImage && meta.channel === "push") {
+      if (votdImage && imageCapableChannel) {
         // VOTD arm: today's localized verse image (nullable → text-only send).
         iosImageUrl = votdImage.ios;
         androidImageUrl = votdImage.android;
-      } else if (gpImage && meta.channel === "push") {
+      } else if (gpImage && imageCapableChannel) {
         // GP arm: today's morning prayer image (nullable → text-only send).
         iosImageUrl = gpImage.ios;
         androidImageUrl = gpImage.android;
-      } else if (meta.body === VERSE_PUSH_SENTINEL && meta.channel === "push") {
+      } else if (meta.body === VERSE_PUSH_SENTINEL && imageCapableChannel) {
         // Sentinel only resolves on a verse arm (we have a chosen verse). On a
         // non-verse arm the sentinel is meaningless → no image.
         const { ios, android } = buildVerseImageUrls(verseImageId ?? DEFAULT_VERSE_IMAGE_ID);
