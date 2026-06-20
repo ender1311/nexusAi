@@ -113,6 +113,8 @@ export default function DeepDiveOverviewPage() {
           defaultVoice="heart"
           accent="#57a16c"
           portrait
+          collapsible
+          title="Watch the deep-dive"
         />
       </div>
 

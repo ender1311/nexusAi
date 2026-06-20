@@ -141,6 +141,8 @@ export default async function AboutPage() {
               defaultVoice="heart"
               accent={RED}
               className="mt-7 w-full max-w-2xl"
+              collapsible
+              title="Watch the tour"
             />
             <span className="mt-6 text-xs text-muted-foreground/70 animate-pulse">↓ more below</span>
           </section>

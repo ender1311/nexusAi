@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState, useSyncExternalStore } from "react";
+import { ChevronDown } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 const MOBILE_QUERY = "(max-width: 768px), (pointer: coarse)";
@@ -41,6 +42,12 @@ type NexusVideoPlayerProps = {
   className?: string;
   /** When true, show a 16:9 / 9:16 aspect toggle. The 9:16 variant resolves to `${basePath}-portrait-${length}__${voice}.mp4`. */
   portrait?: boolean;
+  /** When true, render a clickable header that collapses/expands the player. */
+  collapsible?: boolean;
+  /** Header label shown when `collapsible` is set. */
+  title?: string;
+  /** Initial open state for a collapsible player (default open). */
+  defaultOpen?: boolean;
 };
 
 export function NexusVideoPlayer({
@@ -51,7 +58,11 @@ export function NexusVideoPlayer({
   accent = "#ff3d4d",
   className,
   portrait = false,
+  collapsible = false,
+  title = "Watch",
+  defaultOpen = true,
 }: NexusVideoPlayerProps) {
+  const [open, setOpen] = useState(defaultOpen);
   const [length, setLength] = useState(defaultLength ?? lengths[0].key);
   const [voice, setVoice] = useState(defaultVoice);
   // Aspect defaults to the device (mobile → 9:16, desktop → 16:9); a manual pick overrides it.
@@ -72,9 +83,27 @@ export function NexusVideoPlayer({
 
   const tall = portrait && aspect === "tall";
 
+  const showBody = !collapsible || open;
+
   return (
     <div className={cn("rounded-2xl border bg-card overflow-hidden", className)}>
-      <div className={cn("bg-[#121212] flex justify-center", tall ? "py-4" : "aspect-video")}>
+      {collapsible && (
+        <button
+          type="button"
+          onClick={() => setOpen((o) => !o)}
+          aria-expanded={open}
+          className="w-full flex items-center justify-between gap-3 px-4 py-3 text-left hover:bg-muted/30 transition-colors"
+        >
+          <span className="text-sm font-semibold">{title}</span>
+          <ChevronDown
+            className={cn("h-4 w-4 shrink-0 text-muted-foreground transition-transform", open ? "" : "-rotate-90")}
+          />
+        </button>
+      )}
+
+      {showBody && (
+        <>
+      <div className={cn("bg-[#121212] flex justify-center", collapsible && "border-t", tall ? "py-4" : "aspect-video")}>
         <video
           ref={videoRef}
           className={cn(tall ? "h-[70vh] max-h-[680px] aspect-[9/16]" : "h-full w-full")}
@@ -111,6 +140,8 @@ export function NexusVideoPlayer({
           accent={accent}
         />
       </div>
+        </>
+      )}
     </div>
   );
 }
