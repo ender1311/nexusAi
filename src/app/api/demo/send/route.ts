@@ -13,6 +13,8 @@ import { getGpContent, buildGpImageUrls } from "@/lib/votd/guided-prayer-content
 import { VERSE_IMAGE_SENTINEL } from "@/lib/verse-image";
 import { parseMultiplier } from "@/lib/engine/giving-copy";
 import { deriveGivingStrategy, deriveGivingFrequency, deriveGivingDefaultUsd, resolveGivingHandle, hasUnsubstitutedTokens } from "@/lib/engine/giving-handle";
+import { resolvePushLocaleStrict } from "@/lib/push-locale";
+import { resolveTranslationsByVariant } from "@/lib/cron/translation-resolver";
 
 type SendResult = {
   userId: string;
@@ -61,8 +63,37 @@ export async function POST(req: NextRequest) {
   const brazeClient = createBrazeClient();
   const factory = brazeClient ? new PayloadFactory() : null;
   const campaignId = process.env.BRAZE_NEXUS_CAMPAIGN_ID;
-  const multiplierSetting = await prisma.appSetting.findUnique({ where: { key: "giving_dollars_to_bibles_multiplier" } });
+  const [multiplierSetting, agentRecord] = await Promise.all([
+    prisma.appSetting.findUnique({ where: { key: "giving_dollars_to_bibles_multiplier" } }),
+    prisma.agent.findUnique({
+      where: { id: agentId },
+      select: {
+        localizePush: true,
+        messages: { include: { variants: { select: { id: true, sourceTemplateId: true } } } },
+      },
+    }),
+  ]);
   const givingMultiplier = parseMultiplier(multiplierSetting?.value);
+
+  // Pre-load translations once for all variants in this agent (same pattern as the cron).
+  // Only loaded when the agent has localizePush=true — mirrors cron behaviour exactly.
+  const localizeEnabled = agentRecord?.localizePush ?? false;
+  let translationsByVariant = new Map<string, Map<string, import("@/lib/push-locale").LocalizedCopy>>();
+  if (localizeEnabled && agentRecord) {
+    const allVariants = agentRecord.messages.flatMap((m) => m.variants);
+    const allVariantIds = allVariants.map((v) => v.id);
+    const templateIds = allVariants
+      .map((v) => v.sourceTemplateId)
+      .filter((id): id is string => id != null);
+    const lookupIds = Array.from(new Set([...allVariantIds, ...templateIds]));
+    if (lookupIds.length > 0) {
+      const rows = await prisma.messageVariantTranslation.findMany({
+        where: { messageVariantId: { in: lookupIds }, status: "active" },
+        select: { messageVariantId: true, language: true, title: true, body: true },
+      });
+      translationsByVariant = resolveTranslationsByVariant(rows, allVariants);
+    }
+  }
 
   const results: SendResult[] = await Promise.all(
     (userIds as string[]).map(async (userId): Promise<SendResult> => {
@@ -135,6 +166,26 @@ export async function POST(req: NextRequest) {
               iosImageUrl = content.imageUrlIos ?? undefined;
               androidImageUrl = content.imageUrlAndroid ?? undefined;
             }
+          } else if (localizeEnabled) {
+            // Strict per-language translation resolution — mirrors the cron exactly.
+            // VOTD/GP/giving variants handle their own localization above; only
+            // plain-copy variants reach this branch.
+            const userAttrs = await prisma.trackedUser.findUnique({
+              where: { externalId: userId },
+              select: { attributes: true },
+            });
+            const langTag = (userAttrs?.attributes as Record<string, unknown> | null)?.language_tag as string | undefined;
+            const localized = resolvePushLocaleStrict(
+              langTag,
+              translationsByVariant.get(overrideVariant.id) ?? new Map(),
+              { title: overrideVariant.title, body: overrideVariant.body },
+            );
+            if (!localized) {
+              // No translation for this user's language — strict skip (never send English).
+              return { userId, status: "failed", variantName, reason: "skipped — no translation for user language" };
+            }
+            title = localized.title ?? "";
+            body = localized.body;
           }
 
           if (hasUnsubstitutedTokens(title, body)) return { userId, status: "failed", variantName, reason: "unresolved template tokens — not sent" };
@@ -236,6 +287,23 @@ export async function POST(req: NextRequest) {
             iosImageUrl = content.imageUrlIos ?? undefined;
             androidImageUrl = content.imageUrlAndroid ?? undefined;
           }
+        } else if (localizeEnabled) {
+          // Strict per-language translation resolution — mirrors the cron exactly.
+          const userAttrs = await prisma.trackedUser.findUnique({
+            where: { externalId: userId },
+            select: { attributes: true },
+          });
+          const langTag = (userAttrs?.attributes as Record<string, unknown> | null)?.language_tag as string | undefined;
+          const localized = resolvePushLocaleStrict(
+            langTag,
+            translationsByVariant.get(decision.messageVariantId) ?? new Map(),
+            { title: variant.title, body: variant.body },
+          );
+          if (!localized) {
+            return { userId, status: "failed", variantName: variant.name, reason: "skipped — no translation for user language" };
+          }
+          title = localized.title ?? "";
+          body = localized.body;
         }
 
         if (hasUnsubstitutedTokens(title, body)) {
