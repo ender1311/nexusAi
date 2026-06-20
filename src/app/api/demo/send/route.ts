@@ -67,7 +67,6 @@ export async function POST(req: NextRequest) {
   const results: SendResult[] = await Promise.all(
     (userIds as string[]).map(async (userId): Promise<SendResult> => {
       try {
-        let variantId: string;
         let brazeVariantId: string | null = null;
         let variantName: string | undefined;
 
@@ -81,7 +80,6 @@ export async function POST(req: NextRequest) {
             select: { id: true, name: true, title: true, body: true, deeplink: true, iconImageUrl: true, brazeVariantId: true, subcategory: true, actionFeatures: true },
           });
           if (!overrideVariant) return { userId, status: "failed", reason: "override variant not found for this agent" };
-          variantId = overrideVariant.id;
           brazeVariantId = overrideVariant.brazeVariantId;
           variantName = overrideVariant.name;
 
@@ -110,10 +108,10 @@ export async function POST(req: NextRequest) {
               where: { externalId: userId },
               select: { attributes: true },
             });
-            const { date: gpDate } = resolveVotdUserKey(trackedUserForGp?.attributes ?? {}, new Date());
-            const content = await getGpContent(prisma, gpDate);
+            const gpKey = resolveVotdUserKey(trackedUserForGp?.attributes ?? {}, new Date());
+            const content = await getGpContent(prisma, gpKey.date, gpKey.languageTag);
             if (!content) return { userId, status: "failed" as const, variantName, reason: "GP content unavailable" };
-            const labels = guidedLabels("en");
+            const labels = guidedLabels(content.languageTag);
             const subs = { guidedPrayerLabel: labels.guidedPrayer, gpReference: content.reference, gpText: content.verseText };
             title = substituteGpTags(title, subs);
             body = substituteGpTags(body, subs);
@@ -196,12 +194,12 @@ export async function POST(req: NextRequest) {
             where: { externalId: userId },
             select: { attributes: true },
           });
-          const { date: gpDate } = resolveVotdUserKey(trackedUserForGp?.attributes ?? {}, new Date());
-          const content = await getGpContent(prisma, gpDate);
+          const gpKey = resolveVotdUserKey(trackedUserForGp?.attributes ?? {}, new Date());
+          const content = await getGpContent(prisma, gpKey.date, gpKey.languageTag);
           if (!content) {
             return { userId, status: "failed" as const, variantName: variant.name, reason: "GP content unavailable" };
           }
-          const labels = guidedLabels("en");
+          const labels = guidedLabels(content.languageTag);
           const subs = { guidedPrayerLabel: labels.guidedPrayer, gpReference: content.reference, gpText: content.verseText };
           title = substituteGpTags(title, subs);
           body = substituteGpTags(body, subs);

@@ -587,14 +587,19 @@ model SegmentFieldFacet {
   computedAt DateTime @updatedAt
 }
 
-/// Immutable per-day, per-language VOTD cache. A given day's VOTD never changes.
+/// Immutable per-day, per-language Guided Prayer cache. The GP guide itself is
+/// English-only, so usfm/imageUrl are shared across languages; reference/verseText
+/// are localized per languageTag (verse text fetched in the user's Bible version).
 model GuidedPrayerDailyContent {
-  date      String   @id // "YYYY-MM-DD" UTC calendar date
-  usfm      String // first usfm_text module reference, e.g. "PSA.23.1"
-  reference String // human-readable reference, e.g. "Psalm 23:1"
-  verseText String
-  imageUrl  String? // morning image URL template with {width}x{height} placeholder; null if unavailable
-  createdAt DateTime @default(now())
+  date        String // "YYYY-MM-DD" user-local calendar date
+  languageTag String // normalized content language, e.g. "en", "es", "zh_CN"
+  usfm        String // first usfm_text module reference, e.g. "PSA.23.1"
+  reference   String // localized human-readable reference, e.g. "Salmo 23:1"
+  verseText   String
+  imageUrl    String? // morning image URL template with {width}x{height} placeholder; null if unavailable
+  createdAt   DateTime @default(now())
+
+  @@id([date, languageTag])
 }
 
 model VotdDailyContent {

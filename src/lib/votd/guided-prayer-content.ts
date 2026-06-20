@@ -2,12 +2,11 @@
 // No auth required for production API. GUIDED_PRAYER_API_KEY is optional (Bearer token)
 // if the API ever adds auth requirements. Returns null gracefully on any failure.
 import { dayOfYear } from "./votd-content";
-import { resolveVotdUserKey } from "./votd-user-key";
+import { resolveVotdUserKey, votdContentKey } from "./votd-user-key";
+import { versionForLanguage } from "./version-map";
 
 const GP_BASE = "https://guidedprayers.youversionapi.com/4.0";
 const DEFAULT_GUIDE_ID = 1;
-// English NIV (111) — guide 1 is English-only
-const GP_VERSION_ID = 111;
 
 const GP_HEADERS: Record<string, string> = {
   Referer: "http://yvapi.youversionapi.com",
@@ -22,6 +21,7 @@ const GP_HEADERS: Record<string, string> = {
 
 export type GpContent = {
   date: string;
+  languageTag: string;
   usfm: string;
   reference: string;
   verseText: string;
@@ -124,12 +124,14 @@ async function fetchGpUsfm(doy: number): Promise<string | null> {
   }
 }
 
-/** Fetch verse text for a USFM reference from the YouVersion Bible API. */
-async function fetchGpVerse(usfm: string): Promise<{ reference: string; verseText: string } | null> {
+/** Fetch verse text for a USFM reference from the YouVersion Bible API.
+ *  Uses versionId for localized verse text and Accept-Language for the request. */
+async function fetchGpVerse(usfm: string, versionId: number, languageTag: string): Promise<{ reference: string; verseText: string } | null> {
   try {
+    const headers = { ...GP_HEADERS, "Accept-Language": languageTag };
     const res = await fetch(
-      `https://bible.youversionapi.com/3.1/verses.json?references[]=${encodeURIComponent(usfm)}&id=${GP_VERSION_ID}&format=text`,
-      { headers: GP_HEADERS },
+      `https://bible.youversionapi.com/3.1/verses.json?references[]=${encodeURIComponent(usfm)}&id=${versionId}&format=text`,
+      { headers },
     );
     if (!res.ok) return null;
     const json = (await res.json()) as {
@@ -146,38 +148,43 @@ async function fetchGpVerse(usfm: string): Promise<{ reference: string; verseTex
   }
 }
 
-/** Cached Guided Prayer content for a UTC calendar date.
- *  DB hit → return; miss → fetch modules + verse, upsert, return.
+/** Cached Guided Prayer content for a user-local date + content language.
+ *  DB hit → return; miss → fetch modules + verse (localized), upsert, return.
  *  Any failure → null (caller must skip GP users — never send raw tags). */
 export async function getGpContent(
   prisma: PrismaLike,
   date: string,
+  languageTag: string,
 ): Promise<GpContent | null> {
-  const cached = await prisma.guidedPrayerDailyContent.findUnique({ where: { date } });
+  const cached = await prisma.guidedPrayerDailyContent.findUnique({
+    where: { date_languageTag: { date, languageTag } },
+  });
   if (cached) return cached;
 
   const doy = dayOfYear(date);
+  // The GP guide (usfm + image) is English-only; only verse text localizes.
   const [usfm, imageUrl] = await Promise.all([fetchGpUsfm(doy), fetchGpDayImage(doy)]);
   if (!usfm) return null;
 
-  const verse = await fetchGpVerse(usfm);
+  const versionId = versionForLanguage(languageTag);
+  const verse = await fetchGpVerse(usfm, versionId, languageTag);
   if (!verse) return null;
 
   try {
     return await prisma.guidedPrayerDailyContent.upsert({
-      where: { date },
-      create: { date, usfm, reference: verse.reference, verseText: verse.verseText, imageUrl },
+      where: { date_languageTag: { date, languageTag } },
+      create: { date, languageTag, usfm, reference: verse.reference, verseText: verse.verseText, imageUrl },
       update: {},
     });
   } catch (err) {
-    console.error("[guided-prayer] upsert failed:", date, err);
+    console.error("[guided-prayer] upsert failed:", date, languageTag, err);
     return null;
   }
 }
 
-/** Cron-side pre-fetch: collect the unique user-local dates for GP variant users,
- *  resolve each via getGpContent, return a map keyed by user-local date string.
- *  Unresolvable dates are absent (those users get skipped). */
+/** Cron-side pre-fetch: collect unique (date, languageTag) pairs for GP variant users,
+ *  resolve each via getGpContent, return a map keyed by votdContentKey(date, languageTag).
+ *  Unresolvable pairs are absent (those users get skipped). */
 export async function prepareGpContent(
   prisma: PrismaLike,
   inputs: Array<{ user: { attributes: unknown }; variantId: string; scheduledAt: Date }>,
@@ -186,18 +193,18 @@ export async function prepareGpContent(
   const out = new Map<string, GpContent>();
   if (gpVariantIds.size === 0) return out;
 
-  const dates = new Set<string>();
+  const pending = new Map<string, { date: string; languageTag: string }>();
   for (const input of inputs) {
     if (!gpVariantIds.has(input.variantId)) continue;
-    const { date } = resolveVotdUserKey(input.user.attributes, input.scheduledAt);
-    dates.add(date);
+    const key = resolveVotdUserKey(input.user.attributes, input.scheduledAt);
+    pending.set(votdContentKey(key.date, key.languageTag), key);
   }
 
-  // allSettled: a transient API failure for one date never aborts the rest.
+  // allSettled: a transient API failure for one pair never aborts the rest.
   const results = await Promise.allSettled(
-    Array.from(dates).map(async (date) => {
-      const content = await getGpContent(prisma, date);
-      if (content) out.set(date, content);
+    Array.from(pending.entries()).map(async ([key, { date, languageTag }]) => {
+      const content = await getGpContent(prisma, date, languageTag);
+      if (content) out.set(key, content);
     }),
   );
   for (const r of results) {

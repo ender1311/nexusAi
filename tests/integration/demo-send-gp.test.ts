@@ -6,6 +6,7 @@ import { buildRequest } from "../helpers/request";
 import {
   createAgent,
   createMessage,
+  createPersona,
   createSchedulingRule,
   createUser,
   createVariant,
@@ -27,6 +28,8 @@ const { POST } = await import("@/app/api/demo/send/route");
 const realFetch = globalThis.fetch;
 
 async function setupGpAgent(variantOverrides?: { title?: string | null; body?: string; name?: string }) {
+  // decideForUser requires at least one active persona; create one so the bandit path works.
+  await createPersona({ name: "default", isActive: true });
   const agent = await createAgent({ name: "Nova" });
   const message = await createMessage(agent.id);
   const variant = await createVariant(message.id, {
@@ -76,6 +79,7 @@ describe("POST /api/demo/send — GP variants", () => {
     await prisma.guidedPrayerDailyContent.create({
       data: {
         date: today,
+        languageTag: "en",
         usfm: "JOS.1.9",
         reference: "Joshua 1:9",
         verseText: "Have I not commanded you? Be strong and courageous.",
@@ -115,6 +119,7 @@ describe("POST /api/demo/send — GP variants", () => {
     await prisma.guidedPrayerDailyContent.create({
       data: {
         date: today,
+        languageTag: "en",
         usfm: "JOS.1.9",
         reference: "Joshua 1:9",
         verseText: "Have I not commanded you? Be strong and courageous.",

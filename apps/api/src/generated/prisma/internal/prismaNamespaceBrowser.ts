@@ -608,6 +608,7 @@ export type SegmentFieldFacetScalarFieldEnum = (typeof SegmentFieldFacetScalarFi
 
 export const GuidedPrayerDailyContentScalarFieldEnum = {
   date: 'date',
+  languageTag: 'languageTag',
   usfm: 'usfm',
   reference: 'reference',
   verseText: 'verseText',

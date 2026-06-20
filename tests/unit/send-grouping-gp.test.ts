@@ -18,6 +18,7 @@ const gpMeta: VariantMeta = {
 function gpContent(overrides: Partial<GpContent> = {}): GpContent {
   return {
     date: "2026-06-13",
+    languageTag: "en",
     usfm: "JOS.1.9",
     reference: "Joshua 1:9",
     verseText: "Have I not commanded you? Be strong and courageous.",
@@ -69,7 +70,7 @@ describe("GP tag detection — routing isolation", () => {
 
 describe("send-grouping GP", () => {
   it("substitutes reference in title and verse text in body", () => {
-    const map = new Map([["2026-06-13", gpContent()]]);
+    const map = new Map([[votdContentKey("2026-06-13", "en"), gpContent()]]);
     const groups = groupDecisionsByVariant(
       [input("u1")],
       new Map([["gv1", gpMeta]]),
@@ -83,7 +84,7 @@ describe("send-grouping GP", () => {
 
   it("substitutes guided_prayer_label when in title", () => {
     const meta: VariantMeta = { ...gpMeta, title: "{{guided_prayer_label}}", body: "{{gp_verse_text}}" };
-    const map = new Map([["2026-06-13", gpContent()]]);
+    const map = new Map([[votdContentKey("2026-06-13", "en"), gpContent()]]);
     const groups = groupDecisionsByVariant(
       [input("u1")],
       new Map([["gv1", meta]]),
@@ -100,7 +101,7 @@ describe("send-grouping GP", () => {
       [input("u1")],
       new Map([["gv1", gpMeta]]),
       new Map([["u1", "d1"]]),
-      loc(new Map()), // empty → no content for this date
+      loc(new Map()), // empty → no content for this date/language
     );
     expect(Object.keys(groups)).toHaveLength(0);
   });
@@ -110,7 +111,10 @@ describe("send-grouping GP", () => {
     const at = new Date("2026-06-14T03:00:00Z");
     const jun13 = gpContent({ date: "2026-06-13", reference: "Joshua 1:9", verseText: "Be strong and courageous." });
     const jun14 = gpContent({ date: "2026-06-14", reference: "Psalm 46:1", verseText: "God is our refuge and strength." });
-    const map = new Map([["2026-06-13", jun13], ["2026-06-14", jun14]]);
+    const map = new Map([
+      [votdContentKey("2026-06-13", "en"), jun13],
+      [votdContentKey("2026-06-14", "en"), jun14],
+    ]);
 
     const groups = groupDecisionsByVariant(
       [
@@ -127,7 +131,7 @@ describe("send-grouping GP", () => {
 
   it("uses America/Chicago fallback for users with no timezone attribute", () => {
     // 15:00Z = 10:00 CDT → Chicago date 2026-06-13
-    const map = new Map([["2026-06-13", gpContent()]]);
+    const map = new Map([[votdContentKey("2026-06-13", "en"), gpContent()]]);
     const groups = groupDecisionsByVariant(
       [{ user: { externalId: "u1", brazeId: null, attributes: {} }, variantId: "gv1", scheduledAt: AT, inLocalTime: false }],
       new Map([["gv1", gpMeta]]),
@@ -141,7 +145,7 @@ describe("send-grouping GP", () => {
   it("attaches GP image URLs when iconImageUrl is the sentinel", () => {
     const meta: VariantMeta = { ...gpMeta, iconImageUrl: VERSE_IMAGE_SENTINEL };
     const template = "//imageproxy.youversionapi.com/{width}x{height}/https://example.com/img.jpg";
-    const map = new Map([["2026-06-13", gpContent({ imageUrl: template })]]);
+    const map = new Map([[votdContentKey("2026-06-13", "en"), gpContent({ imageUrl: template })]]);
     const groups = groupDecisionsByVariant(
       [input("u1")],
       new Map([["gv1", meta]]),
@@ -155,7 +159,7 @@ describe("send-grouping GP", () => {
 
   it("sends text-only when sentinel is set but content has no image", () => {
     const meta: VariantMeta = { ...gpMeta, iconImageUrl: VERSE_IMAGE_SENTINEL };
-    const map = new Map([["2026-06-13", gpContent({ imageUrl: null })]]);
+    const map = new Map([[votdContentKey("2026-06-13", "en"), gpContent({ imageUrl: null })]]);
     const groups = groupDecisionsByVariant(
       [input("u1")],
       new Map([["gv1", meta]]),
@@ -174,7 +178,7 @@ describe("send-grouping GP", () => {
       deeplink: null, brazeCampaignId: null, brazeVariantId: null, givingHandleStrategy: null,
       iconImageUrl: null, cta: null,
     };
-    const gpContentMap = new Map([["2026-06-13", gpContent()]]);
+    const gpContentMap = new Map([[votdContentKey("2026-06-13", "en"), gpContent()]]);
     const votdContentMap = new Map([[
       votdContentKey("2026-06-13", "en"),
       { date: "2026-06-13", languageTag: "en", usfm: "JHN.3.16", reference: "John 3:16", verseText: "For God so loved", versionId: 111, imageUrlIos: null, imageUrlAndroid: null },

@@ -144,14 +144,14 @@ export function groupDecisionsByVariant(
       const isVerse =
         !isVotd && !isGp && meta.body === VERSE_PUSH_SENTINEL && verseStrategy != null && localization?.versePool != null;
       if (isGp) {
-        const { date: gpDate } = resolveVotdUserKey(user.attributes, scheduledAt);
-        const content = localization?.gpContent?.get(gpDate);
+        const key = resolveVotdUserKey(user.attributes, scheduledAt);
+        const content = localization?.gpContent?.get(votdContentKey(key.date, key.languageTag));
         // Missing GP content → skip rather than deliver raw liquid tags.
         if (!content) {
-          console.warn("[send-grouping] GP content missing for date", gpDate, "— skipping user", user.externalId);
+          console.warn("[send-grouping] GP content missing for date", key.date, key.languageTag, "— skipping user", user.externalId);
           continue;
         }
-        const labels = guidedLabels("en");
+        const labels = guidedLabels(content.languageTag);
         copy = {
           title: meta.title != null ? substituteGpTags(meta.title, {
             guidedPrayerLabel: labels.guidedPrayer,

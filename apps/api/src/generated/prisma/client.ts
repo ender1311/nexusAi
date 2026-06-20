@@ -206,7 +206,9 @@ export type SyncNameOverride = Prisma.SyncNameOverrideModel
 export type SegmentFieldFacet = Prisma.SegmentFieldFacetModel
 /**
  * Model GuidedPrayerDailyContent
- * Immutable per-day, per-language VOTD cache. A given day's VOTD never changes.
+ * Immutable per-day, per-language Guided Prayer cache. The GP guide itself is
+ * English-only, so usfm/imageUrl are shared across languages; reference/verseText
+ * are localized per languageTag (verse text fetched in the user's Bible version).
  */
 export type GuidedPrayerDailyContent = Prisma.GuidedPrayerDailyContentModel
 /**
