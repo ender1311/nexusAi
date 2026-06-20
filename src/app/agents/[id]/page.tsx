@@ -12,6 +12,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Target, MessageSquare, BarChart3, Settings, Users2, GitCompare, Send, LayoutDashboard, Languages, Sliders, Pencil } from "lucide-react";
 import { cn, formatNumber } from "@/lib/utils";
 import { TestedVariablesBadges } from "@/components/agents/tested-variables-badges";
+import { AgentGiftOverviewCards } from "@/components/agents/agent-gift-overview-cards";
 import { VariantDiffTable } from "@/components/agents/variant-diff-table";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { TestedVariable, MessageVariant, AgentStatus, FunnelStage } from "@/types/agent";
@@ -256,6 +257,9 @@ export default async function AgentDetailPage({
                 </CardContent>
               </Card>
             </div>
+            <Suspense fallback={null}>
+              <AgentGiftOverviewCards agentId={agent.id} />
+            </Suspense>
           </TabsContent>
 
           <TabsContent value="goals" className="mt-4">

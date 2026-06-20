@@ -17,6 +17,7 @@ import { formatNumber } from "@/lib/utils";
 import type { VariantMetric, TimeSeriesPoint, TimingHeatmapCell } from "@/types/metrics";
 import { liftSignificance } from "@/lib/engine/lift-significance";
 import { agentGiftMetrics } from "@/lib/cache/agent-gift-metrics";
+import { AgentCohortGiving } from "@/components/agents/agent-cohort-giving";
 import { withTimeout } from "@/lib/with-timeout";
 
 /** Wilson score 95% CI for a binomial proportion. Returns [low, high] as percentages. */
@@ -60,7 +61,7 @@ async function PerformanceContent({ id }: { id: string }) {
   const thirtyDaysAgo = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
 
   // Phase 1: all three independent queries in parallel (saves 2 DB round-trips vs sequential)
-  const [agent, armStats, decisions] = await Promise.all([
+  const [agent, armStats, decisions, giftGoal] = await Promise.all([
     prisma.agent.findUnique({
       where: { id },
       select: { id: true, name: true, algorithm: true, epsilon: true, status: true },
@@ -73,8 +74,11 @@ async function PerformanceContent({ id }: { id: string }) {
       where: { agentId: id, sentAt: { gte: thirtyDaysAgo } },
       select: {
         id: true,
+        userId: true,
         sentAt: true,
         conversionAt: true,
+        conversionEvent: true,
+        conversionValue: true,
         pushOpenAt: true,
         reward: true,
         channel: true,
@@ -87,6 +91,7 @@ async function PerformanceContent({ id }: { id: string }) {
       // At typical send rates this window holds well under 5 000 rows.
       take: 5000,
     }),
+    prisma.goal.findFirst({ where: { agentId: id, eventName: "gift_given" }, select: { id: true } }),
   ]);
 
   if (!agent) return null; // page-level notFound already fired
@@ -193,6 +198,33 @@ async function PerformanceContent({ id }: { id: string }) {
   const personaById = new Map(personaRows.map((p) => [p.id, p]));
   const variantById = new Map(variantRows.map((v) => [v.id, v]));
   const variantNameById = new Map(variantNameRows.map((v) => [v.id, v.name]));
+
+  // ── Giving attribution: which push variant drove how much revenue, plus the
+  //    user-level attributed gifts (30-day window, same as the rest of this tab) ──
+  const hasGiftGoal = giftGoal !== null;
+  const giftDecisions = decisions.filter((d) => d.conversionEvent === "gift_given");
+  const variantLabel = (vid: string | null) =>
+    vid ? variantNameById.get(vid) ?? "Unknown variant" : "(no variant)";
+  const giftByVariant = new Map<string, { name: string; gifts: number; revenue: number }>();
+  for (const d of giftDecisions) {
+    const key = d.messageVariantId ?? "—";
+    const e = giftByVariant.get(key) ?? { name: variantLabel(d.messageVariantId), gifts: 0, revenue: 0 };
+    e.gifts++;
+    e.revenue += d.conversionValue ?? 0;
+    giftByVariant.set(key, e);
+  }
+  const giftVariantRows = [...giftByVariant.values()].sort((a, b) => b.revenue - a.revenue);
+  const giftTotalRevenue = giftVariantRows.reduce((s, r) => s + r.revenue, 0);
+  const recentGifts = giftDecisions
+    .filter((d) => d.conversionAt !== null)
+    .sort((a, b) => b.conversionAt!.getTime() - a.conversionAt!.getTime())
+    .slice(0, 40)
+    .map((d) => ({
+      userId: d.userId,
+      variantName: variantLabel(d.messageVariantId),
+      usd: d.conversionValue ?? 0,
+      giftAt: d.conversionAt!,
+    }));
 
   type PersonaBreakdownRow = {
     personaId: string;
@@ -496,19 +528,19 @@ async function PerformanceContent({ id }: { id: string }) {
         </div>
       )}
 
-      {giftMetrics.giftCount > 0 && (
+      {(hasGiftGoal || giftMetrics.giftCount > 0 || giftMetrics.sowerCount > 0) && (
         <div className="space-y-4">
-          <h2 className="text-sm font-semibold text-muted-foreground">Gifts driven</h2>
+          <h2 className="text-sm font-semibold text-muted-foreground">Gifts driven · last 30 days</h2>
           <div className="grid grid-cols-2 md:grid-cols-4 gap-3 sm:gap-4">
             <Card><CardContent className="p-4">
               <p className="text-xs text-muted-foreground">Gifts</p>
               <p className="text-2xl font-bold mt-1">{formatNumber(giftMetrics.giftCount)}</p>
-              <p className="text-xs text-muted-foreground mt-0.5">last 30 days</p>
+              <p className="text-xs text-muted-foreground mt-0.5">attributed conversions</p>
             </CardContent></Card>
             <Card><CardContent className="p-4">
-              <p className="text-xs text-muted-foreground">Gift Revenue</p>
-              <p className="text-2xl font-bold mt-1 text-primary">${formatNumber(Math.round(giftMetrics.giftRevenue))}</p>
-              <p className="text-xs text-muted-foreground mt-0.5">USD attributed</p>
+              <p className="text-xs text-muted-foreground">Total Gift Revenue</p>
+              <p className="text-2xl font-bold mt-1 text-primary">${formatNumber(Math.round(giftTotalRevenue))}</p>
+              <p className="text-xs text-muted-foreground mt-0.5">USD, summed across variants</p>
             </CardContent></Card>
             <Card><CardContent className="p-4">
               <p className="text-xs text-muted-foreground">Gift Conversion Rate</p>
@@ -517,27 +549,94 @@ async function PerformanceContent({ id }: { id: string }) {
             </CardContent></Card>
             <Card><CardContent className="p-4">
               <p className="text-xs text-muted-foreground">Avg Time to Gift</p>
-              <p className="text-2xl font-bold mt-1">{giftMetrics.avgTimeToGiftHours.toFixed(1)}h</p>
+              <p className="text-2xl font-bold mt-1">{giftMetrics.avgTimeToGiftHours > 0 ? `${giftMetrics.avgTimeToGiftHours.toFixed(1)}h` : "—"}</p>
             </CardContent></Card>
           </div>
-        </div>
-      )}
 
-      {giftMetrics.sowerCount > 0 && (
-        <div className="space-y-4">
-          <h2 className="text-sm font-semibold text-muted-foreground">Recurring givers (Sowers) driven</h2>
-          <div className="grid grid-cols-2 gap-3 sm:gap-4">
-            <Card><CardContent className="p-4">
-              <p className="text-xs text-muted-foreground">Sowers</p>
-              <p className="text-2xl font-bold mt-1 text-primary">{formatNumber(giftMetrics.sowerCount)}</p>
-              <p className="text-xs text-muted-foreground mt-0.5">recurring subscriptions, last 30 days</p>
-            </CardContent></Card>
-            <Card><CardContent className="p-4">
-              <p className="text-xs text-muted-foreground">Sower Conversion Rate</p>
-              <p className="text-2xl font-bold mt-1">{giftMetrics.sowerConversionRate.toFixed(2)}%</p>
-              <p className="text-xs text-muted-foreground mt-0.5">sowers ÷ sends</p>
-            </CardContent></Card>
-          </div>
+          {giftMetrics.sowerCount > 0 && (
+            <div className="grid grid-cols-2 gap-3 sm:gap-4">
+              <Card><CardContent className="p-4">
+                <p className="text-xs text-muted-foreground">Recurring givers (Sowers)</p>
+                <p className="text-2xl font-bold mt-1 text-primary">{formatNumber(giftMetrics.sowerCount)}</p>
+                <p className="text-xs text-muted-foreground mt-0.5">recurring subscriptions</p>
+              </CardContent></Card>
+              <Card><CardContent className="p-4">
+                <p className="text-xs text-muted-foreground">Sower Conversion Rate</p>
+                <p className="text-2xl font-bold mt-1">{giftMetrics.sowerConversionRate.toFixed(2)}%</p>
+                <p className="text-xs text-muted-foreground mt-0.5">sowers ÷ sends</p>
+              </CardContent></Card>
+            </div>
+          )}
+
+          {/* Per-variant revenue attribution — which push message drove how much */}
+          {giftVariantRows.length > 0 ? (
+            <Card>
+              <CardHeader><CardTitle className="text-sm font-semibold">Revenue by message variant</CardTitle></CardHeader>
+              <CardContent className="p-0">
+                <table className="w-full text-sm">
+                  <thead>
+                    <tr className="border-b text-xs text-muted-foreground">
+                      <th className="text-left px-4 py-2 font-medium">Variant</th>
+                      <th className="text-right px-4 py-2 font-medium">Gifts</th>
+                      <th className="text-right px-4 py-2 font-medium">Revenue</th>
+                      <th className="text-right px-4 py-2 font-medium">% of revenue</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {giftVariantRows.map((r) => (
+                      <tr key={r.name} className="border-b last:border-0 hover:bg-muted/30">
+                        <td className="px-4 py-2.5 font-medium">{r.name}</td>
+                        <td className="px-4 py-2.5 text-right tabular-nums text-muted-foreground">{formatNumber(r.gifts)}</td>
+                        <td className="px-4 py-2.5 text-right tabular-nums font-medium">${formatNumber(Math.round(r.revenue))}</td>
+                        <td className="px-4 py-2.5 text-right tabular-nums text-muted-foreground">
+                          {giftTotalRevenue > 0 ? `${((r.revenue / giftTotalRevenue) * 100).toFixed(0)}%` : "—"}
+                        </td>
+                      </tr>
+                    ))}
+                    <tr className="border-t-2 font-semibold">
+                      <td className="px-4 py-2.5">Total</td>
+                      <td className="px-4 py-2.5 text-right tabular-nums">{formatNumber(giftMetrics.giftCount)}</td>
+                      <td className="px-4 py-2.5 text-right tabular-nums text-primary">${formatNumber(Math.round(giftTotalRevenue))}</td>
+                      <td className="px-4 py-2.5 text-right tabular-nums text-muted-foreground">100%</td>
+                    </tr>
+                  </tbody>
+                </table>
+              </CardContent>
+            </Card>
+          ) : (
+            <p className="text-sm text-muted-foreground">No gifts attributed in the last 30 days yet.</p>
+          )}
+
+          {/* User-level attributed gifts */}
+          {recentGifts.length > 0 && (
+            <Card>
+              <CardHeader><CardTitle className="text-sm font-semibold">Attributed gifts (user level)</CardTitle></CardHeader>
+              <CardContent className="p-0">
+                <table className="w-full text-sm">
+                  <thead>
+                    <tr className="border-b text-xs text-muted-foreground">
+                      <th className="text-left px-4 py-2 font-medium">User</th>
+                      <th className="text-left px-4 py-2 font-medium">Variant</th>
+                      <th className="text-right px-4 py-2 font-medium">Amount</th>
+                      <th className="text-right px-4 py-2 font-medium">When</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {recentGifts.map((g, i) => (
+                      <tr key={`${g.userId}-${i}`} className="border-b last:border-0 hover:bg-muted/30">
+                        <td className="px-4 py-2.5 font-mono text-xs">{g.userId}</td>
+                        <td className="px-4 py-2.5 text-muted-foreground">{g.variantName}</td>
+                        <td className="px-4 py-2.5 text-right tabular-nums font-medium">${g.usd.toFixed(2)}</td>
+                        <td className="px-4 py-2.5 text-right tabular-nums text-muted-foreground text-xs">
+                          {g.giftAt.toISOString().slice(0, 10)}
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </CardContent>
+            </Card>
+          )}
         </div>
       )}
 
@@ -624,6 +723,11 @@ export default async function AgentPerformancePage({
       <Suspense fallback={<PerformanceSkeleton />}>
         <PerformanceContent id={id} />
       </Suspense>
+      <div className="p-4 sm:p-6 pt-0">
+        <Suspense fallback={null}>
+          <AgentCohortGiving agentId={id} />
+        </Suspense>
+      </div>
     </>
   );
 }
