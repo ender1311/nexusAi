@@ -918,7 +918,7 @@ export async function POST(req: NextRequest) {
     const allVariantIds = agent.messages.flatMap((m) => m.variants.map((v) => v.id));
     // Push localization: load active translations for this agent's variants once
     // per run (batch — avoids N+1). Built into variantId -> (canonical lang -> copy).
-    const localizeEnabled = agent.localizePush && agent.messages.some((m) => m.channel === "push");
+    const localizeEnabled = agent.localizePush;
     const translationsByVariant = new Map<string, Map<string, import("@/lib/push-locale").LocalizedCopy>>();
     if (localizeEnabled && allVariantIds.length > 0) {
       const rows = await prisma.messageVariantTranslation.findMany({
@@ -948,7 +948,6 @@ export async function POST(req: NextRequest) {
     // Guided Prayer dynamic variants: resolved from prayer.youversionapi.com per UTC date.
     const gpVariantIds = new Set<string>();
     for (const msg of agent.messages) {
-      if (msg.channel !== "push") continue;
       for (const v of msg.variants) {
         if (hasVotdTags(v.title ?? null, v.body)) votdVariantIds.add(v.id);
         if (hasGpTags(v.title ?? null, v.body)) gpVariantIds.add(v.id);
@@ -1198,13 +1197,14 @@ export async function POST(req: NextRequest) {
         : channelFiltered;
       suppress.targetFilter += channelFiltered.length - prefFiltered.length;
 
-      // Language filter for push agents: English-only sends by default. When the
-      // agent opts into push localization, do NOT force EN and do NOT exclude
-      // missing-language_tag users — every recipient gets copy (English fallback).
+      // Language filter: English-only sends by default. When the agent opts into
+      // localization, do NOT force EN — every recipient gets copy (English fallback
+      // or strict skip if no translation). Applies to all channels, not just push.
+      const hasSendableMessages = agent.messages.length > 0;
       const effectiveAgentLang =
         agent.languageFilter && agent.languageFilter !== "all"
           ? agent.languageFilter
-          : (hasPushMessages && !localizeEnabled) ? "en" : null;
+          : (hasSendableMessages && !localizeEnabled) ? "en" : null;
       const langFiltered = effectiveAgentLang
         ? prefFiltered.filter((u) => {
             const attrs = u.attributes as Record<string, unknown>;
@@ -1642,10 +1642,11 @@ export async function POST(req: NextRequest) {
       // pushes for the rest of the window (2026-06-09 audit, I5).
       const windowHasPush = agent.messages.some((m) => m.channel === "push");
       const windowHasEmail = agent.messages.some((m) => m.channel === "email");
+      const hasSendableMessagesWindow = agent.messages.length > 0;
       const windowEffectiveLang =
         agent.languageFilter && agent.languageFilter !== "all"
           ? agent.languageFilter
-          : (windowHasPush && !localizeEnabled) ? "en" : null;
+          : (hasSendableMessagesWindow && !localizeEnabled) ? "en" : null;
       const quietWindowUsers = eligibleWindowUsers.filter((u) => {
         const attrs = (u.attributes as Record<string, unknown>) ?? {};
         if (
