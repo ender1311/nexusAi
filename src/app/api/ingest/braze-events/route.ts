@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
 import { upsertArmStats, upsertUserArmStats } from "@/lib/arm-stats";
 import { verifyIngestAuth } from "@/lib/ingest-auth";
+import { ingestRateLimited } from "@/lib/rate-limit";
 
 /**
  * POST /api/ingest/braze-events
@@ -89,6 +90,9 @@ function extractFields(event: BrazeEvent): {
 export async function POST(req: NextRequest) {
   if (!verifyAuth(req)) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  }
+  if (await ingestRateLimited(req, req.headers)) {
+    return NextResponse.json({ error: "Rate limit exceeded" }, { status: 429 });
   }
 
   let body: unknown;

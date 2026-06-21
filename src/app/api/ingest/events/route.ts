@@ -5,6 +5,7 @@ import { accumulateUserStats } from "@/lib/services/user-stats-service";
 import { upsertArmStats, upsertUserArmStats } from "@/lib/arm-stats";
 import { applyConversion } from "@/lib/services/attribution-service";
 import { verifyIngestAuth } from "@/lib/ingest-auth";
+import { ingestRateLimited } from "@/lib/rate-limit";
 import { bumpUserIngestMarker } from "@/lib/segments/ingest-marker";
 
 /**
@@ -43,6 +44,9 @@ type EventRecord = {
 export async function POST(req: NextRequest) {
   if (!verifyAuth(req)) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  }
+  if (await ingestRateLimited(req, req.headers)) {
+    return NextResponse.json({ error: "Rate limit exceeded" }, { status: 429 });
   }
 
   let body: unknown;

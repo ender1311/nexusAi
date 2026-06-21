@@ -6,6 +6,7 @@ import { usdAmount } from "@/lib/engine/giving-link";
 import { accumulateUserStats } from "@/lib/services/user-stats-service";
 import { upsertArmStats, upsertUserArmStats, updateLinUCBArm } from "@/lib/arm-stats";
 import { verifyIngestAuth } from "@/lib/ingest-auth";
+import { ingestRateLimited } from "@/lib/rate-limit";
 import { FEATURE_DIM } from "@/lib/engine/feature-vector";
 import { isRecovery, recoveryRank } from "@/lib/engine/funnel-recovery";
 import { applyConversion } from "@/lib/services/attribution-service";
@@ -583,6 +584,9 @@ async function attributeEvents(
 export async function POST(req: NextRequest) {
   if (!verifyAuth(req)) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  }
+  if (await ingestRateLimited(req, req.headers)) {
+    return NextResponse.json({ error: "Rate limit exceeded" }, { status: 429 });
   }
 
   let body: unknown;

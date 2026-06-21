@@ -13,6 +13,7 @@
         "@prisma/adapter-neon": "7.8.0",
         "@prisma/adapter-pg": "7.8.0",
         "@prisma/client": "7.8.0",
+        "@vercel/firewall": "^1.2.1",
         "@workos-inc/authkit-nextjs": "^4.0.1",
         "class-variance-authority": "^0.7.1",
         "clsx": "^2.1.1",
@@ -536,6 +537,8 @@
     "@unrs/resolver-binding-win32-ia32-msvc": ["@unrs/resolver-binding-win32-ia32-msvc@1.11.1", "", { "os": "win32", "cpu": "ia32" }, "sha512-DCEI6t5i1NmAZp6pFonpD5m7i6aFrpofcp4LA2i8IIq60Jyo28hamKBxNrZcyOwVOZkgsRp9O2sXWBWP8MnvIQ=="],
 
     "@unrs/resolver-binding-win32-x64-msvc": ["@unrs/resolver-binding-win32-x64-msvc@1.11.1", "", { "os": "win32", "cpu": "x64" }, "sha512-lrW200hZdbfRtztbygyaq/6jP6AKE8qQN2KvPcJ+x7wiD038YtnYtZ82IMNJ69GJibV7bwL3y9FgK+5w/pYt6g=="],
+
+    "@vercel/firewall": ["@vercel/firewall@1.2.1", "", {}, "sha512-WlxjEPpf+GWYMontNNZqZjvLL40ziGwy9swwI9da/L1fB/syAO1S2fMtlBXkp4EGVF6nlXSKmwvkUd6YPWJbbg=="],
 
     "@workos-inc/authkit-nextjs": ["@workos-inc/authkit-nextjs@4.0.1", "", { "dependencies": { "@sindresorhus/fnv1a": "^3.1.0", "@workos-inc/node": "^9.0.0", "iron-session": "^8.0.4", "jose": "^5.10.0", "path-to-regexp": "^6.3.0", "valibot": "^1.2.0" }, "peerDependencies": { "next": "^13.5.9 || ^14.2.26 || ^15.2.3 || ^16", "react": "^18.0 || ^19.0.0", "react-dom": "^18.0 || ^19.0.0" } }, "sha512-lSpvQCzazHz1iBS2gtT3o4NQRiman3CjOAvSbU50KeoSYddx/z0hc73WDL9TC+UNTIZ7R7/KBc2BrOrWJ/MiVQ=="],
 
