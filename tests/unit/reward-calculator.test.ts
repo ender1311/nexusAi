@@ -153,8 +153,20 @@ describe("gift_given amount-weighted reward", () => {
     expect(calculateReward("gift_given", goodGiftGoals, { gift_amount_usd: 1000 })).toBeCloseTo(0.5, 5);
   });
 
-  it("returns 0 when the agent has no gift_given goal", () => {
-    expect(calculateReward("gift_given", [], { gift_amount_usd: 100 })).toBe(0);
+  it("gives a reduced incidental reward when the agent has no gift_given goal", () => {
+    // gift_given is intrinsically valuable: an agent that influences a gift gets
+    // partial credit (good-tier base = half of best) even without an explicit goal,
+    // so it can't be PUNISHED for driving a gift. Explicit goal → full/primary.
+    const incidental = calculateReward("gift_given", [], { gift_amount_usd: 1000 });
+    const explicit = calculateReward("gift_given", giftGoals, { gift_amount_usd: 1000 });
+    expect(incidental).toBeCloseTo(0.5, 5);            // (good=5 / 10) * 1.0
+    expect(incidental).toBeGreaterThan(0);
+    expect(incidental).toBeCloseTo(explicit / 2, 5);   // exactly half of explicit best
+  });
+
+  it("incidental gift with no/zero amount → 0 (no negative credit)", () => {
+    expect(calculateReward("gift_given", [], { gift_amount_usd: 0 })).toBe(0);
+    expect(calculateReward("gift_given", [], {})).toBe(0);
   });
 });
 
@@ -173,7 +185,7 @@ describe("sower_subscribed flat-max reward", () => {
     expect(calculateReward("sower_subscribed", lowTierGoals)).toBe(1.0);
   });
 
-  it("returns 0 when the agent has no sower_subscribed goal (must opt in)", () => {
-    expect(calculateReward("sower_subscribed", [])).toBe(0);
+  it("gives half-credit (0.5) when the agent has no sower_subscribed goal (incidental)", () => {
+    expect(calculateReward("sower_subscribed", [])).toBe(0.5);
   });
 });

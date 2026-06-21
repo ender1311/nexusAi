@@ -17,6 +17,15 @@ const RECOVERY_WEIGHT = 5; // tunable
 
 const GIFT_REWARD_CAP_USD = 1000; // tunable: gift amount that maps to reward 1.0
 
+// Intrinsically-valuable conversions (a gift, a recurring giver) earn a reward
+// even when they are NOT the agent's explicit goal — so an agent whose objective
+// is something else (e.g. re-engagement) still gets credit, never a penalty, for
+// influencing one. The incidental base is "good" (half of "best"), so the signal
+// nudges arm selection without overtaking the agent's primary objective. An
+// explicit goal overrides with its own tier (full/primary).
+const INCIDENTAL_GIFT_BASE = TIER_BASE_REWARDS.good; // 5 → half of best(10)
+const INCIDENTAL_SOWER_REWARD = 0.5; // half of the 1.0 primary sower reward
+
 /**
  * Calculate normalized reward for a conversion event given the agent's goals.
  * Returns a reward in [-1, 1] range after normalization.
@@ -31,6 +40,27 @@ export function calculateReward(
   eventProperties?: Record<string, unknown>
 ): number {
   const matchingGoal = goals.find((g) => g.eventName === conversionEvent);
+
+  // Gift conversions are amount-weighted on a log scale so gift size is visible
+  // to the bandit without saturating. frac = log10(1+usd)/log10(1+CAP). Resolved
+  // for EVERY agent, not just those with an explicit gift goal: an explicit goal
+  // uses its own tier (full/primary); without one, the reduced incidental base
+  // applies so the agent earns partial credit instead of being penalized.
+  if (conversionEvent === "gift_given") {
+    const usd = Number(eventProperties?.gift_amount_usd) || 0;
+    if (usd <= 0) return 0;
+    const base = matchingGoal ? (TIER_BASE_REWARDS[matchingGoal.tier] ?? 0) : INCIDENTAL_GIFT_BASE;
+    const frac = Math.log10(1 + usd) / Math.log10(1 + GIFT_REWARD_CAP_USD);
+    return Math.max(0, Math.min(1, (base / 10) * frac));
+  }
+
+  // A recurring-gift (Sower) subscription is the highest-value conversion: a
+  // standing commitment rather than a one-off. Flat maximum (1.0) when it's an
+  // explicit goal — independent of tier/weight; reduced incidental credit when not.
+  if (conversionEvent === "sower_subscribed") {
+    return matchingGoal ? 1.0 : INCIDENTAL_SOWER_REWARD;
+  }
+
   if (!matchingGoal) {
     // Built-in funnel_recovery reward when the agent has no explicit Goal for it.
     if (conversionEvent === "funnel_recovery") {
@@ -44,23 +74,6 @@ export function calculateReward(
   }
 
   const baseReward = TIER_BASE_REWARDS[matchingGoal.tier] ?? 0;
-
-  // Gift conversions are amount-weighted on a log scale so gift size is visible
-  // to the bandit without saturating. frac = log10(1+usd)/log10(1+CAP).
-  if (conversionEvent === "gift_given") {
-    const usd = Number(eventProperties?.gift_amount_usd) || 0;
-    if (usd <= 0) return 0;
-    const frac = Math.log10(1 + usd) / Math.log10(1 + GIFT_REWARD_CAP_USD);
-    return Math.max(0, Math.min(1, (baseReward / 10) * frac));
-  }
-
-  // A recurring-gift (Sower) subscription is the highest-value conversion: a
-  // standing commitment rather than a one-off. Flat maximum reward regardless of
-  // the goal's configured tier/weight, so the bandit treats becoming a recurring
-  // giver as the top signal — independent of one-time gift size.
-  if (conversionEvent === "sower_subscribed") {
-    return 1.0;
-  }
 
   let weight: number;
   if (matchingGoal.weightMode === "property" && matchingGoal.weightProperty && eventProperties) {
