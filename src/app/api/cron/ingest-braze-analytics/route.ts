@@ -47,6 +47,11 @@ export async function POST(req: NextRequest) {
       brazeSendId:           { not: null },
       brazeAnalyticsFetchedAt: null,
       sentAt:                { lte: cutoff },
+      // Already-converted decisions are resolved by attribution (reward + arm credit).
+      // Never let the no-engagement decay overwrite that reward or add a β penalty —
+      // a real conversion (e.g. a gift driven by a push that wasn't "opened") must
+      // not be scored as a miss.
+      conversionAt:          null,
     },
     select: {
       id:               true,
