@@ -1,4 +1,5 @@
 import { prisma } from "@/lib/db";
+import { unstable_cache } from "next/cache";
 
 export type AgentGiftMetrics = {
   giftCount: number;
@@ -15,7 +16,7 @@ export type AgentGiftMetrics = {
  * average time-to-gift in hours (AVG(conversionAt - sentAt) for gift_given), and
  * recurring-giver (Sower) conversions: sower_subscribed count and rate (÷ sends).
  */
-export async function agentGiftMetrics(agentId: string): Promise<AgentGiftMetrics> {
+async function queryAgentGiftMetrics(agentId: string): Promise<AgentGiftMetrics> {
   const thirtyDaysAgo = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000);
   const rows = await prisma.$queryRaw<[{
     sends: bigint;
@@ -46,4 +47,18 @@ export async function agentGiftMetrics(agentId: string): Promise<AgentGiftMetric
     sowerCount,
     sowerConversionRate: sends > 0 ? (sowerCount / sends) * 100 : 0,
   };
+}
+
+/**
+ * Cached per-agent gift metrics (900s). The underlying $queryRaw aggregates over a
+ * 30-day window of UserDecision; without caching it re-ran on every performance-page
+ * and overview-card render. Tagged `agent-${agentId}` so agent-scoped revalidation
+ * busts it.
+ */
+export async function agentGiftMetrics(agentId: string): Promise<AgentGiftMetrics> {
+  return unstable_cache(
+    () => queryAgentGiftMetrics(agentId),
+    ["agent-gift-metrics", agentId],
+    { tags: [`agent-${agentId}`], revalidate: 900 },
+  )();
 }

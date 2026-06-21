@@ -132,14 +132,27 @@ async function PerformanceContent({ id }: { id: string }) {
     // Fleet-wide COUNT over 30d of UserDecision (~35M rows, only a sentAt index).
     // Bounded so a cold-cache recompute renders a fallback instead of 504ing the
     // whole performance tab (single Suspense boundary).
+    // Fleet-wide and agent-independent — cache once globally (900s) so it isn't
+    // recomputed for every agent's performance page. bigint → number so the
+    // unstable_cache result is JSON-serializable.
     withTimeout(
-      prisma.$queryRaw<[{ fleet_sends: bigint; fleet_conversions: bigint }]>`
-        SELECT COUNT(*)::bigint AS fleet_sends, COUNT("conversionAt")::bigint AS fleet_conversions
-        FROM "UserDecision"
-        WHERE "sentAt" >= ${thirtyDaysAgo}
-      `,
+      unstable_cache(
+        async (): Promise<{ fleet_sends: number; fleet_conversions: number }> => {
+          const rows = await prisma.$queryRaw<[{ fleet_sends: bigint; fleet_conversions: bigint }]>`
+            SELECT COUNT(*)::bigint AS fleet_sends, COUNT("conversionAt")::bigint AS fleet_conversions
+            FROM "UserDecision"
+            WHERE "sentAt" >= ${thirtyDaysAgo}
+          `;
+          return {
+            fleet_sends: Number(rows[0]?.fleet_sends ?? 0),
+            fleet_conversions: Number(rows[0]?.fleet_conversions ?? 0),
+          };
+        },
+        ["perf-fleet-decisions-30d"],
+        { tags: ["performance"], revalidate: 900 },
+      )(),
       6000,
-      [{ fleet_sends: BigInt(0), fleet_conversions: BigInt(0) }] as [{ fleet_sends: bigint; fleet_conversions: bigint }],
+      { fleet_sends: 0, fleet_conversions: 0 },
     ),
   ]);
 
@@ -192,8 +205,8 @@ async function PerformanceContent({ id }: { id: string }) {
     });
   }
 
-  const fleetSends = Number(fleetAgg[0]?.fleet_sends ?? 0);
-  const fleetConversions = Number(fleetAgg[0]?.fleet_conversions ?? 0);
+  const fleetSends = fleetAgg.fleet_sends;
+  const fleetConversions = fleetAgg.fleet_conversions;
 
   const personaById = new Map(personaRows.map((p) => [p.id, p]));
   const variantById = new Map(variantRows.map((v) => [v.id, v]));

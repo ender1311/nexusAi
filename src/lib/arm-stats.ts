@@ -2,7 +2,13 @@ import { prisma } from "@/lib/db";
 import { randomUUID } from "crypto";
 import { LinUCB } from "@/lib/engine/linucb";
 import { FEATURE_DIM } from "@/lib/engine/feature-vector";
+import { runChunked } from "@/lib/cron/chunk";
 import type { Prisma } from "@/generated/prisma/client";
+
+// Cap concurrent arm-stat upserts so a single analytics batch (up to ~500 rows)
+// can't open ~500 Neon connections at once and exhaust the pool (a documented
+// pool-exhaustion failure mode under concurrent cron + ingest load).
+const ARM_STATS_WRITE_CONCURRENCY = 20;
 
 /**
  * Atomically apply temporal decay and a reward increment to a PersonaArmStats row.
@@ -90,7 +96,7 @@ export async function batchUpsertArmStats(
   delta: { deltaAlpha: number; deltaBeta: number; deltaWins: number },
 ): Promise<void> {
   if (rows.length === 0) return;
-  await Promise.all(rows.map((r) => upsertArmStats({ ...r, ...delta })));
+  await runChunked(rows, ARM_STATS_WRITE_CONCURRENCY, (r) => upsertArmStats({ ...r, ...delta }));
 }
 
 /**
@@ -102,7 +108,7 @@ export async function batchUpsertUserArmStats(
   delta: { deltaAlpha: number; deltaBeta: number; deltaWins: number },
 ): Promise<void> {
   if (rows.length === 0) return;
-  await Promise.all(rows.map((r) => upsertUserArmStats({ ...r, ...delta })));
+  await runChunked(rows, ARM_STATS_WRITE_CONCURRENCY, (r) => upsertUserArmStats({ ...r, ...delta }));
 }
 
 /**
