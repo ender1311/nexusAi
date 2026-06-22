@@ -61,6 +61,9 @@ describe("mobileTabs data model", () => {
       "Push Library",
       "Email Library",
       "Verse Library",
+      "Content Cards",
+      "Slideups",
+      "Modal IAMs",
       "Settings",
     ]);
   });

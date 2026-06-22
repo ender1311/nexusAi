@@ -33,7 +33,9 @@ async function seed() {
     conversionAt: new Date(),
     pushOpenAt: new Date(),
   });
-  await prisma.userDecision.update({ where: { id: d1.id }, data: { reward: 1.0 } });
+  // brazeSendId marks a CONFIRMED send — required by the dashboard's push-send/open
+  // counts (COUNT FILTER WHERE channel='push' AND brazeSendId IS NOT NULL).
+  await prisma.userDecision.update({ where: { id: d1.id }, data: { reward: 1.0, brazeSendId: "chart-d1" } });
 
   const d2 = await createUserDecision({
     agentId: agent.id,
@@ -42,7 +44,7 @@ async function seed() {
     channel: "push",
     sentAt,
   });
-  await prisma.userDecision.update({ where: { id: d2.id }, data: { reward: 0 } });
+  await prisma.userDecision.update({ where: { id: d2.id }, data: { reward: 0, brazeSendId: "chart-d2" } });
 
   return { agentId: agent.id, variantId: variant.id };
 }
