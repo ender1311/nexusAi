@@ -223,11 +223,14 @@ export async function POST(req: NextRequest) {
   // resetting sendCount — hold caps would never stop an uncapped agent
   // (2026-06-09 audit, R1).
   const releasedThisRun = new Map<string, string>();
+  // Load all active assignments ONCE; the fleet-wide exclusivity map below reuses
+  // this instead of running a second identical query.
+  const activeAssignments = await prisma.userAgentAssignment.findMany({
+    where: { releasedAt: null },
+    select: { id: true, externalUserId: true, agentId: true, startedAt: true, sendCount: true },
+  });
+  const releasedAssignmentIds = new Set<string>();
   {
-    const activeAssignments = await prisma.userAgentAssignment.findMany({
-      where: { releasedAt: null },
-      select: { id: true, externalUserId: true, agentId: true, startedAt: true, sendCount: true },
-    });
     if (activeAssignments.length > 0) {
       // Build per-agent target-stage sets from the already-loaded `agents`.
       const agentsById = new Map<string, ReleaseAgentInfo>();
@@ -252,6 +255,7 @@ export async function POST(req: NextRequest) {
       }));
 
       const releases = classifyReleases(enriched, agentsById, now);
+      for (const r of releases) releasedAssignmentIds.add(r.id);
       // Group by reason → one updateMany per reason (avoids N round-trips).
       const byReason = new Map<string, string[]>();
       for (const r of releases) {
@@ -291,12 +295,11 @@ export async function POST(req: NextRequest) {
   // Fleet-wide exclusivity (spec A4): a user actively owned by another agent is
   // ineligible for everyone except its current owner. One query, held in memory.
   const activeOwnerByUser = new Map<string, string>(); // externalUserId → owning agentId
-  {
-    const owned = await prisma.userAgentAssignment.findMany({
-      where: { releasedAt: null },
-      select: { externalUserId: true, agentId: true },
-    });
-    for (const a of owned) activeOwnerByUser.set(a.externalUserId, a.agentId);
+  // Derived from the already-loaded activeAssignments minus anything released in the
+  // sweep above — no second fleet-wide query. Fixed-agent materialization (which
+  // creates new assignments) runs later, so this correctly reflects ownership here.
+  for (const a of activeAssignments) {
+    if (!releasedAssignmentIds.has(a.id)) activeOwnerByUser.set(a.externalUserId, a.agentId);
   }
 
   // ── Pre-assignment phase: build lottery map once for the entire cron run ──
@@ -556,10 +559,12 @@ export async function POST(req: NextRequest) {
       );
 
       // ── Step 1: release segment exits (frees cap headroom this tick) ────────
-      const activeAssigns = await prisma.userAgentAssignment.findMany({
-        where: { agentId: agent.id, releasedAt: null },
-        select: { id: true, externalUserId: true, agentId: true, startedAt: true, sendCount: true },
-      });
+      // Reuse the fleet-wide activeAssignments loaded in Phase −1: this agent's
+      // active rows are those minus anything Phase −1 released. Continuous agents
+      // are never touched by fixed-agent materialization, so no fresh query needed.
+      const activeAssigns = activeAssignments.filter(
+        (a) => a.agentId === agent.id && !releasedAssignmentIds.has(a.id),
+      );
       let exitCount = 0;
       if (activeAssigns.length > 0 && hasSegmentTargeting) {
         const releaseAgentsById = new Map([
