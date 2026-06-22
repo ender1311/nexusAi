@@ -1,5 +1,6 @@
 import { prisma } from "@/lib/db";
 import { ok, fail, handleRouteError } from "@/lib/api/respond";
+import { requireAdmin } from "@/lib/auth";
 
 type SearchHit = {
   externalId: string;
@@ -25,6 +26,8 @@ function nameOf(attrs: Record<string, unknown>): string | null {
 }
 
 export async function GET(req: Request) {
+  const denied = await requireAdmin();
+  if (denied) return denied;
   const q = (new URL(req.url).searchParams.get("q") ?? "").trim();
   if (!q) return fail("Query parameter 'q' is required", 400);
 

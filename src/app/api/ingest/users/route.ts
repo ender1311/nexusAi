@@ -332,12 +332,12 @@ async function attributeCanvasOpen(
       ? upsertArmStats({
           personaId: user.personaId, agentId, variantId,
           deltaAlpha: 1, deltaBeta: 0, deltaWins: 1,
-        }).catch(() => {})
+        }).catch((e) => console.error("[ingest/users] canvas-open PersonaArmStats credit failed:", e))
       : Promise.resolve(),
     upsertUserArmStats({
       userId: canonicalUserId, agentId, variantId,
       deltaAlpha: 1, deltaBeta: 0, deltaWins: 1,
-    }).catch(() => {}),
+    }).catch((e) => console.error("[ingest/users] canvas-open UserArmStats credit failed:", e)),
   ]);
 
   return true; // handled

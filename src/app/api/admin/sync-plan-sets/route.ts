@@ -63,7 +63,8 @@ export async function POST(req: NextRequest) {
 
       await prisma.planSet.update({ where: { setId: set.setId }, data: { syncedAt: new Date() } });
       results.push({ setId: set.setId, plans: planIds.length, ok: true });
-    } catch {
+    } catch (err) {
+      console.error("[sync-plan-sets] set sync failed:", set.setId, err);
       results.push({ setId: set.setId, plans: 0, ok: false });
     }
   }

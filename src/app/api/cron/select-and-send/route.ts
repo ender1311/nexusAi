@@ -2087,6 +2087,17 @@ export async function POST(req: NextRequest) {
     suppressed: totalSuppressed,
     errors: totalErrors,
   });
+  } catch (err) {
+    // Never leak a stack trace to the caller; log server-side and record the
+    // message on the CronRun (the finally still marks it failed + releases the lock).
+    console.error("[cron/select-and-send] unhandled error:", err);
+    if (cronRunId) {
+      await prisma.cronRun.updateMany({
+        where: { id: cronRunId, status: "running" },
+        data: { errorMsg: err instanceof Error ? err.message : String(err) },
+      }).catch(() => {});
+    }
+    return NextResponse.json({ ok: false, error: "Internal error" }, { status: 500 });
   } finally {
     await prisma.appSetting.delete({ where: { key: "cron_lock_select_and_send" } }).catch(() => {});
     if (cronRunId) {

@@ -1,6 +1,7 @@
 import { prisma } from "@/lib/db";
 import { ok, fail, handleRouteError } from "@/lib/api/respond";
 import { buildMessagingTimeline } from "@/lib/users/messaging-history";
+import { requireAdmin } from "@/lib/auth";
 
 function asRecord(v: unknown): Record<string, unknown> {
   return v && typeof v === "object" && !Array.isArray(v) ? (v as Record<string, unknown>) : {};
@@ -11,6 +12,9 @@ export async function GET(
   { params }: { params: Promise<{ externalId: string }> }
 ) {
   const { externalId } = await params;
+
+  const denied = await requireAdmin();
+  if (denied) return denied;
 
   try {
     const user = await prisma.trackedUser.findUnique({
