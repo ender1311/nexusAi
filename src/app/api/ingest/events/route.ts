@@ -111,6 +111,16 @@ export async function POST(req: NextRequest) {
     })).map((r) => r.eventId)
   );
 
+  // Batch persona lookup: one query for all event users instead of a per-event
+  // trackedUser.findFirst inside the loop. Passed into applyConversion (which then
+  // skips its own per-call lookup) and used directly by the push_disabled path.
+  const personaByUser = new Map<string, string | null>(
+    (await prisma.trackedUser.findMany({
+      where: { externalId: { in: [...new Set(deduped.map((e) => e.external_user_id))] } },
+      select: { externalId: true, personaId: true },
+    })).map((u) => [u.externalId, u.personaId]),
+  );
+
   for (const event of deduped) {
     const occurredAt = new Date(event.occurred_at);
 
@@ -122,11 +132,8 @@ export async function POST(req: NextRequest) {
       // Idempotency: skip if Hightouch already delivered this event in a previous batch
       if (alreadyProcessedSet.has(event.event_id)) { unmatched.push(event.event_id); continue; }
 
-      const user = await prisma.trackedUser.findFirst({
-        where: { externalId: event.external_user_id },
-        select: { personaId: true },
-      });
-      if (user?.personaId) {
+      const personaId = personaByUser.get(event.external_user_id) ?? null;
+      if (personaId) {
         const recentCutoff = new Date(occurredAt.getTime() - 14 * 24 * 60 * 60 * 1000);
         const recentDecisions = await prisma.userDecision.findMany({
           where: {
@@ -143,7 +150,7 @@ export async function POST(req: NextRequest) {
           if (!d.messageVariantId) continue;
           await Promise.all([
             upsertArmStats({
-              personaId: user.personaId,
+              personaId,
               agentId: d.agentId,
               variantId: d.messageVariantId,
               deltaAlpha: 0,
@@ -217,6 +224,7 @@ export async function POST(req: NextRequest) {
       conversionEvent: event.event_name,
       occurredAt,
       properties: event.properties,
+      personaId: personaByUser.get(event.external_user_id) ?? null,
     });
     void reward; // reward already persisted by applyConversion
 

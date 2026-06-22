@@ -795,6 +795,18 @@ export async function POST(req: NextRequest) {
   // Per-agent metric accumulators for ModelMetric writes
   const agentMetrics = new Map<string, { sent: number; suppressed: number; errors: number }>();
 
+  // Today's confirmed-send counts for ALL agents in one groupBy (vs. a per-agent
+  // count() inside the loop). Each agent's count is independent of other agents'
+  // sends, and no agent sends before this point, so a single up-front read matches
+  // the per-iteration value. Backed by the partial (brazeSendId NOT NULL) index.
+  const sentTodayByAgent = new Map<string, number>(
+    (await prisma.userDecision.groupBy({
+      by: ["agentId"],
+      where: { agentId: { in: agents.map((a) => a.id) }, sentAt: { gte: todayStart }, brazeSendId: { not: null } },
+      _count: true,
+    })).map((r) => [r.agentId, r._count]),
+  );
+
   for (const agent of agents) {
     const metricsBefore = { sent: totalSent, suppressed: totalSuppressed, errors: totalErrors };
     const personaIds = agent.personaTargets.map((pt) => pt.personaId);
@@ -826,13 +838,7 @@ export async function POST(req: NextRequest) {
     // daily budget rolls into later hourly runs. Counts only confirmed sends
     // (brazeSendId set) so Braze-failed attempts don't burn the budget.
     {
-      const sentToday = await prisma.userDecision.count({
-        where: {
-          agentId:     agent.id,
-          sentAt:      { gte: todayStart },
-          brazeSendId: { not: null },
-        },
-      });
+      const sentToday = sentTodayByAgent.get(agent.id) ?? 0;
       const quota = resolvePerRunQuota(agent.dailySendCap, sentToday);
       const trimmed = trimToCap(lotteryUserIds, quota);
       lotteryUserIds = trimmed.kept;
