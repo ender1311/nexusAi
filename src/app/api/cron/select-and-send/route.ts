@@ -1241,11 +1241,10 @@ export async function POST(req: NextRequest) {
       // localization, restrict to servable languages (en + translation languages)
       // so users with no matching translation are not recruited (they would all be
       // strict-skipped at send time, wasting quota).  Applies to all channels.
-      const hasSendableMessages = agent.messages.length > 0;
       const effectiveAgentLang =
         agent.languageFilter && agent.languageFilter !== "all"
           ? agent.languageFilter
-          : (hasSendableMessages && !localizeEnabled) ? "en" : null;
+          : (hasPushMessages && !localizeEnabled) ? "en" : null;
       const langFiltered = servableLanguagePrefixes
         // Localized agent: filter to users whose language_tag starts with at
         // least one of the servable prefixes.  Note effectiveAgentLang is null
@@ -1696,11 +1695,10 @@ export async function POST(req: NextRequest) {
       // pushes for the rest of the window (2026-06-09 audit, I5).
       const windowHasPush = agent.messages.some((m) => m.channel === "push");
       const windowHasEmail = agent.messages.some((m) => m.channel === "email");
-      const hasSendableMessagesWindow = agent.messages.length > 0;
       const windowEffectiveLang =
         agent.languageFilter && agent.languageFilter !== "all"
           ? agent.languageFilter
-          : (hasSendableMessagesWindow && !localizeEnabled) ? "en" : null;
+          : (windowHasPush && !localizeEnabled) ? "en" : null;
       const quietWindowUsers = eligibleWindowUsers.filter((u) => {
         const attrs = (u.attributes as Record<string, unknown>) ?? {};
         if (
