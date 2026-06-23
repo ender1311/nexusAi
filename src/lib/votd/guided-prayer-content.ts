@@ -59,7 +59,7 @@ async function fetchGpDayImage(doy: number): Promise<string | null> {
   try {
     const res = await fetch(
       `${GP_BASE}/guides/${DEFAULT_GUIDE_ID}/days/${doy}`,
-      { headers: buildHeaders() },
+      { headers: buildHeaders(), signal: AbortSignal.timeout(10_000) },
     );
     if (!res.ok) return null;
     const json = (await res.json()) as Record<string, unknown>;
@@ -85,7 +85,7 @@ async function fetchGpUsfm(doy: number): Promise<string | null> {
   try {
     const res = await fetch(
       `${GP_BASE}/guides/${DEFAULT_GUIDE_ID}/days/${doy}/modules`,
-      { headers: buildHeaders() },
+      { headers: buildHeaders(), signal: AbortSignal.timeout(10_000) },
     );
     if (!res.ok) {
       console.error(`[guided-prayer] modules HTTP ${res.status}`);
@@ -131,7 +131,7 @@ async function fetchGpVerse(usfm: string, versionId: number, languageTag: string
     const headers = { ...GP_HEADERS, "Accept-Language": languageTag };
     const res = await fetch(
       `https://bible.youversionapi.com/3.1/verses.json?references[]=${encodeURIComponent(usfm)}&id=${versionId}&format=text`,
-      { headers },
+      { headers, signal: AbortSignal.timeout(10_000) },
     );
     if (!res.ok) return null;
     const json = (await res.json()) as {

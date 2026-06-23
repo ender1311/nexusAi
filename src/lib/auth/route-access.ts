@@ -30,10 +30,24 @@ export const SERVICE_PREFIXES = [
   "/api/revalidate",
 ] as const;
 
+/**
+ * Segment-bounded prefix match. A prefix matches the path itself or any
+ * sub-path under it, but NOT a sibling that merely shares a string prefix:
+ * `/api/decide` matches `/api/decide` and `/api/decide/x`, never
+ * `/api/decide-preview`. Trailing slashes on entries are normalized away so
+ * `/api/ingest/` and `/api/decide` behave identically.
+ */
+function matchesPrefix(pathname: string, prefixes: readonly string[]): boolean {
+  return prefixes.some((p) => {
+    const base = p.endsWith("/") ? p.slice(0, -1) : p;
+    return pathname === base || pathname.startsWith(base + "/");
+  });
+}
+
 export function isPublic(pathname: string): boolean {
-  return PUBLIC_PREFIXES.some((p) => pathname.startsWith(p));
+  return matchesPrefix(pathname, PUBLIC_PREFIXES);
 }
 
 export function isServiceRoute(pathname: string): boolean {
-  return SERVICE_PREFIXES.some((p) => pathname.startsWith(p));
+  return matchesPrefix(pathname, SERVICE_PREFIXES);
 }

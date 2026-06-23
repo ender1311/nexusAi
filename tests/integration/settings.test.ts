@@ -93,13 +93,28 @@ describe("POST /api/settings", () => {
 });
 
 describe("GET /api/settings", () => {
-  it("returns settings as a key→value map", async () => {
+  // Security: GET returns ONLY the client-readable allowlist, never the whole
+  // AppSetting table — so a secret accidentally stored there can't leak to any
+  // authenticated staff session.
+  it("returns only allowlisted client-readable keys", async () => {
+    await prisma.appSetting.create({ data: { key: "push_targeting_mode", value: "strict" } });
+    await prisma.appSetting.create({ data: { key: "baseline_push_open_rate", value: "0.1" } });
     await prisma.appSetting.create({ data: { key: "k1", value: "v1" } });
-    await prisma.appSetting.create({ data: { key: "k2", value: "v2" } });
 
     const res = await GET();
     expect(res.status).toBe(200);
     const body = await res.json();
-    expect(body).toEqual({ k1: "v1", k2: "v2" });
+    expect(body).toEqual({ push_targeting_mode: "strict", baseline_push_open_rate: "0.1" });
+  });
+
+  it("never leaks a non-allowlisted (secret-looking) key", async () => {
+    await prisma.appSetting.create({ data: { key: "brazeApiKey", value: "super-secret" } });
+    await prisma.appSetting.create({ data: { key: "global_sending_paused", value: "true" } });
+
+    const res = await GET();
+    const body = await res.json();
+    expect(body.brazeApiKey).toBeUndefined();
+    // global_sending_paused is read server-side (kill switch prop), not via GET.
+    expect(body.global_sending_paused).toBeUndefined();
   });
 });

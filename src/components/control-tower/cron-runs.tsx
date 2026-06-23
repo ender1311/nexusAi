@@ -24,7 +24,7 @@ export function CronRuns() {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    fetch("/api/cron/runs")
+    fetch("/api/cron-runs")
       .then((r) => r.json())
       .then((d: { data?: CronRun[] }) => setRuns(d.data ?? []))
       .catch(() => {})

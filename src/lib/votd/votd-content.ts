@@ -38,7 +38,7 @@ async function loadVotdCalendar(): Promise<VotdCalendarEntry[]> {
       try {
         const res = await fetch(
           "https://moments.youversionapi.com/3.1/votd.json?type=standard&language_tag=en",
-          { headers: VOTD_HEADERS },
+          { headers: VOTD_HEADERS, signal: AbortSignal.timeout(10_000) },
         );
         if (!res.ok) throw new Error(`votd.json HTTP ${res.status}`);
         const json = (await res.json()) as {
@@ -84,7 +84,7 @@ async function fetchVerse(
   const refs = usfms.map((u) => `references[]=${encodeURIComponent(u)}`).join("&");
   const res = await fetch(
     `https://bible.youversionapi.com/3.1/verses.json?${refs}&id=${versionId}&format=text`,
-    { headers: VOTD_HEADERS },
+    { headers: VOTD_HEADERS, signal: AbortSignal.timeout(10_000) },
   );
   if (!res.ok) return null;
   const json = (await res.json()) as {
@@ -106,7 +106,7 @@ async function fetchImageUrls(
   try {
     const res = await fetch(
       `https://images.youversionapi.com/3.2/items.json?usfm[]=${encodeURIComponent(usfm)}&language_tag=${encodeURIComponent(languageTag)}&category=prerendered`,
-      { headers: VOTD_HEADERS },
+      { headers: VOTD_HEADERS, signal: AbortSignal.timeout(10_000) },
     );
     if (res.ok) {
       const json = (await res.json()) as {

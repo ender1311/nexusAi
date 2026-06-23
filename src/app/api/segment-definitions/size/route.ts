@@ -2,8 +2,11 @@ import { ok, fail, handleRouteError } from "@/lib/api/respond";
 import { parseSegmentRule } from "@/lib/segments/parse-rule";
 import { compileSegmentRule } from "@/lib/segments/compile-sql";
 import { estimateSegmentSize, exactSegmentSize } from "@/lib/segments/sizing";
+import { requireAdmin } from "@/lib/auth";
 
 export async function POST(req: Request) {
+  const denied = await requireAdmin();
+  if (denied) return denied;
   try {
     const body = (await req.json()) as { mode?: unknown; rule?: unknown };
     if (body.mode !== "estimate" && body.mode !== "exact") {

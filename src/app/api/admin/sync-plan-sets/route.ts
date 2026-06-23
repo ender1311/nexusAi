@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { constantTimeEqual } from "@/lib/constant-time-compare";
 import { prisma } from "@/lib/db";
 
 const YV_HEADERS = {
@@ -33,9 +34,15 @@ async function fetchPlanIds(collectionId: string): Promise<string[]> {
   return items.map((item) => String(item.id));
 }
 
-export async function POST(req: NextRequest) {
+function verifyAuth(req: NextRequest): boolean {
   const token = req.headers.get("authorization")?.replace("Bearer ", "");
-  if (token !== process.env.CRON_SECRET) {
+  const secret = process.env.CRON_SECRET;
+  if (!secret) return false; // always require CRON_SECRET — fail closed when unset
+  return token != null && constantTimeEqual(token, secret);
+}
+
+export async function POST(req: NextRequest) {
+  if (!verifyAuth(req)) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 

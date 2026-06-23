@@ -4,9 +4,23 @@ import { prisma } from "@/lib/db";
 import { requireAdmin } from "@/lib/auth";
 import { isPlainObject } from "@/lib/utils";
 
+// Keys safe to expose to any authenticated staff session. GET returns ONLY
+// these — never `findMany()` the whole table, so a secret accidentally stored
+// in AppSetting can never leak to the client. Add a key here only when the UI
+// must read it back.
+const CLIENT_READABLE_KEYS = [
+  "baseline_push_open_rate",
+  "baseline_conversion_rate",
+  "lift_since_date",
+  "giving_dollars_to_bibles_multiplier",
+  "push_targeting_mode",
+] as const;
+
 export async function GET() {
   try {
-    const settings = await prisma.appSetting.findMany();
+    const settings = await prisma.appSetting.findMany({
+      where: { key: { in: [...CLIENT_READABLE_KEYS] } },
+    });
     const map: Record<string, string> = {};
     settings.forEach((s: { key: string; value: string }) => { map[s.key] = s.value; });
     return NextResponse.json(map);

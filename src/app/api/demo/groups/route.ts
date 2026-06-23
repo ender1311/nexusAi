@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
+import { requireAdmin } from "@/lib/auth";
 
 export type DemoUserGroupRecord = {
   id: string;
@@ -29,6 +30,8 @@ export async function GET(): Promise<NextResponse<{ data: DemoUserGroupRecord[] 
 }
 
 export async function POST(req: NextRequest): Promise<NextResponse<{ data: DemoUserGroupRecord }> | NextResponse<{ error: string }>> {
+  const denied = await requireAdmin();
+  if (denied) return denied;
   let body: unknown;
   try {
     body = await req.json();
