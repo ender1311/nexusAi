@@ -17,6 +17,7 @@ import { getAuth } from "@/lib/auth";
 import { getHiddenStatsForCurrentUser } from "@/lib/user-preferences";
 import { getCachedAgentConvergenceStates, getCachedAgentCardStats, getCachedKillSwitchSetting } from "@/lib/cache";
 import { withTimeout } from "@/lib/with-timeout";
+import { parseSegmentTargeting } from "@/lib/agent-targeting";
 
 const PAGE_SIZE = 20;
 
@@ -117,6 +118,7 @@ async function AgentsContent({
     uniqueUsersCap: a.uniqueUsersCap,
     dailySendCap: a.dailySendCap ?? null,
     targetSegmentName: a.targetSegmentName ?? null,
+    segmentTargeting: parseSegmentTargeting(a.segmentTargeting),
     uniqueUsers: uniqueUsersMap.get(a.id) ?? 0,
     assigned: assignedMap.get(a.id) ?? 0,
     pushSends: pushStatsMap.get(a.id)?.sends ?? 0,

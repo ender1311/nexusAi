@@ -194,7 +194,7 @@ export function AgentSettingsEditor({ agent, initialRule, startInEditMode }: Pro
   const [prioritizeLastSeen, setPrioritizeLastSeen] = useState(initialPrioritizeLastSeen);
 
   // UI state
-  const [identityCollapsed, setIdentityCollapsed] = useState(false);
+  const [identityCollapsed, setIdentityCollapsed] = useState(true);
 
   // Segment options
   const [segments, setSegments] = useState<SegmentOption[]>([]);

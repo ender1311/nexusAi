@@ -32,13 +32,24 @@ export type SegmentTargeting = {
   excludes: string[];  // user must NOT be in ANY of these segments (OR exclusion)
 };
 
-// Human-readable label for who an agent targets: a named segment if one is set,
-// otherwise the funnel-stage label. Falls back to the raw funnelStage value when
-// it isn't a known FunnelStage (e.g. legacy/Hightouch values), and to "—" when
-// there's nothing to show, so the badge never renders empty.
+// Human-readable label for who an agent targets. Precedence:
+//   1. Hightouch segment targeting (segmentTargeting.includes) — the modern
+//      multi-segment path; show the segment name(s), not the funnel stage.
+//   2. Legacy single named segment (targetSegmentName).
+//   3. Funnel-stage label.
+// Falls back to the raw funnelStage value when it isn't a known FunnelStage,
+// and to "—" when there's nothing to show, so the badge never renders empty.
 export function agentTargetingLabel(
-  agent: { targetSegmentName?: string | null; funnelStage?: string | null },
+  agent: {
+    targetSegmentName?: string | null;
+    funnelStage?: string | null;
+    segmentTargeting?: { includes?: string[] } | null;
+  },
 ): string {
+  const includes = agent.segmentTargeting?.includes;
+  if (includes && includes.length > 0) {
+    return includes.length === 1 ? includes[0] : `${includes[0]} +${includes.length - 1}`;
+  }
   if (agent.targetSegmentName) return `Segment: ${agent.targetSegmentName}`;
   const stage = agent.funnelStage;
   if (!stage) return "—";

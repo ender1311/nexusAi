@@ -10,6 +10,27 @@ describe("agentTargetingLabel", () => {
       .toBe("Segment: VIP donors");
   });
 
+  it("prefers Hightouch segment includes over the funnel stage", () => {
+    // Regression: Iris targets an HT segment but kept its default funnelStage
+    // "wau", so the badge wrongly read "WAU" instead of the segment it targets.
+    expect(agentTargetingLabel({
+      funnelStage: "wau",
+      segmentTargeting: { includes: ["new_user_21day_10percent"] },
+    })).toBe("new_user_21day_10percent");
+  });
+
+  it("summarizes multiple includes as first +N", () => {
+    expect(agentTargetingLabel({
+      funnelStage: "wau",
+      segmentTargeting: { includes: ["seg_a", "seg_b", "seg_c"] },
+    })).toBe("seg_a +2");
+  });
+
+  it("ignores empty segment includes and falls through to funnel stage", () => {
+    expect(agentTargetingLabel({ funnelStage: "dau4", segmentTargeting: { includes: [] } }))
+      .toBe("DAU4");
+  });
+
   it("maps a known funnel stage to its label", () => {
     expect(agentTargetingLabel({ funnelStage: "lapsed_wau" })).toBe("Lapsed WAU");
     expect(agentTargetingLabel({ funnelStage: "dau4" })).toBe("DAU4");

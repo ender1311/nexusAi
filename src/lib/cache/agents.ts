@@ -110,6 +110,7 @@ export const getCachedAgentList = cache(
           status: true,
           sendingPaused: true,
           funnelStage: true,
+          segmentTargeting: true,
           color: true,
           _count: { select: { decisions: true } },
         },

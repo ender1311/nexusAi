@@ -31,6 +31,8 @@ import { withTimeout } from "@/lib/with-timeout";
 import { getCachedBrazeStats } from "@/lib/braze/analytics";
 import { cn, formatNumber, formatDate } from "@/lib/utils";
 import { agentRowBadge } from "@/lib/dashboard-agent-row";
+import { agentTargetingLabel } from "@/types/agent";
+import { parseSegmentTargeting } from "@/lib/agent-targeting";
 import { getHiddenStatsForCurrentUser } from "@/lib/user-preferences";
 import { isStatHidden } from "@/lib/stat-visibility";
 import { TimeSeriesPoint, DecisionLog } from "@/types/metrics";
@@ -236,8 +238,10 @@ async function AgentsSidebar() {
       </CardHeader>
       <CardContent className="space-y-2">
         {agents.map((agent) => {
-          const initial = agent.name.charAt(0).toUpperCase();
-          const stage = (agent.funnelStage ?? "wau").toUpperCase();
+          const targeting = agentTargetingLabel({
+            funnelStage: agent.funnelStage,
+            segmentTargeting: parseSegmentTargeting(agent.segmentTargeting),
+          });
           const badge = agentRowBadge(agent.status, agent._count.decisions);
           const push = pushByAgent.get(agent.id);
           const openRate = push && push.sends > 0 ? (push.opens / push.sends) * 100 : null;
@@ -254,12 +258,12 @@ async function AgentsSidebar() {
                   className="h-11 w-11 rounded-xl flex items-center justify-center shrink-0"
                   style={{ backgroundColor: avatarColor }}
                 >
-                  <span className="text-sm font-bold text-white">{initial}</span>
+                  <Bot className="h-5 w-5 text-white" />
                 </div>
                 <div className="flex-1 min-w-0">
                   <div className="flex items-center gap-1.5 flex-wrap">
                     <span className="text-sm font-semibold">{agent.name}</span>
-                    <span className="text-[10px] font-semibold text-muted-foreground bg-muted px-1.5 py-0.5 rounded-full leading-tight shrink-0">{stage}</span>
+                    <span className="text-[10px] font-semibold text-muted-foreground bg-muted px-1.5 py-0.5 rounded-full leading-tight shrink-0 max-w-[160px] truncate">{targeting}</span>
                   </div>
                   {agent.description && (
                     <p className="text-xs text-muted-foreground truncate mt-0.5">{agent.description}</p>
