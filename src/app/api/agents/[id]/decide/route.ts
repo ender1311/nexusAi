@@ -5,6 +5,7 @@ import { ThompsonSampling } from "@/lib/engine/thompson-sampling";
 import { EpsilonGreedy } from "@/lib/engine/epsilon-greedy";
 import type { BanditArm, DecisionResult } from "@/lib/engine/types";
 import { parseBody } from "@/lib/api/parse";
+import { constantTimeEqual } from "@/lib/constant-time-compare";
 
 const decideSchema = z.object({
   userId: z.string({ message: "is required" }).min(1, "is required"),
@@ -33,7 +34,7 @@ function isCronAuthorized(req: NextRequest): boolean {
   const token = req.headers.get("authorization")?.replace("Bearer ", "");
   const secret = process.env.CRON_SECRET;
   if (!secret) return false;
-  return token === secret;
+  return token != null && constantTimeEqual(token, secret);
 }
 
 export async function POST(

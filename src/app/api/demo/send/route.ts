@@ -15,6 +15,7 @@ import { parseMultiplier } from "@/lib/engine/giving-copy";
 import { deriveGivingStrategy, deriveGivingFrequency, deriveGivingDefaultUsd, resolveGivingHandle, hasUnsubstitutedTokens } from "@/lib/engine/giving-handle";
 import { resolvePushLocaleStrict } from "@/lib/push-locale";
 import { resolveTranslationsByVariant } from "@/lib/cron/translation-resolver";
+import { isNewsletterOptedOut } from "@/lib/engine/channel-preference";
 
 type SendResult = {
   userId: string;
@@ -98,6 +99,17 @@ export async function POST(req: NextRequest) {
   const results: SendResult[] = await Promise.all(
     (userIds as string[]).map(async (userId): Promise<SendResult> => {
       try {
+        // Consent gate — honor push opt-out before any send path, including the
+        // override branch (which bypasses decideForUser). Not bypassable, mirrors
+        // the cron's hard opt-out check; quiet-hours / freq-cap stay bypassable.
+        const optOutRow = await prisma.trackedUser.findUnique({
+          where: { externalId: userId },
+          select: { attributes: true },
+        });
+        if (isNewsletterOptedOut((optOutRow?.attributes ?? {}) as Record<string, unknown>, "push")) {
+          return { userId, status: "suppressed", reason: "opted out of push" };
+        }
+
         let brazeVariantId: string | null = null;
         let variantName: string | undefined;
 

@@ -1,6 +1,6 @@
-import { timingSafeEqual } from "crypto";
 import { NextRequest, NextResponse } from "next/server";
 import { revalidateTag } from "next/cache";
+import { constantTimeEqual } from "@/lib/constant-time-compare";
 
 export async function POST(req: NextRequest) {
   let body: unknown;
@@ -12,8 +12,7 @@ export async function POST(req: NextRequest) {
 
   const expected = process.env.REVALIDATE_SECRET;
   const isValid = typeof secret === "string" && !!expected &&
-    secret.length === expected.length &&
-    timingSafeEqual(Buffer.from(secret), Buffer.from(expected));
+    constantTimeEqual(secret, expected);
   if (!isValid) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }

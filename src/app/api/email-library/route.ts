@@ -113,6 +113,9 @@ export async function PATCH(req: NextRequest) {
 }
 
 export async function POST(req: NextRequest) {
+  const forbidden = await requireLibraryEditor();
+  if (forbidden) return forbidden;
+
   let body: Record<string, unknown>;
   try {
     body = await req.json();

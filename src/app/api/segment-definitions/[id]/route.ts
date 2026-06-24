@@ -5,6 +5,8 @@ import { parseSegmentRule } from "@/lib/segments/parse-rule";
 import type { Prisma } from "@/generated/prisma/client";
 
 export async function GET(_req: Request, { params }: { params: Promise<{ id: string }> }) {
+  const forbidden = await requireAdmin();
+  if (forbidden) return forbidden;
   const { id } = await params;
   try {
     const seg = await prisma.segment.findUnique({ where: { id } });
