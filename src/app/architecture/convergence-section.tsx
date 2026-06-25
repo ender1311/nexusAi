@@ -190,6 +190,93 @@ export function ConvergenceSection() {
           counts low (2–3) for small or infrequently-eligible segments.
         </p>
       </div>
+
+      {/* Education: factors the calculator can't show */}
+      <div className="space-y-3 max-w-2xl pt-2">
+        <div>
+          <h3 className="text-sm font-semibold mb-1">What else moves convergence time</h3>
+          <p className="text-xs text-muted-foreground leading-relaxed">
+            The calculator models the three mechanical levers — segment size, arms, and eligibility.
+            In practice several more factors stretch or compress the real timeline:
+          </p>
+        </div>
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+          {CONVERGENCE_FACTORS.map((f) => (
+            <div key={f.term} className="rounded-lg border bg-muted/30 p-3">
+              <p className="text-xs font-semibold text-foreground mb-0.5">{f.term}</p>
+              <p className="text-[11px] text-muted-foreground leading-relaxed">{f.detail}</p>
+            </div>
+          ))}
+        </div>
+      </div>
+
+      {/* Education: lifespan of a converged winner */}
+      <div className="space-y-3 max-w-2xl pt-2">
+        <div>
+          <h3 className="text-sm font-semibold mb-1">After convergence — how long does a winner last?</h3>
+          <p className="text-xs text-muted-foreground leading-relaxed">
+            Convergence is a snapshot, not a verdict. A winning variant decays over time from{" "}
+            <span className="text-foreground font-medium">creative wearout</span> (the audience
+            habituates to a message it keeps seeing) and{" "}
+            <span className="text-foreground font-medium">audience drift</span> (new users enter,
+            others lapse, and seasonality shifts what resonates) — most pronounced on
+            continuous-enrollment agents whose cohort is always turning over.
+          </p>
+        </div>
+        <div className="rounded-lg border-l-4 border-l-red-500 bg-muted/30 p-4">
+          <p className="text-xs text-muted-foreground leading-relaxed">
+            <span className="font-semibold text-foreground">Nexus caveat:</span> arm statistics
+            accumulate cumulatively — there is no decay, half-life, or sliding window on the win/loss
+            counts. A winner with thousands of historical wins won&apos;t be unseated quickly by a recent
+            slump, because the old evidence drowns out the new signal. The bandit will{" "}
+            <span className="text-foreground font-medium">not</span> self-correct fast when a message
+            fatigues, so wearout is your responsibility to manage, not the engine&apos;s.
+          </p>
+        </div>
+        <div className="rounded-lg border-l-4 border-l-[#57a16c] bg-muted/30 p-4">
+          <p className="text-xs text-muted-foreground leading-relaxed">
+            <span className="font-semibold text-foreground">Rule of thumb:</span> treat a converged
+            winner as fresh for ~<span className="text-foreground font-medium">4–8 weeks</span> of
+            evergreen engagement copy — shorter for time-sensitive, seasonal, or promotional sends.
+            Keep <span className="text-foreground font-medium">1–2 challenger arms</span> always
+            running so there is a live alternative, and retire or clone in fresh creative when you
+            suspect fatigue rather than waiting for the numbers to turn.
+          </p>
+        </div>
+      </div>
     </div>
   );
 }
+
+const CONVERGENCE_FACTORS: { term: string; detail: string }[] = [
+  {
+    term: "Effect size & base rate",
+    detail:
+      "The ~40 obs/arm rule assumes variants differ clearly at a moderate reward rate. Near-tied variants (3.0% vs 3.1% open) may never separate; rare rewards like gift conversions (<1%) can need 10–100× more data.",
+  },
+  {
+    term: "Reward attribution lag",
+    detail:
+      "An arm can't be credited until the outcome lands — opens within hours, gifts and subscriptions over days. Wall-clock convergence is gated by this feedback window, not just send speed.",
+  },
+  {
+    term: "Persona segmentation",
+    detail:
+      "Thompson & Epsilon-Greedy keep separate Beta stats per persona, so a 5-persona agent is effectively 5 bandits splitting the segment ~5 ways. LinUCB shares one contextual model and is more sample-efficient when personas behave alike.",
+  },
+  {
+    term: "Reward variance",
+    detail:
+      "A binary open/no-open signal converges faster than variable-magnitude rewards. gift_given is log-scaled dollar amounts — a noisier signal that needs more samples to pin down.",
+  },
+  {
+    term: "Real vs theoretical throughput",
+    detail:
+      "Daily send caps, frequency caps, quiet hours, blackout dates, and smart suppression all cut actual sends per cycle below the raw segment size the calculator assumes.",
+  },
+  {
+    term: "Cold-start priors",
+    detail:
+      "Fresh arms start at an uninformed Beta(1,1) prior. Cloned variants warm-start from their source template's accumulated history, so they converge faster than a brand-new arm.",
+  },
+];
