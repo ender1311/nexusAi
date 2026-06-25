@@ -3,11 +3,22 @@
 import { useState } from "react";
 import { Slider } from "@/components/ui/slider";
 import { Input } from "@/components/ui/input";
-import { cn } from "@/lib/utils";
-import { convergenceHours, formatConvergenceTime, sliderPosToArms, armsToSliderPos } from "@/lib/convergence";
+import { cn, formatNumber } from "@/lib/utils";
+import {
+  convergenceHoursForSegment,
+  formatConvergenceTime,
+  sliderPosToArms,
+  armsToSliderPos,
+  snapArms,
+  observationsNeeded,
+  peopleExplored,
+  OBS_PER_ARM,
+} from "@/lib/convergence";
 import type { FunnelStage } from "@/types/agent";
 
-const DEFAULT_ARMS = 100;
+const DEFAULT_ARMS = 10;
+const DEFAULT_SEGMENT = 25_000;
+const MAX_SEGMENT = 1_000_000_000;
 
 const ROWS: {
   stage: string;
@@ -29,15 +40,30 @@ function convergenceColor(hours: number): string {
 }
 
 export function ConvergenceSection() {
-  const [sliderPos, setSliderPos] = useState(armsToSliderPos(DEFAULT_ARMS));
-  const [inputVal, setInputVal] = useState(String(DEFAULT_ARMS));
-  const arms = sliderPosToArms(sliderPos);
+  const [arms, setArms] = useState(DEFAULT_ARMS);
+  const [armsInput, setArmsInput] = useState(String(DEFAULT_ARMS));
+  const [segment, setSegment] = useState(DEFAULT_SEGMENT);
+  const [segmentInput, setSegmentInput] = useState(String(DEFAULT_SEGMENT));
 
-  const applyArms = (raw: number) => {
-    const clamped = Math.max(3, Math.min(10_000, Math.round(raw)));
-    setSliderPos(armsToSliderPos(clamped));
-    setInputVal(String(clamped));
+  // Manual arm entry accepts any integer (not snapped to 5); the slider snaps.
+  const applyArmsInput = () => {
+    const n = parseInt(armsInput, 10);
+    const clamped = isNaN(n) ? DEFAULT_ARMS : Math.max(2, Math.min(10_000, n));
+    setArms(clamped);
+    setArmsInput(String(clamped));
   };
+
+  const applySegmentInput = () => {
+    const n = parseInt(segmentInput, 10);
+    const clamped = isNaN(n) ? DEFAULT_SEGMENT : Math.max(1, Math.min(MAX_SEGMENT, n));
+    setSegment(clamped);
+    setSegmentInput(String(clamped));
+  };
+
+  const explored = peopleExplored(arms, segment);
+  const needed = observationsNeeded(arms);
+  const recycleFactor = segment > 0 ? needed / segment : 0;
+  const segmentIsBottleneck = needed > segment;
 
   return (
     <div className="space-y-4">
@@ -45,48 +71,83 @@ export function ConvergenceSection() {
         <h2 className="text-sm font-semibold mb-1">How long until the bandit converges?</h2>
         <p className="text-xs text-muted-foreground leading-relaxed max-w-2xl">
           Convergence means the Beta distributions have narrowed enough that the best-performing
-          variant wins draws consistently — typically after ~30–50 observations per arm. Speed
-          depends on two things: how many users are in the target persona, and how often each
-          user is eligible to receive a send. Funnel stage drives eligibility frequency.
+          variant wins draws consistently — typically after ~{OBS_PER_ARM} observations per arm.
+          Each eligibility cycle delivers up to one send per user in the segment, so speed depends
+          on three things: how many users the agent can reach, how many variant arms split that
+          traffic, and how often each user is eligible (funnel stage).
         </p>
       </div>
 
-      {/* Arms slider + custom input */}
-      <div className="flex items-center gap-3 max-w-sm">
-        <span className="text-xs text-muted-foreground shrink-0">Arms / variants:</span>
-        <Slider
-          min={0}
-          max={100}
-          step={1}
-          value={[sliderPos]}
-          onValueChange={(v) => {
-            const pos = Array.isArray(v) ? v[0] : v;
-            setSliderPos(pos);
-            setInputVal(String(sliderPosToArms(pos)));
-          }}
-          className="flex-1"
-        />
-        <Input
-          type="number"
-          min={3}
-          max={10000}
-          value={inputVal}
-          onChange={(e) => setInputVal(e.target.value)}
-          onBlur={() => {
-            const n = parseInt(inputVal, 10);
-            applyArms(isNaN(n) ? DEFAULT_ARMS : n);
-          }}
-          onKeyDown={(e) => {
-            if (e.key === "Enter") {
-              const n = parseInt(inputVal, 10);
-              applyArms(isNaN(n) ? DEFAULT_ARMS : n);
-            }
-          }}
-          className="w-20 h-7 text-xs font-mono text-right px-2"
-        />
+      {/* Inputs: segment size + arms (slider snaps to 5, input is any integer) */}
+      <div className="space-y-3 max-w-sm">
+        <div className="flex items-center gap-3">
+          <span className="text-xs text-muted-foreground shrink-0 w-28">Segment size:</span>
+          <Input
+            type="number"
+            min={1}
+            max={MAX_SEGMENT}
+            value={segmentInput}
+            onChange={(e) => setSegmentInput(e.target.value)}
+            onBlur={applySegmentInput}
+            onKeyDown={(e) => { if (e.key === "Enter") applySegmentInput(); }}
+            className="w-32 h-7 text-xs font-mono text-right px-2"
+          />
+          <span className="text-xs text-muted-foreground">users</span>
+        </div>
+
+        <div className="flex items-center gap-3">
+          <span className="text-xs text-muted-foreground shrink-0 w-28">Arms / variants:</span>
+          <Slider
+            min={0}
+            max={100}
+            step={1}
+            value={[armsToSliderPos(arms)]}
+            onValueChange={(v) => {
+              const pos = Array.isArray(v) ? v[0] : v;
+              const snapped = snapArms(sliderPosToArms(pos));
+              setArms(snapped);
+              setArmsInput(String(snapped));
+            }}
+            className="flex-1"
+          />
+          <Input
+            type="number"
+            min={2}
+            max={10000}
+            value={armsInput}
+            onChange={(e) => setArmsInput(e.target.value)}
+            onBlur={applyArmsInput}
+            onKeyDown={(e) => { if (e.key === "Enter") applyArmsInput(); }}
+            className="w-20 h-7 text-xs font-mono text-right px-2"
+          />
+        </div>
       </div>
 
-      {/* Convergence table */}
+      {/* Stage-independent summary */}
+      <div className="grid grid-cols-3 gap-3 max-w-2xl">
+        <div className="rounded-lg border bg-muted/30 p-3">
+          <p className="text-[11px] text-muted-foreground">Variant arms</p>
+          <p className="text-lg font-semibold tabular-nums">{arms.toLocaleString()}</p>
+        </div>
+        <div className="rounded-lg border bg-muted/30 p-3">
+          <p className="text-[11px] text-muted-foreground">People explored</p>
+          <p className="text-lg font-semibold tabular-nums">{formatNumber(explored)}</p>
+          <p className="text-[10px] text-muted-foreground leading-tight mt-0.5">
+            {segmentIsBottleneck
+              ? `entire segment · re-sent ~${recycleFactor.toFixed(1)}×`
+              : `of ${formatNumber(segment)} · ${OBS_PER_ARM}/arm`}
+          </p>
+        </div>
+        <div className="rounded-lg border bg-muted/30 p-3">
+          <p className="text-[11px] text-muted-foreground">Observations needed</p>
+          <p className="text-lg font-semibold tabular-nums">{formatNumber(needed)}</p>
+          <p className="text-[10px] text-muted-foreground leading-tight mt-0.5">
+            {arms.toLocaleString()} arms × {OBS_PER_ARM}
+          </p>
+        </div>
+      </div>
+
+      {/* Convergence table — now driven by the segment-size input */}
       <div className="overflow-x-auto">
         <table className="w-full text-xs border-collapse max-w-2xl">
           <thead>
@@ -95,14 +156,15 @@ export function ConvergenceSection() {
               <th className="text-left py-2 pr-4 font-semibold text-muted-foreground">Eligibility</th>
               <th className="text-left py-2 pr-4 font-semibold text-muted-foreground">Sends / user / month</th>
               <th className="text-left py-2 font-semibold text-muted-foreground">
-                Convergence (10 M users,{" "}
+                Convergence (
+                <span className="text-foreground">{formatNumber(segment)} users</span>,{" "}
                 <span className="text-foreground">{arms.toLocaleString()} arm{arms !== 1 ? "s" : ""}</span>)
               </th>
             </tr>
           </thead>
           <tbody className="divide-y">
             {ROWS.map((row) => {
-              const hours = convergenceHours(row.funnelKey, arms);
+              const hours = convergenceHoursForSegment(row.funnelKey, arms, segment);
               const label = hours !== null ? formatConvergenceTime(hours) : "—";
               const colorClass = hours !== null ? convergenceColor(hours) : "text-muted-foreground";
               return (
@@ -120,11 +182,12 @@ export function ConvergenceSection() {
 
       <div className="rounded-lg border-l-4 border-l-amber-500 bg-muted/30 p-4 max-w-2xl">
         <p className="text-xs text-muted-foreground leading-relaxed">
-          <span className="font-semibold text-foreground">Practical implication:</span> at 10 M+ users,
-          sample size per run is never the bottleneck — eligibility frequency is. DAU4 agents converge
-          within hours and can comfortably run 6–8 arms. MAU and lapsed audiences still need multiple
-          eligibility cycles (weeks to months) to accumulate the per-arm evidence Thompson Sampling
-          needs — keep variant counts low (2–3) for those stages.
+          <span className="font-semibold text-foreground">Practical implication:</span> with a large
+          segment, sample size is never the bottleneck — convergence is near-instant and eligibility
+          frequency is the only floor. The squeeze appears when the segment is small or the arm count
+          is high: the {needed.toLocaleString()} observations this config needs get rationed across
+          eligibility cycles, so lapsed/low-frequency audiences can take weeks to months. Keep variant
+          counts low (2–3) for small or infrequently-eligible segments.
         </p>
       </div>
     </div>
