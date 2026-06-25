@@ -8,6 +8,8 @@ import {
   observationsNeeded,
   peopleExplored,
   convergenceHoursForSegment,
+  openRateForStage,
+  sendsToConverge,
   snapArms,
 } from "@/lib/convergence";
 
@@ -29,29 +31,67 @@ describe("observationsNeeded", () => {
   });
 });
 
+describe("openRateForStage", () => {
+  it("returns the per-stage base open rate, lower for less-engaged stages", () => {
+    expect(openRateForStage("dau4")).toBe(0.05);
+    expect(openRateForStage("lapsed_dau4")).toBe(0.01);
+    // engagement (and so open rate) monotonically decreases down the funnel
+    expect(openRateForStage("dau4")!).toBeGreaterThan(openRateForStage("wau")!);
+    expect(openRateForStage("wau")!).toBeGreaterThan(openRateForStage("mau")!);
+    expect(openRateForStage("mau")!).toBeGreaterThan(openRateForStage("lapsed_dau4")!);
+  });
+
+  it("returns null for an empty stage", () => {
+    expect(openRateForStage("")).toBeNull();
+  });
+});
+
+describe("sendsToConverge", () => {
+  it("is arms × OBS_PER_ARM / openRate (low open rate ⇒ far more sends)", () => {
+    expect(sendsToConverge("dau4", 10)).toBe(Math.ceil((10 * OBS_PER_ARM) / 0.05)); // 8000
+    expect(sendsToConverge("lapsed_dau4", 10)).toBe(Math.ceil((10 * OBS_PER_ARM) / 0.01)); // 40000
+  });
+});
+
 describe("peopleExplored", () => {
-  it("caps at the exploration budget when the segment is large", () => {
-    expect(peopleExplored(10, 25_000)).toBe(400); // min(25000, 400)
+  it("caps at sends-to-converge when the segment is large", () => {
+    // dau4: 10 arms / 5% open → 8000 sends needed, segment 25k → 8000
+    expect(peopleExplored("dau4", 10, 25_000)).toBe(8_000);
   });
 
   it("caps at the segment size when the segment is the bottleneck", () => {
-    expect(peopleExplored(10, 100)).toBe(100); // min(100, 400)
+    // lapsed: 10 arms / 1% open → 40000 sends needed, segment 500 → 500
+    expect(peopleExplored("lapsed_dau4", 10, 500)).toBe(500);
   });
 });
 
 describe("convergenceHoursForSegment", () => {
-  it("scales as arms × OBS_PER_ARM × cycleHours / segmentSize", () => {
-    // dau4: 28.8h cycle, 10 arms, 25k segment → 400 × 28.8 / 25000
-    expect(convergenceHoursForSegment("dau4", 10, 25_000)).toBeCloseTo(0.4608, 4);
-    // lapsed: 360h cycle, 10 arms, 5k segment → 400 × 360 / 5000 = 28.8h
-    expect(convergenceHoursForSegment("lapsed_dau4", 10, 5_000)).toBeCloseTo(28.8, 4);
+  it("scales as arms × OBS_PER_ARM × cycleHours / (openRate × segmentSize)", () => {
+    // dau4: 28.8h cycle, 5% open, 10 arms, 25k segment → 400 × 28.8 / (0.05 × 25000)
+    expect(convergenceHoursForSegment("dau4", 10, 25_000)).toBeCloseTo(9.216, 3);
+    // lapsed: 360h cycle, 1% open, 10 arms, 5k segment → 400 × 360 / (0.01 × 5000)
+    expect(convergenceHoursForSegment("lapsed_dau4", 10, 5_000)).toBeCloseTo(2880, 1);
   });
 
-  it("slows down as the segment shrinks (small segment = bottleneck)", () => {
+  it("low-engagement stages converge much slower than engaged ones (same inputs)", () => {
+    const dau4 = convergenceHoursForSegment("dau4", 100, 1_000_000)!;
+    const lapsed = convergenceHoursForSegment("lapsed_dau4", 100, 1_000_000)!;
+    // lapsed is both rarer-eligible and lower open rate → dramatically slower
+    expect(lapsed).toBeGreaterThan(dau4);
+    expect(lapsed / dau4).toBeGreaterThan(20);
+  });
+
+  it("at 1M users, lapsed still takes days — never under 2 hours (regression)", () => {
+    // The bug this guards: a naive segment-only model returned < 2h for lapsed at
+    // scale, ignoring that lapsed users rarely open the app.
+    const lapsed = convergenceHoursForSegment("lapsed_dau4", 100, 1_000_000)!;
+    expect(lapsed).toBeGreaterThan(24); // > 1 day, not minutes
+  });
+
+  it("slows down as the segment shrinks (inverse-linear in segment size)", () => {
     const big = convergenceHoursForSegment("wau", 20, 1_000_000)!;
     const small = convergenceHoursForSegment("wau", 20, 1_000)!;
-    expect(small).toBeGreaterThan(big);
-    expect(small / big).toBeCloseTo(1000, 0); // inverse-linear in segment size
+    expect(small / big).toBeCloseTo(1000, 0);
   });
 
   it("returns null for invalid inputs", () => {

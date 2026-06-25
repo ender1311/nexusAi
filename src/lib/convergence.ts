@@ -1,8 +1,9 @@
 import type { FunnelStage } from "@/types/agent";
 
-// Actual sends per user per month by funnel stage (matches cron targeting logic).
-// Convergence time per arm = 30 / sendsPerMonth days = one eligibility cycle.
-// For a large enough audience the bandit needs ~1 cycle to reach 40 obs/arm.
+// Illustrative sends per user per month by funnel stage — approximate eligibility
+// cadence, NOT a value read from the cron (real throughput is further cut by
+// frequency caps, quiet hours, and daily send caps). One eligibility cycle =
+// 30 / sendsPerMonth days.
 export const SENDS_PER_MONTH: Partial<Record<FunnelStage, number>> = {
   dau4:        25,   // ~20–30 sends/month (daily eligible)
   wau:          9,   // ~6–12 sends/month  (1–3×/week)
@@ -51,14 +52,46 @@ export function estimateConvergence(funnelStage: FunnelStage | "", arms: number)
 }
 
 // ── Segment-aware convergence ────────────────────────────────────────────────
-// The model above assumes a "large enough" audience. When the segment size is an
-// explicit input, convergence becomes throughput-bound: each eligibility cycle
-// delivers up to `segmentSize` observations (one send per user), so a small
-// segment — or a high arm count — is what actually slows learning down.
+// Convergence is gated by how fast *informative* signal accrues, which depends
+// on three things, not just audience size:
+//   1. Eligibility cadence — how often a user can be sent to (funnel stage).
+//   2. Base engagement rate — what fraction of sends produce a signal (an open).
+//      This is the factor a naive "sends per cycle" model misses: a lapsed user
+//      reached at scale still opens ~1% of the time, so most sends are
+//      uninformative zeros and far more are needed to separate variants.
+//   3. Segment size — how many distinct users can be sent to in parallel.
 
-// Observations per arm needed for the Beta posteriors to narrow enough that the
-// best arm wins draws consistently (~30–50; 40 is the working midpoint).
+// Engaged responses (opens) per arm needed for the Beta posteriors to narrow
+// enough that the best arm wins draws consistently. This counts *positive*
+// signals, not raw sends (see sendsToConverge).
+//
+// IMPORTANT: 40 is an optimistic floor. It assumes (a) the variants differ by a
+// clear margin — near-tied arms need far more, scaling ~1/Δ² in the reward gap —
+// and (b) an uninformed prior. The engine actually cold-starts arms at a
+// skeptical Beta(1,30), so early sends barely move the posterior and real
+// convergence runs longer than this constant implies. Treat outputs as best-case.
 export const OBS_PER_ARM = 40;
+
+// Illustrative base push-open rate by funnel stage — the fraction of sends that
+// yield an engagement signal, the dominant driver of convergence speed: a low
+// rate means most sends are uninformative, so many more are needed. Approximate,
+// in the ~1–5% range Nexus sees for push opens. NOTE: this is the right signal
+// rate only for engagement-goal agents; conversion-goal agents (gifts,
+// subscriptions) have far lower base rates (<1%) and so converge much slower.
+export const OPEN_RATE: Partial<Record<FunnelStage, number>> = {
+  dau4:        0.05,
+  wau:         0.03,
+  mau:         0.02,
+  lapsed_dau4: 0.01,
+  lapsed_wau:  0.01,
+  lapsed_mau:  0.01,
+  new:         0.05,
+};
+
+export function openRateForStage(stage: FunnelStage | ""): number | null {
+  if (!stage) return null;
+  return OPEN_RATE[stage as FunnelStage] ?? null;
+}
 
 // One eligibility cycle in hours = (30 / sendsPerMonth) days. Null for stages
 // with no defined send cadence.
@@ -69,29 +102,49 @@ export function cycleHours(stage: FunnelStage | ""): number | null {
   return (30 / spm) * 24;
 }
 
-// Total exploratory observations the bandit must gather before it converges.
+// Engaged responses needed across all arms before convergence (positive signals).
 export function observationsNeeded(arms: number): number {
   return Math.max(0, Math.round(arms)) * OBS_PER_ARM;
 }
 
-// Distinct users that receive an exploratory send before convergence. Capped at
-// the segment: when the segment is smaller than the exploration budget, every
-// user is explored (and re-sent across cycles).
-export function peopleExplored(arms: number, segmentSize: number): number {
-  return Math.min(Math.max(0, Math.floor(segmentSize)), observationsNeeded(arms));
+// Total sends needed to converge: to gather OBS_PER_ARM opens on each of `arms`
+// arms at the stage's base open rate, you must send arms × OBS_PER_ARM / openRate
+// times. Null for stages without a defined open rate.
+export function sendsToConverge(stage: FunnelStage | "", arms: number): number | null {
+  const p = openRateForStage(stage);
+  if (p === null || p <= 0 || arms < 1) return null;
+  return Math.ceil((Math.round(arms) * OBS_PER_ARM) / p);
 }
 
-// Convergence time given an explicit segment size:
-//   hours = arms × OBS_PER_ARM × cycleHours / segmentSize
-// Returns null when the stage cadence, arm count, or segment size is invalid.
+// Distinct users that receive an exploratory send before convergence: the total
+// sends needed, capped at the segment (a smaller segment means users are re-sent
+// across cycles rather than reaching more people). Per-stage because the send
+// count depends on the stage's open rate.
+export function peopleExplored(
+  stage: FunnelStage | "",
+  arms: number,
+  segmentSize: number,
+): number {
+  const sends = sendsToConverge(stage, arms);
+  if (sends === null) return 0;
+  return Math.min(Math.max(0, Math.floor(segmentSize)), sends);
+}
+
+// Convergence time given an explicit segment size. Sends accrue at
+// segmentSize / cycleHours per hour (one send per user per eligibility cycle,
+// spread across the cycle), and sendsToConverge sends are needed:
+//   hours = sendsToConverge / (segmentSize / cycleHours)
+//         = arms × OBS_PER_ARM × cycleHours / (openRate × segmentSize)
+// Returns null when the stage cadence/open rate, arm count, or segment is invalid.
 export function convergenceHoursForSegment(
   stage: FunnelStage | "",
   arms: number,
   segmentSize: number,
 ): number | null {
   const ch = cycleHours(stage);
-  if (ch === null || arms < 1 || segmentSize < 1) return null;
-  return (observationsNeeded(arms) * ch) / segmentSize;
+  const sends = sendsToConverge(stage, arms);
+  if (ch === null || sends === null || segmentSize < 1) return null;
+  return (sends * ch) / segmentSize;
 }
 
 // Snap an arm count to the nearest multiple of 5 for the slider, with a floor of

@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { Slider } from "@/components/ui/slider";
 import { Input } from "@/components/ui/input";
+import { Button } from "@/components/ui/button";
 import { cn, formatNumber } from "@/lib/utils";
 import {
   convergenceHoursForSegment,
@@ -12,24 +13,25 @@ import {
   snapArms,
   observationsNeeded,
   peopleExplored,
+  openRateForStage,
   OBS_PER_ARM,
 } from "@/lib/convergence";
 import type { FunnelStage } from "@/types/agent";
 
 const DEFAULT_ARMS = 10;
 const DEFAULT_SEGMENT = 25_000;
+const DEFAULT_PERSONAS = 1;
 const MAX_SEGMENT = 1_000_000_000;
 
 const ROWS: {
   stage: string;
   funnelKey: FunnelStage;
   eligibility: string;
-  sendsPerMonth: string;
 }[] = [
-  { stage: "DAU4",   funnelKey: "dau4",        eligibility: "Daily",                        sendsPerMonth: "~20–30" },
-  { stage: "WAU",    funnelKey: "wau",          eligibility: "1–3×/week",                    sendsPerMonth: "~6–12"  },
-  { stage: "MAU",    funnelKey: "mau",          eligibility: "~1×/month",                    sendsPerMonth: "~4"     },
-  { stage: "Lapsed", funnelKey: "lapsed_dau4",  eligibility: "Rarely / re-engagement burst", sendsPerMonth: "~2"     },
+  { stage: "DAU4",   funnelKey: "dau4",        eligibility: "Daily" },
+  { stage: "WAU",    funnelKey: "wau",          eligibility: "1–3×/week" },
+  { stage: "MAU",    funnelKey: "mau",          eligibility: "~1×/month" },
+  { stage: "Lapsed", funnelKey: "lapsed_dau4",  eligibility: "Rarely" },
 ];
 
 function convergenceColor(hours: number): string {
@@ -42,8 +44,12 @@ function convergenceColor(hours: number): string {
 export function ConvergenceSection() {
   const [arms, setArms] = useState(DEFAULT_ARMS);
   const [armsInput, setArmsInput] = useState(String(DEFAULT_ARMS));
-  const [segment, setSegment] = useState(DEFAULT_SEGMENT);
   const [segmentInput, setSegmentInput] = useState(String(DEFAULT_SEGMENT));
+  const [personasInput, setPersonasInput] = useState(String(DEFAULT_PERSONAS));
+
+  // Results are computed from a snapshot taken when "Analyze" is clicked, so the
+  // table reflects an explicit action rather than updating mid-edit.
+  const [result, setResult] = useState<{ arms: number; segment: number; personas: number } | null>(null);
 
   // Manual arm entry accepts any integer (not snapped to 5); the slider snaps.
   const applyArmsInput = () => {
@@ -51,19 +57,36 @@ export function ConvergenceSection() {
     const clamped = isNaN(n) ? DEFAULT_ARMS : Math.max(2, Math.min(10_000, n));
     setArms(clamped);
     setArmsInput(String(clamped));
+    return clamped;
   };
 
   const applySegmentInput = () => {
     const n = parseInt(segmentInput, 10);
     const clamped = isNaN(n) ? DEFAULT_SEGMENT : Math.max(1, Math.min(MAX_SEGMENT, n));
-    setSegment(clamped);
     setSegmentInput(String(clamped));
+    return clamped;
   };
 
-  const explored = peopleExplored(arms, segment);
-  const needed = observationsNeeded(arms);
-  const recycleFactor = segment > 0 ? needed / segment : 0;
-  const segmentIsBottleneck = needed > segment;
+  const applyPersonasInput = () => {
+    const n = parseInt(personasInput, 10);
+    const clamped = isNaN(n) ? DEFAULT_PERSONAS : Math.max(1, Math.min(50, n));
+    setPersonasInput(String(clamped));
+    return clamped;
+  };
+
+  const analyze = () => {
+    // Commit any in-flight text edits first, then snapshot the resolved values.
+    setResult({
+      arms: applyArmsInput(),
+      segment: applySegmentInput(),
+      personas: applyPersonasInput(),
+    });
+  };
+
+  // Thompson/Epsilon keep separate Beta stats per persona, so each persona is its
+  // own bandit drawing from its slice of the segment and needing its own opens.
+  const effectiveSegment = result ? Math.max(1, Math.floor(result.segment / result.personas)) : 0;
+  const needed = result ? observationsNeeded(result.arms) * result.personas : 0;
 
   return (
     <div className="space-y-4">
@@ -71,10 +94,12 @@ export function ConvergenceSection() {
         <h2 className="text-sm font-semibold mb-1">How long until the bandit converges?</h2>
         <p className="text-xs text-muted-foreground leading-relaxed max-w-2xl">
           Convergence means the Beta distributions have narrowed enough that the best-performing
-          variant wins draws consistently — typically after ~{OBS_PER_ARM} observations per arm.
-          Each eligibility cycle delivers up to one send per user in the segment, so speed depends
-          on three things: how many users the agent can reach, how many variant arms split that
-          traffic, and how often each user is eligible (funnel stage).
+          variant wins draws consistently — typically after ~{OBS_PER_ARM} engaged responses (opens)
+          per arm. Speed is gated by how fast <span className="text-foreground font-medium">informative</span>{" "}
+          signal accrues, which depends on three things: how many users the agent can reach, how many
+          variant arms split that traffic, and — the factor that bites low-engagement audiences — how
+          often those users actually open. A lapsed user reached at scale still opens ~1% of the time,
+          so most sends are uninformative and far more are needed.
         </p>
       </div>
 
@@ -89,7 +114,7 @@ export function ConvergenceSection() {
             value={segmentInput}
             onChange={(e) => setSegmentInput(e.target.value)}
             onBlur={applySegmentInput}
-            onKeyDown={(e) => { if (e.key === "Enter") applySegmentInput(); }}
+            onKeyDown={(e) => { if (e.key === "Enter") analyze(); }}
             className="w-32 h-7 text-xs font-mono text-right px-2"
           />
           <span className="text-xs text-muted-foreground">users</span>
@@ -117,87 +142,139 @@ export function ConvergenceSection() {
             value={armsInput}
             onChange={(e) => setArmsInput(e.target.value)}
             onBlur={applyArmsInput}
-            onKeyDown={(e) => { if (e.key === "Enter") applyArmsInput(); }}
+            onKeyDown={(e) => { if (e.key === "Enter") analyze(); }}
             className="w-20 h-7 text-xs font-mono text-right px-2"
           />
         </div>
+
+        <div className="flex items-center gap-3">
+          <span className="text-xs text-muted-foreground shrink-0 w-28">Personas:</span>
+          <Input
+            type="number"
+            min={1}
+            max={50}
+            value={personasInput}
+            onChange={(e) => setPersonasInput(e.target.value)}
+            onBlur={applyPersonasInput}
+            onKeyDown={(e) => { if (e.key === "Enter") analyze(); }}
+            className="w-20 h-7 text-xs font-mono text-right px-2"
+          />
+          <span className="text-[11px] text-muted-foreground leading-tight">
+            Thompson/Epsilon learn per persona — each is its own bandit
+          </span>
+        </div>
+
+        <Button size="sm" onClick={analyze} className="h-8 text-xs">
+          Analyze
+        </Button>
       </div>
 
-      {/* Stage-independent summary */}
-      <div className="grid grid-cols-3 gap-3 max-w-2xl">
-        <div className="rounded-lg border bg-muted/30 p-3">
-          <p className="text-[11px] text-muted-foreground">Variant arms</p>
-          <p className="text-lg font-semibold tabular-nums">{arms.toLocaleString()}</p>
-        </div>
-        <div className="rounded-lg border bg-muted/30 p-3">
-          <p className="text-[11px] text-muted-foreground">People explored</p>
-          <p className="text-lg font-semibold tabular-nums">{formatNumber(explored)}</p>
-          <p className="text-[10px] text-muted-foreground leading-tight mt-0.5">
-            {segmentIsBottleneck
-              ? `entire segment · re-sent ~${recycleFactor.toFixed(1)}×`
-              : `of ${formatNumber(segment)} · ${OBS_PER_ARM}/arm`}
-          </p>
-        </div>
-        <div className="rounded-lg border bg-muted/30 p-3">
-          <p className="text-[11px] text-muted-foreground">Observations needed</p>
-          <p className="text-lg font-semibold tabular-nums">{formatNumber(needed)}</p>
-          <p className="text-[10px] text-muted-foreground leading-tight mt-0.5">
-            {arms.toLocaleString()} arms × {OBS_PER_ARM}
-          </p>
-        </div>
-      </div>
+      {result && (
+        <>
+          {/* Stage-independent summary */}
+          <div className="grid grid-cols-3 gap-3 max-w-2xl">
+            <div className="rounded-lg border bg-muted/30 p-3">
+              <p className="text-[11px] text-muted-foreground">Variant arms</p>
+              <p className="text-lg font-semibold tabular-nums">{result.arms.toLocaleString()}</p>
+              {result.personas > 1 && (
+                <p className="text-[10px] text-muted-foreground leading-tight mt-0.5">
+                  × {result.personas} personas
+                </p>
+              )}
+            </div>
+            <div className="rounded-lg border bg-muted/30 p-3">
+              <p className="text-[11px] text-muted-foreground">Engaged signals needed</p>
+              <p className="text-lg font-semibold tabular-nums">{formatNumber(needed)}</p>
+              <p className="text-[10px] text-muted-foreground leading-tight mt-0.5">
+                {result.personas > 1 ? `${result.personas}×${result.arms} ` : `${result.arms} `}
+                arms × {OBS_PER_ARM} opens
+              </p>
+            </div>
+            <div className="rounded-lg border bg-muted/30 p-3">
+              <p className="text-[11px] text-muted-foreground">Audience per bandit</p>
+              <p className="text-lg font-semibold tabular-nums">{formatNumber(effectiveSegment)}</p>
+              <p className="text-[10px] text-muted-foreground leading-tight mt-0.5">
+                {result.personas > 1
+                  ? `${formatNumber(result.segment)} ÷ ${result.personas} personas`
+                  : "users reachable"}
+              </p>
+            </div>
+          </div>
 
-      {/* Convergence table — now driven by the segment-size input */}
-      <div className="overflow-x-auto">
-        <table className="w-full text-xs border-collapse max-w-2xl">
-          <thead>
-            <tr className="border-b">
-              <th className="text-left py-2 pr-4 font-semibold text-muted-foreground">Funnel stage</th>
-              <th className="text-left py-2 pr-4 font-semibold text-muted-foreground">Eligibility</th>
-              <th className="text-left py-2 pr-4 font-semibold text-muted-foreground">Sends / user / month</th>
-              <th className="text-left py-2 font-semibold text-muted-foreground">
-                Convergence (
-                <span className="text-foreground">{formatNumber(segment)} users</span>,{" "}
-                <span className="text-foreground">{arms.toLocaleString()} arm{arms !== 1 ? "s" : ""}</span>)
-              </th>
-            </tr>
-          </thead>
-          <tbody className="divide-y">
-            {ROWS.map((row) => {
-              const hours = convergenceHoursForSegment(row.funnelKey, arms, segment);
-              const label = hours !== null ? formatConvergenceTime(hours) : "—";
-              const colorClass = hours !== null ? convergenceColor(hours) : "text-muted-foreground";
-              return (
-                <tr key={row.stage}>
-                  <td className="py-2 pr-4 font-medium">{row.stage}</td>
-                  <td className="py-2 pr-4 text-muted-foreground">{row.eligibility}</td>
-                  <td className="py-2 pr-4 text-muted-foreground">{row.sendsPerMonth}</td>
-                  <td className={cn("py-2", colorClass)}>{label}</td>
+          {/* Convergence table — driven by the analyzed snapshot */}
+          <div className="overflow-x-auto">
+            <table className="w-full text-xs border-collapse max-w-2xl">
+              <thead>
+                <tr className="border-b">
+                  <th className="text-left py-2 pr-4 font-semibold text-muted-foreground">Funnel stage</th>
+                  <th className="text-left py-2 pr-4 font-semibold text-muted-foreground">Eligibility</th>
+                  <th className="text-left py-2 pr-4 font-semibold text-muted-foreground">Open rate</th>
+                  <th className="text-left py-2 pr-4 font-semibold text-muted-foreground">People explored</th>
+                  <th className="text-left py-2 font-semibold text-muted-foreground">
+                    Convergence (
+                    <span className="text-foreground">{formatNumber(result.segment)} users</span>,{" "}
+                    <span className="text-foreground">{result.arms.toLocaleString()} arm{result.arms !== 1 ? "s" : ""}</span>)
+                  </th>
                 </tr>
-              );
-            })}
-          </tbody>
-        </table>
-      </div>
+              </thead>
+              <tbody className="divide-y">
+                {ROWS.map((row) => {
+                  // Each persona is its own bandit over its slice of the segment.
+                  const hours = convergenceHoursForSegment(row.funnelKey, result.arms, effectiveSegment);
+                  const label = hours !== null ? formatConvergenceTime(hours) : "—";
+                  const colorClass = hours !== null ? convergenceColor(hours) : "text-muted-foreground";
+                  const openRate = openRateForStage(row.funnelKey);
+                  const explored = peopleExplored(row.funnelKey, result.arms, effectiveSegment) * result.personas;
+                  const capped = explored >= result.segment;
+                  return (
+                    <tr key={row.stage}>
+                      <td className="py-2 pr-4 font-medium">{row.stage}</td>
+                      <td className="py-2 pr-4 text-muted-foreground">{row.eligibility}</td>
+                      <td className="py-2 pr-4 text-muted-foreground tabular-nums">
+                        {openRate !== null ? `${Math.round(openRate * 100)}%` : "—"}
+                      </td>
+                      <td className="py-2 pr-4 text-muted-foreground tabular-nums">
+                        {formatNumber(explored)}{capped ? " (all)" : ""}
+                      </td>
+                      <td className={cn("py-2", colorClass)}>{label}</td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
 
-      <div className="rounded-lg border-l-4 border-l-amber-500 bg-muted/30 p-4 max-w-2xl">
-        <p className="text-xs text-muted-foreground leading-relaxed">
-          <span className="font-semibold text-foreground">Practical implication:</span> with a large
-          segment, sample size is never the bottleneck — convergence is near-instant and eligibility
-          frequency is the only floor. The squeeze appears when the segment is small or the arm count
-          is high: the {needed.toLocaleString()} observations this config needs get rationed across
-          eligibility cycles, so lapsed/low-frequency audiences can take weeks to months. Keep variant
-          counts low (2–3) for small or infrequently-eligible segments.
-        </p>
-      </div>
+          <div className="rounded-lg border-l-4 border-l-amber-500 bg-muted/30 p-4 max-w-2xl">
+            <p className="text-xs text-muted-foreground leading-relaxed">
+              <span className="font-semibold text-foreground">Practical implication:</span> audience
+              size alone never makes convergence instant — open rate and eligibility set the floor.
+              Highly-engaged DAU4 users open often, so signal accrues in hours; WAU/MAU/lapsed
+              audiences open rarely, so even at millions of users they need days to weeks to gather the{" "}
+              {needed.toLocaleString()} engaged responses this config requires. Keep variant counts
+              low (2–3) for low-engagement or small segments.
+            </p>
+          </div>
+
+          <div className="rounded-lg border-l-4 border-l-red-500 bg-muted/30 p-4 max-w-2xl">
+            <p className="text-xs text-muted-foreground leading-relaxed">
+              <span className="font-semibold text-foreground">Read these as a best-case floor.</span>{" "}
+              They assume variants differ by a clear margin (near-tied arms take far longer — sample
+              size scales ~1/Δ² in the reward gap), an engagement/open goal (conversion goals like
+              gifts have sub-1% base rates and run much slower), and they don&apos;t model the skeptical
+              Beta(1,30) cold-start prior, reward-attribution lag, or daily send caps. Real
+              convergence runs longer — treat these as the fastest it could plausibly go.
+            </p>
+          </div>
+        </>
+      )}
 
       {/* Education: factors the calculator can't show */}
       <div className="space-y-3 max-w-2xl pt-2">
         <div>
           <h3 className="text-sm font-semibold mb-1">What else moves convergence time</h3>
           <p className="text-xs text-muted-foreground leading-relaxed">
-            The calculator models the three mechanical levers — segment size, arms, and eligibility.
-            In practice several more factors stretch or compress the real timeline:
+            The calculator models segment size, arms, eligibility, open rate, and persona count.
+            Several more factors — which it can&apos;t capture — stretch the real timeline further:
           </p>
         </div>
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
@@ -260,9 +337,9 @@ const CONVERGENCE_FACTORS: { term: string; detail: string }[] = [
       "An arm can't be credited until the outcome lands — opens within hours, gifts and subscriptions over days. Wall-clock convergence is gated by this feedback window, not just send speed.",
   },
   {
-    term: "Persona segmentation",
+    term: "Algorithm choice (personas)",
     detail:
-      "Thompson & Epsilon-Greedy keep separate Beta stats per persona, so a 5-persona agent is effectively 5 bandits splitting the segment ~5 ways. LinUCB shares one contextual model and is more sample-efficient when personas behave alike.",
+      "The personas input above captures the Thompson/Epsilon split (each persona is its own bandit), but assumes an even split — a thin persona converges last. LinUCB instead shares one contextual model and is more sample-efficient when personas behave alike, so it can beat the per-persona estimate.",
   },
   {
     term: "Reward variance",
@@ -277,6 +354,6 @@ const CONVERGENCE_FACTORS: { term: string; detail: string }[] = [
   {
     term: "Cold-start priors",
     detail:
-      "Fresh arms start at an uninformed Beta(1,1) prior. Cloned variants warm-start from their source template's accumulated history, so they converge faster than a brand-new arm.",
+      "Fresh arms cold-start at a skeptical Beta(1,30) prior (implied ~3% rate), so early sends barely move the posterior and the first dozens of opens mostly just overcome the prior. Cloned variants warm-start from their source template's accumulated history, so they converge faster than a brand-new arm.",
   },
 ];
