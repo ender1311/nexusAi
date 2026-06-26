@@ -256,9 +256,9 @@ async function AgentsSidebar() {
               <div className="flex items-center gap-3 p-3 rounded-xl border bg-card hover:bg-muted hover:border-primary/40 transition-colors cursor-pointer">
                 <div
                   className="h-11 w-11 rounded-xl flex items-center justify-center shrink-0"
-                  style={{ backgroundColor: avatarColor }}
+                  style={{ backgroundColor: `${avatarColor}20` }}
                 >
-                  <Bot className="h-5 w-5 text-white" />
+                  <Bot className="h-5 w-5" style={{ color: avatarColor }} />
                 </div>
                 <div className="flex-1 min-w-0">
                   <div className="flex items-center gap-1.5 flex-wrap">
