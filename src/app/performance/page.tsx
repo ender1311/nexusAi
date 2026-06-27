@@ -25,6 +25,7 @@ import {
 } from "@/lib/cache";
 import { TimeSeriesChart } from "@/components/charts/time-series-chart";
 import { getCachedBrazeStats } from "@/lib/braze/analytics";
+import { withTimeout } from "@/lib/with-timeout";
 import { baselineLiftSignificance, liftSignificance } from "@/lib/engine/lift-significance";
 import { cn, formatNumber, formatPercent } from "@/lib/utils";
 import type { AgentMetric, VariantMetric } from "@/types/metrics";
@@ -43,10 +44,17 @@ const getLiftSets = cache(getCachedLiftSettings);
 
 // Chain: liftSettings → liftCounts, memoized so every sub-component that
 // calls getLiftCounts() shares the same resolution without a duplicate query.
+const LIFT_COUNTS_FALLBACK = { sendsCount: 0, conversionsCount: 0, pushSendsCount: 0, pushOpensCount: 0 };
 const getLiftCounts = cache(async () => {
   const { liftSince } = await getLiftSets();
   const liftSinceDate = liftSince ? new Date(liftSince) : null;
-  return getCachedLiftCounts(liftSinceDate);
+  // 4 separate UserDecision counts — guard the cold-cache path so the KPI section
+  // degrades to "—" instead of risking the 30s route timeout.
+  return withTimeout(
+    getCachedLiftCounts(liftSinceDate).catch(() => LIFT_COUNTS_FALLBACK),
+    6000,
+    LIFT_COUNTS_FALLBACK,
+  );
 });
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
@@ -617,9 +625,20 @@ async function SendTimeSection() {
   );
 }
 
+const PERSONA_MATRIX_FALLBACK = {
+  personaIds: [] as string[],
+  variantIds: [] as string[],
+  personaLabels: [] as string[],
+  variantNames: [] as string[],
+  cells: [] as Awaited<ReturnType<typeof getCachedPersonaVariantMatrix>>["cells"],
+};
+
 async function PersonaMatrixSection() {
-  const { personaIds, variantIds, personaLabels, variantNames, cells } =
-    await getCachedPersonaVariantMatrix();
+  const { personaIds, variantIds, personaLabels, variantNames, cells } = await withTimeout(
+    getCachedPersonaVariantMatrix().catch(() => PERSONA_MATRIX_FALLBACK),
+    6000,
+    PERSONA_MATRIX_FALLBACK,
+  );
 
   if (personaIds.length === 0 || variantIds.length === 0) return null;
 

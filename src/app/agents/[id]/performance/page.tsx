@@ -20,6 +20,42 @@ import { agentGiftMetrics } from "@/lib/cache/agent-gift-metrics";
 import { AgentCohortGiving } from "@/components/agents/agent-cohort-giving";
 import { withTimeout } from "@/lib/with-timeout";
 
+// Cached 30d decision window for an agent (bounded to 5 000 rows, served from the
+// [agentId, sentAt] index). Cached so a cold render doesn't re-scan UserDecision on
+// every request; busted by conversions via the agent-${id} tag. unstable_cache
+// JSON-serializes Dates to strings, so callers must rehydrate (see rehydrateDates).
+function getCachedAgentDecisions(id: string) {
+  return unstable_cache(
+    () =>
+      prisma.userDecision.findMany({
+        where: { agentId: id, sentAt: { gte: new Date(Date.now() - 30 * 24 * 60 * 60 * 1000) } },
+        select: {
+          id: true, userId: true, sentAt: true, conversionAt: true,
+          conversionEvent: true, conversionValue: true, pushOpenAt: true,
+          reward: true, channel: true, scheduledFor: true, brazeSendId: true,
+          messageVariantId: true,
+        },
+        orderBy: { sentAt: "asc" },
+        take: 5000,
+      }),
+    ["agent-perf-decisions", id],
+    { tags: [`agent-${id}`, "performance"], revalidate: 900 },
+  )();
+}
+
+type AgentDecision = Awaited<ReturnType<typeof getCachedAgentDecisions>>[number];
+
+// Rehydrate the Date columns that unstable_cache flattened to ISO strings.
+function rehydrateDates(rows: AgentDecision[]): AgentDecision[] {
+  return rows.map((d) => ({
+    ...d,
+    sentAt: new Date(d.sentAt),
+    conversionAt: d.conversionAt ? new Date(d.conversionAt) : null,
+    pushOpenAt: d.pushOpenAt ? new Date(d.pushOpenAt) : null,
+    scheduledFor: d.scheduledFor ? new Date(d.scheduledFor) : null,
+  }));
+}
+
 /** Wilson score 95% CI for a binomial proportion. Returns [low, high] as percentages. */
 function wilsonCI(sends: number, conversions: number): { low: number; high: number } {
   if (sends === 0) return { low: 0, high: 0 };
@@ -61,7 +97,7 @@ async function PerformanceContent({ id }: { id: string }) {
   const thirtyDaysAgo = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
 
   // Phase 1: all three independent queries in parallel (saves 2 DB round-trips vs sequential)
-  const [agent, armStats, decisions, giftGoal] = await Promise.all([
+  const [agent, armStats, decisionsCached, giftGoal] = await Promise.all([
     prisma.agent.findUnique({
       where: { id },
       select: { id: true, name: true, algorithm: true, epsilon: true, status: true },
@@ -70,31 +106,14 @@ async function PerformanceContent({ id }: { id: string }) {
       where: { agentId: id },
       select: { personaId: true, variantId: true, alpha: true, beta: true, tries: true, wins: true },
     }),
-    prisma.userDecision.findMany({
-      where: { agentId: id, sentAt: { gte: thirtyDaysAgo } },
-      select: {
-        id: true,
-        userId: true,
-        sentAt: true,
-        conversionAt: true,
-        conversionEvent: true,
-        conversionValue: true,
-        pushOpenAt: true,
-        reward: true,
-        channel: true,
-        scheduledFor: true,
-        brazeSendId: true,
-        messageVariantId: true,
-      },
-      orderBy: { sentAt: "asc" },
-      // Safety cap: prevents unbounded memory growth for high-volume agents.
-      // At typical send rates this window holds well under 5 000 rows.
-      take: 5000,
-    }),
+    getCachedAgentDecisions(id),
     prisma.goal.findFirst({ where: { agentId: id, eventName: "gift_given" }, select: { id: true } }),
   ]);
 
   if (!agent) return null; // page-level notFound already fired
+
+  // Rehydrate Date columns flattened by unstable_cache before any date math below.
+  const decisions = rehydrateDates(decisionsCached);
 
   if (decisions.length === 0) {
     return (

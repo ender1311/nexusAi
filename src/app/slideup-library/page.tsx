@@ -1,21 +1,29 @@
 export const revalidate = 60;
 
 import { prisma } from "@/lib/db";
+import { unstable_cache } from "next/cache";
 import { getAuth } from "@/lib/auth";
 import { Header } from "@/components/layout/header";
 import { SlideupLibraryClient, type SlideupGroup } from "@/components/slideup-library/slideup-library-client";
 import type { SlideupVariant } from "@/components/slideup-library/slideup-card";
 
+const getSlideupLibraryVariants = unstable_cache(
+  () =>
+    prisma.messageVariant.findMany({
+      where: { message: { agentId: null, channel: "in-app" }, status: { not: "archived" } },
+      select: {
+        id: true, name: true, title: true, body: true, deeplink: true, iconImageUrl: true,
+        status: true, category: true, subcategory: true, sortOrder: true,
+      },
+      orderBy: [{ category: "asc" }, { subcategory: "asc" }, { sortOrder: "asc" }, { createdAt: "asc" }],
+    }),
+  ["slideup-library-variants"],
+  { tags: ["agents"], revalidate: 900 },
+);
+
 export default async function SlideupLibraryPage() {
   const { canManageLibrary } = await getAuth();
-  const variants = await prisma.messageVariant.findMany({
-    where: { message: { agentId: null, channel: "in-app" }, status: { not: "archived" } },
-    select: {
-      id: true, name: true, title: true, body: true, deeplink: true, iconImageUrl: true,
-      status: true, category: true, subcategory: true, sortOrder: true,
-    },
-    orderBy: [{ category: "asc" }, { subcategory: "asc" }, { sortOrder: "asc" }, { createdAt: "asc" }],
-  });
+  const variants = await getSlideupLibraryVariants();
 
   const grouped = new Map<string, Map<string | null, SlideupVariant[]>>();
   for (const v of variants) {

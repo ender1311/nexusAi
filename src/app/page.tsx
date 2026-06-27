@@ -40,6 +40,24 @@ import { Bot, Send, TrendingUp, Users, Plus, CheckCircle2, XCircle, ChevronRight
 import { PushOpenRateCard } from "@/components/metrics/push-open-rate-card";
 import Link from "next/link";
 
+// Zeroed fallback for the 30d UserDecision counts when the cold-cache scan is
+// slow — lets the dashboard render with placeholders instead of timing out.
+const DASHBOARD_COUNTS_FALLBACK = {
+  sentLast24h: 0,
+  totalDecisions: 0,
+  totalConversions: 0,
+  totalPushSends: 0,
+  totalPushOpens: 0,
+};
+
+// Empty fallback for the per-agent card stats (3× 30d GROUP BY over UserDecision).
+const AGENT_CARD_STATS_FALLBACK = {
+  uniqueUsers: [] as { agentId: string; count: number }[],
+  pushStats: [] as { agentId: string; sends: number; opens: number }[],
+  assigned: [] as { agentId: string; count: number }[],
+  decisions: [] as { agentId: string; count: number }[],
+};
+
 // ---------------------------------------------------------------------------
 // Skeletons
 // ---------------------------------------------------------------------------
@@ -105,7 +123,13 @@ function ListCardSkeleton() {
 async function MetricCardsSection() {
   const [{ sentLast24h, totalConversions, totalDecisions, totalPushSends }, agents, trackedUsers, hiddenStats, killSwitch] =
     await Promise.all([
-      getCachedDashboardCounts(),
+      // Unfiltered 30d COUNT over the ~19M-row UserDecision table — guard the
+      // cold-cache path so a slow scan degrades to zeros instead of a page 504.
+      withTimeout(
+        getCachedDashboardCounts().catch(() => DASHBOARD_COUNTS_FALLBACK),
+        6000,
+        DASHBOARD_COUNTS_FALLBACK,
+      ),
       getCachedAgentList(),
       withTimeout(getCachedTrackedUserCount().catch(() => 0), 6000, 0),
       getHiddenStatsForCurrentUser(),
@@ -178,7 +202,11 @@ async function FleetMetricCardsSection() {
 
 async function PushOpenRateSection() {
   const [{ totalPushSends, totalPushOpens }, brazeStats, hiddenStats] = await Promise.all([
-    getCachedDashboardCounts(),
+    withTimeout(
+      getCachedDashboardCounts().catch(() => DASHBOARD_COUNTS_FALLBACK),
+      6000,
+      DASHBOARD_COUNTS_FALLBACK,
+    ),
     getCachedBrazeStats(),
     getHiddenStatsForCurrentUser(),
   ]);
@@ -225,7 +253,16 @@ async function TimeSeriesSection() {
 }
 
 async function AgentsSidebar() {
-  const [agents, cardStats] = await Promise.all([getCachedAgentList(), getCachedAgentCardStats()]);
+  const [agents, cardStats] = await Promise.all([
+    getCachedAgentList(),
+    // Three 30d GROUP BYs over UserDecision — degrade to empty (cards show "—")
+    // on a cold-cache slow scan rather than blocking the whole sidebar.
+    withTimeout(
+      getCachedAgentCardStats().catch(() => AGENT_CARD_STATS_FALLBACK),
+      6000,
+      AGENT_CARD_STATS_FALLBACK,
+    ),
+  ]);
   const pushByAgent = new Map(cardStats.pushStats.map((s) => [s.agentId, s]));
 
   return (

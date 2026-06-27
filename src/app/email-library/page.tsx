@@ -1,25 +1,33 @@
 export const revalidate = 60;
 
 import { prisma } from "@/lib/db";
+import { unstable_cache } from "next/cache";
 import { getAuth } from "@/lib/auth";
 import { Header } from "@/components/layout/header";
 import { EmailLibraryClient, type EmailGroup } from "@/components/email-library/email-library-client";
 import type { EmailVariant } from "@/components/email-library/email-card";
 
+const getEmailLibraryVariants = unstable_cache(
+  () =>
+    prisma.messageVariant.findMany({
+      where: { message: { agentId: null, channel: "email" }, status: { not: "archived" } },
+      select: {
+        id: true, name: true, subject: true, body: true, deeplink: true,
+        cta: true, status: true, category: true, subcategory: true, sortOrder: true,
+        translations: {
+          select: { language: true, subject: true, status: true },
+          where: { status: "active" },
+        },
+      },
+      orderBy: [{ category: "asc" }, { subcategory: "asc" }, { sortOrder: "asc" }, { createdAt: "asc" }],
+    }),
+  ["email-library-variants"],
+  { tags: ["agents"], revalidate: 900 },
+);
+
 export default async function EmailLibraryPage() {
   const { canManageLibrary } = await getAuth();
-  const variants = await prisma.messageVariant.findMany({
-    where: { message: { agentId: null, channel: "email" }, status: { not: "archived" } },
-    select: {
-      id: true, name: true, subject: true, body: true, deeplink: true,
-      cta: true, status: true, category: true, subcategory: true, sortOrder: true,
-      translations: {
-        select: { language: true, subject: true, status: true },
-        where: { status: "active" },
-      },
-    },
-    orderBy: [{ category: "asc" }, { subcategory: "asc" }, { sortOrder: "asc" }, { createdAt: "asc" }],
-  });
+  const variants = await getEmailLibraryVariants();
 
   const grouped = new Map<string, Map<string | null, EmailVariant[]>>();
   for (const v of variants) {

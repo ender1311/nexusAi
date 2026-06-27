@@ -1,21 +1,29 @@
 export const revalidate = 60;
 
 import { prisma } from "@/lib/db";
+import { unstable_cache } from "next/cache";
 import { getAuth } from "@/lib/auth";
 import { Header } from "@/components/layout/header";
 import { ModalIamLibraryClient, type ModalIamGroup } from "@/components/modal-iam-library/modal-iam-library-client";
 import type { ModalIamVariant } from "@/components/modal-iam-library/modal-iam-card";
 
+const getModalIamLibraryVariants = unstable_cache(
+  () =>
+    prisma.messageVariant.findMany({
+      where: { message: { agentId: null, channel: "modal-iam" }, status: { not: "archived" } },
+      select: {
+        id: true, name: true, title: true, body: true, deeplink: true, iconImageUrl: true,
+        status: true, category: true, subcategory: true, sortOrder: true,
+      },
+      orderBy: [{ category: "asc" }, { subcategory: "asc" }, { sortOrder: "asc" }, { createdAt: "asc" }],
+    }),
+  ["modal-iam-library-variants"],
+  { tags: ["agents"], revalidate: 900 },
+);
+
 export default async function ModalIamLibraryPage() {
   const { canManageLibrary } = await getAuth();
-  const variants = await prisma.messageVariant.findMany({
-    where: { message: { agentId: null, channel: "modal-iam" }, status: { not: "archived" } },
-    select: {
-      id: true, name: true, title: true, body: true, deeplink: true, iconImageUrl: true,
-      status: true, category: true, subcategory: true, sortOrder: true,
-    },
-    orderBy: [{ category: "asc" }, { subcategory: "asc" }, { sortOrder: "asc" }, { createdAt: "asc" }],
-  });
+  const variants = await getModalIamLibraryVariants();
 
   const grouped = new Map<string, Map<string | null, ModalIamVariant[]>>();
   for (const v of variants) {

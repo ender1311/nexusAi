@@ -1,21 +1,29 @@
 export const revalidate = 60;
 
 import { prisma } from "@/lib/db";
+import { unstable_cache } from "next/cache";
 import { getAuth } from "@/lib/auth";
 import { Header } from "@/components/layout/header";
 import { ContentCardLibraryClient, type ContentCardGroup } from "@/components/content-card-library/content-card-library-client";
 import type { ContentCardVariant } from "@/components/content-card-library/content-card-card";
 
+const getContentCardLibraryVariants = unstable_cache(
+  () =>
+    prisma.messageVariant.findMany({
+      where: { message: { agentId: null, channel: "content-card" }, status: { not: "archived" } },
+      select: {
+        id: true, name: true, title: true, body: true, cta: true, deeplink: true,
+        status: true, category: true, subcategory: true, sortOrder: true,
+      },
+      orderBy: [{ category: "asc" }, { subcategory: "asc" }, { sortOrder: "asc" }, { createdAt: "asc" }],
+    }),
+  ["content-card-library-variants"],
+  { tags: ["agents"], revalidate: 900 },
+);
+
 export default async function ContentCardLibraryPage() {
   const { canManageLibrary } = await getAuth();
-  const variants = await prisma.messageVariant.findMany({
-    where: { message: { agentId: null, channel: "content-card" }, status: { not: "archived" } },
-    select: {
-      id: true, name: true, title: true, body: true, cta: true, deeplink: true,
-      status: true, category: true, subcategory: true, sortOrder: true,
-    },
-    orderBy: [{ category: "asc" }, { subcategory: "asc" }, { sortOrder: "asc" }, { createdAt: "asc" }],
-  });
+  const variants = await getContentCardLibraryVariants();
 
   const grouped = new Map<string, Map<string | null, ContentCardVariant[]>>();
   for (const v of variants) {

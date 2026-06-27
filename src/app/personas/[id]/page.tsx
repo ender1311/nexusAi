@@ -1,4 +1,5 @@
 export const revalidate = 900;
+export const maxDuration = 20;
 
 import { notFound } from "next/navigation";
 import { unstable_cache } from "next/cache";
@@ -22,10 +23,10 @@ function getPersona(id: string) {
   return unstable_cache(
     async (): Promise<Persona | null> => {
       try {
-        const row = await prisma.persona.findUnique({
-          where: { id },
-          include: { _count: { select: { trackedUsers: true } } },
-        });
+        // Read the precomputed userCount snapshot (refreshed by the
+        // refresh-persona-counts cron) instead of a live _count over the
+        // ~34M-row TrackedUser/User table, which blew past the page limit.
+        const row = await prisma.persona.findUnique({ where: { id } });
         return row as unknown as Persona | null;
       } catch {
         return null;
@@ -132,7 +133,7 @@ export default async function PersonaDetailPage({ params }: { params: Promise<{ 
   const Icon = PERSONA_ICON_MAP[persona.icon];
   const isDiscovered = persona.source === "discovered";
 
-  const userCount = persona.metrics?.userCount ?? persona._count?.trackedUsers ?? 0;
+  const userCount = persona.metrics?.userCount ?? persona.userCount ?? 0;
   const channels = persona.channels ?? ["push", "email"];
   const engagementLevel = persona.engagement?.level ?? "moderate";
 

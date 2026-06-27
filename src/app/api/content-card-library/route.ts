@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { revalidateTag } from "next/cache";
 import { Prisma } from "@/generated/prisma/client";
 import { prisma } from "@/lib/db";
 import { ok, fail, handleRouteError } from "@/lib/api/respond";
@@ -134,6 +135,7 @@ export async function POST(req: NextRequest) {
       },
     });
 
+    revalidateTag("agents", "max"); // bust the cached content-card-library list
     return ok(variant, 201);
   } catch (err) {
     return handleRouteError("POST /api/content-card-library", err);
