@@ -6,9 +6,16 @@ import {
   partitionAuthkitHeaders,
 } from "@workos-inc/authkit-nextjs";
 import { isPublic, isServiceRoute } from "@/lib/auth/route-access";
+import { isDemoMode } from "@/lib/auth/demo";
 
 export async function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl;
+
+  // Demo mode: no WorkOS login. Every route passes through; the auth helpers
+  // resolve a stub demo user so pages render without a real session.
+  if (isDemoMode()) {
+    return NextResponse.next();
+  }
 
   if (isServiceRoute(pathname)) {
     return NextResponse.next();

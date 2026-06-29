@@ -5,7 +5,7 @@ import { Sidebar, MobileNav } from "@/components/layout/sidebar";
 import { DataModeProvider } from "@/components/layout/data-mode-provider";
 import { RoutePreloader } from "@/components/layout/route-preloader";
 import { ThemeProvider } from "next-themes";
-import { withAuth } from "@workos-inc/authkit-nextjs";
+import { getSessionUser } from "@/lib/auth";
 import NextTopLoader from "nextjs-toploader";
 import { Toaster } from "sonner";
 
@@ -44,13 +44,13 @@ export default async function RootLayout({
 }: Readonly<{
   children: React.ReactNode;
 }>) {
-  const { user } = await withAuth();
+  const user = await getSessionUser();
 
   const sidebarUser = user
     ? {
         email: user.email,
-        firstName: user.firstName ?? null,
-        lastName: user.lastName ?? null,
+        firstName: user.firstName,
+        lastName: user.lastName,
       }
     : null;
 

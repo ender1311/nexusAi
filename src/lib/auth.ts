@@ -1,5 +1,6 @@
 import { withAuth, signOut } from "@workos-inc/authkit-nextjs";
 import { NextResponse } from "next/server";
+import { isDemoMode, DEMO_USER } from "@/lib/auth/demo";
 
 export { signOut };
 
@@ -11,6 +12,7 @@ export function isAllowedDomain(email?: string | null): boolean {
 }
 
 export async function getSessionUser() {
+  if (isDemoMode()) return { ...DEMO_USER };
   const { user } = await withAuth();
   if (!user) return null;
   return {
@@ -36,6 +38,9 @@ export function deriveRoleFlags(roles: string[] | undefined): RoleFlags {
 export async function getAuth(): Promise<{
   user: { id: string; email: string; firstName: string | null; lastName: string | null } | null;
 } & RoleFlags> {
+  if (isDemoMode()) {
+    return { user: { ...DEMO_USER }, ...deriveRoleFlags([]) };
+  }
   const auth = await withAuth();
   const user = auth.user
     ? {
