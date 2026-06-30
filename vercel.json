@@ -4,39 +4,5 @@
   "buildCommand": "bun run build",
   "git": {
     "deploymentEnabled": { "docs/*": false, "chore/*": false }
-  },
-  "crons": [
-    {
-      "path": "/api/cron/select-and-send",
-      "schedule": "0 * * * *"
-    },
-    {
-      "path": "/api/cron/discover-personas",
-      "schedule": "0 3 * * *"
-    },
-    {
-      "path": "/api/cron/sync-template-variants",
-      "schedule": "0 6 * * *"
-    },
-    {
-      "path": "/api/cron/ingest-braze-analytics",
-      "schedule": "0 */6 * * *"
-    },
-    {
-      "path": "/api/cron/materialize-segments",
-      "schedule": "10 * * * *"
-    },
-    {
-      "path": "/api/cron/refresh-segment-facets",
-      "schedule": "30 4 * * *"
-    },
-    {
-      "path": "/api/cron/refresh-persona-counts",
-      "schedule": "20 * * * *"
-    },
-    {
-      "path": "/api/cron/keep-alive",
-      "schedule": "*/5 * * * *"
-    }
-  ]
+  }
 }
