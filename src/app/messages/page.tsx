@@ -6,6 +6,8 @@ import { Header } from "@/components/layout/header";
 import { Button } from "@/components/ui/button";
 import { prisma } from "@/lib/db";
 import { getAuth } from "@/lib/auth";
+import { isDemoMode } from "@/lib/auth/demo";
+import { demoPushVariants } from "@/lib/mock/library-demo";
 
 import { TemplateFormSheet } from "@/components/push-library/template-form-sheet";
 import { ManageCategoriesSheet } from "@/components/push-library/manage-categories-sheet";
@@ -15,7 +17,7 @@ import { PushTranslationUpload } from "@/components/messages/push-translation-up
 
 const getGroups = unstable_cache(
   async (): Promise<TemplateGroup[]> => {
-    const variants = await prisma.messageVariant.findMany({
+    const variants = isDemoMode() ? demoPushVariants : await prisma.messageVariant.findMany({
       where: { message: { agentId: null, channel: "push" }, status: { not: "archived" } },
       select: {
         id: true,

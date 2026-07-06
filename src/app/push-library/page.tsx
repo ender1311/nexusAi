@@ -2,6 +2,8 @@ export const revalidate = 60;
 
 import { prisma } from "@/lib/db";
 import { getAuth } from "@/lib/auth";
+import { isDemoMode } from "@/lib/auth/demo";
+import { demoVerseActiveRows, demoVerseGroupResult } from "@/lib/mock/library-demo";
 import { usfmToHuman, usfmSortKey } from "@/lib/usfm";
 import { VerseLibraryClient } from "@/components/push-library/verse-library-client";
 import type { VerseRow, LangSummary, GapItem } from "@/types/campaign-content";
@@ -25,30 +27,32 @@ export default async function PushLibraryPage({
   const activeLanguage = langParam ?? "en";
   const { user } = await getAuth();
 
-  const [groupResult, activeRows] = await Promise.all([
-    prisma.campaignContent.groupBy({
-      by: ["language"],
-      _count: { id: true },
-      where: { campaign: CAMPAIGN, status: "active" },
-    }),
-    prisma.campaignContent.findMany({
-      where: {
-        campaign: CAMPAIGN,
-        status: "active",
-        language: { in: [...new Set([activeLanguage, "en"])] },
-      },
-      select: {
-        id: true,
-        contentType: true,
-        language: true,
-        usfmReference: true,
-        usfmHuman: true,
-        title: true,
-        body: true,
-      },
-      orderBy: [{ language: "asc" }, { usfmReference: "asc" }],
-    }),
-  ]);
+  const [groupResult, activeRows] = isDemoMode()
+    ? [demoVerseGroupResult, demoVerseActiveRows]
+    : await Promise.all([
+        prisma.campaignContent.groupBy({
+          by: ["language"],
+          _count: { id: true },
+          where: { campaign: CAMPAIGN, status: "active" },
+        }),
+        prisma.campaignContent.findMany({
+          where: {
+            campaign: CAMPAIGN,
+            status: "active",
+            language: { in: [...new Set([activeLanguage, "en"])] },
+          },
+          select: {
+            id: true,
+            contentType: true,
+            language: true,
+            usfmReference: true,
+            usfmHuman: true,
+            title: true,
+            body: true,
+          },
+          orderBy: [{ language: "asc" }, { usfmReference: "asc" }],
+        }),
+      ]);
 
   // Compute language summaries using en as canonical
   const enRows = activeRows.filter((r) => r.language === "en");

@@ -3,6 +3,8 @@ export const revalidate = 60;
 import { prisma } from "@/lib/db";
 import { unstable_cache } from "next/cache";
 import { getAuth } from "@/lib/auth";
+import { isDemoMode } from "@/lib/auth/demo";
+import { demoContentCardVariants } from "@/lib/mock/library-demo";
 import { Header } from "@/components/layout/header";
 import { ContentCardLibraryClient, type ContentCardGroup } from "@/components/content-card-library/content-card-library-client";
 import type { ContentCardVariant } from "@/components/content-card-library/content-card-card";
@@ -23,7 +25,7 @@ const getContentCardLibraryVariants = unstable_cache(
 
 export default async function ContentCardLibraryPage() {
   const { canManageLibrary } = await getAuth();
-  const variants = await getContentCardLibraryVariants();
+  const variants = isDemoMode() ? demoContentCardVariants : await getContentCardLibraryVariants();
 
   const grouped = new Map<string, Map<string | null, ContentCardVariant[]>>();
   for (const v of variants) {

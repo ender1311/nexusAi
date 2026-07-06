@@ -3,6 +3,8 @@ export const revalidate = 60;
 import { prisma } from "@/lib/db";
 import { unstable_cache } from "next/cache";
 import { getAuth } from "@/lib/auth";
+import { isDemoMode } from "@/lib/auth/demo";
+import { demoEmailVariants } from "@/lib/mock/library-demo";
 import { Header } from "@/components/layout/header";
 import { EmailLibraryClient, type EmailGroup } from "@/components/email-library/email-library-client";
 import type { EmailVariant } from "@/components/email-library/email-card";
@@ -27,7 +29,7 @@ const getEmailLibraryVariants = unstable_cache(
 
 export default async function EmailLibraryPage() {
   const { canManageLibrary } = await getAuth();
-  const variants = await getEmailLibraryVariants();
+  const variants = isDemoMode() ? demoEmailVariants : await getEmailLibraryVariants();
 
   const grouped = new Map<string, Map<string | null, EmailVariant[]>>();
   for (const v of variants) {

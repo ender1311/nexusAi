@@ -3,6 +3,8 @@ export const revalidate = 60;
 import { prisma } from "@/lib/db";
 import { unstable_cache } from "next/cache";
 import { getAuth } from "@/lib/auth";
+import { isDemoMode } from "@/lib/auth/demo";
+import { demoModalIamVariants } from "@/lib/mock/library-demo";
 import { Header } from "@/components/layout/header";
 import { ModalIamLibraryClient, type ModalIamGroup } from "@/components/modal-iam-library/modal-iam-library-client";
 import type { ModalIamVariant } from "@/components/modal-iam-library/modal-iam-card";
@@ -23,7 +25,7 @@ const getModalIamLibraryVariants = unstable_cache(
 
 export default async function ModalIamLibraryPage() {
   const { canManageLibrary } = await getAuth();
-  const variants = await getModalIamLibraryVariants();
+  const variants = isDemoMode() ? demoModalIamVariants : await getModalIamLibraryVariants();
 
   const grouped = new Map<string, Map<string | null, ModalIamVariant[]>>();
   for (const v of variants) {
