@@ -2,6 +2,7 @@ import { Header } from "@/components/layout/header";
 import { Card, CardContent } from "@/components/ui/card";
 import { CollapsibleVideos } from "@/components/architecture/collapsible-videos";
 import { NexusVideoPlayer } from "@/components/video/nexus-video-player";
+import { DecisioningLoop } from "@/components/architecture/decisioning-loop";
 import { ConvergenceSection } from "./convergence-section";
 import Link from "next/link";
 import { BookOpen, ExternalLink } from "lucide-react";
@@ -82,6 +83,9 @@ export default function ArchitecturePage() {
       <Header title="Architecture" description="How Nexus makes a decision" />
       <div className="p-4 sm:p-6 max-w-5xl space-y-8">
 
+        {/* Animated decisioning-loop diagram */}
+        <DecisioningLoop />
+
         {/* Intro */}
         <div className="space-y-3">
           <p className="text-sm text-muted-foreground leading-relaxed max-w-2xl">
@@ -117,6 +121,7 @@ export default function ArchitecturePage() {
             defaultLength="1min"
             defaultVoice="michael"
             accent="#57a16c"
+            className="w-full sm:max-w-[70%]"
           />
         </div>
 

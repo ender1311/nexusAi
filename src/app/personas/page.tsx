@@ -17,6 +17,8 @@ import { Users2, TrendingUp, Star, Sparkles } from "lucide-react";
 import { AudienceDistribution } from "@/components/personas/audience-distribution";
 import { formatNumber } from "@/lib/utils";
 import { prisma } from "@/lib/db";
+import { isDemoMode } from "@/lib/auth/demo";
+import { demoPersonas } from "@/lib/mock/personas";
 import { unstable_cache } from "next/cache";
 import { cache } from "react";
 import Link from "next/link";
@@ -24,6 +26,7 @@ import Link from "next/link";
 const getPersonas = cache(
   unstable_cache(
     async (): Promise<Persona[]> => {
+      if (isDemoMode()) return demoPersonas;
       const rows = await prisma.persona.findMany({
         orderBy: { createdAt: "asc" },
         select: {
@@ -60,6 +63,20 @@ async function KpiSection() {
   const assignedUsers = personas.reduce((s, p) => s + (p.userCount ?? 0), 0);
   const topPersonaName = personas[0]?.name ?? "";
 
+  // Derive conversion + LTV KPIs from persona metrics when present (demo/seeded
+  // data). Discovered personas from the DB may lack metrics, in which case these
+  // fall back to the empty-state display.
+  const withMetrics = personas.filter((p) => p.metrics);
+  const convUsers = withMetrics.reduce((s, p) => s + (p.userCount ?? 0), 0);
+  const avgConv =
+    convUsers > 0
+      ? withMetrics.reduce((s, p) => s + p.metrics!.conversionRate * (p.userCount ?? 0), 0) / convUsers
+      : 0;
+  const topLtvPersona = withMetrics.reduce<Persona | null>(
+    (best, p) => (!best || p.metrics!.ltv > best.metrics!.ltv ? p : best),
+    null
+  );
+
   return (
     <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
       <MetricCard
@@ -77,14 +94,14 @@ async function KpiSection() {
       />
       <MetricCard
         title="Avg Conv. Rate"
-        value="0.0%"
+        value={avgConv > 0 ? `${avgConv.toFixed(1)}%` : "0.0%"}
         description="across all personas"
         icon={TrendingUp}
       />
       <MetricCard
         title="Highest LTV"
-        value={totalPersonas > 0 ? "—/10" : "—"}
-        description={topPersonaName}
+        value={topLtvPersona ? `${topLtvPersona.metrics!.ltv}/10` : totalPersonas > 0 ? "—/10" : "—"}
+        description={topLtvPersona?.name ?? topPersonaName}
         icon={Star}
       />
     </div>

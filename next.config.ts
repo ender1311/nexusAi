@@ -2,7 +2,9 @@ import type { NextConfig } from "next";
 
 const securityHeaders = [
   { key: "X-Content-Type-Options", value: "nosniff" },
-  { key: "X-Frame-Options", value: "DENY" },
+  // SAMEORIGIN (not DENY) so the app can embed its own standalone HTML diagrams
+  // (e.g. the architecture decisioning-loop). Cross-origin framing stays blocked.
+  { key: "X-Frame-Options", value: "SAMEORIGIN" },
   { key: "Referrer-Policy", value: "strict-origin-when-cross-origin" },
   {
     key: "Strict-Transport-Security",
@@ -33,10 +35,10 @@ const securityHeaders = [
       // WorkOS auth callbacks + Braze REST API calls happen server-side only,
       // but allow 'self' for client-side fetch to our own API routes.
       "connect-src 'self'",
-      "frame-ancestors 'none'",
+      "frame-ancestors 'self'",
       "base-uri 'self'",
       "form-action 'self'",
-      "frame-src https://www.youtube-nocookie.com",
+      "frame-src 'self' https://www.youtube-nocookie.com",
     ].join("; "),
   },
 ];
