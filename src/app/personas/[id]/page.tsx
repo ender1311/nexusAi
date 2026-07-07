@@ -21,10 +21,11 @@ import { demoPersonas } from "@/lib/mock/personas";
 import { TimingHeatmap } from "@/components/charts/timing-heatmap";
 import type { TimingHeatmapCell } from "@/types/metrics";
 
-function getPersona(id: string) {
+function getPersona(id: string): Promise<Persona | null> {
+  // Demo mode short-circuits before the cache (static fixtures, no DB).
+  if (isDemoMode()) return Promise.resolve(demoPersonas.find((p) => p.id === id) ?? null);
   return unstable_cache(
     async (): Promise<Persona | null> => {
-      if (isDemoMode()) return demoPersonas.find((p) => p.id === id) ?? null;
       try {
         // Read the precomputed userCount snapshot (refreshed by the
         // refresh-persona-counts cron) instead of a live _count over the

@@ -23,35 +23,38 @@ import { unstable_cache } from "next/cache";
 import { cache } from "react";
 import Link from "next/link";
 
+const getPersonasFromDb = unstable_cache(
+  async (): Promise<Persona[]> => {
+    const rows = await prisma.persona.findMany({
+      orderBy: { createdAt: "asc" },
+      select: {
+        id: true,
+        name: true,
+        label: true,
+        icon: true,
+        color: true,
+        source: true,
+        isActive: true,
+        description: true,
+        tags: true,
+        clusterSize: true,
+        userCount: true,
+        silhouetteScore: true,
+        discoveredAt: true,
+        createdAt: true,
+        updatedAt: true,
+      },
+    });
+    return rows as unknown as Persona[];
+  },
+  ["personas-list"],
+  { tags: ["personas"], revalidate: 900 }
+);
+
+// Demo mode short-circuits BEFORE the cache so the static demo fixtures are
+// never shadowed by a persisted Data Cache entry from a prior (DB-backed) deploy.
 const getPersonas = cache(
-  unstable_cache(
-    async (): Promise<Persona[]> => {
-      if (isDemoMode()) return demoPersonas;
-      const rows = await prisma.persona.findMany({
-        orderBy: { createdAt: "asc" },
-        select: {
-          id: true,
-          name: true,
-          label: true,
-          icon: true,
-          color: true,
-          source: true,
-          isActive: true,
-          description: true,
-          tags: true,
-          clusterSize: true,
-          userCount: true,
-          silhouetteScore: true,
-          discoveredAt: true,
-          createdAt: true,
-          updatedAt: true,
-        },
-      });
-      return rows as unknown as Persona[];
-    },
-    ["personas-list"],
-    { tags: ["personas"], revalidate: 900 }
-  )
+  async (): Promise<Persona[]> => (isDemoMode() ? demoPersonas : getPersonasFromDb())
 );
 
 async function KpiSection() {
