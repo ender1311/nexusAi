@@ -12,7 +12,9 @@ const ARM_STATS_WRITE_CONCURRENCY = 20;
 
 // Bounded retries for the LinUCBArm compare-and-swap; contention beyond this
 // is logged and the reward dropped rather than spinning a cron/ingest worker.
-export const LINUCB_MAX_CAS_ATTEMPTS = 5;
+// Sized above ingest concurrency (INGEST_USER_CONCURRENCY = 10 chains can hit
+// one arm): each round has at least one winner, so N writers land within N attempts.
+export const LINUCB_MAX_CAS_ATTEMPTS = 25;
 
 /**
  * Atomically apply temporal decay and a reward increment to a PersonaArmStats row.
@@ -161,6 +163,8 @@ export async function updateLinUCBArm(params: {
       },
     });
     if (count === 1) return;
+    // Short random jitter so contending writers stop retrying in lockstep.
+    await new Promise((resolve) => setTimeout(resolve, Math.random() * 5 * (attempt + 1)));
   }
 
   console.warn(

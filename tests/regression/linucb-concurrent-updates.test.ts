@@ -7,6 +7,8 @@
 import { afterEach, beforeEach, describe, expect, it, spyOn } from "bun:test";
 import { truncateAll, prisma } from "../helpers/db";
 import { updateLinUCBArm, LINUCB_MAX_CAS_ATTEMPTS } from "@/lib/arm-stats";
+import { decideForUser } from "@/lib/decide";
+import { createAgent, createMessage, createPersona, createUser, createVariant } from "../helpers/builders";
 import { LinUCB } from "@/lib/engine/linucb";
 import { FEATURE_DIM } from "@/lib/engine/feature-vector";
 
@@ -35,29 +37,39 @@ async function readArm() {
 }
 
 describe("regression: concurrent LinUCB updates are not lost", () => {
-  // Each CAS round has at least one winner, so N concurrent writers all land within N
-  // attempts. Use exactly LINUCB_MAX_CAS_ATTEMPTS writers: the most the bounded retry guarantees.
-  it("LINUCB_MAX_CAS_ATTEMPTS concurrent updates on a NEW arm all land", async () => {
-    const xs = contexts(LINUCB_MAX_CAS_ATTEMPTS);
+  it.each([8, 12])("%d concurrent updates on a NEW arm all land and match the sequential result", async (n) => {
+    const xs = contexts(n);
     await Promise.all(xs.map((contextVec) =>
       updateLinUCBArm({ agentId: "agent-1", variantId: "variant-1", contextVec, reward: 1 }),
     ));
     const arm = await readArm();
     const want = sequential(xs, 1);
-    expect(arm.tries).toBe(LINUCB_MAX_CAS_ATTEMPTS);
+    expect(arm.tries).toBe(n);
+    expect(arm.version).toBe(n);
     want.b.forEach((v, i) => expect(arm.b[i]).toBeCloseTo(v, 6));
     want.aInv.forEach((v, i) => expect(arm.aInv[i]).toBeCloseTo(v, 6));
   });
 
-  it("a stale-dimension reset bumps version so an in-flight update retries", async () => {
-    await updateLinUCBArm({ agentId: "agent-1", variantId: "variant-1", contextVec: contexts(1)[0], reward: 1 });
-    const before = await readArm();
-    const fresh = new LinUCB().initialArm(FEATURE_DIM);
-    await prisma.linUCBArm.update({
-      where: { agentId_variantId: { agentId: "agent-1", variantId: "variant-1" } },
-      data: { aInv: fresh.aInv, b: fresh.b, tries: 0, version: { increment: 1 } },
+  it("decideForUser's stale-dimension reset bumps version and leaves an identity-sized arm", async () => {
+    await createPersona({ name: "default", isActive: true });
+    const agent = await createAgent({ algorithm: "linucb" });
+    const message = await createMessage(agent.id);
+    const variant = await createVariant(message.id);
+    await createUser("usr_stale_reset");
+    await prisma.linUCBArm.create({
+      data: { agentId: agent.id, variantId: variant.id, aInv: [1, 0, 0, 1], b: [0, 0], tries: 3 },
     });
-    expect((await readArm()).version).toBe(before.version + 1);
+
+    const result = await decideForUser({ agentId: agent.id, externalUserId: "usr_stale_reset", skipSchedulingChecks: true });
+    expect(result).not.toBeNull();
+
+    const arm = await prisma.linUCBArm.findUniqueOrThrow({
+      where: { agentId_variantId: { agentId: agent.id, variantId: variant.id } },
+    });
+    expect(arm.version).toBe(1);
+    expect(arm.tries).toBe(0);
+    expect((arm.aInv as number[]).length).toBe(FEATURE_DIM * FEATURE_DIM);
+    expect((arm.b as number[]).length).toBe(FEATURE_DIM);
   });
 });
 
@@ -70,8 +82,10 @@ describe("regression: CAS retry exhaustion", () => {
     // The extended Prisma client's model delegates ignore spyOn, so shadow the
     // delegate with a proxy that simulates a competing writer: it bumps `version` just before every CAS attempt,
     // which makes each attempt's WHERE version = <stale> match zero rows.
+    const originalDescriptor = Object.getOwnPropertyDescriptor(prisma, "linUCBArm");
     const real = prisma.linUCBArm;
     let casAttempts = 0;
+    let warnCalls = 0;
     Object.defineProperty(prisma, "linUCBArm", {
       configurable: true,
       get: () =>
@@ -92,12 +106,19 @@ describe("regression: CAS retry exhaustion", () => {
     try {
       await updateLinUCBArm({ agentId: "agent-1", variantId: "variant-1", contextVec: contexts(2)[1], reward: 1 });
     } finally {
-      Object.defineProperty(prisma, "linUCBArm", { value: real, writable: true, enumerable: true, configurable: true });
+      // The client is a Proxy, so a pre-existing own descriptor reports value: undefined;
+      // restore the real delegate rather than that descriptor. Delete only if none existed.
+      if (originalDescriptor) {
+        Object.defineProperty(prisma, "linUCBArm", { ...originalDescriptor, value: real });
+      } else {
+        delete (prisma as unknown as Record<string, unknown>).linUCBArm;
+      }
+      warnCalls = warn.mock.calls.length;
+      warn.mockRestore();
     }
 
     expect(casAttempts).toBe(LINUCB_MAX_CAS_ATTEMPTS);
-    expect(warn).toHaveBeenCalled();
-    warn.mockRestore();
+    expect(warnCalls).toBeGreaterThan(0);
     const after = await readArm();
     expect(after.aInv).toEqual(before.aInv);
     expect(after.b).toEqual(before.b);
