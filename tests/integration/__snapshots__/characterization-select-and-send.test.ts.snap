@@ -1,0 +1,112 @@
+// Bun Snapshot v1, https://bun.sh/docs/test/snapshots
+
+exports[`characterization: one select-and-send run sends the same variants to the same users via the same Braze calls 1`] = `
+{
+  "brazeRequests": [
+    {
+      "body": {
+        "campaign_id": "nexus-campaign",
+        "external_user_ids": [
+          "u1",
+          "u3",
+          "u4",
+        ],
+        "in_local_time": true,
+        "messages": {
+          "android_push": {
+            "alert": "Variant A",
+            "message_variation_id": "bv-A",
+            "title": "Test title",
+          },
+          "apple_push": {
+            "alert": {
+              "body": "Variant A",
+              "title": "Test title",
+            },
+            "message_variation_id": "bv-A",
+          },
+        },
+        "schedule": {
+          "time": "2026-05-31T08:00:00.000Z",
+        },
+      },
+      "url": "https://rest.test.braze.com/messages/schedule/create",
+    },
+    {
+      "body": {
+        "campaign_id": "nexus-campaign",
+        "external_user_ids": [
+          "u2",
+          "u5",
+        ],
+        "in_local_time": true,
+        "messages": {
+          "android_push": {
+            "alert": "Variant B",
+            "message_variation_id": "bv-B",
+            "title": "Test title",
+          },
+          "apple_push": {
+            "alert": {
+              "body": "Variant B",
+              "title": "Test title",
+            },
+            "message_variation_id": "bv-B",
+          },
+        },
+        "schedule": {
+          "time": "2026-05-31T08:00:00.000Z",
+        },
+      },
+      "url": "https://rest.test.braze.com/messages/schedule/create",
+    },
+  ],
+  "decisions": [
+    {
+      "brazeSendId": "<set>",
+      "channel": "push",
+      "messageVariantId": "<id1>",
+      "scheduledFor": "2026-05-31T08:00:00.000Z",
+      "scheduledLocalHour": 8,
+      "sentAt": "2026-05-30T15:00:00.000Z",
+      "userId": "u1",
+    },
+    {
+      "brazeSendId": "<set>",
+      "channel": "push",
+      "messageVariantId": "<id2>",
+      "scheduledFor": "2026-05-31T08:00:00.000Z",
+      "scheduledLocalHour": 8,
+      "sentAt": "2026-05-30T15:00:00.000Z",
+      "userId": "u2",
+    },
+    {
+      "brazeSendId": "<set>",
+      "channel": "push",
+      "messageVariantId": "<id1>",
+      "scheduledFor": "2026-05-31T08:00:00.000Z",
+      "scheduledLocalHour": 8,
+      "sentAt": "2026-05-30T15:00:00.000Z",
+      "userId": "u3",
+    },
+    {
+      "brazeSendId": "<set>",
+      "channel": "push",
+      "messageVariantId": "<id1>",
+      "scheduledFor": "2026-05-31T08:00:00.000Z",
+      "scheduledLocalHour": 8,
+      "sentAt": "2026-05-30T15:00:00.000Z",
+      "userId": "u4",
+    },
+    {
+      "brazeSendId": "<set>",
+      "channel": "push",
+      "messageVariantId": "<id2>",
+      "scheduledFor": "2026-05-31T08:00:00.000Z",
+      "scheduledLocalHour": 8,
+      "sentAt": "2026-05-30T15:00:00.000Z",
+      "userId": "u5",
+    },
+  ],
+}
+`;
