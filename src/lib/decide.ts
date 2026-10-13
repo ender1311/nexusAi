@@ -233,7 +233,7 @@ export async function decideForUser(input: DecideInput): Promise<DecideResult | 
         if (storedAInv.length !== FEATURE_DIM * FEATURE_DIM) {
           await prisma.linUCBArm.update({
             where: { agentId_variantId: { agentId, variantId: v.id } },
-            data: { aInv: initial.aInv as unknown as Prisma.InputJsonValue, b: initial.b as unknown as Prisma.InputJsonValue, tries: 0 },
+            data: { aInv: initial.aInv as unknown as Prisma.InputJsonValue, b: initial.b as unknown as Prisma.InputJsonValue, tries: 0, version: { increment: 1 } },
           });
           return { id: v.id, ...initial };
         }

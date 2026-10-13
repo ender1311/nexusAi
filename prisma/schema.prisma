@@ -328,6 +328,8 @@ model LinUCBArm {
   // b vector: FEATURE_DIM floats (sum of reward * feature_vector across observations)
   b         Json
   tries     Int    @default(0)
+  // Optimistic-concurrency token: every write that changes aInv/b increments it.
+  version   Int    @default(0)
 
   @@unique([agentId, variantId])
   @@index([agentId])

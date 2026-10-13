@@ -10,6 +10,10 @@ import type { Prisma } from "@/generated/prisma/client";
 // pool-exhaustion failure mode under concurrent cron + ingest load).
 const ARM_STATS_WRITE_CONCURRENCY = 20;
 
+// Bounded retries for the LinUCBArm compare-and-swap; contention beyond this
+// is logged and the reward dropped rather than spinning a cron/ingest worker.
+export const LINUCB_MAX_CAS_ATTEMPTS = 5;
+
 /**
  * Atomically apply temporal decay and a reward increment to a PersonaArmStats row.
  *
@@ -114,7 +118,7 @@ export async function batchUpsertUserArmStats(
 /**
  * Apply a LinUCB Sherman-Morrison update to a LinUCBArm.
  * Loads the arm (creating with identity prior if missing), applies LinUCB.update(),
- * and persists the new aInv and b to the database.
+ * and persists the new aInv and b with a compare-and-swap on `version`, retrying on contention.
  *
  * This closes the learning loop for the LinUCB algorithm:
  * without this call, theta = A^{-1}b = I*0 = 0 always.
@@ -140,46 +144,65 @@ export async function updateLinUCBArm(params: {
 
   const linUCB = new LinUCB();
 
-  let aInv: number[];
-  let b: number[];
+  for (let attempt = 0; attempt < LINUCB_MAX_CAS_ATTEMPTS; attempt++) {
+    const arm = await loadOrCreateLinUCBArm(agentId, variantId, linUCB);
+    const { aInv: newAInv, b: newB } = linUCB.update(arm.aInv, arm.b, contextVec, reward);
 
-  const row = await prisma.linUCBArm.findUnique({
-    where: { agentId_variantId: { agentId, variantId } },
-  });
-
-  if (!row || !Array.isArray(row.aInv) || (row.aInv as number[]).length !== FEATURE_DIM * FEATURE_DIM || !Array.isArray(row.b) || (row.b as number[]).length !== FEATURE_DIM) {
-    // No arm or stale dimension — initialize with identity prior and persist
-    const initial = linUCB.initialArm(FEATURE_DIM);
-    aInv = initial.aInv;
-    b = initial.b;
-    await prisma.linUCBArm.upsert({
-      where: { agentId_variantId: { agentId, variantId } },
-      create: {
-        agentId,
-        variantId,
-        aInv: aInv as unknown as Prisma.InputJsonValue,
-        b: b as unknown as Prisma.InputJsonValue,
-        tries: 0,
-      },
-      update: {
-        aInv: aInv as unknown as Prisma.InputJsonValue,
-        b: b as unknown as Prisma.InputJsonValue,
-        tries: 0,
+    // Compare-and-swap on version: a concurrent writer bumps it first, this
+    // write matches 0 rows, and we retry from a fresh read instead of
+    // overwriting their update (A and b are sums, so retry order is irrelevant).
+    const { count } = await prisma.linUCBArm.updateMany({
+      where: { agentId, variantId, version: arm.version },
+      data: {
+        aInv: newAInv as unknown as Prisma.InputJsonValue,
+        b: newB as unknown as Prisma.InputJsonValue,
+        tries: arm.stale ? 1 : { increment: 1 },
+        version: { increment: 1 },
       },
     });
-  } else {
-    aInv = row.aInv as number[];
-    b = row.b as number[];
+    if (count === 1) return;
   }
 
-  const { aInv: newAInv, b: newB } = linUCB.update(aInv, b, contextVec, reward);
+  console.warn(
+    `[updateLinUCBArm] dropped reward after ${LINUCB_MAX_CAS_ATTEMPTS} contended attempts agent=${agentId} variant=${variantId}`,
+  );
+}
 
-  await prisma.linUCBArm.update({
-    where: { agentId_variantId: { agentId, variantId } },
-    data: {
-      aInv: newAInv as unknown as Prisma.InputJsonValue,
-      b: newB as unknown as Prisma.InputJsonValue,
-      tries: { increment: 1 },
-    },
-  });
+/**
+ * Read the arm, creating an identity-prior row if it does not exist. Never
+ * overwrites an existing row: a concurrent creator's row (and any update
+ * already applied to it) wins via skipDuplicates. A row with the wrong
+ * dimension is returned as identity + stale=true; the caller's CAS write
+ * replaces it wholesale.
+ */
+async function loadOrCreateLinUCBArm(
+  agentId: string,
+  variantId: string,
+  linUCB: LinUCB,
+): Promise<{ aInv: number[]; b: number[]; version: number; stale: boolean }> {
+  const where = { agentId_variantId: { agentId, variantId } };
+  const initial = linUCB.initialArm(FEATURE_DIM);
+
+  let row = await prisma.linUCBArm.findUnique({ where });
+  if (!row) {
+    await prisma.linUCBArm.createMany({
+      data: [{
+        agentId,
+        variantId,
+        aInv: initial.aInv as unknown as Prisma.InputJsonValue,
+        b: initial.b as unknown as Prisma.InputJsonValue,
+        tries: 0,
+      }],
+      skipDuplicates: true,
+    });
+    row = await prisma.linUCBArm.findUniqueOrThrow({ where });
+  }
+
+  const hasValidShape =
+    Array.isArray(row.aInv) && (row.aInv as number[]).length === FEATURE_DIM * FEATURE_DIM &&
+    Array.isArray(row.b) && (row.b as number[]).length === FEATURE_DIM;
+  if (!hasValidShape) {
+    return { aInv: initial.aInv, b: initial.b, version: row.version, stale: true };
+  }
+  return { aInv: row.aInv as number[], b: row.b as number[], version: row.version, stale: false };
 }

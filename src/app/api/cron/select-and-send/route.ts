@@ -1056,6 +1056,7 @@ export async function POST(req: NextRequest) {
               aInv: freshArm.aInv as unknown as Prisma.InputJsonValue,
               b: freshArm.b as unknown as Prisma.InputJsonValue,
               tries: 0,
+              version: { increment: 1 },
             },
           })
         );
@@ -1813,6 +1814,7 @@ export async function POST(req: NextRequest) {
                     aInv: freshArm.aInv as unknown as Prisma.InputJsonValue,
                     b: freshArm.b as unknown as Prisma.InputJsonValue,
                     tries: 0,
+                    version: { increment: 1 },
                   },
                 })
               )
