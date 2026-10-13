@@ -6,7 +6,7 @@
 // Fix: compare-and-swap on LinUCBArm.version with bounded retry.
 import { afterEach, beforeEach, describe, expect, it, spyOn } from "bun:test";
 import { truncateAll, prisma } from "../helpers/db";
-import { updateLinUCBArm, LINUCB_MAX_CAS_ATTEMPTS } from "@/lib/arm-stats";
+import { updateLinUCBArm, resetStaleLinUCBArm, LINUCB_MAX_CAS_ATTEMPTS } from "@/lib/arm-stats";
 import { decideForUser } from "@/lib/decide";
 import { createAgent, createMessage, createPersona, createUser, createVariant } from "../helpers/builders";
 import { LinUCB } from "@/lib/engine/linucb";
@@ -70,6 +70,22 @@ describe("regression: concurrent LinUCB updates are not lost", () => {
     expect(arm.tries).toBe(0);
     expect((arm.aInv as number[]).length).toBe(FEATURE_DIM * FEATURE_DIM);
     expect((arm.b as number[]).length).toBe(FEATURE_DIM);
+  });
+
+  it("a stale-dimension reset that loses the CAS keeps the concurrent write instead of resetting over it", async () => {
+    // Reader saw the stale row at version 0; a concurrent updateLinUCBArm then
+    // replaced it with a learned, current-dimension arm at version 1.
+    await prisma.linUCBArm.create({
+      data: { agentId: "agent-1", variantId: "variant-1", aInv: [1, 0, 0, 1], b: [0, 0], tries: 3 },
+    });
+    await updateLinUCBArm({ agentId: "agent-1", variantId: "variant-1", contextVec: contexts(1)[0], reward: 1 });
+    const concurrent = await readArm();
+    expect(concurrent.version).toBe(1);
+
+    const used = await resetStaleLinUCBArm({ agentId: "agent-1", variantId: "variant-1", version: 0 });
+
+    expect(used).toEqual({ aInv: concurrent.aInv, b: concurrent.b });
+    expect(await readArm()).toEqual(concurrent);
   });
 });
 

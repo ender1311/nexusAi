@@ -33,6 +33,7 @@ import {
 } from "@/lib/engine/channel-preference";
 import { partitionByPreferredHour, trimToCap, resolveFetchLimit, resolvePerRunQuota, MAX_FETCH_LIMIT } from "@/lib/cron/caps";
 import { runChunked } from "@/lib/cron/chunk";
+import { resetStaleLinUCBArm } from "@/lib/arm-stats";
 import { selectCohort } from "@/lib/cron/cohort-assignment";
 import { createSegmentMemberLoader } from "@/lib/cron/segment-member-cache";
 import { classifyReleases, buildReleaseAgentInfo, type ReleaseAgentInfo, type ActiveAssignment } from "@/lib/cron/release-sweep";
@@ -1041,31 +1042,27 @@ export async function POST(req: NextRequest) {
     // constant for the whole run, and stale-reset has already fired). Re-loading every page is wasteful.
     const linucbArmsByVariant: Map<string, { id: string; aInv: number[]; b: number[] }> = new Map();
     if (agent.algorithm === "linucb" && lotteryUserIds.length > 0) {
-      const freshArm = new LinUCB().initialArm(FEATURE_DIM);
-      const allArms = await prisma.linUCBArm.findMany({ where: { agentId: agent.id, variantId: { in: allVariantIds } } });
+      // The read feeds a CAS reset, so it must carry `version`.
+      const allArms = await prisma.linUCBArm.findMany({
+        where: { agentId: agent.id, variantId: { in: allVariantIds } },
+        select: { agentId: true, variantId: true, aInv: true, b: true, version: true },
+      });
       const staleArms = allArms.filter(
         (r) =>
           !(Array.isArray(r.aInv) && (r.aInv as number[]).length === FEATURE_DIM * FEATURE_DIM) ||
           !(Array.isArray(r.b) && (r.b as number[]).length === FEATURE_DIM)
       );
+      const resetArmsByVariant = new Map<string, { aInv: number[]; b: number[] }>();
       if (staleArms.length > 0) {
-        await runChunked(staleArms, DB_WRITE_CONCURRENCY, (r) =>
-          prisma.linUCBArm.update({
-            where: { agentId_variantId: { agentId: r.agentId, variantId: r.variantId } },
-            data: {
-              aInv: freshArm.aInv as unknown as Prisma.InputJsonValue,
-              b: freshArm.b as unknown as Prisma.InputJsonValue,
-              tries: 0,
-              version: { increment: 1 },
-            },
-          })
-        );
+        await runChunked(staleArms, DB_WRITE_CONCURRENCY, async (r) => {
+          const reset = await resetStaleLinUCBArm({ agentId: r.agentId, variantId: r.variantId, version: r.version });
+          resetArmsByVariant.set(r.variantId, reset);
+        });
       }
-      const staleIds = new Set(staleArms.map((s) => s.variantId));
       for (const r of allArms) {
-        const isStale = staleIds.has(r.variantId);
-        const aInv = isStale ? freshArm.aInv : (r.aInv as number[]);
-        const b = isStale ? freshArm.b : (r.b as number[]);
+        const reset = resetArmsByVariant.get(r.variantId);
+        const aInv = reset ? reset.aInv : (r.aInv as number[]);
+        const b = reset ? reset.b : (r.b as number[]);
         linucbArmsByVariant.set(r.variantId, { id: r.variantId, aInv, b });
       }
     }
@@ -1799,33 +1796,29 @@ export async function POST(req: NextRequest) {
         // For LinUCB: load per-agent LinUCB arms once. Reset stale-dimension arms to identity in DB and in-memory.
         const windowLinucbArmsByVariant: Map<string, { id: string; aInv: number[]; b: number[] }> = new Map();
         if (agent.algorithm === "linucb") {
-          const freshArm = new LinUCB().initialArm(FEATURE_DIM);
-          const allArms = await prisma.linUCBArm.findMany({ where: { agentId: agent.id, variantId: { in: allVariantIds } } });
+          // The read feeds a CAS reset, so it must carry `version`.
+          const allArms = await prisma.linUCBArm.findMany({
+            where: { agentId: agent.id, variantId: { in: allVariantIds } },
+            select: { agentId: true, variantId: true, aInv: true, b: true, version: true },
+          });
           const staleArms = allArms.filter(
             (r) =>
               !(Array.isArray(r.aInv) && (r.aInv as number[]).length === FEATURE_DIM * FEATURE_DIM) ||
               !(Array.isArray(r.b) && (r.b as number[]).length === FEATURE_DIM)
           );
+          const resetArmsByVariant = new Map<string, { aInv: number[]; b: number[] }>();
           if (staleArms.length > 0) {
             await Promise.all(
-              staleArms.map((r) =>
-                prisma.linUCBArm.update({
-                  where: { agentId_variantId: { agentId: r.agentId, variantId: r.variantId } },
-                  data: {
-                    aInv: freshArm.aInv as unknown as Prisma.InputJsonValue,
-                    b: freshArm.b as unknown as Prisma.InputJsonValue,
-                    tries: 0,
-                    version: { increment: 1 },
-                  },
-                })
-              )
+              staleArms.map(async (r) => {
+                const reset = await resetStaleLinUCBArm({ agentId: r.agentId, variantId: r.variantId, version: r.version });
+                resetArmsByVariant.set(r.variantId, reset);
+              })
             );
           }
-          const staleIds = new Set(staleArms.map((s) => s.variantId));
           for (const r of allArms) {
-            const isStale = staleIds.has(r.variantId);
-            const aInv = isStale ? freshArm.aInv : (r.aInv as number[]);
-            const b = isStale ? freshArm.b : (r.b as number[]);
+            const reset = resetArmsByVariant.get(r.variantId);
+            const aInv = reset ? reset.aInv : (r.aInv as number[]);
+            const b = reset ? reset.b : (r.b as number[]);
             windowLinucbArmsByVariant.set(r.variantId, { id: r.variantId, aInv, b });
           }
         }

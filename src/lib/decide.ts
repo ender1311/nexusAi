@@ -7,6 +7,7 @@ import { evaluateTargetFilter, buildComputedKeys } from "@/lib/engine/target-fil
 import { isInQuietHours, isQuietDay, peakActivityHour } from "@/lib/engine/scheduling";
 import { parseQuietHours, parseFrequencyCap } from "@/lib/schemas/scheduling";
 import { prisma } from "@/lib/db";
+import { resetStaleLinUCBArm } from "@/lib/arm-stats";
 import type { BanditArm } from "@/lib/engine/types";
 import type { Prisma } from "@/generated/prisma/client";
 
@@ -230,12 +231,10 @@ export async function decideForUser(input: DecideInput): Promise<DecideResult | 
         });
         // If the stored arm was fit in the old feature space (wrong dimension), reset it in DB.
         const storedAInv = row.aInv as number[];
+        // The upsert returns the full row, so `version` feeds the CAS reset.
         if (storedAInv.length !== FEATURE_DIM * FEATURE_DIM) {
-          await prisma.linUCBArm.update({
-            where: { agentId_variantId: { agentId, variantId: v.id } },
-            data: { aInv: initial.aInv as unknown as Prisma.InputJsonValue, b: initial.b as unknown as Prisma.InputJsonValue, tries: 0, version: { increment: 1 } },
-          });
-          return { id: v.id, ...initial };
+          const reset = await resetStaleLinUCBArm({ agentId, variantId: v.id, version: row.version });
+          return { id: v.id, ...reset };
         }
         return { id: v.id, aInv: storedAInv, b: row.b as number[] };
       })

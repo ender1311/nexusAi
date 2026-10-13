@@ -164,12 +164,59 @@ export async function updateLinUCBArm(params: {
     });
     if (count === 1) return;
     // Short random jitter so contending writers stop retrying in lockstep.
-    await new Promise((resolve) => setTimeout(resolve, Math.random() * 5 * (attempt + 1)));
+    // No sleep after the final attempt: nothing follows it but the drop.
+    if (attempt < LINUCB_MAX_CAS_ATTEMPTS - 1) {
+      await new Promise((resolve) => setTimeout(resolve, Math.random() * 5 * (attempt + 1)));
+    }
   }
 
   console.warn(
     `[updateLinUCBArm] dropped reward after ${LINUCB_MAX_CAS_ATTEMPTS} contended attempts agent=${agentId} variant=${variantId}`,
   );
+}
+
+/**
+ * Reset a stale-dimension LinUCBArm (fit in an old feature space) to the
+ * identity prior, with a compare-and-swap on the `version` the caller read.
+ * If 0 rows match, another writer already rewrote the arm: re-read it and
+ * return what is there rather than resetting again over their write.
+ * Returns the arm state the caller should select with.
+ */
+export async function resetStaleLinUCBArm(params: {
+  agentId: string;
+  variantId: string;
+  /** The `version` of the stale row the caller read */
+  version: number;
+}): Promise<{ aInv: number[]; b: number[] }> {
+  const { agentId, variantId, version } = params;
+  const initial = new LinUCB().initialArm(FEATURE_DIM);
+
+  const { count } = await prisma.linUCBArm.updateMany({
+    where: { agentId, variantId, version },
+    data: {
+      aInv: initial.aInv as unknown as Prisma.InputJsonValue,
+      b: initial.b as unknown as Prisma.InputJsonValue,
+      tries: 0,
+      version: { increment: 1 },
+    },
+  });
+  if (count === 1) return initial;
+
+  const current = await prisma.linUCBArm.findUnique({
+    where: { agentId_variantId: { agentId, variantId } },
+    select: { aInv: true, b: true },
+  });
+  if (current && hasCurrentDimension(current)) {
+    return { aInv: current.aInv as number[], b: current.b as number[] };
+  }
+  // The concurrent write was itself not a current-dimension arm (or the row
+  // is gone): select with the identity prior in memory, write nothing.
+  return initial;
+}
+
+function hasCurrentDimension(arm: { aInv: unknown; b: unknown }): boolean {
+  return Array.isArray(arm.aInv) && arm.aInv.length === FEATURE_DIM * FEATURE_DIM &&
+    Array.isArray(arm.b) && arm.b.length === FEATURE_DIM;
 }
 
 /**
@@ -202,10 +249,7 @@ async function loadOrCreateLinUCBArm(
     row = await prisma.linUCBArm.findUniqueOrThrow({ where });
   }
 
-  const hasValidShape =
-    Array.isArray(row.aInv) && (row.aInv as number[]).length === FEATURE_DIM * FEATURE_DIM &&
-    Array.isArray(row.b) && (row.b as number[]).length === FEATURE_DIM;
-  if (!hasValidShape) {
+  if (!hasCurrentDimension(row)) {
     return { aInv: initial.aInv, b: initial.b, version: row.version, stale: true };
   }
   return { aInv: row.aInv as number[], b: row.b as number[], version: row.version, stale: false };
