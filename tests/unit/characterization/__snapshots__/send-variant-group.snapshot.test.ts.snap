@@ -1,6 +1,6 @@
 // Bun Snapshot v1, https://bun.sh/docs/test/snapshots
 
-exports[`characterization: sendVariantGroup Braze contract push — immediate 1`] = `
+exports[`characterization: sendVariantGroup Braze contract push — scheduledAt=now 1`] = `
 {
   "db": [
     {
@@ -131,7 +131,7 @@ exports[`characterization: sendVariantGroup Braze contract push — scheduled 1`
 }
 `;
 
-exports[`characterization: sendVariantGroup Braze contract email — immediate 1`] = `
+exports[`characterization: sendVariantGroup Braze contract email — scheduledAt=now 1`] = `
 {
   "db": [
     {
@@ -244,7 +244,7 @@ exports[`characterization: sendVariantGroup Braze contract email — scheduled 1
 }
 `;
 
-exports[`characterization: sendVariantGroup Braze contract sms — immediate 1`] = `
+exports[`characterization: sendVariantGroup Braze contract sms — scheduledAt=now 1`] = `
 {
   "db": [
     {
@@ -351,7 +351,7 @@ exports[`characterization: sendVariantGroup Braze contract sms — scheduled 1`]
 }
 `;
 
-exports[`characterization: sendVariantGroup Braze contract content-card — immediate 1`] = `
+exports[`characterization: sendVariantGroup Braze contract content-card — scheduledAt=now 1`] = `
 {
   "db": [
     {
@@ -455,7 +455,7 @@ exports[`characterization: sendVariantGroup Braze contract content-card — sche
 }
 `;
 
-exports[`characterization: sendVariantGroup Braze contract in-app — immediate 1`] = `
+exports[`characterization: sendVariantGroup Braze contract in-app — scheduledAt=now 1`] = `
 {
   "db": [
     {
@@ -557,7 +557,7 @@ exports[`characterization: sendVariantGroup Braze contract in-app — scheduled 
 }
 `;
 
-exports[`characterization: sendVariantGroup Braze contract modal-iam — immediate 1`] = `
+exports[`characterization: sendVariantGroup Braze contract modal-iam — scheduledAt=now 1`] = `
 {
   "db": [
     {
@@ -659,74 +659,6 @@ exports[`characterization: sendVariantGroup Braze contract modal-iam — schedul
   "result": {
     "errors": 0,
     "sent": 2,
-  },
-}
-`;
-
-exports[`characterization: sendVariantGroup Braze contract push — Braze 400 records FailedBrazeSend 1`] = `
-{
-  "db": [
-    {
-      "args": {
-        "data": {
-          "agentId": "agent-1",
-          "channel": "push",
-          "decisionIds": [
-            "d1",
-            "d2",
-          ],
-          "reason": "HTTP 400: {"message":"Invalid request"}",
-          "userIds": [
-            "u1",
-            "braze-only-1",
-          ],
-          "variantId": "v-push",
-        },
-      },
-      "op": "failedBrazeSend.create",
-    },
-  ],
-  "requests": [
-    {
-      "body": {
-        "campaign_id": "nexus-campaign",
-        "messages": {
-          "android_push": {
-            "alert": "Body",
-            "app_id": "android-app",
-            "custom_uri": "youversion://home",
-            "message_variation_id": "bv-push",
-            "title": "Title",
-          },
-          "apple_push": {
-            "alert": {
-              "body": "Body",
-              "title": "Title",
-            },
-            "app_id": "ios-app",
-            "custom_uri": "youversion://home",
-            "message_variation_id": "bv-push",
-          },
-        },
-        "recipients": [
-          {
-            "external_user_id": "u1",
-          },
-          {
-            "braze_id": "braze-only-1",
-          },
-        ],
-        "schedule": {
-          "time": "2026-05-30T12:00:00.000Z",
-        },
-      },
-      "method": "POST",
-      "url": "https://rest.test.braze.com/messages/schedule/create",
-    },
-  ],
-  "result": {
-    "errors": 2,
-    "sent": 0,
   },
 }
 `;
@@ -887,6 +819,143 @@ exports[`characterization: sendVariantGroup Braze contract sms — no scheduledA
       },
       "method": "POST",
       "url": "https://rest.test.braze.com/messages/send",
+    },
+  ],
+  "result": {
+    "errors": 0,
+    "sent": 2,
+  },
+}
+`;
+
+exports[`characterization: sendVariantGroup Braze contract push — Braze 400 records FailedBrazeSend 1`] = `
+{
+  "db": [
+    {
+      "args": {
+        "data": {
+          "agentId": "agent-1",
+          "channel": "push",
+          "decisionIds": [
+            "d1",
+            "d2",
+          ],
+          "reason": "HTTP 400: {"message":"Invalid request"}",
+          "userIds": [
+            "u1",
+            "braze-only-1",
+          ],
+          "variantId": "v-push",
+        },
+      },
+      "op": "failedBrazeSend.create",
+    },
+  ],
+  "requests": [
+    {
+      "body": {
+        "campaign_id": "nexus-campaign",
+        "messages": {
+          "android_push": {
+            "alert": "Body",
+            "app_id": "android-app",
+            "custom_uri": "youversion://home",
+            "message_variation_id": "bv-push",
+            "title": "Title",
+          },
+          "apple_push": {
+            "alert": {
+              "body": "Body",
+              "title": "Title",
+            },
+            "app_id": "ios-app",
+            "custom_uri": "youversion://home",
+            "message_variation_id": "bv-push",
+          },
+        },
+        "recipients": [
+          {
+            "external_user_id": "u1",
+          },
+          {
+            "braze_id": "braze-only-1",
+          },
+        ],
+        "schedule": {
+          "time": "2026-05-30T12:00:00.000Z",
+        },
+      },
+      "method": "POST",
+      "url": "https://rest.test.braze.com/messages/schedule/create",
+    },
+  ],
+  "result": {
+    "errors": 2,
+    "sent": 0,
+  },
+}
+`;
+
+exports[`characterization: sendVariantGroup Braze contract push — scheduled with iOS/Android image URLs 1`] = `
+{
+  "db": [
+    {
+      "args": {
+        "data": {
+          "brazeScheduleId": "sched-1",
+          "brazeSendId": "<uuid>",
+        },
+        "where": {
+          "id": {
+            "in": [
+              "d1",
+              "d2",
+            ],
+          },
+        },
+      },
+      "op": "userDecision.updateMany",
+    },
+  ],
+  "requests": [
+    {
+      "body": {
+        "campaign_id": "nexus-campaign",
+        "messages": {
+          "android_push": {
+            "alert": "Body",
+            "app_id": "android-app",
+            "custom_uri": "youversion://home",
+            "image_url": "https://img.test/verse-android.png",
+            "message_variation_id": "bv-push",
+            "title": "Title",
+          },
+          "apple_push": {
+            "alert": {
+              "body": "Body",
+              "title": "Title",
+            },
+            "app_id": "ios-app",
+            "asset_file_type": "png",
+            "asset_url": "https://img.test/verse-ios.png",
+            "custom_uri": "youversion://home",
+            "message_variation_id": "bv-push",
+          },
+        },
+        "recipients": [
+          {
+            "external_user_id": "u1",
+          },
+          {
+            "braze_id": "braze-only-1",
+          },
+        ],
+        "schedule": {
+          "time": "2026-05-30T15:00:00.000Z",
+        },
+      },
+      "method": "POST",
+      "url": "https://rest.test.braze.com/messages/schedule/create",
     },
   ],
   "result": {

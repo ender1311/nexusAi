@@ -58,7 +58,7 @@ describe("characterization: groupDecisionsByVariant", () => {
     ]);
     const decisionIdByUser = new Map([
       ["u1", "d1"], ["u2", "d2"], ["braze-abc", "d3"], ["u4", "d4"],
-      ["u5", "d5"], ["u6", "d6"], ["u7", "d7"], ["u8", "d8"],
+      ["u5", "d5"], ["u6", "d6"], ["u7", "d7"], ["u8", "d8"], ["u10", "d10"],
       // u9 has no decision id → must be dropped
     ]);
 
@@ -73,9 +73,47 @@ describe("characterization: groupDecisionsByVariant", () => {
         { user: user("u7"), variantId: "v-slideup", scheduledAt: AT, inLocalTime: false },
         { user: user("u8", null, { gift_amount_most_recent: 40 }), variantId: "v-give", scheduledAt: AT, inLocalTime: false },
         { user: user("u9"), variantId: "v-modal", scheduledAt: AT, inLocalTime: false },
+        { user: user("u10"), variantId: "v-modal", scheduledAt: AT, inLocalTime: false },
       ],
       variantMeta,
       decisionIdByUser,
+    );
+
+    expect(normalizeGroups(groups)).toMatchSnapshot();
+  });
+
+  it("strict localization serves translated copy, keeps English, and drops unservable languages", () => {
+    const variantMeta = new Map<string, VariantMeta>([["v-push", meta()]]);
+    const decisionIdByUser = new Map([["u-en", "d-en"], ["u-es", "d-es"], ["u-fr", "d-fr"]]);
+    const groups = groupDecisionsByVariant(
+      [
+        { user: user("u-en", null, { language_tag: "en" }), variantId: "v-push", scheduledAt: AT, inLocalTime: false },
+        { user: user("u-es", null, { language_tag: "es_MX" }), variantId: "v-push", scheduledAt: AT, inLocalTime: false },
+        // No "fr" translation → strict localization drops this user.
+        { user: user("u-fr", null, { language_tag: "fr" }), variantId: "v-push", scheduledAt: AT, inLocalTime: false },
+      ],
+      variantMeta,
+      decisionIdByUser,
+      {
+        enabled: true,
+        translationsByVariant: new Map([["v-push", new Map([["es", { title: "Título", body: "hola" }]])]]),
+      },
+    );
+
+    expect(normalizeGroups(groups)).toMatchSnapshot();
+  });
+
+  it("dynamic giving handle uses the givingMultiplier for the Bibles count", () => {
+    const variantMeta = new Map<string, VariantMeta>([
+      ["v-handle", meta({ body: "Give {{ask}} to share {{bibles}} Bibles", givingHandleStrategy: "recent-gift", brazeVariantId: "var-handle" })],
+    ]);
+    const decisionIdByUser = new Map([["u-giver", "d-giver"]]);
+    const groups = groupDecisionsByVariant(
+      [{ user: user("u-giver", null, { gift_amount_most_recent: 40 }), variantId: "v-handle", scheduledAt: AT, inLocalTime: false }],
+      variantMeta,
+      decisionIdByUser,
+      undefined,
+      3,
     );
 
     expect(normalizeGroups(groups)).toMatchSnapshot();

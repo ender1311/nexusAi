@@ -72,6 +72,28 @@ exports[`characterization: groupDecisionsByVariant groups every channel the same
     "androidImageUrl": null,
     "body": "hello",
     "brazeCampaignId": "camp-1",
+    "brazeOnlyIds": [],
+    "brazeVariantId": "var-modal",
+    "channel": "modal-iam",
+    "cta": "Open",
+    "decisionIds": [
+      "d10",
+    ],
+    "deeplink": "app://home",
+    "externalUserIds": [
+      "u10",
+    ],
+    "inLocalTime": false,
+    "iosImageUrl": null,
+    "key": "v-modal:2026-05-30T12:00:00.000Z:false:app://home\x00\x00",
+    "scheduledAt": "2026-05-30T12:00:00.000Z",
+    "title": "Title",
+    "variantId": "v-modal",
+  },
+  {
+    "androidImageUrl": null,
+    "body": "hello",
+    "brazeCampaignId": "camp-1",
     "brazeOnlyIds": [
       "braze-abc",
     ],
@@ -159,6 +181,82 @@ exports[`characterization: groupDecisionsByVariant groups every channel the same
     "scheduledAt": "2026-05-30T12:00:00.000Z",
     "title": null,
     "variantId": "v-slideup",
+  },
+]
+`;
+
+exports[`characterization: groupDecisionsByVariant strict localization serves translated copy, keeps English, and drops unservable languages 1`] = `
+[
+  {
+    "androidImageUrl": null,
+    "body": "hello",
+    "brazeCampaignId": "camp-1",
+    "brazeOnlyIds": [],
+    "brazeVariantId": "var-1",
+    "channel": "push",
+    "cta": null,
+    "decisionIds": [
+      "d-en",
+    ],
+    "deeplink": "app://home",
+    "externalUserIds": [
+      "u-en",
+    ],
+    "inLocalTime": false,
+    "iosImageUrl": null,
+    "key": "v-push:2026-05-30T12:00:00.000Z:false:app://home:Title\x00hello\x00\x00",
+    "scheduledAt": "2026-05-30T12:00:00.000Z",
+    "title": "Title",
+    "variantId": "v-push",
+  },
+  {
+    "androidImageUrl": null,
+    "body": "hola",
+    "brazeCampaignId": "camp-1",
+    "brazeOnlyIds": [],
+    "brazeVariantId": "var-1",
+    "channel": "push",
+    "cta": null,
+    "decisionIds": [
+      "d-es",
+    ],
+    "deeplink": "app://home",
+    "externalUserIds": [
+      "u-es",
+    ],
+    "inLocalTime": false,
+    "iosImageUrl": null,
+    "key": "v-push:2026-05-30T12:00:00.000Z:false:app://home:Título\x00hola\x00\x00",
+    "scheduledAt": "2026-05-30T12:00:00.000Z",
+    "title": "Título",
+    "variantId": "v-push",
+  },
+]
+`;
+
+exports[`characterization: groupDecisionsByVariant dynamic giving handle uses the givingMultiplier for the Bibles count 1`] = `
+[
+  {
+    "androidImageUrl": null,
+    "body": "Give $50 to share 150 Bibles",
+    "brazeCampaignId": "camp-1",
+    "brazeOnlyIds": [],
+    "brazeVariantId": "var-handle",
+    "channel": "push",
+    "cta": null,
+    "decisionIds": [
+      "d-giver",
+    ],
+    "deeplink": "app://home",
+    "externalUserIds": [
+      "u-giver",
+    ],
+    "inLocalTime": false,
+    "iosImageUrl": null,
+    "key": "v-handle:2026-05-30T12:00:00.000Z:false:app://home:Title\x00Give $50 to share 150 Bibles\x00\x00",
+    "scheduledAt": "2026-05-30T12:00:00.000Z",
+    "title": "Title",
+    "variantId": "v-handle",
   },
 ]
 `;
