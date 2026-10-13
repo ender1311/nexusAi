@@ -412,7 +412,7 @@ Each phase has its own implementation plan. Every phase ships to production with
 
 ## 10. Testing
 
-- **Recorded-output tests (P0).** Freeze the current behaviour before refactoring. They live in `tests/characterization/`.
+- **Recorded-output tests (P0).** Freeze the current behaviour before refactoring. The pure and HTTP layers (send grouping, the per-channel Braze send) live in `tests/unit/characterization/`; the full cron runs live in `tests/integration/characterization-*.test.ts`.
 - **Connector conformance kit.** `tests/connectors/conformance.ts` exports `runConnectorConformance(entry, fixtures)`. Every connector must pass these checks:
   - the config schema accepts good fixtures and rejects bad ones;
   - translators turn recorded real vendor payloads (`tests/fixtures/connectors/<vendor>/`) into the expected canonical events;
