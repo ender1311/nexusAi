@@ -5,6 +5,7 @@ import type { UserStatsInput } from "@/lib/engine/feature-vector";
 const emptyStats: UserStatsInput = {
   totalDecisions: 0, totalConversions: 0, totalReward: 0,
   channelStats: {}, hourlyStats: [], dailyStats: [],
+  asOf: new Date("2026-05-30T12:00:00Z"),
 };
 
 describe("computeFeatureVector", () => {

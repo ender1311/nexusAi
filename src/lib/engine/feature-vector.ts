@@ -45,7 +45,7 @@ export interface UserStatsInput {
   /** Semantic attributes synced from YouVersion via Hightouch (User.attributes JSON blob) */
   attributes?: Record<string, unknown>;
   /** Evaluation date for year-to-date rates. Callers pass their clock; the engine never reads Date.now(). */
-  asOf?: Date;
+  asOf: Date;
 }
 
 /** 1-based day of the year in UTC (Jan 1 → 1). */
@@ -130,9 +130,9 @@ export function computeFeatureVector(stats: UserStatsInput): number[] {
   // [8] Spiritual depth — mean of five engagement depth signals, each in [0,1].
   // Hightouch sends *_current_year_count; *_current_month_count / badge_lifetime_count
   // are honoured when present. Year counts become a daily rate: count / day-of-year
-  // (or /365 when the caller passes no asOf), the same "share of days" meaning as month/30.
+  // of asOf, the same "share of days" meaning as month/30.
   const has = (key: string): boolean => attrs[key] !== undefined && attrs[key] !== null;
-  const daysElapsed = stats.asOf ? dayOfYearUtc(stats.asOf) : 365;
+  const daysElapsed = dayOfYearUtc(stats.asOf);
   const dailyRate = (monthKey: string, yearKey: string): number =>
     has(monthKey)
       ? Math.min(1, num(monthKey) / 30)

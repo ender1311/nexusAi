@@ -9,11 +9,11 @@ import { describe, expect, it } from "bun:test";
 import { computeFeatureVector, dayOfYearUtc } from "@/lib/engine/feature-vector";
 import type { UserStatsInput } from "@/lib/engine/feature-vector";
 
+const MAY_30 = new Date("2026-05-30T12:00:00Z"); // day 150
 const base: UserStatsInput = {
   totalDecisions: 0, totalConversions: 0, totalReward: 0,
-  channelStats: {}, hourlyStats: [], dailyStats: [],
+  channelStats: {}, hourlyStats: [], dailyStats: [], asOf: MAY_30,
 };
-const MAY_30 = new Date("2026-05-30T12:00:00Z"); // day 150
 
 describe("regression: spiritual depth uses the keys Hightouch sends", () => {
   it("dayOfYearUtc is 1-based", () => {
@@ -42,10 +42,5 @@ describe("regression: spiritual depth uses the keys Hightouch sends", () => {
     expect(Number.isFinite(v)).toBe(true);
     expect(v).toBeGreaterThanOrEqual(0);
     expect(v).toBeLessThanOrEqual(1);
-  });
-
-  it("without asOf the year count is divided by 365", () => {
-    const v = computeFeatureVector({ ...base, attributes: { gp_current_year_count: 73 } })[8];
-    expect(v).toBeCloseTo((73 / 365) / 5, 6);
   });
 });
