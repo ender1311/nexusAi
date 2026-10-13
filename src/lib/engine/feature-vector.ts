@@ -44,6 +44,14 @@ export interface UserStatsInput {
   dailyStats: unknown;
   /** Semantic attributes synced from YouVersion via Hightouch (User.attributes JSON blob) */
   attributes?: Record<string, unknown>;
+  /** Evaluation date for year-to-date rates. Callers pass their clock; the engine never reads Date.now(). */
+  asOf?: Date;
+}
+
+/** 1-based day of the year in UTC (Jan 1 → 1). */
+export function dayOfYearUtc(d: Date): number {
+  const start = Date.UTC(d.getUTCFullYear(), 0, 1);
+  return Math.floor((d.getTime() - start) / 86_400_000) + 1;
 }
 
 export function computeFeatureVector(stats: UserStatsInput): number[] {
@@ -119,12 +127,22 @@ export function computeFeatureVector(stats: UserStatsInput): number[] {
     ? 1.0
     : giverTier === "giver" ? 0.5 : 0.0;
 
-  // [8] Spiritual depth — mean of five engagement depth signals, each in [0,1]
-  const streak  = Math.min(1, num("plan_day_current_month_count") / 31);
-  const plan    = Math.log(1 + num("plan_finish_lifetime_count")) / Math.log(501);
-  const prayer  = Math.min(1, num("gp_current_month_count") / 30);
-  const scripture = Math.min(1, num("gs_current_month_count") / 30);
-  const badge   = Math.log(1 + num("badge_lifetime_count")) / Math.log(201);
+  // [8] Spiritual depth — mean of five engagement depth signals, each in [0,1].
+  // Hightouch sends *_current_year_count; *_current_month_count / badge_lifetime_count
+  // are honoured when present. Year counts become a daily rate: count / day-of-year
+  // (or /365 when the caller passes no asOf), the same "share of days" meaning as month/30.
+  const has = (key: string): boolean => attrs[key] !== undefined && attrs[key] !== null;
+  const daysElapsed = stats.asOf ? dayOfYearUtc(stats.asOf) : 365;
+  const dailyRate = (monthKey: string, yearKey: string): number =>
+    has(monthKey)
+      ? Math.min(1, num(monthKey) / 30)
+      : Math.min(1, num(yearKey) / daysElapsed);
+  const streak    = Math.min(1, num("plan_day_current_month_count") / 31);
+  const plan      = Math.log(1 + num("plan_finish_lifetime_count")) / Math.log(501);
+  const prayer    = dailyRate("gp_current_month_count", "gp_current_year_count");
+  const scripture = dailyRate("gs_current_month_count", "gs_current_year_count");
+  const badgeCount = has("badge_lifetime_count") ? num("badge_lifetime_count") : num("badge_current_year_count");
+  const badge     = Math.log(1 + Math.max(0, badgeCount)) / Math.log(201);
   vec[8] = (streak + plan + prayer + scripture + badge) / 5;
 
   // [9] Engagement frequency — log-scaled decisions/week (~4-week window)

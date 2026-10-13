@@ -38,6 +38,7 @@ export async function assignUserToPersona(
   if (discoveredPersonas.length === 0) return { personaId: null, confidence: 0 };
 
   const userVec = computeFeatureVector({
+    asOf: new Date(),
     totalDecisions: user.totalDecisions,
     totalConversions: user.totalConversions,
     totalReward: user.totalReward,
@@ -113,8 +114,10 @@ export async function batchAssignPersonas(config: AssignmentConfig = {}): Promis
     centroid: p.centroid as number[] | null,
   }));
   const byPersona = new Map<string, string[]>();
+  const now = new Date();
   for (const u of users) {
     const vec = computeFeatureVector({
+      asOf: now,
       totalDecisions: u.totalDecisions,
       totalConversions: u.totalConversions,
       totalReward: u.totalReward,
@@ -131,7 +134,6 @@ export async function batchAssignPersonas(config: AssignmentConfig = {}): Promis
   }
 
   // One updateMany per persona (N_personas queries, not N_users queries).
-  const now = new Date();
   await Promise.all(
     [...byPersona.entries()].map(([personaId, externalIds]) =>
       prisma.trackedUser.updateMany({
@@ -179,8 +181,10 @@ export async function discoverPersonas(config: DiscoveryConfig = {}): Promise<{
   }
 
   // Compute feature vectors (including semantic attributes from Hightouch)
+  const asOf = new Date();
   const vectors = eligibleUsers.map((u) =>
     computeFeatureVector({
+      asOf,
       totalDecisions: u.totalDecisions,
       totalConversions: u.totalConversions,
       totalReward: u.totalReward,

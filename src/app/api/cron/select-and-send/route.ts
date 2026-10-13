@@ -1367,6 +1367,7 @@ export async function POST(req: NextRequest) {
                     hourlyStats:      user.hourlyStats,
                     dailyStats:       user.dailyStats,
                     attributes:       (user.attributes as Record<string, unknown>) ?? {},
+                    asOf:             now,
                   });
             lotteryContextVector = context;
             // linucbArms is non-empty (guarded above)
@@ -1871,6 +1872,7 @@ export async function POST(req: NextRequest) {
                     hourlyStats:      user.hourlyStats,
                     dailyStats:       user.dailyStats,
                     attributes:       (user.attributes as Record<string, unknown>) ?? {},
+                    asOf:             now,
                   });
             windowContextVector = context;
             // linucbArms is non-empty (guarded above)

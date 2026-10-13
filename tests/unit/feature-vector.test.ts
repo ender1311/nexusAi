@@ -153,6 +153,19 @@ describe("computeFeatureVector", () => {
     expect(val).toBeLessThanOrEqual(1);
   });
 
+  it("[8] year counts are capped at 1 per day-rate signal", () => {
+    const attrs = { gp_current_year_count: 10_000, gs_current_year_count: 10_000 };
+    const val = computeFeatureVector({ ...emptyStats, attributes: attrs, asOf: new Date("2026-03-01T00:00:00Z") })[8];
+    expect(val).toBeCloseTo(2 / 5, 6);
+  });
+
+  it("[8] asOf does not affect month-key results", () => {
+    const attrs = { gp_current_month_count: 15 };
+    const a = computeFeatureVector({ ...emptyStats, attributes: attrs, asOf: new Date("2026-02-01T00:00:00Z") })[8];
+    const b = computeFeatureVector({ ...emptyStats, attributes: attrs, asOf: new Date("2026-12-01T00:00:00Z") })[8];
+    expect(a).toBe(b);
+  });
+
   it("[8] spiritual depth is 0 with no attributes", () => {
     expect(computeFeatureVector(emptyStats)[8]).toBe(0);
   });

@@ -168,9 +168,9 @@ export default function FeatureVectorsPage() {
       <div className="font-mono text-sm bg-muted/40 rounded-lg p-4 my-4 overflow-x-auto border">
         {`streak   = min(1, plan_day_current_month_count / 31)`}{"\n"}
         {`plan     = log(1 + plan_finish_lifetime_count) / log(501)`}{"\n"}
-        {`prayer   = min(1, gp_current_month_count / 30)`}{"\n"}
-        {`scripture= min(1, gs_current_month_count / 30)`}{"\n"}
-        {`badge    = log(1 + badge_lifetime_count) / log(201)`}{"\n\n"}
+        {`prayer   = gp_current_month_count/30  else  gp_current_year_count / day_of_year`}{"\n"}
+        {`scripture= gs_current_month_count/30  else  gs_current_year_count / day_of_year`}{"\n"}
+        {`badge    = log(1 + badge_lifetime_count | badge_current_year_count) / log(201)`}{"\n\n"}
         {`vec[8]   = (streak + plan + prayer + scripture + badge) / 5`}
       </div>
       <p className="text-sm leading-relaxed">

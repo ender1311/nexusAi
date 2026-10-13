@@ -250,6 +250,7 @@ export async function decideForUser(input: DecideInput): Promise<DecideResult | 
       hourlyStats: user.hourlyStats,
       dailyStats: user.dailyStats,
       attributes: (user.attributes as Record<string, unknown>) ?? {},
+      asOf: now,
     });
 
     // linUCBArms is non-empty (built from the guaranteed-non-empty variants list)
