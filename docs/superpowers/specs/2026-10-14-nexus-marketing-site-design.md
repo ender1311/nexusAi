@@ -63,7 +63,7 @@ All copy lives in `apps/site/content/*.ts`, so it can change without touching co
   - responses follow the repo contract: `{ data }` or `{ error }`.
 - **Storage:** Prisma model `DesignPartnerLead { id, email, company, source, sender, useCase, createdAt, userAgent }` in `nexus-demo-db`. The table is created by an idempotent SQL file, `apps/site/db/001_design_partner_lead.sql`, applied with psql.
 - **Email:** Resend sends from `nexus@beaconfrontier.com` to `LEAD_NOTIFY_EMAIL`. A failed email is logged; the lead is still saved and the visitor still gets the calendar.
-- **After submit:** the Calendly inline embed (`NEXT_PUBLIC_CALENDLY_URL`), pre-filled with name and email.
+- **After submit:** the Calendly inline embed (`NEXT_PUBLIC_CALENDLY_URL=https://calendly.com/danluk1311/30min`), pre-filled with name and email.
 - **Env (`nexus-site` project):** `DATABASE_URL` (the `nexus-demo-db` integration), `RESEND_API_KEY`, `LEAD_NOTIFY_EMAIL`, `NEXT_PUBLIC_CALENDLY_URL`.
 
 ## 5. Routing and headers
@@ -106,6 +106,5 @@ Sign-up, a pricing page, visitor-entered rates, A/B testing the site itself, and
 
 ## 10. Open items
 
-- Dan to provide the Calendly URL.
 - Move `LEAD_NOTIFY_EMAIL` to a `@beaconfrontier.com` inbox once SES forwarding is confirmed.
 - YouVersion permission before any named proof.
