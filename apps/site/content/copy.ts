@@ -17,7 +17,7 @@ export const COPY = {
     { name: "Epsilon-greedy", body: "Simple and predictable: mostly the leader, sometimes a test." },
     { name: "LinUCB", body: "Contextual. Learns what works for each kind of user." },
   ],
-  provenance: "Every decision is logged with the variant chosen and the user context it was chosen on, and you can inspect it in the console.",
+  provenance: "Every decision is logged with the variant chosen and the user context it was chosen on, and is inspectable in the Nexus console.",
   comparison: {
     title: "Why not your ESP's built-in AI?",
     rows: [

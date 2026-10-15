@@ -3,6 +3,7 @@ import { describe, expect, it } from "bun:test";
 import { readdirSync, readFileSync, statSync } from "node:fs";
 import path from "node:path";
 import { COPY } from "@site/content/copy";
+import { publicConfig } from "@site/lib/public-config";
 
 function allSiteText(dir: string): string {
   return readdirSync(dir).map((f) => {
@@ -25,12 +26,16 @@ describe("site copy", () => {
     }
   });
 
-  it("makes no claim that isn't true today", () => {
-    const json = JSON.stringify(COPY);
-    for (const banned of [/any (cdp|warehouse|esp)/i, /without decisioning/i, /why it was made/i]) {
-      expect(json).not.toMatch(banned);
+  it("makes no claim that isn't true today, anywhere in the site source", () => {
+    const text = allSiteText(path.join(import.meta.dir, ".."));
+    for (const banned of [/any (cdp|warehouse|esp)/i, /without decisioning/i, /why it was made/i, /copies only the fields you map/i, /plugs into/i, /every decision explained/i]) {
+      expect(text).not.toMatch(banned);
     }
     const selfHost = COPY.faq.find((f) => /self-host/i.test(f.q));
     expect(selfHost?.a).not.toMatch(/^yes/i);
+  });
+
+  it("keeps the demo console link hidden", () => {
+    expect(publicConfig.showConsoleLink).toBe(false);
   });
 });
