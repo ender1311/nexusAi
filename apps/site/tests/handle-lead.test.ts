@@ -13,7 +13,7 @@ function memoryStore(): LeadStore & { rows: LeadRecord[] } {
     },
   };
 }
-const valid = { email: "ana@acme.io", company: "Acme", source: "snowflake", sender: "iterable", useCase: "Win back lapsed trial users", website: "" };
+const valid = { email: "ana@acme.io", company: "Acme", source: "snowflake", sender: "iterable", useCase: "Win back lapsed trial users", nx_hp: "" };
 const ctx = { ip: "203.0.113.7", userAgent: "test", ipSalt: "test-salt", now: new Date("2026-10-14T12:00:00Z") };
 
 describe("handleLead", () => {
@@ -38,7 +38,7 @@ describe("handleLead", () => {
 
   it("silently accepts a honeypot hit with 200 and stores nothing", async () => {
     const store = memoryStore(); let emailed = false;
-    const res = await handleLead({ ...valid, website: "http://spam" }, ctx, { store, email: async () => { emailed = true; }, log: () => {} });
+    const res = await handleLead({ ...valid, nx_hp: "http://spam" }, ctx, { store, email: async () => { emailed = true; }, log: () => {} });
     expect(res.status).toBe(200);
     expect(store.rows).toHaveLength(0);
     expect(emailed).toBe(false);
@@ -67,5 +67,23 @@ describe("handleLead", () => {
     const store: LeadStore = { insertIfUnderLimit: async () => { throw new Error('relation "DesignPartnerLead" does not exist'); } };
     const res = await handleLead(valid, ctx, { store, email: async () => {}, log: () => {} });
     expect(res).toEqual({ status: 500, body: { error: "Something went wrong. Please try again." } });
+  });
+
+  it("defers the notification email until after the response when afterResponse is given", async () => {
+    const store = memoryStore(); const sent: LeadRecord[] = []; const deferred: (() => Promise<void>)[] = []; const logs: string[] = [];
+    const res = await handleLead(valid, ctx, {
+      store, email: async (l) => { sent.push(l); }, log: (m) => logs.push(m), afterResponse: (fn) => { deferred.push(fn); },
+    });
+    expect(res.status).toBe(201);
+    expect(store.rows).toHaveLength(1);
+    expect(sent).toHaveLength(0);
+    expect(deferred).toHaveLength(1);
+    await deferred[0]!();
+    expect(sent).toHaveLength(1);
+
+    const failing: (() => Promise<void>)[] = [];
+    await handleLead(valid, ctx, { store, email: async () => { throw new Error("resend down"); }, log: (m) => logs.push(m), afterResponse: (fn) => { failing.push(fn); } });
+    await failing[0]!();
+    expect(logs.join(" ")).toContain("email notification failed");
   });
 });

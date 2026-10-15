@@ -4,7 +4,7 @@ import { connectorLabel, senders, sources } from "@site/content/connectors";
 import { publicConfig } from "@site/lib/public-config";
 import { calendlyEmbedUrl } from "@site/lib/leads/calendly-url";
 
-type State = { kind: "idle" } | { kind: "sending" } | { kind: "error"; message: string } | { kind: "booked"; url: string };
+type State = { kind: "idle" } | { kind: "sending" } | { kind: "error"; message: string; offerDirectBooking: boolean } | { kind: "booked"; url: string };
 
 export function LeadForm() {
   const [state, setState] = useState<State>({ kind: "idle" });
@@ -18,10 +18,13 @@ export function LeadForm() {
     try {
       const res = await fetch("/nexus/api/leads", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(lead) });
       const json = (await res.json().catch(() => ({}))) as { error?: string };
-      if (!res.ok) { setState({ kind: "error", message: json.error ?? "Something went wrong. Please try again." }); return; }
+      if (!res.ok) {
+        setState({ kind: "error", message: json.error ?? "Something went wrong. Please try again.", offerDirectBooking: res.status >= 500 });
+        return;
+      }
       setState({ kind: "booked", url: calendlyEmbedUrl(publicConfig.calendlyUrl, { email: lead.email ?? "", company: lead.company ?? "" }) });
     } catch {
-      setState({ kind: "error", message: "Network error. Please try again." });
+      setState({ kind: "error", message: "Network error. Please try again.", offerDirectBooking: true });
     }
   }
 
@@ -36,7 +39,7 @@ export function LeadForm() {
 
   const field = "w-full rounded-md border border-[var(--border)] bg-[var(--bg)] px-3 py-2 text-sm";
   return (
-    <form onSubmit={onSubmit} className="grid gap-3 sm:grid-cols-2" noValidate>
+    <form onSubmit={onSubmit} className="relative grid gap-3 sm:grid-cols-2" noValidate>
       <label className="flex flex-col gap-1 text-sm">Work email<input name="email" type="email" required className={field} autoComplete="email" /></label>
       <label className="flex flex-col gap-1 text-sm">Company<input name="company" required className={field} autoComplete="organization" /></label>
       <label className="flex flex-col gap-1 text-sm">Data source
@@ -53,14 +56,24 @@ export function LeadForm() {
         <textarea name="useCase" required maxLength={280} rows={3} className={field} placeholder="e.g. win back users who lapsed after their trial" />
       </label>
       {/* Honeypot: off-screen for people, tempting for bots. */}
-      <div aria-hidden="true" className="absolute -left-[9999px]">
-        <label>Website<input name="website" tabIndex={-1} autoComplete="off" /></label>
+      <div inert className="absolute -left-[9999px]">
+        <label>Website<input name="nx_hp" tabIndex={-1} autoComplete="off" /></label>
       </div>
-      {state.kind === "error" && <p role="alert" className="text-sm text-red-400 sm:col-span-2">{state.message}</p>}
+      {state.kind === "error" && (
+        <p role="alert" className="text-sm text-[var(--bad)] sm:col-span-2">
+          {state.message}
+          {state.offerDirectBooking && (
+            <> <a href={publicConfig.calendlyUrl} target="_blank" rel="noopener noreferrer" className="underline">Or book a call directly →</a></>
+          )}
+        </p>
+      )}
       <button type="submit" disabled={state.kind === "sending"}
         className="rounded-md bg-[var(--accent)] px-4 py-2.5 text-sm font-semibold text-white disabled:opacity-60 sm:col-span-2">
         {state.kind === "sending" ? "Sending…" : "Become a design partner"}
       </button>
+      <p className="text-xs text-[var(--muted)] sm:col-span-2">
+        We use your details only to follow up about the pilot. For spam protection we store a hashed IP, never the raw address.
+      </p>
     </form>
   );
 }

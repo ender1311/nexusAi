@@ -1,8 +1,13 @@
 import { afterEach, describe, expect, it, mock } from "bun:test";
 import { cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { LeadForm } from "@site/components/lead-form";
+import { publicConfig } from "@site/lib/public-config";
 
-afterEach(cleanup);
+const originalFetch = globalThis.fetch;
+afterEach(() => {
+  cleanup();
+  globalThis.fetch = originalFetch;
+});
 
 function fill() {
   fireEvent.change(screen.getByLabelText("Work email"), { target: { value: "ana@acme.io" } });
@@ -29,5 +34,34 @@ describe("LeadForm", () => {
     fill();
     fireEvent.click(screen.getByRole("button", { name: /become a design partner/i }));
     await waitFor(() => expect(screen.getByRole("alert").textContent).toContain("Too many requests"));
+    expect(screen.queryByRole("link", { name: /book a call directly/i })).toBeNull();
+  });
+
+  it("offers a direct booking link when the server fails", async () => {
+    globalThis.fetch = mock(async () => new Response(JSON.stringify({ error: "Something went wrong. Please try again." }), { status: 500 })) as unknown as typeof fetch;
+    render(<LeadForm />);
+    fill();
+    fireEvent.click(screen.getByRole("button", { name: /become a design partner/i }));
+    await waitFor(() => expect(screen.getByRole("alert").textContent).toContain("Something went wrong"));
+    const link = screen.getByRole("link", { name: /or book a call directly/i }) as HTMLAnchorElement;
+    expect(link.getAttribute("href")).toBe(publicConfig.calendlyUrl);
+    expect(link.getAttribute("target")).toBe("_blank");
+    expect(link.getAttribute("rel")).toContain("noopener");
+  });
+
+  it("offers a direct booking link on a network error", async () => {
+    globalThis.fetch = mock(async () => { throw new TypeError("Failed to fetch"); }) as unknown as typeof fetch;
+    render(<LeadForm />);
+    fill();
+    fireEvent.click(screen.getByRole("button", { name: /become a design partner/i }));
+    await waitFor(() => expect(screen.getByRole("alert").textContent).toContain("Network error"));
+    expect(screen.getByRole("link", { name: /or book a call directly/i })).toBeTruthy();
+  });
+
+  it("names the honeypot nx_hp and explains how lead data is used", () => {
+    const { container } = render(<LeadForm />);
+    expect(container.querySelector('input[name="nx_hp"]')).toBeTruthy();
+    expect(container.querySelector('input[name="website"]')).toBeNull();
+    expect(container.textContent).toContain("we store a hashed IP, never the raw address");
   });
 });
