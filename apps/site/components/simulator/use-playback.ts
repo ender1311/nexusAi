@@ -7,31 +7,33 @@ const BASE_MS_PER_DAY = 650; // 30 days ≈ 20 s at 1×
 /** Steps a day index from 0 to `total`, at `speed`, while `playing`. */
 export function usePlayback(total: number, runKey: string) {
   const [day, setDay] = useState(0);
-  const [playing, setPlaying] = useState(false);
+  const [wantsPlay, setWantsPlay] = useState(false);
   const [speed, setSpeed] = useState<Speed>(1);
+  const [seenRunKey, setSeenRunKey] = useState(runKey);
 
-  useEffect(() => {
+  // Adjust state during render when the run changes, rather than in an effect.
+  if (seenRunKey !== runKey) {
+    setSeenRunKey(runKey);
     setDay(0);
-    setPlaying(false);
-  }, [runKey]);
+    setWantsPlay(false);
+  }
+
+  // Reaching the final day stops playback without any state write.
+  const playing = wantsPlay && day < total;
 
   useEffect(() => {
     if (!playing) return;
-    if (day >= total) {
-      setPlaying(false);
-      return;
-    }
     const t = setTimeout(() => setDay((d) => d + 1), BASE_MS_PER_DAY / speed);
     return () => clearTimeout(t);
-  }, [playing, day, total, speed]);
+  }, [playing, day, speed]);
 
   return {
     day,
     playing,
     speed,
     setSpeed,
-    play: () => { if (day >= total) setDay(0); setPlaying(true); },
-    pause: () => setPlaying(false),
-    reset: () => { setPlaying(false); setDay(0); },
+    play: () => { if (day >= total) setDay(0); setWantsPlay(true); },
+    pause: () => setWantsPlay(false),
+    reset: () => { setWantsPlay(false); setDay(0); },
   };
 }

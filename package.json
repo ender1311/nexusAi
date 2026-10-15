@@ -5,7 +5,7 @@
   "workspaces": ["apps/api", "apps/site"],
   "scripts": {
     "dev": "next dev",
-    "check:site": "bun run --cwd apps/site check",
+    "check:site": "bunx eslint apps/site && bun run --cwd apps/site check",
     "dev:api": "bun --cwd apps/api run dev",
     "dev:all": "bun run dev & bun run dev:api",
     "build": "prisma generate && next build",

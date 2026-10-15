@@ -49,6 +49,8 @@ export function Simulator() {
   if (result instanceof Error) {
     return <p role="alert" className="text-sm text-red-400">The simulator hit an error. Reload the page to try again.</p>;
   }
+  const started = playback.day >= 1;
+  const finished = playback.day >= preset.days;
   const visible = result.days.slice(0, Math.max(1, playback.day));
   const today = visible.at(-1)!;
 
@@ -88,7 +90,7 @@ export function Simulator() {
       <div className="flex flex-wrap items-center gap-2">
         {playback.playing
           ? <button className="rounded-md bg-[var(--accent)] px-4 py-2 text-sm font-semibold text-white" onClick={playback.pause}>Pause</button>
-          : <button className="rounded-md bg-[var(--accent)] px-4 py-2 text-sm font-semibold text-white" onClick={playback.play}>{playback.day === 0 ? "Run" : "Resume"}</button>}
+          : <button className="rounded-md bg-[var(--accent)] px-4 py-2 text-sm font-semibold text-white" onClick={playback.play}>{finished ? "Replay" : playback.day === 0 ? "Run" : "Resume"}</button>}
         <button className="rounded-md border border-[var(--border)] px-3 py-2 text-sm" onClick={playback.reset}>Reset</button>
         <button className="rounded-md border border-[var(--border)] px-3 py-2 text-sm" onClick={() => { playback.reset(); playback.play(); }}>Replay</button>
         <button className="rounded-md border border-[var(--border)] px-3 py-2 text-sm" onClick={() => setSeed((s) => s + 1)}>New audience</button>
@@ -102,9 +104,9 @@ export function Simulator() {
 
       <div className="grid gap-4 sm:grid-cols-3">
         <Stat label="Day" value={`${playback.day} / ${preset.days}`} />
-        <Stat label="Conversion rate" value={`${(today.cumulativeRate * 100).toFixed(2)}%`} />
-        <Stat label="Lift vs. 10% random-split control" value={formatLift(today.liftVsHoldout)}
-          good={today.liftVsHoldout !== null && today.liftVsHoldout > 0} note="Simulated · varies by audience" />
+        <Stat label="Conversion rate" value={started ? `${(today.cumulativeRate * 100).toFixed(2)}%` : "—"} />
+        <Stat label="Lift vs. 10% random-split control" value={started ? formatLift(today.liftVsHoldout) : "—"}
+          good={started && today.liftVsHoldout !== null && today.liftVsHoldout > 0} note="Simulated · varies by audience" />
       </div>
 
       <section>
@@ -118,7 +120,7 @@ export function Simulator() {
           <MetricLine days={visible} dataKey="cumulativeRegret" label="Regret" format={(v) => v.toFixed(0)} /></section>
       </div>
 
-      {preset.segments.length > 1 && (
+      {started && preset.segments.length > 1 && (
         <section>
           <h4 className="mb-2 text-sm font-semibold">What each segment is getting today</h4>
           <ul className="grid gap-2 sm:grid-cols-3 text-sm">
@@ -132,8 +134,9 @@ export function Simulator() {
 
       <section aria-live="polite">
         <h4 className="mb-2 text-sm font-semibold">Why this decision?</h4>
+        {!started && <p className="text-xs text-[var(--muted)]">Press Run to start</p>}
         <ul className="space-y-1 font-mono text-xs text-[var(--muted)]">
-          {today.samples.slice(0, 4).map((s) => (
+          {started && today.samples.slice(0, 4).map((s) => (
             <li key={s.userNumber}>
               user {s.userNumber} → {s.variantId}{s.explore ? " (exploring)" : ""}: estimated conversion {(s.estimate * 100).toFixed(1)}%
               {describeUncertainty(algorithm, s)}
@@ -153,7 +156,7 @@ export function Simulator() {
             ))}
           </tbody>
         </table>
-        <p className="mt-2 text-xs text-[var(--muted)]">Simulated data. The algorithms are Nexus's production engine, running in your browser.</p>
+        <p className="mt-2 text-xs text-[var(--muted)]">Simulated data. The algorithms are Nexus&apos;s production engine, running in your browser.</p>
       </details>
     </div>
   );
