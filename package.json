@@ -2,9 +2,10 @@
   "name": "nexus",
   "version": "0.1.0",
   "private": true,
-  "workspaces": ["apps/api"],
+  "workspaces": ["apps/api", "apps/site"],
   "scripts": {
     "dev": "next dev",
+    "check:site": "bun run --cwd apps/site check",
     "dev:api": "bun --cwd apps/api run dev",
     "dev:all": "bun run dev & bun run dev:api",
     "build": "prisma generate && next build",
@@ -17,7 +18,7 @@
     "test:int-reg": "bun scripts/run-int-reg.ts",
     "test:watch": "bun test --watch tests/unit",
     "check": "bun scripts/check.ts",
-    "check:quick": "bun run typecheck && bun run lint && bun run test:quick",
+    "check:quick": "bun run typecheck && bun run lint && bun run test:quick && bun run check:site",
     "prepare": "[ -f node_modules/.bin/husky ] && husky || true"
   },
   "dependencies": {

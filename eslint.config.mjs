@@ -5,6 +5,18 @@ import nextTs from "eslint-config-next/typescript";
 const eslintConfig = defineConfig([
   ...nextVitals,
   ...nextTs,
+  // apps/site may reach into the main app only through @engine/* (pure engine).
+  {
+    files: ["apps/site/**/*.{ts,tsx}"],
+    rules: {
+      "no-restricted-imports": ["error", {
+        patterns: [
+          { group: ["@/*"], message: "apps/site may import only @engine/* from the main app." },
+          { regex: "^(\\.\\./)+src/", message: "Use @engine/* — apps/site may import only the pure engine." },
+        ],
+      }],
+    },
+  },
   // Override default ignores of eslint-config-next.
   globalIgnores([
     // Git worktrees (duplicate checkouts) — not primary source
@@ -15,6 +27,8 @@ const eslintConfig = defineConfig([
     "videos/**",
     // Default ignores of eslint-config-next:
     ".next/**",
+    "apps/site/.next/**",
+    "apps/site/test-results/**",
     "out/**",
     "build/**",
     "next-env.d.ts",
