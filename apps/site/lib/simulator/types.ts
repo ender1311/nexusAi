@@ -37,7 +37,7 @@ export type DayState = {
   cumulativeConversions: number;
   cumulativeRate: number;
   holdoutRate: number;
-  /** null when the holdout had no conversions, so lift is undefined rather than zero. */
+  /** null until the holdout has MIN_HOLDOUT_CONVERSIONS conversions (see simulate.ts), so early noise is not shown as lift. */
   liftVsHoldout: number | null;
   cumulativeRegret: number;
   samples: DecisionSample[];

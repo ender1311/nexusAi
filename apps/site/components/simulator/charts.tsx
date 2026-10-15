@@ -29,7 +29,7 @@ export function TrafficChart({ days, variants }: { days: DayState[]; variants: V
 export function MetricLine({ days, dataKey, label, format }: {
   days: DayState[]; dataKey: "liftVsHoldout" | "cumulativeRegret"; label: string; format: (v: number) => string;
 }) {
-  // Lift is null until the holdout converts; map null to undefined so the line leaves a gap.
+  // Lift is null until the holdout has enough conversions; map null to undefined so the line leaves a gap.
   const data = days.map((d) => ({ day: d.day, value: d[dataKey] ?? undefined }));
   return (
     <ResponsiveContainer width="100%" height={160}>

@@ -29,8 +29,8 @@ function describeUncertainty(algorithm: AlgorithmId, s: DecisionSample): string 
 }
 
 export function Simulator() {
-  const [sourceId, setSourceId] = useState("snowflake");
-  const [senderId, setSenderId] = useState("iterable");
+  const [sourceId, setSourceId] = useState("hightouch");
+  const [senderId, setSenderId] = useState("braze");
   const [presetId, setPresetId] = useState("winback");
   const [algorithm, setAlgorithm] = useState<AlgorithmId>("thompson");
   const [seed, setSeed] = useState(1);
@@ -47,12 +47,13 @@ export function Simulator() {
   const select = "rounded-md border border-[var(--border)] bg-[var(--panel)] px-2 py-1.5 text-sm";
 
   if (result instanceof Error) {
-    return <p role="alert" className="text-sm text-red-400">The simulator hit an error. Reload the page to try again.</p>;
+    return <p role="alert" className="text-sm text-[var(--bad)]">The simulator hit an error. Reload the page to try again.</p>;
   }
   const started = playback.day >= 1;
   const finished = playback.day >= preset.days;
   const visible = result.days.slice(0, Math.max(1, playback.day));
   const today = visible.at(-1)!;
+  const chartDays = started ? visible : [];
 
   return (
     <div className="space-y-6 rounded-2xl border border-[var(--border)] bg-[var(--panel)] p-4 sm:p-6">
@@ -92,7 +93,9 @@ export function Simulator() {
           ? <button className="rounded-md bg-[var(--accent)] px-4 py-2 text-sm font-semibold text-white" onClick={playback.pause}>Pause</button>
           : <button className="rounded-md bg-[var(--accent)] px-4 py-2 text-sm font-semibold text-white" onClick={playback.play}>{finished ? "Replay" : playback.day === 0 ? "Run" : "Resume"}</button>}
         <button className="rounded-md border border-[var(--border)] px-3 py-2 text-sm" onClick={playback.reset}>Reset</button>
-        <button className="rounded-md border border-[var(--border)] px-3 py-2 text-sm" onClick={() => { playback.reset(); playback.play(); }}>Replay</button>
+        {!finished && (
+          <button className="rounded-md border border-[var(--border)] px-3 py-2 text-sm" onClick={() => { playback.reset(); playback.play(); }}>Replay</button>
+        )}
         <button className="rounded-md border border-[var(--border)] px-3 py-2 text-sm" onClick={() => setSeed((s) => s + 1)}>New audience</button>
         <span className="ml-auto flex gap-1 text-xs">
           {([1, 2, 4] as Speed[]).map((s) => (
@@ -111,13 +114,13 @@ export function Simulator() {
 
       <section>
         <h4 className="mb-2 text-sm font-semibold">Traffic share by message</h4>
-        <TrafficChart days={visible} variants={preset.variants} />
+        <TrafficChart days={chartDays} variants={preset.variants} />
       </section>
       <div className="grid gap-4 sm:grid-cols-2">
         <section><h4 className="mb-2 text-sm font-semibold">Lift vs. control</h4>
-          <MetricLine days={visible} dataKey="liftVsHoldout" label="Lift" format={(v) => `${Math.round(v * 100)}%`} /></section>
+          <MetricLine days={chartDays} dataKey="liftVsHoldout" label="Lift" format={(v) => `${Math.round(v * 100)}%`} /></section>
         <section><h4 className="mb-2 text-sm font-semibold">Regret (conversions lost vs. always picking the best)</h4>
-          <MetricLine days={visible} dataKey="cumulativeRegret" label="Regret" format={(v) => v.toFixed(0)} /></section>
+          <MetricLine days={chartDays} dataKey="cumulativeRegret" label="Regret" format={(v) => v.toFixed(0)} /></section>
       </div>
 
       {started && preset.segments.length > 1 && (

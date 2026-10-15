@@ -1,5 +1,5 @@
 import { describe, expect, it } from "bun:test";
-import { simulate } from "@site/lib/simulator/simulate";
+import { MIN_HOLDOUT_CONVERSIONS, simulate } from "@site/lib/simulator/simulate";
 import { getPreset, PRESETS } from "@site/lib/simulator/presets";
 import type { Preset } from "@site/lib/simulator/types";
 
@@ -41,6 +41,18 @@ describe("simulate", () => {
     expect(lift).not.toBeNull();
     expect(lift!).toBeGreaterThan(0.05);
     expect(lift!).toBeLessThan(2);
+  });
+
+  it("reports a non-null, in-range lift for Thompson on winback by day 30", () => {
+    const day30 = simulate(getPreset("winback"), "thompson", 1).days[29]!;
+    expect(day30.liftVsHoldout).not.toBeNull();
+    expect(day30.liftVsHoldout!).toBeGreaterThan(-0.5);
+    expect(day30.liftVsHoldout!).toBeLessThan(2);
+  });
+
+  it("holds lift back as null on early days, before the holdout has enough conversions", () => {
+    expect(MIN_HOLDOUT_CONVERSIONS).toBe(20);
+    expect(simulate(getPreset("winback"), "thompson", 1).days[0]!.liftVsHoldout).toBeNull();
   });
 
   it("reports lift as null on every day when there is no holdout", () => {

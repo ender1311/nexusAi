@@ -7,6 +7,8 @@ import type { AlgorithmId, DayState, DecisionSample, Preset, SimulationResult } 
 const SAMPLES_PER_DAY = 6;
 const EPSILON = 0.1;
 const LINUCB_ALPHA = 1.0;
+/** Lift vs. the holdout is too noisy to show until the control has this many conversions. */
+export const MIN_HOLDOUT_CONVERSIONS = 20;
 
 /**
  * Runs the real Nexus engine against a simulated audience. The engine draws
@@ -118,7 +120,7 @@ function run(preset: Preset, algorithm: AlgorithmId, rng: () => number): DayStat
       cumulativeConversions: conversions,
       cumulativeRate,
       holdoutRate,
-      liftVsHoldout: holdoutConversions > 0 ? cumulativeRate / holdoutRate - 1 : null,
+      liftVsHoldout: holdoutConversions >= MIN_HOLDOUT_CONVERSIONS ? cumulativeRate / holdoutRate - 1 : null,
       cumulativeRegret: regret,
       samples,
     });
