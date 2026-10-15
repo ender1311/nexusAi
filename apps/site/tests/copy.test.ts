@@ -24,4 +24,13 @@ describe("site copy", () => {
       expect(text).not.toMatch(banned);
     }
   });
+
+  it("makes no claim that isn't true today", () => {
+    const json = JSON.stringify(COPY);
+    for (const banned of [/any (cdp|warehouse|esp)/i, /without decisioning/i, /why it was made/i]) {
+      expect(json).not.toMatch(banned);
+    }
+    const selfHost = COPY.faq.find((f) => /self-host/i.test(f.q));
+    expect(selfHost?.a).not.toMatch(/^yes/i);
+  });
 });
