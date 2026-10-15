@@ -6,6 +6,7 @@ import { Hero } from "@site/components/sections/hero";
 import { HowItWorks } from "@site/components/sections/how-it-works";
 import { Offer } from "@site/components/sections/offer";
 import { StackStrip } from "@site/components/sections/stack-strip";
+import { publicConfig } from "@site/lib/public-config";
 
 export default function Page() {
   return (
@@ -20,7 +21,7 @@ export default function Page() {
       <HowItWorks />
       <Comparison />
       <Offer />
-      <ConsoleLink />
+      {publicConfig.showConsoleLink && <ConsoleLink />}
       <Faq />
     </main>
   );

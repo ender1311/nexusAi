@@ -2,7 +2,8 @@
  * Fills the public demo DB (nexus-demo-db) with synthetic agents, variants,
  * users and six weeks of decisions so the console has something to show.
  * No YouVersion content. Idempotent: first deletes its own rows: users and decisions with the "demo-"
- * prefix, and agents named with the "[Demo] " prefix (cascades to their messages and variants).
+ * prefix, and agents and personas named with the "[Demo] " prefix (agents cascade to their messages
+ * and variants). Creates its own personas, so it needs nothing else in the database.
  *
  *   DEMO_DATABASE_URL='postgresql://…ep-orange-star-b8ujtvot…' bun scripts/seed-demo-synthetic.ts
  */
@@ -17,23 +18,24 @@ const rng = mulberry32(2026);
 const DAYS = 42;
 const USERS = 2000;
 const PREFIX = "demo-";
-const AGENT_PREFIX = "[Demo] ";
+const NAME_PREFIX = "[Demo] ";
 
 const AGENTS = [
-  { name: `${AGENT_PREFIX}Win-back push`, algorithm: "thompson", channel: "push", rates: [0.021, 0.034, 0.028, 0.046] },
-  { name: `${AGENT_PREFIX}Onboarding email`, algorithm: "epsilon_greedy", channel: "email", rates: [0.12, 0.18, 0.14, 0.15] },
-  { name: `${AGENT_PREFIX}Upsell (contextual)`, algorithm: "linucb", channel: "push", rates: [0.05, 0.08, 0.03, 0.06] },
-  { name: `${AGENT_PREFIX}Re-engagement with holdout`, algorithm: "thompson", channel: "push", rates: [0.03, 0.04, 0.035] },
+  { name: `${NAME_PREFIX}Win-back push`, algorithm: "thompson", channel: "push", rates: [0.021, 0.034, 0.028, 0.046] },
+  { name: `${NAME_PREFIX}Onboarding email`, algorithm: "epsilon_greedy", channel: "email", rates: [0.12, 0.18, 0.14, 0.15] },
+  { name: `${NAME_PREFIX}Upsell (contextual)`, algorithm: "linucb", channel: "push", rates: [0.05, 0.08, 0.03, 0.06] },
+  { name: `${NAME_PREFIX}Re-engagement with holdout`, algorithm: "thompson", channel: "push", rates: [0.03, 0.04, 0.035] },
 ];
+const PERSONAS = ["Daily regulars", "Weekend browsers", "New sign-ups", "Lapsed users"].map((n) => `${NAME_PREFIX}${n}`);
 const COPY = ["Pick up where you left off.", "Others finished this week — join them.", "A quick win is waiting.", "Your progress, at a glance."];
 
 async function main() {
   await prisma.userDecision.deleteMany({ where: { userId: { startsWith: PREFIX } } });
-  await prisma.agent.deleteMany({ where: { name: { startsWith: AGENT_PREFIX } } });
+  await prisma.agent.deleteMany({ where: { name: { startsWith: NAME_PREFIX } } });
   await prisma.trackedUser.deleteMany({ where: { externalId: { startsWith: PREFIX } } });
+  await prisma.persona.deleteMany({ where: { name: { startsWith: NAME_PREFIX } } });
 
-  const personas = await prisma.persona.findMany({ select: { id: true } });
-  if (personas.length === 0) throw new Error("Seed personas first: DATABASE_URL=<demo> bun prisma/seed-personas.ts");
+  const personas = await Promise.all(PERSONAS.map((name) => prisma.persona.create({ data: { name }, select: { id: true } })));
 
   await prisma.trackedUser.createMany({
     data: Array.from({ length: USERS }, (_, i) => ({
