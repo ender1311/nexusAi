@@ -6,12 +6,15 @@ function memoryStore(): LeadStore & { rows: LeadRecord[] } {
   const rows: LeadRecord[] = [];
   return {
     rows,
-    async countSince(ipHash, since) { return rows.filter((r) => r.ipHash === ipHash && r.createdAt >= since).length; },
-    async insert(lead) { rows.push(lead); },
+    async insertIfUnderLimit(lead, since, max) {
+      if (rows.filter((r) => r.ipHash === lead.ipHash && r.createdAt >= since).length >= max) return false;
+      rows.push(lead);
+      return true;
+    },
   };
 }
 const valid = { email: "ana@acme.io", company: "Acme", source: "snowflake", sender: "iterable", useCase: "Win back lapsed trial users", website: "" };
-const ctx = { ip: "203.0.113.7", userAgent: "test", now: new Date("2026-10-14T12:00:00Z") };
+const ctx = { ip: "203.0.113.7", userAgent: "test", ipSalt: "test-salt", now: new Date("2026-10-14T12:00:00Z") };
 
 describe("handleLead", () => {
   it("stores a valid lead, emails it, returns 201", async () => {
@@ -25,7 +28,7 @@ describe("handleLead", () => {
 
   it("rejects invalid input with 400 and stores nothing", async () => {
     const store = memoryStore();
-    for (const bad of [{ ...valid, email: "nope" }, { ...valid, company: "" }, { ...valid, useCase: "x".repeat(281) }, null, "str"]) {
+    for (const bad of [{ ...valid, email: "nope" }, { ...valid, company: "" }, { ...valid, company: "Acme\r\nBcc: x@evil.io" }, { ...valid, useCase: "x".repeat(281) }, null, "str"]) {
       const res = await handleLead(bad, ctx, { store, email: async () => {}, log: () => {} });
       expect(res.status).toBe(400);
       expect("error" in res.body).toBe(true);
@@ -61,7 +64,7 @@ describe("handleLead", () => {
   });
 
   it("returns a generic 500 when storage fails, never the DB message", async () => {
-    const store: LeadStore = { countSince: async () => 0, insert: async () => { throw new Error('relation "DesignPartnerLead" does not exist'); } };
+    const store: LeadStore = { insertIfUnderLimit: async () => { throw new Error('relation "DesignPartnerLead" does not exist'); } };
     const res = await handleLead(valid, ctx, { store, email: async () => {}, log: () => {} });
     expect(res).toEqual({ status: 500, body: { error: "Something went wrong. Please try again." } });
   });

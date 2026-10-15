@@ -10,10 +10,14 @@ const getPool = () => (pool ??= new Pool({ connectionString: process.env.DATABAS
 
 export async function POST(req: NextRequest): Promise<NextResponse<{ data: { ok: true } } | { error: string }>> {
   const body: unknown = await req.json().catch(() => null);
-  const ip = req.headers.get("x-forwarded-for")?.split(",")[0]?.trim() || "unknown";
+  const ip =
+    req.headers.get("x-vercel-forwarded-for")?.trim() ||
+    req.headers.get("x-real-ip")?.trim() ||
+    req.headers.get("x-forwarded-for")?.split(",")[0]?.trim() ||
+    "unknown";
   const result = await handleLead(
     body,
-    { ip, userAgent: req.headers.get("user-agent") ?? "", now: new Date() },
+    { ip, userAgent: req.headers.get("user-agent") ?? "", now: new Date(), ipSalt: config.leadIpSalt },
     {
       store: pgLeadStore(getPool()),
       email: (lead) => sendLeadEmail(lead, { apiKey: process.env.RESEND_API_KEY, to: config.leadNotifyEmail, from: config.leadFromEmail }),
