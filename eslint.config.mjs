@@ -13,6 +13,7 @@ const eslintConfig = defineConfig([
         patterns: [
           { group: ["@/*"], message: "apps/site may import only @engine/* from the main app." },
           { regex: "^(\\.\\./)+src/", message: "Use @engine/* — apps/site may import only the pure engine." },
+          { regex: "^@engine/.*\\.\\.", message: "@engine/* must not escape the engine directory." },
         ],
       }],
     },
