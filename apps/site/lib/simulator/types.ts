@@ -37,7 +37,8 @@ export type DayState = {
   cumulativeConversions: number;
   cumulativeRate: number;
   holdoutRate: number;
-  liftVsHoldout: number;
+  /** null when the holdout had no conversions, so lift is undefined rather than zero. */
+  liftVsHoldout: number | null;
   cumulativeRegret: number;
   samples: DecisionSample[];
 };

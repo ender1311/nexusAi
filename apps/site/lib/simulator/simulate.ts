@@ -118,7 +118,7 @@ function run(preset: Preset, algorithm: AlgorithmId, rng: () => number): DayStat
       cumulativeConversions: conversions,
       cumulativeRate,
       holdoutRate,
-      liftVsHoldout: holdoutRate > 0 ? cumulativeRate / holdoutRate - 1 : 0,
+      liftVsHoldout: holdoutConversions > 0 ? cumulativeRate / holdoutRate - 1 : null,
       cumulativeRegret: regret,
       samples,
     });
@@ -158,7 +158,7 @@ function explain(
     const n = s.alpha + s.beta;
     const mean = s.alpha / n;
     const sd = Math.sqrt((s.alpha * s.beta) / (n * n * (n + 1)));
-    return { userNumber, segmentId, variantId, explore: false, estimate: mean, uncertainty: 1.96 * sd };
+    return { userNumber, segmentId, variantId, explore, estimate: mean, uncertainty: 1.96 * sd };
   }
   return { userNumber, segmentId, variantId, explore, estimate: s.tries ? s.wins / s.tries : 0, uncertainty: 0 };
 }

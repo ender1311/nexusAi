@@ -38,8 +38,20 @@ describe("simulate", () => {
 
   it("reports positive lift vs the holdout for Thompson on winback", () => {
     const lift = simulate(getPreset("winback"), "thompson", 1).days.at(-1)!.liftVsHoldout;
-    expect(lift).toBeGreaterThan(0.05);
-    expect(lift).toBeLessThan(2);
+    expect(lift).not.toBeNull();
+    expect(lift!).toBeGreaterThan(0.05);
+    expect(lift!).toBeLessThan(2);
+  });
+
+  it("reports lift as null on every day when there is no holdout", () => {
+    const p: Preset = { ...getPreset("winback"), holdoutShare: 0 };
+    for (const day of simulate(p, "thompson", 1).days) expect(day.liftVsHoldout).toBeNull();
+  });
+
+  it("passes Thompson's explore flag through to samples", () => {
+    const samples = simulate(getPreset("winback"), "thompson", 1).days.flatMap((d) => d.samples);
+    expect(samples.some((s) => s.explore)).toBe(true);
+    expect(samples.some((s) => !s.explore)).toBe(true);
   });
 
   it("restores Math.random afterwards, including when the run throws", () => {
