@@ -16,19 +16,40 @@ function sourceFiles(dir: string): string[] {
   });
 }
 
-const files = [...sourceFiles(path.join(root, "components")), ...sourceFiles(path.join(root, "app"))];
+// brand/ is the one place raw values may live.
+const files = ["components", "app", "lib", "content"].flatMap((dir) => sourceFiles(path.join(root, dir)));
+
+const PALETTE = "slate|gray|zinc|neutral|stone|red|orange|amber|yellow|lime|green|emerald|teal|cyan|sky|blue|indigo|violet|purple|fuchsia|pink|rose";
+const NAMED = "white|black|red|green|blue|gray|grey|orange|yellow|purple|pink|brown|navy|silver|gold|teal|maroon|olive|lime|aqua|fuchsia|cyan|magenta";
 
 const RULES: [string, RegExp][] = [
   ["hex color", /#[0-9a-f]{3,8}\b/i],
   ["black/white utility", /\b(text|bg|border|from|to|via)-(white|black)\b/],
   ["fixed Tailwind radius", /\brounded(-[trblxyse]{1,2})?-(none|xs|sm|md|lg|xl|2xl|3xl|full)\b/],
-  ["bare rounded", /\brounded(?=["\s`])/],
+  ["bare rounded", /\brounded(?=["'\s`}])/],
+  ["Tailwind palette color", new RegExp(`\\b(text|bg|border|ring|fill|stroke|from|to|via|outline|decoration|placeholder)-(${PALETTE})-\\d{2,3}\\b`)],
+  ["functional color", /\b(rgba?|hsla?|oklch)\(/i],
+  ["named color in fill/stroke", new RegExp(`\\b(fill|stroke)=\\{?["'](${NAMED})["']`, "i")],
+  ["named color in a style object", new RegExp(`\\b(color|background|backgroundColor|borderColor|fill|stroke)\\s*:\\s*["'](${NAMED})["']`, "i")],
   ["legacy CSS variable", /var\(--(panel|border|text|muted|good)\)/],
 ];
 
-describe("brand token discipline in components/ and app/", () => {
+describe("brand token discipline in components/, app/, lib/ and content/", () => {
   it("scans a meaningful set of files", () => {
-    expect(files.length).toBeGreaterThan(15);
+    expect(files.length).toBeGreaterThan(30);
+    expect(files.some((f) => f.includes(`${path.sep}lib${path.sep}`))).toBe(true);
+    expect(files.some((f) => f.startsWith(path.join(root, "brand") + path.sep))).toBe(false);
+  });
+
+  it("the rules catch what they should", () => {
+    const rule = (name: string) => RULES.find(([n]) => n === name)![1];
+    expect(rule("Tailwind palette color").test(`className="text-slate-500"`)).toBe(true);
+    expect(rule("functional color").test("color: rgba(0, 0, 0, 0.5)")).toBe(true);
+    expect(rule("named color in fill/stroke").test(`<path fill="white" />`)).toBe(true);
+    expect(rule("named color in fill/stroke").test(`<path fill="currentColor" />`)).toBe(false);
+    expect(rule("named color in a style object").test(`style={{ color: "red" }}`)).toBe(true);
+    expect(rule("bare rounded").test("`rounded}`")).toBe(true);
+    expect(rule("bare rounded").test(`"rounded-chip"`)).toBe(false);
   });
 
   for (const [name, re] of RULES) {
