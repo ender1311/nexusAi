@@ -10,4 +10,6 @@ export interface ContentSource {
   listItems(cursor?: string): Promise<ListPage>;
 }
 
-export class ContentSourceNotConfigured extends Error {}
+/** An adapter error whose message is fixed text, safe to store and show (no upstream bodies or secrets). */
+export class ContentSourceError extends Error {}
+export class ContentSourceNotConfigured extends ContentSourceError {}

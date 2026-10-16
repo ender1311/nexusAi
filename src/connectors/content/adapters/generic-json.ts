@@ -1,7 +1,7 @@
 import { applyFieldMapping, DEFAULT_MAPPINGS, getPath } from "@/lib/content-core";
 import type { ContentSourceConfig } from "../config";
 import { assertPublicHttpsUrl, fetchJson, partition, requireJsonObject, type LookupImpl } from "../http";
-import { ContentSourceNotConfigured, type ContentSource } from "../types";
+import { ContentSourceError, ContentSourceNotConfigured, type ContentSource } from "../types";
 
 export function genericJsonSource(config: ContentSourceConfig, env: NodeJS.ProcessEnv, fetchImpl?: typeof fetch, lookupImpl?: LookupImpl): ContentSource {
   const g = config.genericJson;
@@ -19,10 +19,10 @@ export function genericJsonSource(config: ContentSourceConfig, env: NodeJS.Proce
     const url = urlFor(cursor);
     await assertPublicHttpsUrl(url, lookupImpl);
     const r = await fetchJson(url, { headers }, fetchImpl);
-    if (r.status !== 200) throw new Error(`Content endpoint responded ${r.status}`);
+    if (r.status !== 200) throw new ContentSourceError(`Content endpoint responded ${r.status}`);
     const json = requireJsonObject(r.json, "Content endpoint");
     const items = getPath(json, g!.itemsPath);
-    if (!Array.isArray(items)) throw new Error(`itemsPath "${g!.itemsPath}" did not resolve to an array`);
+    if (!Array.isArray(items)) throw new ContentSourceError(`itemsPath "${g!.itemsPath}" did not resolve to an array`);
     return { items, json };
   }
   const map = (items: unknown[]) => partition(items.map((raw) => {

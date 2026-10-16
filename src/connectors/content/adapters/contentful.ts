@@ -1,7 +1,7 @@
 import { applyFieldMapping, DEFAULT_MAPPINGS, getPath } from "@/lib/content-core";
 import type { ContentSourceConfig } from "../config";
 import { fetchJson, partition, requireJsonObject } from "../http";
-import { ContentSourceNotConfigured, type ContentSource } from "../types";
+import { ContentSourceError, ContentSourceNotConfigured, type ContentSource } from "../types";
 
 const PAGE = 100;
 
@@ -16,7 +16,7 @@ export function contentfulSource(config: ContentSourceConfig, env: NodeJS.Proces
   async function page(skip: number, limit: number) {
     const url = `${base}?content_type=${encodeURIComponent(c!.contentType)}&locale=*&order=sys.createdAt&skip=${skip}&limit=${limit}`;
     const r = await fetchJson(url, { headers: { Authorization: `Bearer ${token}` } }, fetchImpl);
-    if (r.status !== 200) throw new Error(`Contentful responded ${r.status}`);
+    if (r.status !== 200) throw new ContentSourceError(`Contentful responded ${r.status}`);
     return requireJsonObject(r.json, "Contentful") as { items?: unknown[]; total?: number; skip?: number };
   }
 
@@ -32,7 +32,7 @@ export function contentfulSource(config: ContentSourceConfig, env: NodeJS.Proces
     activation: "inline",
     async listItems(cursor) {
       const skip = cursor ? Number(cursor) : 0;
-      if (!Number.isInteger(skip) || skip < 0) throw new Error("Invalid cursor");
+      if (!Number.isInteger(skip) || skip < 0) throw new ContentSourceError("Invalid cursor");
       const body = await page(skip, PAGE);
       const items = body.items ?? [];
       const nextSkip = skip + items.length;

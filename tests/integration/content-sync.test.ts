@@ -1,10 +1,10 @@
 // tests/integration/content-sync.test.ts
-import { beforeEach, describe, expect, it } from "bun:test";
+import { afterEach, beforeEach, describe, expect, it, spyOn } from "bun:test";
 import { prisma } from "@/lib/db";
 import { truncateAll } from "../helpers/db";
 import { archiveMissing, syncContentSource } from "@/connectors/content/sync";
 import { saveContentSourceConfig } from "@/connectors/content/config";
-import type { ContentSource, ListPage } from "@/connectors/content/types";
+import { ContentSourceError, type ContentSource, type ListPage } from "@/connectors/content/types";
 import type { ContentItem } from "@/lib/content-core";
 
 const item = (ref: string, body = `Body ${ref}`): ContentItem => ({ externalRef: ref, channel: "push", body, title: `T ${ref}`, tags: [], updatedAt: "2026-10-01T00:00:00Z", locales: { es: { body: `ES ${ref}` } } });
@@ -15,6 +15,11 @@ function fakeSource(pages: (ListPage | Error)[]): ContentSource {
 }
 
 describe("syncContentSource", () => {
+  // Sync logs the real error server-side; keep test output quiet.
+  let consoleError: ReturnType<typeof spyOn> | undefined;
+  beforeEach(() => { consoleError = spyOn(console, "error").mockImplementation(() => {}); });
+  afterEach(() => consoleError?.mockRestore());
+
   beforeEach(async () => {
     await truncateAll();
     await saveContentSourceConfig({ enabled: ["nexus-library", "contentful"], contentful: { spaceId: "s", environment: "master", contentType: "t", channel: "push", mapping: {} } });
@@ -56,11 +61,19 @@ describe("syncContentSource", () => {
 
   it("failed listing archives nothing and records the error", async () => {
     await syncContentSource("contentful", { source: fakeSource([{ items: [item("a"), item("b")], skipped: [] }]) });
-    const r = await syncContentSource("contentful", { source: fakeSource([{ items: [item("a")], skipped: [], next: "1" }, new Error("Contentful responded 503")]) });
+    const r = await syncContentSource("contentful", { source: fakeSource([{ items: [item("a")], skipped: [], next: "1" }, new ContentSourceError("Contentful responded 503")]) });
     expect(r.status).toBe("failed");
     expect(r.archived).toBe(0);
-    expect(r.errors[0]!.message).toContain("503");
+    expect(r.errors[0]).toEqual({ externalRef: "(listing)", message: "Contentful responded 503" });
     expect((await prisma.messageVariant.findFirstOrThrow({ where: { externalRef: "b" } })).status).toBe("active");
+  });
+
+  it("an unexpected listing throw is stored as a generic message, never the raw text", async () => {
+    const r = await syncContentSource("contentful", { source: fakeSource([new Error("connect ECONNREFUSED 10.0.0.5:5432 password=hunter2")]) });
+    expect(r.status).toBe("failed");
+    expect(r.errors).toEqual([{ externalRef: "(listing)", message: "Source request failed" }]);
+    const run = await prisma.contentSyncRun.findFirstOrThrow();
+    expect(JSON.stringify(run.errors)).not.toContain("hunter2");
   });
 
   it("an overlapping run for the same source is skipped as locked", async () => {
@@ -125,6 +138,30 @@ describe("syncContentSource", () => {
     expect((await prisma.messageVariantTranslation.findFirstOrThrow({ where: { language: "es" } })).body).toBe("ES nuevo");
   });
 
+  it("a locale removed at the source deletes its translation row", async () => {
+    await syncContentSource("contentful", { source: fakeSource([ok([{ ...item("a"), locales: { es: { body: "ES a" }, fr: { body: "FR a" } } }])]) });
+    const r = await syncContentSource("contentful", { source: fakeSource([ok([{ ...item("a"), locales: { fr: { body: "FR a" } } }])]) });
+    expect(r).toMatchObject({ created: 0, updated: 1 });
+    const rows = await prisma.messageVariantTranslation.findMany();
+    expect(rows.map((t) => t.language)).toEqual(["fr"]);
+  });
+
+  it("a copy change keeps an operator's pause on the synced variant", async () => {
+    await syncContentSource("contentful", { source: fakeSource([ok([item("a")])]) });
+    await prisma.messageVariant.updateMany({ where: { externalRef: "a" }, data: { status: "paused" } });
+    await syncContentSource("contentful", { source: fakeSource([ok([item("a", "New body")])]) });
+    expect(await prisma.messageVariant.findFirstOrThrow({ where: { externalRef: "a" } })).toMatchObject({ body: "New body", status: "paused" });
+  });
+
+  it("writes Nexus channel names on library messages", async () => {
+    const as = (ref: string, channel: ContentItem["channel"]): ContentItem => ({ ...item(ref), channel });
+    await syncContentSource("contentful", { source: fakeSource([ok([as("p", "push"), as("e", "email"), as("c", "content_card"), as("s", "slideup"), as("m", "modal")])]) });
+    const vs = await prisma.messageVariant.findMany({ where: { contentSource: "contentful" }, include: { message: true } });
+    expect(Object.fromEntries(vs.map((v) => [v.externalRef, v.message.channel]))).toEqual({
+      p: "push", e: "email", c: "content-card", s: "in-app", m: "modal-iam",
+    });
+  });
+
   it("refuses to archive everything when a complete listing is empty", async () => {
     await syncContentSource("contentful", { source: fakeSource([ok([item("a")])]) });
     const r = await syncContentSource("contentful", { source: fakeSource([ok([])]) });
@@ -164,7 +201,9 @@ describe("syncContentSource", () => {
     expect(r.status).toBe("failed");
     expect(r.created).toBe(1);
     expect(r.archived).toBe(0);
-    expect(r.errors[0]!.externalRef).toBe("(database)");
+    expect(r.errors[0]).toEqual({ externalRef: "(database)", message: "Database error while saving items" });
+    const stored = await prisma.contentSyncRun.findFirstOrThrow();
+    expect(JSON.stringify(stored.errors)).not.toMatch(/nul|invalid byte|0x00|prisma/i);
     expect(await prisma.messageVariant.count({ where: { externalRef: "a" } })).toBe(1);
     const run = await prisma.contentSyncRun.findFirstOrThrow();
     expect(run.status).toBe("failed");
@@ -174,7 +213,7 @@ describe("syncContentSource", () => {
   it("archiveMissing handles 70k seen refs (single array parameter)", async () => {
     await syncContentSource("contentful", { source: fakeSource([ok([item("keep"), item("drop")])]) });
     const seen = ["keep", ...Array.from({ length: 70_000 }, (_, n) => `ref-${n}`)];
-    expect(await archiveMissing("contentful", seen)).toBe(1);
+    expect(await archiveMissing("contentful", seen)).toEqual({ variants: 1, clones: 0 });
     expect((await prisma.messageVariant.findFirstOrThrow({ where: { externalRef: "keep" } })).status).toBe("active");
   });
 });

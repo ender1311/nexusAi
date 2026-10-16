@@ -1,7 +1,7 @@
 import { applyFieldMapping, DEFAULT_MAPPINGS, getPath } from "@/lib/content-core";
 import type { ContentSourceConfig } from "../config";
 import { fetchJson, partition, requireJsonObject } from "../http";
-import { ContentSourceNotConfigured, type ContentSource } from "../types";
+import { ContentSourceError, ContentSourceNotConfigured, type ContentSource } from "../types";
 
 function nextFromLink(link: string | null, origin: string): string | undefined {
   const m = link?.match(/<([^>]+)>;\s*rel="next"/);
@@ -21,11 +21,11 @@ export function brazeCatalogSource(config: ContentSourceConfig, env: NodeJS.Proc
   const first = `${origin}/catalogs/${b.catalogName}/items`;
 
   async function fetchPage(url: string) {
-    if (new URL(url).origin !== origin) throw new Error("Refusing cursor outside the Braze REST endpoint");
+    if (new URL(url).origin !== origin) throw new ContentSourceError("Refusing cursor outside the Braze REST endpoint");
     const r = await fetchJson(url, { headers: { Authorization: `Bearer ${key}` } }, fetchImpl);
-    if (r.status !== 200) throw new Error(`Braze catalogs responded ${r.status}`);
+    if (r.status !== 200) throw new ContentSourceError(`Braze catalogs responded ${r.status}`);
     const items = requireJsonObject(r.json, "Braze catalogs").items;
-    if (!Array.isArray(items)) throw new Error("Braze catalogs response had no items array");
+    if (!Array.isArray(items)) throw new ContentSourceError("Braze catalogs response had no items array");
     const next = nextFromLink(r.headers.get("link"), origin);
     return { items, next: next === url ? undefined : next };
   }
