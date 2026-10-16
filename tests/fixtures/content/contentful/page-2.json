@@ -1,0 +1,16 @@
+{
+  "sys": { "type": "Array" },
+  "total": 3,
+  "skip": 2,
+  "limit": 2,
+  "items": [
+    {
+      "sys": { "id": "e3", "updatedAt": "2026-09-03T10:00:00Z", "contentType": { "sys": { "id": "pushMessage" } } },
+      "fields": {
+        "title": { "en-US": "Evening verse" },
+        "body": { "en-US": "End the day with gratitude." }
+      },
+      "metadata": { "tags": [{ "sys": { "id": "evening" } }] }
+    }
+  ]
+}

@@ -1,0 +1,25 @@
+{
+  "sys": { "type": "Array" },
+  "total": 3,
+  "skip": 0,
+  "limit": 2,
+  "items": [
+    {
+      "sys": { "id": "e1", "updatedAt": "2026-09-01T10:00:00Z", "contentType": { "sys": { "id": "pushMessage" } } },
+      "fields": {
+        "title": { "en-US": "Take a breath", "es": "Respira" },
+        "body": { "en-US": "A quiet moment with Psalm 23.", "es": "Un momento de calma con el Salmo 23." },
+        "cta": { "en-US": "Read now" }
+      },
+      "metadata": { "tags": [{ "sys": { "id": "calm" } }] }
+    },
+    {
+      "sys": { "id": "e2", "updatedAt": "2026-09-02T10:00:00Z", "contentType": { "sys": { "id": "pushMessage" } } },
+      "fields": {
+        "title": { "en-US": "No body here" },
+        "cta": { "en-US": "Open" }
+      },
+      "metadata": { "tags": [] }
+    }
+  ]
+}
