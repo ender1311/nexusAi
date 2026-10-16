@@ -15,6 +15,7 @@ export function HowItWorks() {
         {COPY.algorithms.map((a) => <div key={a.name}><h3 className="font-semibold">{a.name}</h3><p className="text-sm text-[var(--muted)]">{a.body}</p></div>)}
       </div>
       <p className="mt-6 text-sm">{COPY.provenance}</p>
+      <p className="mt-4"><a href="/nexus/demo" className="text-sm font-semibold text-[var(--accent)]">See the full loop step by step &rarr;</a></p>
     </section>
   );
 }
