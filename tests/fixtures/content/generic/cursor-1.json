@@ -1,0 +1,9 @@
+{
+  "data": {
+    "items": [
+      { "id": "g1", "headline": "First", "text": "First message body." },
+      { "id": "g2", "headline": "Second", "text": "Second message body." }
+    ]
+  },
+  "next": "abc"
+}

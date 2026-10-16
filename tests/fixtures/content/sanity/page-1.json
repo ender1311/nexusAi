@@ -1,0 +1,7 @@
+{
+  "result": [
+    { "_id": "s1", "_updatedAt": "2026-09-01T10:00:00Z", "title": "Tip one", "body": "Start small.", "tags": ["habit"] },
+    { "_id": "s2", "_updatedAt": "2026-09-02T10:00:00Z", "title": "Tip two", "body": "Pick a time.", "cta": "Try it" },
+    { "_id": "s3", "_updatedAt": "2026-09-03T10:00:00Z", "title": "Tip three, no body" }
+  ]
+}
