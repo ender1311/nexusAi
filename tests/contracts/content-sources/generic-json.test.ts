@@ -84,7 +84,9 @@ describe("assertPublicHttpsUrl", () => {
   it.each([
     "http://cms.example.com/x", "https://localhost/x", "https://127.0.0.1/x", "https://169.254.169.254/latest",
     "https://10.0.0.5/x", "https://172.20.1.1/x", "https://192.168.1.1/x", "https://0.0.0.0/x",
-    "https://[::1]/x", "https://[fe80::1]/x", "https://[fd00::1]/x", "https://[::ffff:127.0.0.1]/x", "not a url",
+    "https://[::1]/x", "https://[fe80::1]/x", "https://[fd00::1]/x", "https://[::ffff:127.0.0.1]/x", "https://100.64.0.1/x", "https://100.100.100.200/x",
+    "https://198.18.0.1/x", "https://192.0.0.1/x", "https://192.0.2.1/x", "https://224.0.0.1/x", "https://255.255.255.255/x",
+    "https://[::ffff:a00:5]/x", "https://[::7f00:1]/x", "https://[64:ff9b::a00:5]/x", "https://[::ffff:0:a00:5]/x", "not a url",
   ])("rejects %s", async (url) => {
     await expect(assertPublicHttpsUrl(url, pub)).rejects.toThrow("Content URL must be public https");
   });

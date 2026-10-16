@@ -26,30 +26,44 @@ export function partition<T>(results: ({ item: T } | { error: string; ref: strin
 }
 
 function isPrivateIPv4(ip: string): boolean {
-  const [a, b] = ip.split(".").map(Number) as [number, number];
+  const [a, b, c] = ip.split(".").map(Number) as [number, number, number];
   return (
     a === 0 || a === 10 || a === 127 ||
+    a >= 224 || // multicast and reserved
+    (a === 100 && b >= 64 && b <= 127) || // CGNAT (includes 100.100.100.200)
     (a === 169 && b === 254) ||
     (a === 172 && b >= 16 && b <= 31) ||
-    (a === 192 && b === 168)
+    (a === 192 && b === 168) ||
+    (a === 192 && b === 0 && (c === 0 || c === 2)) || // 192.0.0.0/24, 192.0.2.0/24
+    (a === 198 && (b === 18 || b === 19))
   );
 }
 
-function isPrivateIPv6(ip: string): boolean {
-  const v = ip.toLowerCase();
-  if (v === "::1" || v === "::") return true;
-  const mapped = v.match(/^::ffff:(.+)$/);
-  if (mapped) {
-    const rest = mapped[1]!;
-    if (isIP(rest) === 4) return isPrivateIPv4(rest);
-    const hex = rest.split(":").map((h) => parseInt(h, 16));
-    if (hex.length === 2 && hex.every((n) => !Number.isNaN(n))) {
-      return isPrivateIPv4(`${hex[0]! >> 8}.${hex[0]! & 255}.${hex[1]! >> 8}.${hex[1]! & 255}`);
-    }
-    return true;
+/** Expands any valid IPv6 text form (including a dotted-quad tail) to eight 16-bit groups. */
+function ipv6Groups(ip: string): number[] {
+  let v = ip.toLowerCase();
+  const dotted = v.match(/(\d+)\.(\d+)\.(\d+)\.(\d+)$/);
+  if (dotted) {
+    const [, a, b, c, d] = dotted.map(Number) as number[];
+    v = v.slice(0, dotted.index) + `${((a! << 8) | b!).toString(16)}:${((c! << 8) | d!).toString(16)}`;
   }
-  const first = parseInt(v.split(":")[0] || "0", 16);
-  return (first & 0xffc0) === 0xfe80 || (first & 0xfe00) === 0xfc00;
+  const [head = "", tail] = v.split("::");
+  const h = head ? head.split(":") : [];
+  const t = tail === undefined ? [] : tail ? tail.split(":") : [];
+  const fill = tail === undefined ? [] : Array<string>(8 - h.length - t.length).fill("0");
+  return [...h, ...fill, ...t].map((g) => parseInt(g, 16));
+}
+
+function isPrivateIPv6(ip: string): boolean {
+  const g = ipv6Groups(ip);
+  if (g.length !== 8 || g.some((n) => Number.isNaN(n))) return true;
+  const embeddedV4 = `${g[6]! >> 8}.${g[6]! & 255}.${g[7]! >> 8}.${g[7]! & 255}`;
+  const zeroTo = (n: number) => g.slice(0, n).every((x) => x === 0);
+  if (zeroTo(6)) return true; // ::, ::1, IPv4-compatible (::7f00:1)
+  if (zeroTo(5) && g[5] === 0xffff) return isPrivateIPv4(embeddedV4); // IPv4-mapped
+  if (zeroTo(4) && g[4] === 0xffff && g[5] === 0) return true; // SIIT ::ffff:0:0/96
+  if (g[0] === 0x64 && g[1] === 0xff9b && g.slice(2, 6).every((x) => x === 0)) return true; // NAT64
+  return (g[0]! & 0xffc0) === 0xfe80 || (g[0]! & 0xfe00) === 0xfc00; // link-local, unique-local
 }
 
 function isPrivateAddress(ip: string): boolean {
