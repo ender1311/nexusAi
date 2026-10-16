@@ -1,4 +1,4 @@
-import { beforeEach, describe, expect, it } from "bun:test";
+import { beforeEach, describe, expect, it, spyOn } from "bun:test";
 import { prisma } from "@/lib/db";
 import { truncateAll } from "../helpers/db";
 import { getContentSourceConfig, saveContentSourceConfig } from "@/connectors/content/config";
@@ -26,7 +26,16 @@ describe("content source config", () => {
   });
 
   it("falls back to the default when the stored JSON is invalid", async () => {
-    await prisma.appSetting.create({ data: { key: "content_source_config", value: "{not json" } });
-    expect((await getContentSourceConfig()).enabled).toEqual(["nexus-library"]);
+    const warn = spyOn(console, "warn").mockImplementation(() => {});
+    try {
+      await prisma.appSetting.create({ data: { key: "content_source_config", value: "{not json" } });
+      expect((await getContentSourceConfig()).enabled).toEqual(["nexus-library"]);
+      await prisma.appSetting.update({ where: { key: "content_source_config" }, data: { value: '{"enabled":[]}' } });
+      expect((await getContentSourceConfig()).enabled).toEqual(["nexus-library"]);
+      expect(warn).toHaveBeenCalledTimes(2);
+      expect(warn).toHaveBeenCalledWith("[content] invalid content_source_config; using default");
+    } finally {
+      warn.mockRestore();
+    }
   });
 });

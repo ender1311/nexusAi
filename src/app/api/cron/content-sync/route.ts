@@ -19,7 +19,14 @@ export async function GET(req: Request) {
     const results: Record<string, SyncResult> = {};
     for (const id of config.enabled) {
       if (id === "nexus-library") continue;
-      results[id] = await syncContentSource(id);
+      // One source crashing must not stop the others.
+      try {
+        results[id] = await syncContentSource(id);
+      } catch (err) {
+        console.error(`[cron/content-sync] ${id} crashed`, err);
+        results[id] = { status: "failed", created: 0, updated: 0, archived: 0, skipped: 0, propagated: 0,
+          errors: [{ externalRef: "(cron)", message: "Sync crashed" }] };
+      }
     }
     return ok({ results });
   } catch (err) {

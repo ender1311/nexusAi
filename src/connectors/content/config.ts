@@ -49,10 +49,12 @@ export async function getContentSourceConfig(): Promise<ContentSourceConfig> {
   if (!row) return DEFAULT;
   try {
     const parsed = contentSourceConfigSchema.safeParse(JSON.parse(row.value));
-    return parsed.success ? parsed.data : DEFAULT;
+    if (parsed.success) return parsed.data;
   } catch {
-    return DEFAULT;
+    // unparseable JSON: fall through to the default
   }
+  console.warn("[content] invalid content_source_config; using default");
+  return DEFAULT;
 }
 
 export async function saveContentSourceConfig(c: ContentSourceConfig): Promise<void> {

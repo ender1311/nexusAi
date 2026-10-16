@@ -4,5 +4,6 @@
   "buildCommand": "bun run build",
   "git": {
     "deploymentEnabled": { "docs/*": false, "chore/*": false }
-  }
+  },
+  "crons": [{ "path": "/api/cron/content-sync", "schedule": "0 6 * * *" }]
 }

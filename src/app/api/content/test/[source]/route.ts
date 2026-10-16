@@ -5,6 +5,8 @@ import { CONTENT_SOURCE_IDS, getContentSourceConfig } from "@/connectors/content
 import { createContentSource } from "@/connectors/content/registry";
 import { ContentSourceNotConfigured } from "@/connectors/content/types";
 
+export const maxDuration = 300;
+
 const sourceSchema = z.enum(CONTENT_SOURCE_IDS);
 
 export async function POST(_req: Request, { params }: { params: Promise<{ source: string }> }) {

@@ -4,6 +4,8 @@ import { ok, fail, handleRouteError } from "@/lib/api/respond";
 import { CONTENT_SOURCE_IDS } from "@/connectors/content/config";
 import { syncContentSource } from "@/connectors/content/sync";
 
+export const maxDuration = 300;
+
 const sourceSchema = z.enum(CONTENT_SOURCE_IDS);
 
 export async function POST(_req: Request, { params }: { params: Promise<{ source: string }> }) {

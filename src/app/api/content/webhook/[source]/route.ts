@@ -5,6 +5,8 @@ import { CONTENT_SOURCE_IDS } from "@/connectors/content/config";
 import { syncContentSource } from "@/connectors/content/sync";
 import { verifyContentWebhook } from "@/connectors/content/webhook-signature";
 
+export const maxDuration = 300;
+
 const sourceSchema = z.enum(CONTENT_SOURCE_IDS);
 
 export async function POST(req: Request, { params }: { params: Promise<{ source: string }> }) {

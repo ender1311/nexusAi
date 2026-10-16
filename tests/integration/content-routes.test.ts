@@ -140,11 +140,13 @@ describe("GET /api/content/sync-runs", () => {
   });
 });
 
+/** Polls until `expected` runs exist for the source and none is still running (the detached sync has finished). */
 async function waitForRuns(source: string, expected: number): Promise<number> {
   let n = 0;
   for (let i = 0; i < 50; i++) {
-    n = await prisma.contentSyncRun.count({ where: { source } });
-    if (n >= expected) break;
+    const runs = await prisma.contentSyncRun.findMany({ where: { source }, select: { status: true } });
+    n = runs.length;
+    if (n >= expected && runs.every((r) => r.status !== "running")) break;
     await new Promise((r) => setTimeout(r, 40));
   }
   return n;
