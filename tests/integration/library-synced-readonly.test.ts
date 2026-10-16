@@ -78,3 +78,32 @@ describe("synced variants: copy is read-only, the kill switch is not", () => {
     expect((await prisma.messageVariant.findUnique({ where: { id: syncedId } }))?.status).toBe("archived");
   });
 });
+
+describe("agent clones of a synced variant are read-only too", () => {
+  const CLONE_LOCKED = { error: "This variant is a copy of content synced from contentful; edit it at the source." };
+  let cloneId: string;
+  let nativeCloneId: string;
+  beforeEach(async () => {
+    const agent = await createAgent({ name: "Sender" });
+    const msg = await createMessage(agent.id, { channel: "push" });
+    cloneId = (await createVariant(msg.id, { name: "C", title: "T", body: "B" })).id;
+    await prisma.messageVariant.update({ where: { id: cloneId }, data: { sourceTemplateId: syncedId } });
+    nativeCloneId = (await createVariant(msg.id, { name: "NC", title: "T", body: "B" })).id;
+    await prisma.messageVariant.update({ where: { id: nativeCloneId }, data: { sourceTemplateId: nativeId } });
+  });
+
+  it("copy PATCH and DELETE 409 with a message naming the template's source", async () => {
+    const blocked = await patch(cloneId, { body: "new" });
+    expect(blocked.status).toBe(409);
+    expect(await blocked.json()).toEqual(CLONE_LOCKED);
+    const del = await variantRoute.DELETE(new NextRequest("http://t", { method: "DELETE" }), idParams(cloneId));
+    expect(del.status).toBe(409);
+    expect(await del.json()).toEqual(CLONE_LOCKED);
+    expect((await prisma.messageVariant.findUnique({ where: { id: cloneId } }))?.body).toBe("B");
+  });
+
+  it("status PATCH on the clone still works; clones of native templates stay editable", async () => {
+    expect((await patch(cloneId, { status: "paused" })).status).toBe(200);
+    expect((await patch(nativeCloneId, { body: "new" })).status).toBe(200);
+  });
+});
