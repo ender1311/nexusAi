@@ -77,6 +77,7 @@ model Message {
   brazeCampaignId String?
   brazeCanvasId   String?  // Braze canvas UUID — set by sync-braze-canvas-ids script
   testedVariables Json     @default("[]")
+  contentSource   String   @default("nexus-library")
   createdAt       DateTime @default(now())
 
   agent    Agent?           @relation(fields: [agentId], references: [id], onDelete: Cascade)
@@ -111,6 +112,10 @@ model MessageVariant {
   //   ctaType: "button"|"link"|"deeplink", messageLengthBucket: "short"|"medium"|"long" }
   actionFeatures       Json?
   htmlBody             String?   // full HTML template (email channel only)
+  contentSource        String    @default("nexus-library")
+  externalRef          String?
+  syncedAt             DateTime? @db.Timestamptz(6)
+  // unique (contentSource, externalRef) WHERE externalRef IS NOT NULL — partial index in migration SQL, not expressible in Prisma
   createdAt            DateTime  @default(now())
 
   message       Message        @relation(fields: [messageId], references: [id], onDelete: Cascade)
@@ -382,6 +387,21 @@ model PlanSetMember {
 
   @@id([planId, setId])
   @@index([planId])
+}
+
+model ContentSyncRun {
+  id         String    @id @default(cuid())
+  source     String
+  startedAt  DateTime  @default(now()) @db.Timestamptz(6)
+  finishedAt DateTime? @db.Timestamptz(6)
+  status     String
+  created    Int       @default(0)
+  updated    Int       @default(0)
+  archived   Int       @default(0)
+  skipped    Int       @default(0)
+  errors     Json      @default("[]")
+
+  @@index([source, startedAt(sort: Desc)])
 }
 
 model AppSetting {
