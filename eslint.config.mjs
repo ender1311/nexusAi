@@ -5,15 +5,15 @@ import nextTs from "eslint-config-next/typescript";
 const eslintConfig = defineConfig([
   ...nextVitals,
   ...nextTs,
-  // apps/site may reach into the main app only through @engine/* (pure engine).
+  // apps/site may reach into the main app only through @engine/* and @content-core/* (pure modules).
   {
     files: ["apps/site/**/*.{ts,tsx}"],
     rules: {
       "no-restricted-imports": ["error", {
         patterns: [
-          { group: ["@/*"], message: "apps/site may import only @engine/* from the main app." },
-          { regex: "^(\\.\\./)+src/", message: "Use @engine/* — apps/site may import only the pure engine." },
-          { regex: "^@engine/.*\\.\\.", message: "@engine/* must not escape the engine directory." },
+          { group: ["@/*"], message: "apps/site may import only @engine/* and @content-core/* from the main app." },
+          { regex: "^(\\.\\./)+src/", message: "Use @engine/* or @content-core/* — apps/site may import only those pure modules." },
+          { regex: "^@(engine|content-core)/.*\\.\\.", message: "@engine/* and @content-core/* must not escape their directories." },
         ],
       }],
     },

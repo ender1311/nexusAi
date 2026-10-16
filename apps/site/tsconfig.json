@@ -31,6 +31,9 @@
       "@engine/*": [
         "../../src/lib/engine/*"
       ],
+      "@content-core/*": [
+        "../../src/lib/content-core/*"
+      ],
       "@/*": [
         "../../src/*"
       ]
@@ -43,6 +46,7 @@
     "**/*.tsx",
     ".next/types/**/*.ts",
     "../../src/lib/engine/**/*.ts",
+    "../../src/lib/content-core/**/*.ts",
     ".next/dev/types/**/*.ts"
   ],
   "exclude": [
