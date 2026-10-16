@@ -26,3 +26,15 @@ export function buildActivationProperties(v: ActivationVariant, mode: "inline" |
 export function brazeCatalogLiquid(catalogName: string, property: string = "api_trigger_properties"): string {
   return `{% catalog_items ${catalogName} {{${property}.\${catalog_item_id}}} %}`;
 }
+
+type CatalogRef = { contentSource: string; externalRef: string | null };
+
+/**
+ * The catalog item a variant activates: its own ref when it is a Braze Catalog variant,
+ * otherwise its source template's ref when that template is one (agent clones of synced items).
+ */
+export function catalogItemIdFor(variant: CatalogRef, template: CatalogRef | null | undefined): string | null {
+  if (variant.contentSource === "braze-catalog") return variant.externalRef;
+  if (template?.contentSource === "braze-catalog") return template.externalRef;
+  return null;
+}

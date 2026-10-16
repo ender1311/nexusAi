@@ -1,5 +1,5 @@
 import { describe, expect, it } from "bun:test";
-import { brazeCatalogLiquid, buildActivationProperties, referenceProperties } from "@/lib/content-core";
+import { brazeCatalogLiquid, buildActivationProperties, catalogItemIdFor, referenceProperties } from "@/lib/content-core";
 
 const v = { contentSource: "braze-catalog", externalRef: "tip_7", title: "Breathe", body: "Two minutes.", cta: "Start", link: "lumen://breathe" };
 
@@ -17,5 +17,14 @@ describe("activation", () => {
   it("renders the Liquid snippet for a catalog", () => {
     expect(brazeCatalogLiquid("lumen_tips")).toBe("{% catalog_items lumen_tips {{api_trigger_properties.${catalog_item_id}}} %}");
     expect(brazeCatalogLiquid("lumen_tips", "canvas_entry_properties")).toBe("{% catalog_items lumen_tips {{canvas_entry_properties.${catalog_item_id}}} %}");
+  });
+  it("catalogItemIdFor uses the variant's own ref, else its braze-catalog template's ref", () => {
+    const catalog = { contentSource: "braze-catalog", externalRef: "tip_7" };
+    const native = { contentSource: "nexus-library", externalRef: null };
+    expect(catalogItemIdFor(catalog, null)).toBe("tip_7");
+    expect(catalogItemIdFor(native, catalog)).toBe("tip_7");
+    expect(catalogItemIdFor(native, { contentSource: "contentful", externalRef: "e1" })).toBeNull();
+    expect(catalogItemIdFor(native, null)).toBeNull();
+    expect(catalogItemIdFor({ contentSource: "contentful", externalRef: "e1" }, undefined)).toBeNull();
   });
 });

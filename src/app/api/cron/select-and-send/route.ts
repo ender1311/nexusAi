@@ -11,6 +11,7 @@ import {
   getCachedSegments,
 } from "@/lib/cache";
 import { prisma } from "@/lib/db";
+import { catalogItemIdFor } from "@/lib/content-core";
 import type { Prisma } from "@/generated/prisma/client";
 import { createBrazeClient } from "@/lib/braze/client";
 import { PayloadFactory } from "@/lib/braze/payload-factory";
@@ -151,6 +152,18 @@ export async function POST(req: NextRequest) {
       },
     },
   });
+
+  // Agents send synced Braze Catalog items through clones (nexus-library rows whose
+  // sourceTemplateId is the synced variant), so the catalog ref lives on the template.
+  // One batch for all agents; only braze-catalog templates matter.
+  const cloneTemplateIds = [...new Set(agents.flatMap((a) => a.messages.flatMap((m) =>
+    m.variants.map((v) => v.sourceTemplateId).filter((id): id is string => id != null))))];
+  const catalogTemplates = new Map(
+    (cloneTemplateIds.length === 0 ? [] : await prisma.messageVariant.findMany({
+      where: { id: { in: cloneTemplateIds }, contentSource: "braze-catalog" },
+      select: { id: true, contentSource: true, externalRef: true },
+    })).map((t) => [t.id, t]),
+  );
 
   // Drop incomplete push variants from the candidate pool before any selection.
   // A push must have both a title and a body; an incomplete variant is skipped
@@ -904,7 +917,7 @@ export async function POST(req: NextRequest) {
           deeplink:        agent.deeplinkOverride ?? v.deeplink ?? null,
           brazeCampaignId: msg.brazeCampaignId ?? null,
           brazeVariantId:  v.brazeVariantId ?? null,
-          catalogItemId:   v.contentSource === "braze-catalog" ? v.externalRef : null,
+          catalogItemId:   catalogItemIdFor(v, v.sourceTemplateId ? catalogTemplates.get(v.sourceTemplateId) : null),
           givingHandleStrategy: deriveGivingStrategy(v.subcategory ?? null, v.actionFeatures),
           givingFrequency: deriveGivingFrequency(v.actionFeatures),
           givingHandleDefaultUsd: deriveGivingDefaultUsd(v.actionFeatures),
