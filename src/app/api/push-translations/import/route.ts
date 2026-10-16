@@ -39,7 +39,7 @@ export async function POST(req: NextRequest): Promise<NextResponse<Ok | Err>> {
   // Candidate variants: push variants whose message belongs to any agent. Snapshot
   // sourceFile + existing translation languages for pure plan matching.
   const variants = await prisma.messageVariant.findMany({
-    where: { message: { channel: "push" } },
+    where: { message: { channel: "push" }, contentSource: "nexus-library" },
     select: { id: true, name: true, body: true, actionFeatures: true, translations: { select: { language: true } } },
   });
   const snapshots: VariantSnapshot[] = variants.map((v) => {

@@ -3,6 +3,10 @@ import { NextRequest, NextResponse } from "next/server";
 import { createHmac } from "node:crypto";
 import { prisma } from "../helpers/db";
 
+// `after()` only works inside a Next request scope; run the callback detached, as the framework does after the response.
+const realServer = await import("next/server");
+mock.module("next/server", () => ({ ...realServer, after: (fn: () => Promise<unknown>) => { void fn(); } }));
+
 let isAdmin = true;
 mock.module("@/lib/auth", () => ({
   requireAdmin: async () => (isAdmin ? null : NextResponse.json({ error: "Forbidden" }, { status: 403 })),
@@ -62,6 +66,18 @@ describe("GET/PUT /api/settings/content-sources", () => {
   it("rejects empty enabled and unknown sources with 400", async () => {
     expect((await settings.PUT(json("http://t", "PUT", { enabled: [] }))).status).toBe(400);
     expect((await settings.PUT(json("http://t", "PUT", { enabled: ["nope"] }))).status).toBe(400);
+  });
+
+  it("rejects a generic-json url that embeds credentials", async () => {
+    const withUrl = (url: string) => json("http://t", "PUT", {
+      enabled: ["nexus-library", "generic-json"],
+      genericJson: { url, itemsPath: "items", channel: "push", mapping: {} },
+    });
+    expect((await settings.PUT(withUrl("https://u:p@example.com/feed"))).status).toBe(400);
+    for (const q of ["token=a", "KEY=a", "secret=a", "api_key=a", "ApiKey=a"]) {
+      expect((await settings.PUT(withUrl(`https://example.com/feed?${q}`))).status).toBe(400);
+    }
+    expect((await settings.PUT(withUrl("https://example.com/feed?page=1"))).status).toBe(200);
   });
 
   it("is admin-only", async () => {
@@ -124,35 +140,66 @@ describe("GET /api/content/sync-runs", () => {
   });
 });
 
+async function waitForRuns(source: string, expected: number): Promise<number> {
+  let n = 0;
+  for (let i = 0; i < 50; i++) {
+    n = await prisma.contentSyncRun.count({ where: { source } });
+    if (n >= expected) break;
+    await new Promise((r) => setTimeout(r, 40));
+  }
+  return n;
+}
+
 describe("POST /api/content/webhook/[source]", () => {
   const raw = '{"sys":{"id":"e1"}}';
-  const sign = (secret: string) => createHmac("sha256", secret).update(raw).digest("hex");
+  const url = "http://t/api/content/webhook/contentful";
+  const nexusSig = (secret: string) => createHmac("sha256", secret).update(raw).digest("hex");
   const hook = (source: string, headers: Record<string, string> = {}) =>
-    webhookRoute.POST(new NextRequest("http://t", { method: "POST", body: raw, headers }), params(source));
+    webhookRoute.POST(new NextRequest(url.replace("contentful", source), { method: "POST", body: raw, headers }), params(source));
 
   it("401s a missing or bad signature", async () => {
     process.env.CONTENT_WEBHOOK_SECRET = "whsec";
     expect((await hook("contentful")).status).toBe(401);
-    expect((await hook("contentful", { "x-nexus-signature": sign("wrong") })).status).toBe(401);
+    expect((await hook("contentful", { "x-nexus-signature": nexusSig("wrong") })).status).toBe(401);
   });
   it("401s when no secret is configured, even with a signature", async () => {
-    expect((await hook("contentful", { "x-nexus-signature": sign("whsec") })).status).toBe(401);
+    expect((await hook("contentful", { "x-nexus-signature": nexusSig("whsec") })).status).toBe(401);
   });
   it("404s an unknown source", async () => {
     process.env.CONTENT_WEBHOOK_SECRET = "whsec";
-    expect((await hook("nope", { "x-nexus-signature": sign("whsec") })).status).toBe(404);
+    expect((await hook("nope", { "x-nexus-signature": nexusSig("whsec") })).status).toBe(404);
   });
-  it("202s a valid signature (any accepted header) and runs the sync", async () => {
+  it("202s a valid Nexus-signed request and the sync runs after the response", async () => {
     process.env.CONTENT_WEBHOOK_SECRET = "whsec";
     await settings.PUT(json("http://t", "PUT", contentfulConfig));
-    for (const header of ["x-nexus-signature", "x-contentful-signature", "sanity-webhook-signature"]) {
-      await prisma.contentSyncRun.deleteMany();
-      const res = await hook("contentful", { [header]: sign("whsec") });
-      expect(res.status).toBe(202);
-      expect(await res.json()).toEqual({ data: { queued: true } });
-      // No token in env: the sync records a failed run, never touching the network.
-      expect(await prisma.contentSyncRun.count({ where: { source: "contentful" } })).toBe(1);
-    }
+    const res = await hook("contentful", { "x-nexus-signature": nexusSig("whsec") });
+    expect(res.status).toBe(202);
+    expect(await res.json()).toEqual({ data: { queued: true } });
+    // No token in env: the sync records a failed run, never touching the network.
+    expect(await waitForRuns("contentful", 1)).toBe(1);
+  });
+  it("accepts Sanity's native signature and rejects a stale one", async () => {
+    process.env.CONTENT_WEBHOOK_SECRET = "whsec";
+    await settings.PUT(json("http://t", "PUT", { enabled: ["nexus-library", "sanity"] }));
+    const sanity = (t: number) => `t=${t},v1=${createHmac("sha256", "whsec").update(`${t}.${raw}`).digest("base64url")}`;
+    expect((await hook("sanity", { "sanity-webhook-signature": sanity(Date.now() - 10 * 60_000) })).status).toBe(401);
+    expect((await hook("sanity", { "sanity-webhook-signature": sanity(Date.now()) })).status).toBe(202);
+    expect(await waitForRuns("sanity", 1)).toBe(1);
+  });
+  it("accepts Contentful's native signature (canonical request, signed headers)", async () => {
+    process.env.CONTENT_WEBHOOK_SECRET = "whsec";
+    await settings.PUT(json("http://t", "PUT", contentfulConfig));
+    const ts = String(Date.now());
+    const signed = "content-type,x-contentful-signed-headers,x-contentful-timestamp";
+    const canonical = ["POST", "/api/content/webhook/contentful",
+      `content-type:application/json;x-contentful-signed-headers:${signed};x-contentful-timestamp:${ts}`, raw].join("\n");
+    const signature = createHmac("sha256", "whsec").update(canonical).digest("hex");
+    const res = await hook("contentful", {
+      "content-type": "application/json", "x-contentful-signed-headers": signed,
+      "x-contentful-timestamp": ts, "x-contentful-signature": signature,
+    });
+    expect(res.status).toBe(202);
+    expect(await waitForRuns("contentful", 1)).toBe(1);
   });
 });
 

@@ -63,10 +63,11 @@ export async function middleware(request: NextRequest) {
 export const config = {
   matcher: [
     // Exclude static assets, images, and machine-to-machine API routes.
-    // Service routes (/api/ingest/, /api/cron/, /api/decide, /api/admin/,
-    // /api/revalidate) authenticate per-request via API key / CRON_SECRET;
+    // Service routes (/api/ingest/, /api/cron/, /api/content/webhook/, /api/decide,
+    // /api/admin/, /api/revalidate) authenticate per-request via API key / CRON_SECRET /
+    // webhook signature;
     // they don't need WorkOS session middleware, and skipping it here eliminates
     // ~600K+ unnecessary middleware invocations per 14 days.
-    "/((?!_next/static|_next/image|favicon\\.ico|api/ingest/|api/cron/|api/decide(?:/|$)|api/admin/|api/revalidate(?:/|$)|.*\\.(?:svg|png|jpg|jpeg|gif|webp|mp4|webm|html)$).*)",
+    "/((?!_next/static|_next/image|favicon\\.ico|api/ingest/|api/cron/|api/content/webhook/|api/decide(?:/|$)|api/admin/|api/revalidate(?:/|$)|.*\\.(?:svg|png|jpg|jpeg|gif|webp|mp4|webm|html)$).*)",
   ],
 };

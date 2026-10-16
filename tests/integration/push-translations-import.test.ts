@@ -57,6 +57,18 @@ describe("POST /api/push-translations/import", () => {
     expect(count).toBe(0);
   });
 
+  it("never matches or writes translations onto a synced variant", async () => {
+    await prisma.messageVariant.update({ where: { id: variantId }, data: { contentSource: "contentful", externalRef: "e1" } });
+    const res = await POST(form([
+      { name: "import-stem-1-en.json", body: en },
+      { name: "import-stem-1-es.json", body: es },
+    ], { commit: "true" }));
+    expect(res.status).toBe(200);
+    const { data } = await res.json();
+    expect(data.plan.totals).toMatchObject({ matchedStems: 0, creates: 0 });
+    expect(await prisma.messageVariantTranslation.count({ where: { messageVariantId: variantId } })).toBe(0);
+  });
+
   it("commit upserts translation rows (idempotent)", async () => {
     const files = [
       { name: "import-stem-1-en.json", body: en },

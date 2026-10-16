@@ -34,15 +34,24 @@ afterEach(cleanup);
 const idParams = (id: string) => ({ params: Promise.resolve({ id }) });
 const post = (body: unknown) => new NextRequest("http://t", { method: "POST", body: JSON.stringify(body) });
 
-describe("synced variants are read-only in the library routes", () => {
-  it("PATCH /api/variants/[id] 409s a synced variant and edits a native one", async () => {
-    const blocked = await variantRoute.PATCH(new NextRequest("http://t", { method: "PATCH", body: JSON.stringify({ body: "new" }) }), idParams(syncedId));
-    expect(blocked.status).toBe(409);
-    expect(await blocked.json()).toEqual(LOCKED);
-    expect((await prisma.messageVariant.findUnique({ where: { id: syncedId } }))?.body).toBe("B");
+const patch = (id: string, body: unknown) =>
+  variantRoute.PATCH(new NextRequest("http://t", { method: "PATCH", body: JSON.stringify(body) }), idParams(id));
 
-    const allowed = await variantRoute.PATCH(new NextRequest("http://t", { method: "PATCH", body: JSON.stringify({ body: "new" }) }), idParams(nativeId));
-    expect(allowed.status).toBe(200);
+describe("synced variants: copy is read-only, the kill switch is not", () => {
+  it("PATCH of a copy field 409s a synced variant and edits a native one", async () => {
+    for (const field of ["body", "title", "name", "subject", "cta", "deeplink", "iconImageUrl"]) {
+      const blocked = await patch(syncedId, { [field]: "new" });
+      expect(blocked.status).toBe(409);
+      expect(await blocked.json()).toEqual(LOCKED);
+    }
+    expect((await prisma.messageVariant.findUnique({ where: { id: syncedId } }))?.body).toBe("B");
+    expect((await patch(nativeId, { body: "new" })).status).toBe(200);
+  });
+
+  it("PATCH of status / sortOrder on a synced variant is allowed (pause, reorder)", async () => {
+    expect((await patch(syncedId, { status: "paused" })).status).toBe(200);
+    expect((await prisma.messageVariant.findUnique({ where: { id: syncedId } }))?.status).toBe("paused");
+    expect((await patch(syncedId, { sortOrder: 3 })).status).toBe(200);
   });
 
   it("DELETE /api/variants/[id] 409s a synced variant and deletes a native one", async () => {
@@ -50,7 +59,6 @@ describe("synced variants are read-only in the library routes", () => {
     expect(blocked.status).toBe(409);
     expect(await blocked.json()).toEqual(LOCKED);
     expect(await prisma.messageVariant.count({ where: { id: syncedId } })).toBe(1);
-
     expect((await variantRoute.DELETE(new NextRequest("http://t", { method: "DELETE" }), idParams(nativeId))).status).toBe(200);
   });
 
@@ -60,18 +68,13 @@ describe("synced variants are read-only in the library routes", () => {
     expect(await res.json()).toEqual(LOCKED);
   });
 
-  it("POST /api/push-library/reorder 409s when any id is synced", async () => {
-    const res = await reorderRoute.POST(post({ ids: [nativeId, syncedId] }));
-    expect(res.status).toBe(409);
-    expect(await res.json()).toEqual(LOCKED);
-  });
-
-  it("POST /api/push-library/bulk 409s when any id is synced, and works for native ids", async () => {
-    const res = await bulkRoute.POST(post({ ids: [nativeId, syncedId], op: "setStatus", status: "paused" }));
-    expect(res.status).toBe(409);
-    expect((await prisma.messageVariant.findUnique({ where: { id: nativeId } }))?.status).not.toBe("paused");
-
-    const ok = await bulkRoute.POST(post({ ids: [nativeId], op: "setStatus", status: "paused" }));
-    expect(ok.status).toBe(200);
+  it("reorder and bulk setStatus / recategorize include synced ids", async () => {
+    expect((await reorderRoute.POST(post({ ids: [syncedId, nativeId] }))).status).toBe(200);
+    const paused = await bulkRoute.POST(post({ ids: [nativeId, syncedId], op: "setStatus", status: "paused" }));
+    expect(paused.status).toBe(200);
+    expect((await prisma.messageVariant.findUnique({ where: { id: syncedId } }))?.status).toBe("paused");
+    const archived = await bulkRoute.POST(post({ ids: [syncedId], op: "delete" }));
+    expect(archived.status).toBe(200);
+    expect((await prisma.messageVariant.findUnique({ where: { id: syncedId } }))?.status).toBe("archived");
   });
 });

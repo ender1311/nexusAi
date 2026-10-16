@@ -5,6 +5,14 @@ export const CONTENT_SOURCE_IDS = ["nexus-library", "contentful", "sanity", "gen
 export type ContentSourceId = (typeof CONTENT_SOURCE_IDS)[number];
 const CHANNELS = ["push", "email", "content_card", "slideup", "modal"] as const;
 
+const CREDENTIAL_PARAMS = new Set(["token", "key", "secret", "api_key", "apikey"]);
+/** Secrets live in env vars, never in the stored config: reject userinfo and credential-looking query params. */
+function hasNoEmbeddedCredentials(raw: string): boolean {
+  const u = new URL(raw);
+  if (u.username || u.password) return false;
+  return ![...u.searchParams.keys()].some((k) => CREDENTIAL_PARAMS.has(k.toLowerCase()));
+}
+
 const mappingSchema = z.record(z.string(), z.string().min(1)).default({});
 
 export const contentSourceConfigSchema = z.object({
@@ -18,7 +26,7 @@ export const contentSourceConfigSchema = z.object({
     query: z.string().min(1), channel: z.enum(CHANNELS), mapping: mappingSchema,
   }).optional(),
   genericJson: z.object({
-    url: z.string().url().refine((u) => u.startsWith("https://"), "url must be https"), itemsPath: z.string().min(1), channel: z.enum(CHANNELS),
+    url: z.string().url().refine((u) => u.startsWith("https://"), "url must be https").refine(hasNoEmbeddedCredentials, "url must not contain credentials"), itemsPath: z.string().min(1), channel: z.enum(CHANNELS),
     pagination: z.discriminatedUnion("mode", [
       z.object({ mode: z.literal("none") }),
       z.object({ mode: z.literal("cursor"), nextPath: z.string().min(1), param: z.string().min(1) }),

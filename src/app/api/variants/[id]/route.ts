@@ -3,8 +3,9 @@ import { revalidateTag } from "next/cache";
 import { prisma } from "@/lib/db";
 import { TEMPLATE_COPY_FIELDS } from "@/lib/engine/template-sync";
 import { syncClonesFromTemplate } from "@/lib/services/template-service";
+import { handleRouteError } from "@/lib/api/respond";
 import { requireLibraryEditor } from "@/lib/auth";
-import { assertEditableVariant } from "@/lib/api/assert-editable-variant";
+import { assertEditableVariant, SYNCED_COPY_FIELDS } from "@/lib/api/assert-editable-variant";
 import { getPushTaxonomy } from "@/lib/cache/push-taxonomy";
 import { validateVariantTaxonomy } from "@/lib/push-taxonomy";
 import { isPushVariantComplete, missingPushFields } from "@/lib/messages/push-completeness";
@@ -25,14 +26,22 @@ export async function PATCH(
   const { id } = await params;
   const forbidden = await requireLibraryEditor();
   if (forbidden) return forbidden;
-  const locked = await assertEditableVariant(id);
-  if (locked) return locked;
 
   let body: Record<string, unknown>;
   try {
     body = await req.json();
   } catch {
     return NextResponse.json({ error: "Invalid JSON" }, { status: 400 });
+  }
+
+  // Synced variants keep a kill switch: only copy edits are blocked, not status/order/category.
+  if (Object.keys(body).some((k) => SYNCED_COPY_FIELDS.has(k))) {
+    try {
+      const locked = await assertEditableVariant(id);
+      if (locked) return locked;
+    } catch (err) {
+      return handleRouteError(`PATCH /api/variants/${id}`, err);
+    }
   }
 
   const variant = await prisma.messageVariant.findUnique({ where: { id } });
@@ -115,10 +124,9 @@ export async function DELETE(
   const { id } = await params;
   const forbidden = await requireLibraryEditor();
   if (forbidden) return forbidden;
-  const locked = await assertEditableVariant(id);
-  if (locked) return locked;
-
   try {
+    const locked = await assertEditableVariant(id);
+    if (locked) return locked;
     const existing = await prisma.messageVariant.findUnique({
       where: { id },
       select: { id: true },

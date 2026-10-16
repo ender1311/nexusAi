@@ -14,9 +14,9 @@ export async function DELETE(
   if (forbidden) return forbidden;
 
   const { id } = await params;
-  const locked = await assertEditableVariant(id);
-  if (locked) return locked;
   try {
+    const locked = await assertEditableVariant(id);
+    if (locked) return locked;
     const variant = await prisma.messageVariant.findUnique({
       where: { id },
       select: { id: true, message: { select: { agentId: true } } },
