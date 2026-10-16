@@ -168,8 +168,12 @@ export function stepDecide(
 export function stepActivate(
   source: DemoSource,
   channel: "content_card" | "push",
+  chosenRef?: string,
 ): { mode: "inline" | "reference"; endpoint: string; body: Record<string, unknown>; liquid: string | null } {
-  const { chosen: item } = stepDecide(source, DEFAULT_SEED);
+  const item = chosenRef
+    ? stepContent(source).items.find((i) => i.externalRef === chosenRef)
+    : stepDecide(source, DEFAULT_SEED).chosen;
+  if (!item) throw new Error(`Unknown content item ${chosenRef} for source ${source}`);
   const mode = source === "braze-catalog" && channel === "content_card" ? "reference" : "inline";
   const liquid = mode === "reference" ? brazeCatalogLiquid("lumen_tips") : null;
 
@@ -178,7 +182,7 @@ export function stepActivate(
       mode,
       endpoint: "/campaigns/trigger/send",
       body: {
-        campaign_id: "lumen-content-card-campaign",
+        campaign_id: "<campaign-uuid>",
         trigger_properties: buildActivationProperties(
           {
             contentSource: source,
@@ -200,7 +204,13 @@ export function stepActivate(
     endpoint: "/messages/send",
     body: {
       external_user_ids: [LUMEN_USER.externalId],
-      messages: { apple_push: { alert: { title: item.title, body: item.body } } },
+      messages: {
+        apple_push: {
+          app_id: "<ios-app-id>",
+          alert: { title: item.title ?? "Lumen", body: item.body },
+          ...(item.deeplink ? { custom_uri: item.deeplink } : {}),
+        },
+      },
     },
     liquid,
   };
@@ -208,4 +218,8 @@ export function stepActivate(
 
 export function stepLearn(stats: ArmStats, converted: boolean): ArmStats {
   return converted ? { alpha: stats.alpha + 1, beta: stats.beta } : { alpha: stats.alpha, beta: stats.beta + 1 };
+}
+
+export function stepDecideCaption(personaLabel: string): string {
+  return `Arm stats shown are for users like this one (persona: ${personaLabel}).`;
 }

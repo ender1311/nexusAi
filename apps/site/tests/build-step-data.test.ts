@@ -1,7 +1,7 @@
 import { describe, expect, it } from "bun:test";
 import { contentItemSchema } from "@content-core/index";
 import { DEMO_SOURCES } from "@site/content/demo-lumen";
-import { stepActivate, stepContent, stepDecide, stepFeatures, stepIngest, stepLearn } from "@site/lib/demo/build-step-data";
+import { INITIAL_ARM_STATS, stepActivate, stepDecideCaption, stepContent, stepDecide, stepFeatures, stepIngest, stepLearn } from "@site/lib/demo/build-step-data";
 
 describe("demo step data", () => {
   it("step 1 builds the ingest request from the warehouse row", () => {
@@ -58,5 +58,32 @@ describe("demo step data", () => {
   it("step 6 updates Beta stats", () => {
     expect(stepLearn({ alpha: 3, beta: 10 }, true)).toEqual({ alpha: 4, beta: 10 });
     expect(stepLearn({ alpha: 3, beta: 10 }, false)).toEqual({ alpha: 3, beta: 11 });
+  });
+
+  it("step 2 places the sample user in Morning routine, well clear of the others", () => {
+    expect(stepFeatures().persona.id).toBe("morning-routine");
+    expect(stepFeatures().persona.distance).toBeLessThan(0.5);
+  });
+
+  it("step 5 follows the arm chosen in step 4", () => {
+    for (const s of DEMO_SOURCES) {
+      const chosen = stepDecide(s, 7).chosen;
+      const r = stepActivate(s, "content_card", chosen.externalRef);
+      const props = r.body.trigger_properties as Record<string, string>;
+      expect(props.message).toBe(chosen.body);
+      if (s === "braze-catalog") expect(props.catalog_item_id).toBe(chosen.externalRef);
+      const push = stepActivate(s, "push", chosen.externalRef);
+      expect(JSON.stringify(push.body)).toContain(chosen.deeplink!);
+    }
+  });
+
+  it("step 6 increments alpha for the chosen arm", () => {
+    const chosen = stepDecide("contentful", 7).chosen;
+    const before = INITIAL_ARM_STATS[chosen.externalRef]!;
+    expect(stepLearn(before, true).alpha).toBe(before.alpha + 1);
+  });
+
+  it("step 4 caption names the persona", () => {
+    expect(stepDecideCaption("Morning routine")).toBe("Arm stats shown are for users like this one (persona: Morning routine).");
   });
 });

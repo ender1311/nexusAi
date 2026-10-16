@@ -31,8 +31,8 @@ export const LUMEN_USER = {
   totalConversions: 3,
   totalReward: 3,
   channelStats: { push: { sent: 12, converted: 2 }, email: { sent: 6, converted: 1 } },
-  hourlyStats: [0, 0, 0, 0, 0, 0, 0, 6, 3, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 2, 0, 0],
-  dailyStats: [2, 0, 0, 0, 0, 0, 3],
+  hourlyStats: [0, 0, 0, 0, 0, 0, 0, 3, 2, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+  dailyStats: [0, 1, 1, 1, 1, 1, 0],
 };
 
 // Centroid order matches FEATURE_LABELS.
@@ -113,7 +113,7 @@ export const LUMEN_CONTENT: {
   contentful: COPY_ROWS.map((r, i) =>
     contentfulEntry(
       `lumen-${r.key}`, r.title, r.body, r.cta, r.deeplink, r.key, IMAGES[i]!,
-      r.key === "breathing" ? { es: "Tomate dos minutos para reiniciar. Una respiracion guiada te espera." } : {},
+      r.key === "breathing" ? { es: "Tómate dos minutos para reiniciar. Una respiración guiada te espera." } : {},
     ),
   ),
   sanity: COPY_ROWS.map((r) => sanityDoc(`lumen-${r.key}`, r.title, r.body, r.cta, r.deeplink, r.key)),

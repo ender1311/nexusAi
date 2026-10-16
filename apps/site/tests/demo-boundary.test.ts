@@ -42,9 +42,9 @@ describe("demo sample data", () => {
     expect(v).toHaveLength(10);
     expect(v[0]).toBeCloseTo(2 / 12);
     expect(v[1]).toBeCloseTo(1 / 6);
-    expect(v[2]).toBeCloseTo(9 / 11);
-    expect(v[3]).toBeCloseTo(2 / 11);
-    expect(v[4]).toBe(1);
+    expect(v[2]).toBe(1);
+    expect(v[3]).toBe(0);
+    expect(v[4]).toBe(0);
     expect(v[5]).toBeCloseTo(3 / 18);
     expect(v[6]).toBeGreaterThan(0.9);
     expect(v[9]).toBeGreaterThan(0);
