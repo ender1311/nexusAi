@@ -2,6 +2,7 @@ import { NextRequest } from "next/server";
 import { revalidateTag } from "next/cache";
 import { prisma } from "@/lib/db";
 import { requireLibraryEditor } from "@/lib/auth";
+import { assertEditableVariants } from "@/lib/api/assert-editable-variant";
 import { ok, fail, handleRouteError } from "@/lib/api/respond";
 import { getPushTaxonomy } from "@/lib/cache/push-taxonomy";
 import { validateVariantTaxonomy } from "@/lib/push-taxonomy";
@@ -24,6 +25,8 @@ export async function POST(req: NextRequest) {
   if (!Array.isArray(ids) || ids.length === 0 || ids.some((x) => typeof x !== "string")) {
     return fail("ids must be a non-empty array of variant ids", 400);
   }
+  const locked = await assertEditableVariants(ids as string[]);
+  if (locked) return locked;
   const where = { id: { in: ids as string[] } };
 
   try {

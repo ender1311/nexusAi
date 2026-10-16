@@ -11,6 +11,7 @@ export const PUBLIC_PREFIXES = [
   "/api/ingest/",
   "/api/decide",
   "/api/cron/",
+  "/api/content/webhook/",
   "/api/admin/",
   "/api/revalidate",
 ] as const;
@@ -26,6 +27,7 @@ export const SERVICE_PREFIXES = [
   "/api/ingest/",
   "/api/decide",
   "/api/cron/",
+  "/api/content/webhook/",
   "/api/admin/",
   "/api/revalidate",
 ] as const;

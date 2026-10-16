@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { revalidateTag } from "next/cache";
 import { prisma } from "@/lib/db";
 import { requireLibraryEditor } from "@/lib/auth";
+import { assertEditableVariant } from "@/lib/api/assert-editable-variant";
 
 import { fail, handleRouteError } from "@/lib/api/respond";
 
@@ -13,6 +14,8 @@ export async function DELETE(
   if (forbidden) return forbidden;
 
   const { id } = await params;
+  const locked = await assertEditableVariant(id);
+  if (locked) return locked;
   try {
     const variant = await prisma.messageVariant.findUnique({
       where: { id },

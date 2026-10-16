@@ -2,6 +2,7 @@ import { NextRequest } from "next/server";
 import { revalidateTag } from "next/cache";
 import { prisma } from "@/lib/db";
 import { requireLibraryEditor } from "@/lib/auth";
+import { assertEditableVariants } from "@/lib/api/assert-editable-variant";
 import { ok, fail, handleRouteError } from "@/lib/api/respond";
 
 export async function POST(req: NextRequest) {
@@ -20,6 +21,8 @@ export async function POST(req: NextRequest) {
     return fail("ids must be an array of variant ids", 400);
   }
   if (ids.length === 0) return ok({ updated: 0 });
+  const locked = await assertEditableVariants(ids as string[]);
+  if (locked) return locked;
 
   try {
     await prisma.$transaction(

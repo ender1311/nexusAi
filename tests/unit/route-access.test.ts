@@ -37,3 +37,13 @@ describe("route-access segment-bounded prefix matching", () => {
     expect(isPublic("/callbackXYZ")).toBe(false);
   });
 });
+
+describe("content webhook route", () => {
+  it("is a service route (signature auth, no session) but its siblings are not", () => {
+    expect(isServiceRoute("/api/content/webhook/contentful")).toBe(true);
+    expect(isServiceRoute("/api/content/sync/contentful")).toBe(false);
+    expect(isServiceRoute("/api/content/test/contentful")).toBe(false);
+    expect(isServiceRoute("/api/content/sync-runs")).toBe(false);
+    expect(isServiceRoute("/api/cron/content-sync")).toBe(true);
+  });
+});

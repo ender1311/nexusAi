@@ -4,6 +4,7 @@ import { prisma } from "@/lib/db";
 import { TEMPLATE_COPY_FIELDS } from "@/lib/engine/template-sync";
 import { syncClonesFromTemplate } from "@/lib/services/template-service";
 import { requireLibraryEditor } from "@/lib/auth";
+import { assertEditableVariant } from "@/lib/api/assert-editable-variant";
 import { getPushTaxonomy } from "@/lib/cache/push-taxonomy";
 import { validateVariantTaxonomy } from "@/lib/push-taxonomy";
 import { isPushVariantComplete, missingPushFields } from "@/lib/messages/push-completeness";
@@ -24,6 +25,8 @@ export async function PATCH(
   const { id } = await params;
   const forbidden = await requireLibraryEditor();
   if (forbidden) return forbidden;
+  const locked = await assertEditableVariant(id);
+  if (locked) return locked;
 
   let body: Record<string, unknown>;
   try {
@@ -112,6 +115,8 @@ export async function DELETE(
   const { id } = await params;
   const forbidden = await requireLibraryEditor();
   if (forbidden) return forbidden;
+  const locked = await assertEditableVariant(id);
+  if (locked) return locked;
 
   try {
     const existing = await prisma.messageVariant.findUnique({
