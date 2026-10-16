@@ -14,11 +14,11 @@ export const contentSourceConfigSchema = z.object({
     contentType: z.string().min(1), channel: z.enum(CHANNELS), mapping: mappingSchema,
   }).optional(),
   sanity: z.object({
-    projectId: z.string().min(1), dataset: z.string().min(1).default("production"),
+    projectId: z.string().regex(/^[a-z0-9]+$/), dataset: z.string().regex(/^[a-z0-9_-]+$/).default("production"),
     query: z.string().min(1), channel: z.enum(CHANNELS), mapping: mappingSchema,
   }).optional(),
   genericJson: z.object({
-    url: z.string().url(), itemsPath: z.string().min(1), channel: z.enum(CHANNELS),
+    url: z.string().url().refine((u) => u.startsWith("https://"), "url must be https"), itemsPath: z.string().min(1), channel: z.enum(CHANNELS),
     pagination: z.discriminatedUnion("mode", [
       z.object({ mode: z.literal("none") }),
       z.object({ mode: z.literal("cursor"), nextPath: z.string().min(1), param: z.string().min(1) }),

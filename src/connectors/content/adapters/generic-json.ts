@@ -1,9 +1,9 @@
 import { applyFieldMapping, DEFAULT_MAPPINGS, getPath } from "@/lib/content-core";
 import type { ContentSourceConfig } from "../config";
-import { fetchJson, partition } from "../http";
+import { assertPublicHttpsUrl, fetchJson, partition, requireJsonObject, type LookupImpl } from "../http";
 import { ContentSourceNotConfigured, type ContentSource } from "../types";
 
-export function genericJsonSource(config: ContentSourceConfig, env: NodeJS.ProcessEnv, fetchImpl?: typeof fetch): ContentSource {
+export function genericJsonSource(config: ContentSourceConfig, env: NodeJS.ProcessEnv, fetchImpl?: typeof fetch, lookupImpl?: LookupImpl): ContentSource {
   const g = config.genericJson;
   if (!g) throw new ContentSourceNotConfigured("Generic JSON source is not configured");
   const mapping = { ...DEFAULT_MAPPINGS["generic-json"], ...g.mapping };
@@ -16,11 +16,14 @@ export function genericJsonSource(config: ContentSourceConfig, env: NodeJS.Proce
     return u.toString();
   }
   async function fetchPage(cursor?: string) {
-    const r = await fetchJson(urlFor(cursor), { headers }, fetchImpl);
+    const url = urlFor(cursor);
+    await assertPublicHttpsUrl(url, lookupImpl);
+    const r = await fetchJson(url, { headers }, fetchImpl);
     if (r.status !== 200) throw new Error(`Content endpoint responded ${r.status}`);
-    const items = getPath(r.json, g!.itemsPath);
+    const json = requireJsonObject(r.json, "Content endpoint");
+    const items = getPath(json, g!.itemsPath);
     if (!Array.isArray(items)) throw new Error(`itemsPath "${g!.itemsPath}" did not resolve to an array`);
-    return { items, json: r.json };
+    return { items, json };
   }
   const map = (items: unknown[]) => partition(items.map((raw) => {
     const r = applyFieldMapping(raw, mapping, { channel: g.channel });
@@ -34,8 +37,8 @@ export function genericJsonSource(config: ContentSourceConfig, env: NodeJS.Proce
       const { items, json } = await fetchPage(cursor);
       let next: string | undefined;
       const p = g.pagination;
-      if (p.mode === "cursor") { const n = getPath(json, p.nextPath); next = typeof n === "string" && n ? n : undefined; }
-      if (p.mode === "page") next = items.length >= p.pageSize ? String(Number(cursor ?? "1") + 1) : undefined;
+      if (p.mode === "cursor") { const n = getPath(json, p.nextPath); next = typeof n === "string" && n && n !== cursor ? n : undefined; }
+      if (p.mode === "page") next = items.length > 0 && items.length >= p.pageSize ? String(Number(cursor ?? "1") + 1) : undefined;
       return { ...map(items), next };
     },
     async testConnection() {
