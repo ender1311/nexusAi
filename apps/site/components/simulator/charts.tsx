@@ -2,13 +2,14 @@
 import { Area, AreaChart, CartesianGrid, Line, LineChart, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
 import type { DayState, Variant } from "@site/lib/simulator/types";
 
-const COLORS = ["#7c9cff", "#3ecf8e", "#f5a524", "#f25f8a"];
+/** Series colors, from the brand preset (recharts needs literal values, not CSS variables). */
+export type ChartPalette = readonly string[];
 const pct = (v: number) => `${Math.round(v * 100)}%`;
 
 /** recharts passes `unknown`-ish values to formatters; only format real numbers. */
 const formatNumber = (format: (v: number) => string) => (v: unknown) => (typeof v === "number" ? format(v) : "—");
 
-export function TrafficChart({ days, variants }: { days: DayState[]; variants: Variant[] }) {
+export function TrafficChart({ days, variants, palette }: { days: DayState[]; variants: Variant[]; palette: ChartPalette }) {
   const data = days.map((d) => ({ day: d.day, ...d.trafficShare }));
   return (
     <ResponsiveContainer width="100%" height={220}>
@@ -19,15 +20,15 @@ export function TrafficChart({ days, variants }: { days: DayState[]; variants: V
         <Tooltip formatter={formatNumber(pct)} />
         {variants.map((v, i) => (
           <Area key={v.id} type="monotone" dataKey={v.id} name={`${v.id} · ${v.label}`} stackId="1"
-            stroke={COLORS[i % COLORS.length]} fill={COLORS[i % COLORS.length]} fillOpacity={0.6} isAnimationActive={false} />
+            stroke={palette[i % palette.length]} fill={palette[i % palette.length]} fillOpacity={0.6} isAnimationActive={false} />
         ))}
       </AreaChart>
     </ResponsiveContainer>
   );
 }
 
-export function MetricLine({ days, dataKey, label, format }: {
-  days: DayState[]; dataKey: "liftVsHoldout" | "cumulativeRegret"; label: string; format: (v: number) => string;
+export function MetricLine({ days, dataKey, label, format, palette }: {
+  days: DayState[]; dataKey: "liftVsHoldout" | "cumulativeRegret"; label: string; format: (v: number) => string; palette: ChartPalette;
 }) {
   // Lift is null until the holdout has enough conversions; map null to undefined so the line leaves a gap.
   const data = days.map((d) => ({ day: d.day, value: d[dataKey] ?? undefined }));
@@ -38,7 +39,7 @@ export function MetricLine({ days, dataKey, label, format }: {
         <XAxis dataKey="day" tickLine={false} fontSize={12} />
         <YAxis tickFormatter={format} fontSize={12} width={48} />
         <Tooltip formatter={formatNumber(format)} />
-        <Line type="monotone" dataKey="value" name={label} stroke="#7c9cff" dot={false} connectNulls={false} isAnimationActive={false} />
+        <Line type="monotone" dataKey="value" name={label} stroke={palette[0]} dot={false} connectNulls={false} isAnimationActive={false} />
       </LineChart>
     </ResponsiveContainer>
   );

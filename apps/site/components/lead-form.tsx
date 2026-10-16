@@ -3,6 +3,7 @@ import { useState } from "react";
 import { connectorLabel, senders, sources } from "@site/content/connectors";
 import { publicConfig } from "@site/lib/public-config";
 import { calendlyEmbedUrl } from "@site/lib/leads/calendly-url";
+import { ui } from "@site/components/ui";
 
 type State = { kind: "idle" } | { kind: "sending" } | { kind: "error"; message: string; offerDirectBooking: boolean } | { kind: "booked"; url: string };
 
@@ -32,12 +33,12 @@ export function LeadForm() {
     return (
       <div className="space-y-3">
         <p className="text-sm">Thanks. Pick a time below and we&apos;ll walk through your stack.</p>
-        <iframe title="Book a call" src={state.url} className="h-[700px] w-full rounded-lg border border-[var(--border)]" />
+        <iframe title="Book a call" src={state.url} className={`h-[700px] w-full ${ui.box}`} />
       </div>
     );
   }
 
-  const field = "w-full rounded-md border border-[var(--border)] bg-[var(--bg)] px-3 py-2 text-sm";
+  const field = ui.field;
   return (
     <form onSubmit={onSubmit} className="relative grid gap-3 sm:grid-cols-2" noValidate>
       <label className="flex flex-col gap-1 text-sm">Work email<input name="email" type="email" required className={field} autoComplete="email" /></label>
@@ -60,7 +61,7 @@ export function LeadForm() {
         <label>Website<input name="nx_hp" tabIndex={-1} autoComplete="off" /></label>
       </div>
       {state.kind === "error" && (
-        <p role="alert" className="text-sm text-[var(--bad)] sm:col-span-2">
+        <p role="alert" className="text-sm text-bad sm:col-span-2">
           {state.message}
           {state.offerDirectBooking && (
             <> <a href={publicConfig.calendlyUrl} target="_blank" rel="noopener noreferrer" className="underline">Or book a call directly →</a></>
@@ -68,10 +69,10 @@ export function LeadForm() {
         </p>
       )}
       <button type="submit" disabled={state.kind === "sending"}
-        className="rounded-md bg-[var(--accent)] px-4 py-2.5 text-sm font-semibold text-white disabled:opacity-60 sm:col-span-2">
+        className={`rounded-brand-sm bg-accent px-[var(--control-x)] py-[calc(var(--control-y)*1.25)] text-sm text-on-accent ${ui.btnText} disabled:opacity-60 sm:col-span-2`}>
         {state.kind === "sending" ? "Sending…" : "Become a design partner"}
       </button>
-      <p className="text-xs text-[var(--muted)] sm:col-span-2">
+      <p className="text-xs text-ink-3 sm:col-span-2">
         We use your details only to follow up about the pilot. For spam protection we store a hashed IP, never the raw address.
       </p>
     </form>

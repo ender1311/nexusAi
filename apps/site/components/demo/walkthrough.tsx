@@ -11,6 +11,7 @@ import { Step3Content } from "./steps/step-3-content";
 import { Step4Decide } from "./steps/step-4-decide";
 import { Step5Activate } from "./steps/step-5-activate";
 import { Step6Learn } from "./steps/step-6-learn";
+import { ui } from "@site/components/ui";
 
 const RAIL = ["1 Hightouch", "2 Features", "3 Content", "4 Decide", "5 Braze", "6 Learn"];
 const SOURCE_OPTIONS: { id: DemoSource; label: string }[] = DEMO_SOURCES.map((id) => {
@@ -82,12 +83,12 @@ export function Walkthrough({ initialStep, initialSource }: { initialStep: numbe
   const selected = contentSources().find((c) => c.id === source);
 
   return (
-    <div className="space-y-6 rounded-2xl border border-[var(--border)] bg-[var(--panel)] p-4 sm:p-6">
+    <div className={`space-y-6 ${ui.panel} p-4 sm:p-6`}>
       <ol className="flex flex-wrap gap-2">
         {RAIL.map((label, i) => (
           <li key={label}>
             <button aria-current={step === i + 1 ? "step" : undefined} onClick={() => setStep(clampStep(i + 1))}
-              className={`rounded-md px-3 py-1 text-sm ${step === i + 1 ? "bg-[var(--accent)] text-white" : "border border-[var(--border)]"}`}>{label}</button>
+              className={`rounded-brand-sm px-3 py-1 text-sm ${step === i + 1 ? ui.toggleOn : ui.toggleOff}`}>{label}</button>
           </li>
         ))}
       </ol>
@@ -97,12 +98,12 @@ export function Walkthrough({ initialStep, initialSource }: { initialStep: numbe
           {SOURCE_OPTIONS.map((o) => (
             <button key={o.id} role="radio" aria-checked={source === o.id} tabIndex={source === o.id ? 0 : -1}
               ref={(el) => { radioRefs.current[o.id] = el; }} onClick={() => changeSource(o.id)}
-              className={`rounded-full px-3 py-1 text-xs ${source === o.id ? "bg-[var(--accent)] text-white" : "border border-[var(--border)]"}`}>{o.label}</button>
+              className={`rounded-chip px-3 py-1 text-xs ${source === o.id ? ui.toggleOn : ui.toggleOff}`}>{o.label}</button>
           ))}
         </div>
       ) : null}
       {showSourceSwitch && selected?.status === "roadmap" ? (
-        <p className="text-xs text-[var(--muted)]">
+        <p className="text-xs text-ink-3">
           Roadmap: the {selected.name} connector is being built and isn&apos;t live yet. The mapping and payload below run on Nexus&apos;s real mapping code, using sample records.
         </p>
       ) : null}
@@ -120,8 +121,8 @@ export function Walkthrough({ initialStep, initialSource }: { initialStep: numbe
       </div>
 
       <div className="flex justify-between">
-        <button className="rounded-md border border-[var(--border)] px-4 py-2 text-sm disabled:opacity-40" disabled={step === 1} onClick={() => setStep((s) => clampStep(s - 1))}>Back</button>
-        <button className="rounded-md bg-[var(--accent)] px-4 py-2 text-sm font-semibold text-white disabled:opacity-40" disabled={step === 6} onClick={() => setStep((s) => clampStep(s + 1))}>Next</button>
+        <button className={`${ui.btnSecondary} disabled:opacity-40`} disabled={step === 1} onClick={() => setStep((s) => clampStep(s - 1))}>Back</button>
+        <button className={`${ui.btnPrimary} disabled:opacity-40`} disabled={step === 6} onClick={() => setStep((s) => clampStep(s + 1))}>Next</button>
       </div>
     </div>
   );

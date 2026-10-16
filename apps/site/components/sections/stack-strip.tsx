@@ -1,13 +1,16 @@
 import { connectorLabel, contentSources, senders, sources } from "@site/content/connectors";
+import { ui } from "@site/components/ui";
+
 export function StackStrip() {
-  const pill = "rounded-full border border-[var(--border)] px-3 py-1 text-sm";
+  const pill = `${ui.pill} px-3 py-1 text-sm`;
+  const heading = `mb-3 ${ui.label} text-ink-3`;
   return (
-    <section className="grid gap-6 border-y border-[var(--border)] py-8 sm:grid-cols-2 lg:grid-cols-3">
-      <div><h2 className="mb-3 text-xs uppercase tracking-wider text-[var(--muted)]">Connect from</h2>
+    <section data-section="stack" className={`grid gap-6 ${ui.borderY} py-[calc(var(--section-y)/2)] sm:grid-cols-2 lg:grid-cols-3`}>
+      <div><h2 className={heading}>Connect from</h2>
         <ul className="flex flex-wrap gap-2">{sources().map((c) => <li key={c.id} className={pill}>{connectorLabel(c)}</li>)}</ul></div>
-      <div><h2 className="mb-3 text-xs uppercase tracking-wider text-[var(--muted)]">Send through</h2>
+      <div><h2 className={heading}>Send through</h2>
         <ul className="flex flex-wrap gap-2">{senders().map((c) => <li key={c.id} className={pill}>{connectorLabel(c)}</li>)}</ul></div>
-      <div><h2 className="mb-3 text-xs uppercase tracking-wider text-[var(--muted)]">Content from</h2>
+      <div><h2 className={heading}>Content from</h2>
         <ul className="flex flex-wrap gap-2">{contentSources().map((c) => <li key={c.id} className={pill}>{connectorLabel(c)}</li>)}</ul></div>
     </section>
   );

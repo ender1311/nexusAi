@@ -1,16 +1,65 @@
 @import "tailwindcss";
 
-:root {
-  --bg: #0b0d12;
-  --panel: #12151d;
-  --border: #232838;
-  --text: #e8ebf2;
-  --muted: #8a93a8;
-  --accent: #7c9cff;
-  --good: #3ecf8e;
-  --bad: #f87171;
+/*
+ * Structure only. Every color, font, radius and spacing value comes from the
+ * active brand preset (apps/site/brand/), which the root layout injects as
+ * custom properties under [data-brand="<id>"]. See brand/README.md.
+ *
+ * Contrast contract (tested for every preset and scheme): ink on bg/surface,
+ * ink-3 on bg, accent-ink on bg and on-accent on accent are all ≥ 4.5:1.
+ * Small accent-colored text uses accent-ink, never accent.
+ */
+
+/* Tailwind utilities that read the live tokens (bg-surface, text-ink-3, rounded-brand-lg…). */
+@theme inline {
+  --color-bg: var(--bg);
+  --color-surface: var(--surface);
+  --color-surface-2: var(--surface-2);
+  --color-ink: var(--ink);
+  --color-ink-2: var(--ink-2);
+  --color-ink-3: var(--ink-3);
+  --color-line: var(--line);
+  --color-accent: var(--accent);
+  --color-accent-ink: var(--accent-ink);
+  --color-on-accent: var(--on-accent);
+  --color-ok: var(--ok);
+  --color-ok-bg: var(--ok-bg);
+  --color-bad: var(--bad);
+  --color-bad-bg: var(--bad-bg);
+  --font-sans: var(--font-body);
+  --font-serif: var(--font-display);
+  --font-mono: var(--font-code);
+  --radius-brand-sm: var(--r-sm);
+  --radius-brand: var(--r);
+  --radius-brand-lg: var(--r-lg);
+  --radius-chip: var(--r-chip);
+  --shadow-brand: var(--shadow);
+  --shadow-brand-pop: var(--shadow-pop);
 }
-@media (prefers-color-scheme: light) {
-  :root { --bg: #f7f8fb; --panel: #ffffff; --border: #e3e6ee; --text: #121521; --muted: #5b6478; --accent: #3a5cff; --good: #0f9f62; --bad: #dc2626; }
+
+body {
+  background: var(--bg);
+  color: var(--ink);
+  font-family: var(--font-body);
 }
-body { background: var(--bg); color: var(--text); }
+
+::selection {
+  background: var(--mark);
+  color: var(--ink);
+}
+
+:focus-visible {
+  outline: 2px solid var(--focus);
+  outline-offset: 2px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}

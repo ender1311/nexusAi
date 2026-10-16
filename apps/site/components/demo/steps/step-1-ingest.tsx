@@ -5,7 +5,7 @@ export function Step1Ingest() {
   const { warehouseRow, hightouchRecord, ingestRequest } = stepIngest();
   return (
     <div className="space-y-4">
-      <p className="text-sm text-[var(--muted)]">
+      <p className="text-sm text-ink-3">
         Your warehouse already knows your users. Hightouch syncs each row to Nexus as a user record, with no new tracking to build.
       </p>
       <div className="grid gap-4 lg:grid-cols-3">
