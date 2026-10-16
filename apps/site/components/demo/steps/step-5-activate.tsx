@@ -11,10 +11,12 @@ const CHANNELS: { id: Channel; label: string }[] = [
 
 export function Step5Activate({ source, chosenRef }: { source: DemoSource; chosenRef: string }) {
   const [channel, setChannel] = useState<Channel>("content_card");
-  const { endpoint, body, liquid } = stepActivate(source, channel, chosenRef);
+  const { mode, endpoint, body, liquid } = stepActivate(source, channel, chosenRef);
   return (
     <div className="space-y-4">
-      <p className="text-sm text-[var(--muted)]">Braze renders the catalog item Nexus picked. Nexus sends one API call; Braze does the delivery.</p>
+      <p className="text-sm text-[var(--muted)]">
+        {mode === "reference" ? "Braze renders the catalog item Nexus picked. " : ""}Nexus sends one API call; Braze does the delivery.
+      </p>
       <div className="flex gap-2" role="group" aria-label="Channel">
         {CHANNELS.map((c) => (
           <button key={c.id} aria-pressed={channel === c.id} onClick={() => setChannel(c.id)}

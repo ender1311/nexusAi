@@ -1,9 +1,9 @@
-import type { ArmStats } from "@site/lib/demo/build-step-data";
+import { armEstimate, type ArmStats } from "@site/lib/demo/build-step-data";
 
 type Props = { stats: ArmStats; onOutcome: (converted: boolean) => void; onReset: () => void };
 
 export function Step6Learn({ stats, onOutcome, onReset }: Props) {
-  const mean = stats.alpha / (stats.alpha + stats.beta);
+  const mean = armEstimate(stats);
   return (
     <div className="space-y-4">
       <p className="text-sm text-[var(--muted)]">

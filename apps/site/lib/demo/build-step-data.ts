@@ -223,3 +223,14 @@ export function stepLearn(stats: ArmStats, converted: boolean): ArmStats {
 export function stepDecideCaption(personaLabel: string): string {
   return `Arm stats shown are for users like this one (persona: ${personaLabel}).`;
 }
+
+/** The chosen arm's starting stats for a source and decision seed. */
+export function initialArmStats(source: DemoSource, seed?: number): ArmStats {
+  const stats = INITIAL_ARM_STATS[stepDecide(source, seed).chosen.externalRef];
+  if (!stats) throw new Error(`No initial arm stats for source ${source}`);
+  return stats;
+}
+
+export function armEstimate(stats: ArmStats): number {
+  return stats.alpha / (stats.alpha + stats.beta);
+}

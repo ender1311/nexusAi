@@ -1,8 +1,7 @@
-import { stepDecide, stepDecideCaption, stepFeatures } from "@site/lib/demo/build-step-data";
-import type { DemoSource } from "@site/content/demo-lumen";
+import { stepDecideCaption, stepFeatures, type stepDecide } from "@site/lib/demo/build-step-data";
 
-export function Step4Decide({ source, seed, onPickAgain }: { source: DemoSource; seed: number; onPickAgain: () => void }) {
-  const { chosen, arms } = stepDecide(source, seed);
+export function Step4Decide({ decision, onPickAgain }: { decision: ReturnType<typeof stepDecide>; onPickAgain: () => void }) {
+  const { chosen, arms } = decision;
   return (
     <div className="space-y-4">
       <p className="text-sm text-[var(--muted)]">

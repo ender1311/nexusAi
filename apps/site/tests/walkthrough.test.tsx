@@ -51,9 +51,9 @@ describe("Walkthrough", () => {
     const { unmount } = render(<Walkthrough initialStep={2} initialSource="sanity" />);
     fireEvent.keyDown(window, { key: "ArrowRight" });
     expect(screen.getByRole("button", { name: "3 Content" }).getAttribute("aria-current")).toBe("step");
-    expect(replaceState).toHaveBeenLastCalledWith(null, "", "?step=3&source=sanity");
+    expect(replaceState).toHaveBeenLastCalledWith(null, "", `${window.location.pathname}?step=3&source=sanity`);
     fireEvent.keyDown(window, { key: "ArrowLeft" });
-    expect(replaceState).toHaveBeenLastCalledWith(null, "", "?step=2&source=sanity");
+    expect(replaceState).toHaveBeenLastCalledWith(null, "", `${window.location.pathname}?step=2&source=sanity`);
     unmount();
     const calls = replaceState.mock.calls.length;
     fireEvent.keyDown(window, { key: "ArrowRight" });
@@ -72,10 +72,66 @@ describe("Walkthrough", () => {
     expect(Number(screen.getByTestId("arm-alpha").textContent)).toBe(alpha);
   });
 
-  it("Pick again changes the seed without breaking step 5", () => {
+  it("Pick again changes the chosen item (seed 42 picks breathing, 43 picks sleep)", () => {
+    const chosenRow = () => document.querySelector("tr[aria-current=true]")!.textContent;
     render(<Walkthrough initialStep={4} initialSource="contentful" />);
+    const before = chosenRow();
     fireEvent.click(screen.getByRole("button", { name: /pick again/i }));
+    expect(chosenRow()).not.toBe(before);
     expect(screen.getAllByText("Chosen").length).toBe(1);
     expect(screen.getByText(/users like this one/)).toBeTruthy();
+  });
+
+  it("ignores arrow keys typed into an input", () => {
+    render(<Walkthrough initialStep={2} initialSource="contentful" />);
+    const input = document.createElement("input");
+    document.body.appendChild(input);
+    fireEvent.keyDown(input, { key: "ArrowRight" });
+    input.remove();
+    expect(screen.getByRole("button", { name: "2 Features" }).getAttribute("aria-current")).toBe("step");
+  });
+
+  it("ArrowRight on a focused radio changes the source, not the step", () => {
+    render(<Walkthrough initialStep={4} initialSource="contentful" />);
+    const radio = screen.getByRole("radio", { name: "Contentful" });
+    radio.focus();
+    fireEvent.keyDown(radio, { key: "ArrowRight" });
+    expect(screen.getByRole("radio", { name: "Sanity" }).getAttribute("aria-checked")).toBe("true");
+    expect(screen.getByRole("button", { name: "4 Decide" }).getAttribute("aria-current")).toBe("step");
+  });
+
+  it("radiogroup uses roving tabindex, wraps, and supports Home/End", () => {
+    render(<Walkthrough initialStep={4} initialSource="contentful" />);
+    const radio = (name: string) => screen.getByRole("radio", { name }) as HTMLButtonElement;
+    expect(radio("Contentful").tabIndex).toBe(0);
+    expect(radio("Sanity").tabIndex).toBe(-1);
+    fireEvent.keyDown(radio("Contentful"), { key: "ArrowLeft" });
+    expect(radio("Nexus library").getAttribute("aria-checked")).toBe("true");
+    expect(radio("Nexus library").tabIndex).toBe(0);
+    expect(document.activeElement).toBe(radio("Nexus library"));
+    fireEvent.keyDown(radio("Nexus library"), { key: "Home" });
+    expect(radio("Contentful").getAttribute("aria-checked")).toBe("true");
+    fireEvent.keyDown(radio("Contentful"), { key: "End" });
+    expect(radio("Nexus library").getAttribute("aria-checked")).toBe("true");
+    fireEvent.keyDown(radio("Nexus library"), { key: "ArrowDown" });
+    expect(radio("Contentful").getAttribute("aria-checked")).toBe("true");
+  });
+
+  it("clicking the already-selected source keeps step 6 stats", () => {
+    render(<Walkthrough initialStep={5} initialSource="contentful" />);
+    fireEvent.click(screen.getByRole("button", { name: "6 Learn" }));
+    fireEvent.click(screen.getByRole("button", { name: /user converted/i }));
+    const after = screen.getByTestId("arm-alpha").textContent;
+    fireEvent.click(screen.getByRole("button", { name: "5 Braze" }));
+    fireEvent.click(screen.getByRole("radio", { name: "Contentful" }));
+    fireEvent.click(screen.getByRole("button", { name: "6 Learn" }));
+    expect(screen.getByTestId("arm-alpha").textContent).toBe(after);
+  });
+
+  it("step 5 shows the catalog sentence only in reference mode", () => {
+    render(<Walkthrough initialStep={5} initialSource="contentful" />);
+    expect(screen.queryByText(/Braze renders the catalog item Nexus picked/)).toBeNull();
+    fireEvent.click(screen.getByRole("radio", { name: /braze catalog/i }));
+    expect(screen.getByText(/Braze renders the catalog item Nexus picked/)).toBeTruthy();
   });
 });

@@ -1,7 +1,7 @@
 "use client";
 
-import { useEffect, useState } from "react";
-import { INITIAL_ARM_STATS, stepDecide, stepLearn, type ArmStats } from "@site/lib/demo/build-step-data";
+import { useEffect, useRef, useState } from "react";
+import { initialArmStats, stepDecide, stepLearn, type ArmStats } from "@site/lib/demo/build-step-data";
 import type { DemoSource } from "@site/content/demo-lumen";
 import { clampStep, toSearch } from "@site/lib/demo/url-state";
 import { Step1Ingest } from "./steps/step-1-ingest";
@@ -21,22 +21,26 @@ const SOURCE_OPTIONS: { id: DemoSource; label: string }[] = [
 ];
 const INITIAL_SEED = 42;
 
-function initialStatsFor(source: DemoSource, seed: number): ArmStats {
-  return INITIAL_ARM_STATS[stepDecide(source, seed).chosen.externalRef]!;
+function isTypingTarget(t: EventTarget | null): boolean {
+  if (!(t instanceof HTMLElement)) return false;
+  return ["INPUT", "TEXTAREA", "SELECT"].includes(t.tagName) || t.isContentEditable || t.closest("[role=radiogroup]") !== null;
 }
 
 export function Walkthrough({ initialStep, initialSource }: { initialStep: number; initialSource: DemoSource }) {
   const [step, setStep] = useState(clampStep(initialStep));
   const [source, setSource] = useState<DemoSource>(initialSource);
   const [seed, setSeed] = useState(INITIAL_SEED);
-  const [armStats, setArmStats] = useState<ArmStats>(() => initialStatsFor(initialSource, INITIAL_SEED));
+  const [armStats, setArmStats] = useState<ArmStats>(() => initialArmStats(initialSource, INITIAL_SEED));
 
   useEffect(() => {
-    history.replaceState(null, "", toSearch(step, source));
+    const next = window.location.pathname + toSearch(step, source) + window.location.hash;
+    const current = window.location.pathname + window.location.search + window.location.hash;
+    if (next !== current) history.replaceState(null, "", next);
   }, [step, source]);
 
   useEffect(() => {
     function onKeyDown(e: KeyboardEvent) {
+      if (e.defaultPrevented || e.altKey || e.metaKey || e.ctrlKey || e.shiftKey || isTypingTarget(e.target)) return;
       if (e.key === "ArrowLeft") setStep((s) => clampStep(s - 1));
       if (e.key === "ArrowRight") setStep((s) => clampStep(s + 1));
     }
@@ -45,17 +49,35 @@ export function Walkthrough({ initialStep, initialSource }: { initialStep: numbe
   }, []);
 
   function changeSource(next: DemoSource) {
+    if (next === source) return;
     setSource(next);
-    setArmStats(initialStatsFor(next, seed));
+    setArmStats(initialArmStats(next, seed));
   }
 
   function pickAgain() {
     const next = seed + 1;
     setSeed(next);
-    setArmStats(initialStatsFor(source, next));
+    setArmStats(initialArmStats(source, next));
   }
 
-  const chosen = stepDecide(source, seed).chosen;
+  const decision = stepDecide(source, seed);
+  const radioRefs = useRef<Record<string, HTMLButtonElement | null>>({});
+
+  function onRadioKeyDown(e: React.KeyboardEvent) {
+    const last = SOURCE_OPTIONS.length - 1;
+    const index = SOURCE_OPTIONS.findIndex((o) => o.id === source);
+    let target: number;
+    if (e.key === "ArrowLeft" || e.key === "ArrowUp") target = index === 0 ? last : index - 1;
+    else if (e.key === "ArrowRight" || e.key === "ArrowDown") target = index === last ? 0 : index + 1;
+    else if (e.key === "Home") target = 0;
+    else if (e.key === "End") target = last;
+    else return;
+    e.preventDefault();
+    e.stopPropagation();
+    const option = SOURCE_OPTIONS[target]!;
+    changeSource(option.id);
+    radioRefs.current[option.id]?.focus();
+  }
   const showSourceSwitch = step >= 3 && step <= 5;
 
   return (
@@ -63,16 +85,17 @@ export function Walkthrough({ initialStep, initialSource }: { initialStep: numbe
       <ol className="flex flex-wrap gap-2">
         {RAIL.map((label, i) => (
           <li key={label}>
-            <button aria-current={step === i + 1 ? "step" : undefined} onClick={() => setStep(i + 1 as 1)}
+            <button aria-current={step === i + 1 ? "step" : undefined} onClick={() => setStep(clampStep(i + 1))}
               className={`rounded-md px-3 py-1 text-sm ${step === i + 1 ? "bg-[var(--accent)] text-white" : "border border-[var(--border)]"}`}>{label}</button>
           </li>
         ))}
       </ol>
 
       {showSourceSwitch ? (
-        <div role="radiogroup" aria-label="Content source" className="flex flex-wrap gap-2">
+        <div role="radiogroup" aria-label="Content source" className="flex flex-wrap gap-2" onKeyDown={onRadioKeyDown}>
           {SOURCE_OPTIONS.map((o) => (
-            <button key={o.id} role="radio" aria-checked={source === o.id} onClick={() => changeSource(o.id)}
+            <button key={o.id} role="radio" aria-checked={source === o.id} tabIndex={source === o.id ? 0 : -1}
+              ref={(el) => { radioRefs.current[o.id] = el; }} onClick={() => changeSource(o.id)}
               className={`rounded-full px-3 py-1 text-xs ${source === o.id ? "bg-[var(--accent)] text-white" : "border border-[var(--border)]"}`}>{o.label}</button>
           ))}
         </div>
@@ -82,11 +105,11 @@ export function Walkthrough({ initialStep, initialSource }: { initialStep: numbe
         {step === 1 ? <Step1Ingest /> : null}
         {step === 2 ? <Step2Features /> : null}
         {step === 3 ? <Step3Content source={source} /> : null}
-        {step === 4 ? <Step4Decide source={source} seed={seed} onPickAgain={pickAgain} /> : null}
-        {step === 5 ? <Step5Activate source={source} chosenRef={chosen.externalRef} /> : null}
+        {step === 4 ? <Step4Decide decision={decision} onPickAgain={pickAgain} /> : null}
+        {step === 5 ? <Step5Activate source={source} chosenRef={decision.chosen.externalRef} /> : null}
         {step === 6 ? (
           <Step6Learn stats={armStats} onOutcome={(converted) => setArmStats((s) => stepLearn(s, converted))}
-            onReset={() => setArmStats(initialStatsFor(source, seed))} />
+            onReset={() => setArmStats(initialArmStats(source, seed))} />
         ) : null}
       </div>
 
