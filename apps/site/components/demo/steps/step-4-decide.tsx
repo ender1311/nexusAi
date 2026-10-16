@@ -10,7 +10,7 @@ export function Step4Decide({ decision, onPickAgain }: { decision: ReturnType<ty
       <p className="text-xs text-[var(--muted)]">{stepDecideCaption(stepFeatures().persona.label)}</p>
       <div className="overflow-x-auto">
         <table className="w-full text-left text-sm">
-          <thead><tr className="text-xs text-[var(--muted)]"><th className="py-1 pr-2 font-medium">Message</th><th className="py-1 font-medium">Estimate</th></tr></thead>
+          <thead><tr className="text-xs text-[var(--muted)]"><th className="py-1 pr-2 font-medium">Message</th><th className="py-1 font-medium">Sample estimate</th></tr></thead>
           <tbody>
             {arms.map(({ item, estimate, uncertainty }) => {
               const isChosen = item.externalRef === chosen.externalRef;

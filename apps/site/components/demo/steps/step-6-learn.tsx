@@ -9,6 +9,7 @@ export function Step6Learn({ stats, onOutcome, onReset }: Props) {
       <p className="text-sm text-[var(--muted)]">
         Every outcome Braze reports updates the arm&apos;s belief. A conversion raises alpha, a miss raises beta, and the next decision uses the new numbers.
       </p>
+      <p className="text-xs font-semibold uppercase tracking-wide text-[var(--muted)]">Sample: arm statistics</p>
       <dl className="grid max-w-sm grid-cols-3 gap-3 rounded-xl border border-[var(--border)] bg-[var(--panel)] p-4 text-center">
         <div><dt className="text-xs text-[var(--muted)]">Alpha (wins)</dt><dd className="text-2xl font-semibold tabular-nums text-[var(--good)]" data-testid="arm-alpha">{stats.alpha}</dd></div>
         <div><dt className="text-xs text-[var(--muted)]">Beta (misses)</dt><dd className="text-2xl font-semibold tabular-nums text-[var(--bad)]" data-testid="arm-beta">{stats.beta}</dd></div>

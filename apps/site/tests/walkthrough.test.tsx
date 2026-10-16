@@ -93,28 +93,28 @@ describe("Walkthrough", () => {
 
   it("ArrowRight on a focused radio changes the source, not the step", () => {
     render(<Walkthrough initialStep={4} initialSource="contentful" />);
-    const radio = screen.getByRole("radio", { name: "Contentful" });
+    const radio = screen.getByRole("radio", { name: "Contentful (roadmap)" });
     radio.focus();
     fireEvent.keyDown(radio, { key: "ArrowRight" });
-    expect(screen.getByRole("radio", { name: "Sanity" }).getAttribute("aria-checked")).toBe("true");
+    expect(screen.getByRole("radio", { name: "Sanity (roadmap)" }).getAttribute("aria-checked")).toBe("true");
     expect(screen.getByRole("button", { name: "4 Decide" }).getAttribute("aria-current")).toBe("step");
   });
 
   it("radiogroup uses roving tabindex, wraps, and supports Home/End", () => {
     render(<Walkthrough initialStep={4} initialSource="contentful" />);
     const radio = (name: string) => screen.getByRole("radio", { name }) as HTMLButtonElement;
-    expect(radio("Contentful").tabIndex).toBe(0);
-    expect(radio("Sanity").tabIndex).toBe(-1);
-    fireEvent.keyDown(radio("Contentful"), { key: "ArrowLeft" });
+    expect(radio("Contentful (roadmap)").tabIndex).toBe(0);
+    expect(radio("Sanity (roadmap)").tabIndex).toBe(-1);
+    fireEvent.keyDown(radio("Contentful (roadmap)"), { key: "ArrowLeft" });
     expect(radio("Nexus library").getAttribute("aria-checked")).toBe("true");
     expect(radio("Nexus library").tabIndex).toBe(0);
     expect(document.activeElement).toBe(radio("Nexus library"));
     fireEvent.keyDown(radio("Nexus library"), { key: "Home" });
-    expect(radio("Contentful").getAttribute("aria-checked")).toBe("true");
-    fireEvent.keyDown(radio("Contentful"), { key: "End" });
+    expect(radio("Contentful (roadmap)").getAttribute("aria-checked")).toBe("true");
+    fireEvent.keyDown(radio("Contentful (roadmap)"), { key: "End" });
     expect(radio("Nexus library").getAttribute("aria-checked")).toBe("true");
     fireEvent.keyDown(radio("Nexus library"), { key: "ArrowDown" });
-    expect(radio("Contentful").getAttribute("aria-checked")).toBe("true");
+    expect(radio("Contentful (roadmap)").getAttribute("aria-checked")).toBe("true");
   });
 
   it("clicking the already-selected source keeps step 6 stats", () => {
@@ -123,7 +123,7 @@ describe("Walkthrough", () => {
     fireEvent.click(screen.getByRole("button", { name: /user converted/i }));
     const after = screen.getByTestId("arm-alpha").textContent;
     fireEvent.click(screen.getByRole("button", { name: "5 Braze" }));
-    fireEvent.click(screen.getByRole("radio", { name: "Contentful" }));
+    fireEvent.click(screen.getByRole("radio", { name: "Contentful (roadmap)" }));
     fireEvent.click(screen.getByRole("button", { name: "6 Learn" }));
     expect(screen.getByTestId("arm-alpha").textContent).toBe(after);
   });
@@ -133,5 +133,30 @@ describe("Walkthrough", () => {
     expect(screen.queryByText(/Braze renders the catalog item Nexus picked/)).toBeNull();
     fireEvent.click(screen.getByRole("radio", { name: /braze catalog/i }));
     expect(screen.getByText(/Braze renders the catalog item Nexus picked/)).toBeTruthy();
+  });
+
+  it("steps 3, 4 and 5 show the roadmap note for roadmap sources only", () => {
+    for (const step of [3, 4, 5]) {
+      render(<Walkthrough initialStep={step} initialSource="contentful" />);
+      expect(screen.getByText(/Roadmap: the Contentful connector is being built/)).toBeTruthy();
+      fireEvent.click(screen.getByRole("radio", { name: "Nexus library" }));
+      expect(screen.queryByText(/Roadmap:/)).toBeNull();
+      cleanup();
+    }
+  });
+
+  it("step 5 reference sentence says (roadmap) and push explains the inline copy", () => {
+    render(<Walkthrough initialStep={5} initialSource="braze-catalog" />);
+    expect(screen.getByText(/With the Braze Catalog connector \(roadmap\), Braze renders/)).toBeTruthy();
+    fireEvent.click(screen.getByRole("button", { name: "Push" }));
+    expect(screen.getByText(/can't read a catalog, so the copy is sent inline/)).toBeTruthy();
+  });
+
+  it("Alt+ArrowRight on a focused radio does not change the source", () => {
+    render(<Walkthrough initialStep={4} initialSource="contentful" />);
+    const radio = screen.getByRole("radio", { name: "Contentful (roadmap)" });
+    radio.focus();
+    fireEvent.keyDown(radio, { key: "ArrowRight", altKey: true });
+    expect(radio.getAttribute("aria-checked")).toBe("true");
   });
 });

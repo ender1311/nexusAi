@@ -16,7 +16,7 @@ export default async function DemoPage({ searchParams }: { searchParams: Promise
     <main className="mx-auto max-w-5xl px-4 py-12">
       <a href="/nexus" className="text-sm text-[var(--muted)]">← Nexus</a>
       <h1 className="mt-4 text-3xl font-bold sm:text-4xl">The full loop, step by step</h1>
-      <p className="mt-2 text-[var(--muted)]">One Lumen user, from Hightouch to Braze and back. The data is sample data; the decisions and payloads come from Nexus&apos;s real code.</p>
+      <p className="mt-2 text-[var(--muted)]">One Lumen user, from Hightouch to Braze and back. The data is sample data; the feature vector, the decision and the Braze trigger properties come from Nexus&apos;s real code, and the other payloads follow the real API shapes.</p>
       <div className="mt-8"><Walkthrough initialStep={step} initialSource={source} /></div>
     </main>
   );

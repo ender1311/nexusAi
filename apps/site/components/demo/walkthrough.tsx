@@ -2,7 +2,8 @@
 
 import { useEffect, useRef, useState } from "react";
 import { initialArmStats, stepDecide, stepLearn, type ArmStats } from "@site/lib/demo/build-step-data";
-import type { DemoSource } from "@site/content/demo-lumen";
+import { DEMO_SOURCES, type DemoSource } from "@site/content/demo-lumen";
+import { connectorLabel, contentSources } from "@site/content/connectors";
 import { clampStep, toSearch } from "@site/lib/demo/url-state";
 import { Step1Ingest } from "./steps/step-1-ingest";
 import { Step2Features } from "./steps/step-2-features";
@@ -12,13 +13,11 @@ import { Step5Activate } from "./steps/step-5-activate";
 import { Step6Learn } from "./steps/step-6-learn";
 
 const RAIL = ["1 Hightouch", "2 Features", "3 Content", "4 Decide", "5 Braze", "6 Learn"];
-const SOURCE_OPTIONS: { id: DemoSource; label: string }[] = [
-  { id: "contentful", label: "Contentful" },
-  { id: "sanity", label: "Sanity" },
-  { id: "generic-json", label: "Generic JSON" },
-  { id: "braze-catalog", label: "Braze Catalog" },
-  { id: "nexus-library", label: "Nexus library" },
-];
+const SOURCE_OPTIONS: { id: DemoSource; label: string }[] = DEMO_SOURCES.map((id) => {
+  const connector = contentSources().find((c) => c.id === id);
+  if (!connector) throw new Error(`No connector for demo source ${id}`);
+  return { id, label: connectorLabel(connector) };
+});
 const INITIAL_SEED = 42;
 
 function isTypingTarget(t: EventTarget | null): boolean {
@@ -64,6 +63,7 @@ export function Walkthrough({ initialStep, initialSource }: { initialStep: numbe
   const radioRefs = useRef<Record<string, HTMLButtonElement | null>>({});
 
   function onRadioKeyDown(e: React.KeyboardEvent) {
+    if (e.altKey || e.metaKey || e.ctrlKey) return;
     const last = SOURCE_OPTIONS.length - 1;
     const index = SOURCE_OPTIONS.findIndex((o) => o.id === source);
     let target: number;
@@ -79,6 +79,7 @@ export function Walkthrough({ initialStep, initialSource }: { initialStep: numbe
     radioRefs.current[option.id]?.focus();
   }
   const showSourceSwitch = step >= 3 && step <= 5;
+  const selected = contentSources().find((c) => c.id === source);
 
   return (
     <div className="space-y-6 rounded-2xl border border-[var(--border)] bg-[var(--panel)] p-4 sm:p-6">
@@ -99,6 +100,11 @@ export function Walkthrough({ initialStep, initialSource }: { initialStep: numbe
               className={`rounded-full px-3 py-1 text-xs ${source === o.id ? "bg-[var(--accent)] text-white" : "border border-[var(--border)]"}`}>{o.label}</button>
           ))}
         </div>
+      ) : null}
+      {showSourceSwitch && selected?.status === "roadmap" ? (
+        <p className="text-xs text-[var(--muted)]">
+          Roadmap: the {selected.name} connector is being built and isn&apos;t live yet. The mapping and payload below run on Nexus&apos;s real mapping code, using sample records.
+        </p>
       ) : null}
 
       <div>
