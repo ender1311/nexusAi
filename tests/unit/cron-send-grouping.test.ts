@@ -1,5 +1,8 @@
-import { describe, it, expect } from "bun:test";
-import { groupDecisionsByVariant, type VariantMeta } from "@/lib/cron/send-grouping";
+import { afterAll, afterEach, beforeAll, beforeEach, describe, it, expect } from "bun:test";
+import { groupDecisionsByVariant, sendVariantGroup, type VariantMeta } from "@/lib/cron/send-grouping";
+import { createBrazeClient } from "@/lib/braze/client";
+import { PayloadFactory } from "@/lib/braze/payload-factory";
+import { FakeFetch } from "../helpers/braze";
 import { GIVING_LINK_SENTINEL } from "@/lib/engine/giving-link";
 
 function meta(overrides: Partial<VariantMeta> = {}): VariantMeta {
@@ -10,7 +13,7 @@ function meta(overrides: Partial<VariantMeta> = {}): VariantMeta {
     deeplink: "app://home",
     brazeCampaignId: "camp-1",
     brazeVariantId: "var-1",
-    givingHandleStrategy: null,
+    givingHandleStrategy: null, catalogItemId: null,
     iconImageUrl: null, cta: null,
     ...overrides,
   };
@@ -217,4 +220,70 @@ describe("groupDecisionsByVariant", () => {
     );
     expect(Object.values(groups)[0].body).toBe("€45 a month → 1,080 Bibles");
   });
+});
+
+describe("catalog_item_id on the send path", () => {
+  const ENV: Record<string, string> = {
+    BRAZE_API_KEY: "test_key",
+    BRAZE_REST_ENDPOINT: "https://rest.test.braze.com",
+    BRAZE_NEXUS_CAMPAIGN_ID: "nexus-campaign",
+    BRAZE_CONTENT_CARD_CAMPAIGN_ID: "cc-campaign",
+    BRAZE_NEXUS_SLIDEUP_CANVAS_ID: "slideup-canvas",
+    BRAZE_NEXUS_MODAL_CANVAS_ID: "modal-canvas",
+  };
+  const saved: Record<string, string | undefined> = {};
+  let fake: FakeFetch;
+  let originalFetch: typeof globalThis.fetch;
+  beforeAll(() => { for (const [k, v] of Object.entries(ENV)) { saved[k] = process.env[k]; process.env[k] = v; } });
+  afterAll(() => { for (const [k, v] of Object.entries(saved)) { if (v === undefined) delete process.env[k]; else process.env[k] = v; } });
+  beforeEach(() => { fake = new FakeFetch(); originalFetch = globalThis.fetch; globalThis.fetch = fake.fetch as typeof fetch; });
+  afterEach(() => { globalThis.fetch = originalFetch; });
+
+  const prismaStub = {
+    userDecision: { updateMany: async () => ({ count: 1 }) },
+    failedBrazeSend: { create: async () => ({}) },
+  } as unknown as typeof import("@/lib/db").prisma;
+
+  async function sendThroughGrouping(m: VariantMeta) {
+    const groups = groupDecisionsByVariant(
+      [{ user: user("u1"), variantId: "v1", scheduledAt: new Date(), inLocalTime: false }],
+      new Map([["v1", m]]),
+      new Map([["u1", "d1"]]),
+    );
+    const [group] = Object.values(groups);
+    await sendVariantGroup(group, group.externalUserIds, group.decisionIds, createBrazeClient(), new PayloadFactory(), "agent-1", prismaStub);
+    return fake.requests[0];
+  }
+
+  it("content-card: trigger_properties carry catalog_item_id alongside title and message", async () => {
+    const req = await sendThroughGrouping(meta({ channel: "content-card", catalogItemId: "tip_7", title: "T", body: "B" }));
+    expect(req.url).toContain("/campaigns/trigger/send");
+    const props = (req.body as { trigger_properties: Record<string, string> }).trigger_properties;
+    expect(props.catalog_item_id).toBe("tip_7");
+    expect(props.title).toBe("T");
+    expect(props.message).toBe("B");
+  });
+
+  it("in-app slideup: canvas_entry_properties carry catalog_item_id", async () => {
+    const req = await sendThroughGrouping(meta({ channel: "in-app", catalogItemId: "tip_7" }));
+    expect(req.url).toContain("/canvas/trigger/send");
+    expect((req.body as { canvas_entry_properties: Record<string, unknown> }).canvas_entry_properties.catalog_item_id).toBe("tip_7");
+  });
+
+  it("modal-iam: canvas_entry_properties carry catalog_item_id", async () => {
+    const req = await sendThroughGrouping(meta({ channel: "modal-iam", catalogItemId: "tip_7", cta: "Go" }));
+    expect((req.body as { canvas_entry_properties: Record<string, unknown> }).canvas_entry_properties.catalog_item_id).toBe("tip_7");
+  });
+
+  it("push never carries catalog_item_id", async () => {
+    const req = await sendThroughGrouping(meta({ channel: "push", catalogItemId: "tip_7" }));
+    expect(JSON.stringify(req.body)).not.toMatch(/catalog_item_id/);
+  });
+
+  for (const channel of ["content-card", "in-app", "modal-iam"]) {
+    it(`${channel}: null catalogItemId produces no catalog_item_id key`, async () => {
+      const req = await sendThroughGrouping(meta({ channel, catalogItemId: null, cta: "Go" }));
+      expect(JSON.stringify(req.body)).not.toMatch(/catalog_item_id/);
+    });
+  }
 });

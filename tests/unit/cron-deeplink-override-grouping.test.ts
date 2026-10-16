@@ -9,7 +9,7 @@ function meta(overrides: Partial<VariantMeta> = {}): VariantMeta {
     deeplink: "https://www.bible.com/verse-of-the-day",
     brazeCampaignId: "camp-1",
     brazeVariantId: "var-1",
-    givingHandleStrategy: null,
+    givingHandleStrategy: null, catalogItemId: null,
     iconImageUrl: null, cta: null,
     ...overrides,
   };

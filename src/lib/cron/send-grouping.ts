@@ -30,6 +30,8 @@ export type VariantSendGroup = {
   title: string | null;
   cta: string | null;
   deeplink: string | null;
+  /** Braze catalog item id for catalog-synced variants. Omitted (not null) otherwise so group shape stays identical for non-catalog variants. */
+  catalogItemId?: string | null;
   iosImageUrl: string | null;
   androidImageUrl: string | null;
   inLocalTime?: boolean;
@@ -55,6 +57,8 @@ export type VariantMeta = {
   givingFrequency?: GivingFrequency;
   /** Per-variant default ask (USD) for never-givers; clamped to $5–$100. Defaults to $25. */
   givingHandleDefaultUsd?: number;
+  /** Braze catalog item id when the variant is synced from a Braze Catalog; null otherwise. */
+  catalogItemId: string | null;
   /** null = no image; VERSE_IMAGE_SENTINEL = per-verse image; https URL = static image. */
   iconImageUrl: string | null;
 };
@@ -261,6 +265,7 @@ export function groupDecisionsByVariant(
         title:           copy.title,
         cta:             meta.cta,
         deeplink:        resolvedDeeplink,
+        ...(meta.catalogItemId !== null && { catalogItemId: meta.catalogItemId }),
         iosImageUrl,
         androidImageUrl,
         inLocalTime:     groupInLocalTime,
@@ -333,6 +338,7 @@ export async function sendVariantGroup(
           message: group.body,
           cta: group.cta ?? null,
           link: group.deeplink ?? null,
+          catalogItemId: group.catalogItemId ?? null,
         },
         audience,
         ccCampaignId,
@@ -396,6 +402,7 @@ export async function sendVariantGroup(
           message: group.body,
           link: group.deeplink ?? null,
           imageUrl: group.iosImageUrl ?? null,
+          catalogItemId: group.catalogItemId ?? null,
         },
         audience,
         canvasId,
@@ -458,6 +465,7 @@ export async function sendVariantGroup(
           link: group.deeplink ?? null,
           imageUrl: group.iosImageUrl ?? null,
           cta: group.cta ?? null,
+          catalogItemId: group.catalogItemId ?? null,
         },
         audience,
         modalCanvasId,

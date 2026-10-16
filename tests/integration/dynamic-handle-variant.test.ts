@@ -46,6 +46,7 @@ function metaFromVariant(v: {
     deeplink: v.deeplink,
     brazeCampaignId: null,
     brazeVariantId: null,
+    catalogItemId: null,
     givingHandleStrategy: isDynamic ? (isGivingHandleStrategy(rawStrategy) ? rawStrategy : "blend") : null,
     givingFrequency: isGivingFrequency(rawFreq) ? rawFreq : "monthly",
     givingHandleDefaultUsd: isFinite(rawDefault) && rawDefault > 0 ? rawDefault : DEFAULT_HANDLE_USD,

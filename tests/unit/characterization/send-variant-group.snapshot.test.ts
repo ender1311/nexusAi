@@ -99,6 +99,10 @@ describe("characterization: sendVariantGroup Braze contract", () => {
     });
   }
 
+  it("content-card — braze-catalog reference", async () => {
+    expect(await run(group("content-card", NOW, { catalogItemId: "tip_7" }))).toMatchSnapshot();
+  });
+
   // sendVariantGroup routes push/email/sms to /messages/send only when scheduledAt is
   // unset; any scheduledAt (even "now") goes to /messages/schedule/create.
   for (const channel of ["push", "email", "sms"]) {

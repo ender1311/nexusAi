@@ -14,7 +14,7 @@ function meta(overrides: Partial<VariantMeta> = {}): VariantMeta {
     deeplink: "app://home",
     brazeCampaignId: "camp-1",
     brazeVariantId: "var-1",
-    givingHandleStrategy: null,
+    givingHandleStrategy: null, catalogItemId: null,
     iconImageUrl: null,
     cta: null,
     ...overrides,

@@ -884,6 +884,7 @@ export async function POST(req: NextRequest) {
       deeplink: string | null;
       brazeCampaignId: string | null;
       brazeVariantId: string | null;
+      catalogItemId: string | null;
       givingHandleStrategy: GivingHandleStrategy | null;
       givingFrequency: GivingFrequency;
       givingHandleDefaultUsd: number;
@@ -903,6 +904,7 @@ export async function POST(req: NextRequest) {
           deeplink:        agent.deeplinkOverride ?? v.deeplink ?? null,
           brazeCampaignId: msg.brazeCampaignId ?? null,
           brazeVariantId:  v.brazeVariantId ?? null,
+          catalogItemId:   v.contentSource === "braze-catalog" ? v.externalRef : null,
           givingHandleStrategy: deriveGivingStrategy(v.subcategory ?? null, v.actionFeatures),
           givingFrequency: deriveGivingFrequency(v.actionFeatures),
           givingHandleDefaultUsd: deriveGivingDefaultUsd(v.actionFeatures),

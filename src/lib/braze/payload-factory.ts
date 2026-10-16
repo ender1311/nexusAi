@@ -1,5 +1,6 @@
 import { assetFileTypeFromUrl } from "@/lib/verse-image";
 import { withNexusUtm } from "@/lib/utm";
+import { referenceProperties } from "@/lib/content-core";
 
 interface PushMessage {
   title: string;
@@ -30,6 +31,8 @@ interface ContentCardMessage {
   message: string;
   cta: string | null;
   link: string | null;
+  /** Braze catalog item id; sent as catalog_item_id trigger property when set. */
+  catalogItemId?: string | null;
 }
 
 interface CanvasSlideupMessage {
@@ -42,6 +45,8 @@ interface CanvasSlideupMessage {
   imageUrl: string | null;
   /** CTA button label (modal canvases use it; slideup canvases ignore it). */
   cta?: string | null;
+  /** Braze catalog item id; sent as catalog_item_id entry property when set. */
+  catalogItemId?: string | null;
 }
 
 // Braze recipient: exactly one identifier per entry (external_user_id OR braze_id).
@@ -192,6 +197,7 @@ export class PayloadFactory {
       const link = withNexusUtm(msg.link, "content-card");
       if (link) trigger_properties.link = link;
     }
+    Object.assign(trigger_properties, referenceProperties(msg.catalogItemId ?? null));
 
     // Build recipients array. When mixed braze_id/external_user_id batch,
     // use recipients[]; otherwise use the flatter external_user_ids format.
@@ -236,6 +242,7 @@ export class PayloadFactory {
     if (msg.cta) canvas_entry_properties.cta = msg.cta;
     if (msg.link) canvas_entry_properties.link = withNexusUtm(msg.link, utmSource);
     if (msg.imageUrl) canvas_entry_properties.imageUrl = msg.imageUrl;
+    Object.assign(canvas_entry_properties, referenceProperties(msg.catalogItemId ?? null));
 
     const hasBrazeOnly = audience.recipients?.some((r) => "braze_id" in r);
     if (hasBrazeOnly || audience.recipients) {

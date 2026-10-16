@@ -95,7 +95,7 @@ describe("send-grouping GP — localized guided_prayer_label", () => {
     deeplink: "https://www.bible.com/guides/1",
     brazeCampaignId: null,
     brazeVariantId: null,
-    givingHandleStrategy: null,
+    givingHandleStrategy: null, catalogItemId: null,
     iconImageUrl: null,
     cta: null,
   };

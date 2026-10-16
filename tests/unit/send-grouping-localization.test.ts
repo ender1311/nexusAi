@@ -2,7 +2,7 @@ import { describe, it, expect } from "bun:test";
 import { groupDecisionsByVariant, type VariantMeta } from "@/lib/cron/send-grouping";
 import type { LocalizedCopy } from "@/lib/push-locale";
 
-const meta: VariantMeta = { channel: "push", body: "EN body", title: "EN title", deeplink: null, brazeCampaignId: "c1", brazeVariantId: "bv1", givingHandleStrategy: null, cta: null, iconImageUrl: null };
+const meta: VariantMeta = { channel: "push", body: "EN body", title: "EN title", deeplink: null, brazeCampaignId: "c1", brazeVariantId: "bv1", givingHandleStrategy: null, catalogItemId: null, cta: null, iconImageUrl: null };
 const variantMeta = new Map<string, VariantMeta>([["v1", meta]]);
 const when = new Date("2026-06-01T08:00:00.000Z");
 
@@ -52,7 +52,7 @@ describe("groupDecisionsByVariant localization", () => {
 
 const baseMeta = (channel: string): VariantMeta => ({
   channel, body: "Hello", title: "Hi", cta: null, deeplink: null,
-  brazeCampaignId: null, brazeVariantId: null, givingHandleStrategy: null, iconImageUrl: null,
+  brazeCampaignId: null, brazeVariantId: null, givingHandleStrategy: null, catalogItemId: null, iconImageUrl: null,
 });
 const user2 = (lang: string) => ({ externalId: `u-${lang}`, brazeId: null, attributes: { language_tag: lang } });
 

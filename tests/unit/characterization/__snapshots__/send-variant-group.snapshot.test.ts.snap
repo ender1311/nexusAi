@@ -663,6 +663,57 @@ exports[`characterization: sendVariantGroup Braze contract modal-iam — schedul
 }
 `;
 
+exports[`characterization: sendVariantGroup Braze contract content-card — braze-catalog reference 1`] = `
+{
+  "db": [
+    {
+      "args": {
+        "data": {
+          "brazeSendId": "<uuid>",
+        },
+        "where": {
+          "id": {
+            "in": [
+              "d1",
+              "d2",
+            ],
+          },
+        },
+      },
+      "op": "userDecision.updateMany",
+    },
+  ],
+  "requests": [
+    {
+      "body": {
+        "campaign_id": "cc-campaign",
+        "recipients": [
+          {
+            "external_user_id": "u1",
+          },
+          {
+            "braze_id": "braze-only-1",
+          },
+        ],
+        "trigger_properties": {
+          "catalog_item_id": "tip_7",
+          "cta": "Open",
+          "link": "youversion://home",
+          "message": "Body",
+          "title": "Title",
+        },
+      },
+      "method": "POST",
+      "url": "https://rest.test.braze.com/campaigns/trigger/send",
+    },
+  ],
+  "result": {
+    "errors": 0,
+    "sent": 2,
+  },
+}
+`;
+
 exports[`characterization: sendVariantGroup Braze contract push — no scheduledAt 1`] = `
 {
   "db": [

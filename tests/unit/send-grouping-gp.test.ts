@@ -11,7 +11,7 @@ const gpMeta: VariantMeta = {
   title: "{{gp_verse_ref}}",
   body: "{{gp_verse_text}}",
   deeplink: "https://www.bible.com/guides/1",
-  brazeCampaignId: null, brazeVariantId: null, givingHandleStrategy: null,
+  brazeCampaignId: null, brazeVariantId: null, givingHandleStrategy: null, catalogItemId: null,
   iconImageUrl: null, cta: null,
 };
 
@@ -175,7 +175,7 @@ describe("send-grouping GP", () => {
   it("GP and VOTD users in same batch get correct content from their respective maps", () => {
     const votdMeta: VariantMeta = {
       channel: "push", title: "{{guided_scripture_label}}", body: "{{votd_reference}}",
-      deeplink: null, brazeCampaignId: null, brazeVariantId: null, givingHandleStrategy: null,
+      deeplink: null, brazeCampaignId: null, brazeVariantId: null, givingHandleStrategy: null, catalogItemId: null,
       iconImageUrl: null, cta: null,
     };
     const gpContentMap = new Map([[votdContentKey("2026-06-13", "en"), gpContent()]]);

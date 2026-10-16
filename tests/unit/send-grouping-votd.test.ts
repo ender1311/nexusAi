@@ -10,7 +10,7 @@ const votdMeta: VariantMeta = {
   body: "{{votd_reference}}",
   title: "{{guided_scripture_label}}",
   deeplink: "https://www.bible.com/stories",
-  brazeCampaignId: null, brazeVariantId: null, givingHandleStrategy: null,
+  brazeCampaignId: null, brazeVariantId: null, givingHandleStrategy: null, catalogItemId: null,
   iconImageUrl: null, cta: null,
 };
 
