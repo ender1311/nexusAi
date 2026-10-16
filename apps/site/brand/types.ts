@@ -64,6 +64,8 @@ type BrandBase = {
     logo: LogoKey;
     /** The landing page <title> and Open Graph title. */
     ogTitle: string;
+    /** The landing page meta and Open Graph description. */
+    ogDescription: string;
   };
   fonts: {
     display: FontKey;
@@ -116,10 +118,3 @@ export function tokenSets(preset: BrandPreset): { scheme: "light" | "dark"; toke
   return [{ scheme: "light", tokens: preset.light }, { scheme: "dark", tokens: preset.dark }];
 }
 
-/**
- * The chart palette. Recharts needs literal colors, so charts read them from the
- * preset object. "auto" presets use the light set's palette in both schemes.
- */
-export function chartPalette(preset: BrandPreset): TokenSet["chart"] {
-  return preset.colorScheme === "dark" ? preset.dark.chart : preset.light.chart;
-}

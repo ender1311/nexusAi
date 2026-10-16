@@ -1,8 +1,11 @@
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
+import { allBrandsCss } from "@site/brand/css";
 import { BrandLogo } from "@site/brand/logos";
+import { previewFontVariables } from "@site/brand/preview-fonts.generated";
 import { BRANDS } from "@site/brand/presets";
-import { chartPalette, type BrandPreset } from "@site/brand/types";
+import { chartThemes } from "@site/brand/chart-theme";
+import type { BrandPreset } from "@site/brand/types";
 import { CodeBlock } from "@site/components/demo/code-block";
 import { ui } from "@site/components/ui";
 import { COPY } from "@site/content/copy";
@@ -43,7 +46,7 @@ function BrandSample({ brand }: { brand: BrandPreset }) {
         <div className={`${ui.box} p-3`}>
           <div className="text-xs text-ink-3">Lift vs. 10% random-split control</div>
           <div className="text-2xl font-semibold text-ok">+18%</div>
-          <SampleChart days={SAMPLE_DAYS} palette={chartPalette(brand)} />
+          <SampleChart days={SAMPLE_DAYS} themes={chartThemes(brand)} />
         </div>
       </div>
 
@@ -71,7 +74,9 @@ function BrandSample({ brand }: { brand: BrandPreset }) {
 export default function BrandPage() {
   if (process.env.VERCEL_ENV === "production") notFound();
   return (
-    <main className="mx-auto max-w-7xl px-4 py-12">
+    <main className={`mx-auto max-w-7xl px-4 py-12 ${previewFontVariables}`}>
+      {/* Every preset's tokens, so each sample can opt in with data-brand. The layout only ships the active one. */}
+      <style dangerouslySetInnerHTML={{ __html: allBrandsCss() }} />
       <h1 className={`text-3xl ${ui.display}`}>Brand presets</h1>
       <p className="mt-2 text-ink-3">Set NEXT_PUBLIC_BRAND to one of these ids and redeploy. See apps/site/brand/README.md.</p>
       <div className="mt-8 grid gap-6 xl:grid-cols-3">

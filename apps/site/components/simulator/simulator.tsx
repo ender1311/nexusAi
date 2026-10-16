@@ -4,10 +4,9 @@ import { connectorLabel, senders, sources } from "@site/content/connectors";
 import { PRESETS, getPreset } from "@site/lib/simulator/presets";
 import { simulate } from "@site/lib/simulator/simulate";
 import type { AlgorithmId, DecisionSample, SimulationResult } from "@site/lib/simulator/types";
-import { activeBrand } from "@site/brand/presets";
-import { chartPalette } from "@site/brand/types";
+import type { ChartThemes } from "@site/brand/chart-theme";
 import { ui } from "@site/components/ui";
-import { MetricLine, TrafficChart, type ChartPalette } from "./charts";
+import { MetricLine, TrafficChart } from "./charts";
 import { FlowDiagram } from "./flow-diagram";
 import { usePlayback, type Speed } from "./use-playback";
 
@@ -17,8 +16,8 @@ const ALGORITHMS: { id: AlgorithmId; name: string; blurb: string }[] = [
   { id: "linucb", name: "LinUCB (contextual)", blurb: "Learns which message wins for each kind of user, not just on average." },
 ];
 
-const GLOBAL_WINNER_NOTE =
-  "Thompson and epsilon-greedy here learn one overall winner; LinUCB learns per user. (In production Nexus can also segment Thompson by persona.)";
+const globalWinnerNote = (product: string) =>
+  `Thompson and epsilon-greedy here learn one overall winner; LinUCB learns per user. (In production ${product} can also segment Thompson by persona.)`;
 
 function formatLift(lift: number | null): string {
   if (lift === null) return "—";
@@ -31,8 +30,8 @@ function describeUncertainty(algorithm: AlgorithmId, s: DecisionSample): string 
   return "";
 }
 
-/** Defaults to the active brand's chart palette and product name. */
-export function Simulator({ palette = chartPalette(activeBrand()), product = activeBrand().identity.product }: { palette?: ChartPalette; product?: string }) {
+/** `chartThemes` and `product` come from the brand preset (the page passes them, so the client bundle never loads the registry). */
+export function Simulator({ chartThemes, product }: { chartThemes: ChartThemes; product: string }) {
   const [sourceId, setSourceId] = useState("hightouch");
   const [senderId, setSenderId] = useState("braze");
   const [presetId, setPresetId] = useState("winback");
@@ -88,7 +87,7 @@ export function Simulator({ palette = chartPalette(activeBrand()), product = act
       <div className="space-y-1">
         <p className="text-sm text-ink-3">{preset.description} {ALGORITHMS.find((a) => a.id === algorithm)!.blurb}</p>
         {(algorithm === "thompson" || algorithm === "epsilon") && (
-          <p className="text-xs text-ink-3">{GLOBAL_WINNER_NOTE}</p>
+          <p className="text-xs text-ink-3">{globalWinnerNote(product)}</p>
         )}
       </div>
 
@@ -118,13 +117,13 @@ export function Simulator({ palette = chartPalette(activeBrand()), product = act
 
       <section>
         <h4 className="mb-2 text-sm font-semibold">Traffic share by message</h4>
-        <TrafficChart days={chartDays} variants={preset.variants} palette={palette} />
+        <TrafficChart days={chartDays} variants={preset.variants} themes={chartThemes} />
       </section>
       <div className="grid gap-4 sm:grid-cols-2">
         <section><h4 className="mb-2 text-sm font-semibold">Lift vs. control</h4>
-          <MetricLine days={chartDays} dataKey="liftVsHoldout" label="Lift" format={(v) => `${Math.round(v * 100)}%`} palette={palette} /></section>
+          <MetricLine days={chartDays} dataKey="liftVsHoldout" label="Lift" format={(v) => `${Math.round(v * 100)}%`} themes={chartThemes} /></section>
         <section><h4 className="mb-2 text-sm font-semibold">Regret (conversions lost vs. always picking the best)</h4>
-          <MetricLine days={chartDays} dataKey="cumulativeRegret" label="Regret" format={(v) => v.toFixed(0)} palette={palette} /></section>
+          <MetricLine days={chartDays} dataKey="cumulativeRegret" label="Regret" format={(v) => v.toFixed(0)} themes={chartThemes} /></section>
       </div>
 
       {started && preset.segments.length > 1 && (
@@ -163,7 +162,7 @@ export function Simulator({ palette = chartPalette(activeBrand()), product = act
             ))}
           </tbody>
         </table>
-        <p className="mt-2 text-xs text-ink-3">Simulated data. The algorithms are Nexus&apos;s production engine, running in your browser.</p>
+        <p className="mt-2 text-xs text-ink-3">Simulated data. The algorithms are {product}&apos;s production engine, running in your browser.</p>
       </details>
     </div>
   );

@@ -1,6 +1,6 @@
 import { Fragment, type ReactNode } from "react";
 import type { BrandPreset, SectionId } from "@site/brand/types";
-import { chartPalette } from "@site/brand/types";
+import { chartThemes } from "@site/brand/chart-theme";
 import { Simulator } from "@site/components/simulator/simulator";
 import { Comparison } from "@site/components/sections/comparison";
 import { ConsoleLink } from "@site/components/sections/console-link";
@@ -17,7 +17,7 @@ function SimulatorSection({ brand }: { brand: BrandPreset }) {
     <section data-section="simulator" id="simulator" className={`scroll-mt-8 ${ui.section}`}>
       <h2 className={`text-3xl ${ui.display}`}>Watch it learn</h2>
       <p className="mt-2 mb-6 text-ink-3">Pick your stack and a use case, then press Run. This is the real {brand.identity.product} engine, running in your browser on simulated users.</p>
-      <Simulator palette={chartPalette(brand)} product={brand.identity.product} />
+      <Simulator chartThemes={chartThemes(brand)} product={brand.identity.product} />
     </section>
   );
 }
