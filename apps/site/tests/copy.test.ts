@@ -35,6 +35,13 @@ describe("site copy", () => {
     expect(selfHost?.a).not.toMatch(/^yes/i);
   });
 
+  it("scans the demo route and demo components too", () => {
+    const root = path.join(import.meta.dir, "..");
+    expect(allSiteText(path.join(root, "app", "demo"))).toContain("The full loop, step by step");
+    expect(allSiteText(path.join(root, "components", "demo"))).toContain("Walkthrough");
+    expect(allSiteText(root)).toContain("The full loop, step by step");
+  });
+
   it("keeps the demo console link hidden", () => {
     expect(publicConfig.showConsoleLink).toBe(false);
   });

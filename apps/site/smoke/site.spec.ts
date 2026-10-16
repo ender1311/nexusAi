@@ -13,3 +13,8 @@ test("page loads, simulator runs, form reaches Calendly", async ({ page }) => {
   await page.getByRole("button", { name: /become a design partner/i }).click();
   await expect(page.getByTitle("Book a call")).toBeVisible({ timeout: 15_000 });
 });
+
+test("demo walkthrough deep link shows the Braze Catalog payload", async ({ page }) => {
+  await page.goto("/nexus/demo?step=5&source=braze-catalog");
+  await expect(page.getByText("catalog_item_id").first()).toBeVisible();
+});
