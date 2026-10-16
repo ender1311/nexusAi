@@ -1,5 +1,11 @@
 import { contentItemSchema, type ContentChannel, type ContentItem, type FieldMapping } from "./types";
 
+const MAX_COLLECTED = 10_000;
+const MAPPABLE_FIELDS: ReadonlySet<string> = new Set([
+  "externalRef", "title", "subject", "body", "cta", "deeplink", "imageUrl", "htmlBody", "tags", "updatedAt",
+]);
+const LOCALE_KEY = /^[a-z]{2,3}(-[A-Za-z0-9]{2,8})*$/;
+
 const TOKEN = /([^.[\]]+)|\[(\d+|\*)\]/g;
 
 /** Reads `a.b[0].c` and `a[*].b` (collect). Returns undefined for any missing hop. */
@@ -11,10 +17,18 @@ export function getPath(obj: unknown, path: string): unknown {
     const next: unknown[] = [];
     for (const c of cur) {
       if (t === "*") {
-        if (Array.isArray(c)) next.push(...c);
+        if (Array.isArray(c)) {
+          for (const el of c) {
+            if (next.length >= MAX_COLLECTED) break;
+            next.push(el);
+          }
+        }
         collecting = true;
       } else if (c !== null && typeof c === "object") {
-        const v = Array.isArray(c) && /^\d+$/.test(t) ? c[Number(t)] : (c as Record<string, unknown>)[t];
+        const key = Array.isArray(c) && /^\d+$/.test(t) ? Number(t) : t;
+        // Own properties only: never walk into the prototype chain (constructor, __proto__).
+        if (!Object.prototype.hasOwnProperty.call(c, key)) continue;
+        const v = (c as Record<string | number, unknown>)[key];
         if (v !== undefined) next.push(v);
       }
     }
@@ -31,8 +45,10 @@ export function getPath(obj: unknown, path: string): unknown {
 function splitLocales(v: unknown): { value: unknown; byLocale?: Record<string, unknown> } {
   if (v && typeof v === "object" && !Array.isArray(v)) {
     const entries = Object.entries(v as Record<string, unknown>);
-    if (entries.length > 0 && entries.every(([k]) => /^[a-z]{2}(-[A-Z]{2})?$/.test(k))) {
-      const def = (v as Record<string, unknown>)["en-US"] ?? (v as Record<string, unknown>).en ?? entries[0]![1];
+    const map = v as Record<string, unknown>;
+    const hasEnglish = Object.prototype.hasOwnProperty.call(map, "en-US") || Object.prototype.hasOwnProperty.call(map, "en");
+    if (hasEnglish && entries.every(([k]) => LOCALE_KEY.test(k))) {
+      const def = map["en-US"] ?? map.en;
       return { value: def, byLocale: Object.fromEntries(entries) };
     }
   }
@@ -53,10 +69,12 @@ export function applyFieldMapping(
 ): { item: ContentItem } | { error: string } {
   if (record === null || typeof record !== "object" || Array.isArray(record)) return { error: "record is not an object" };
   const ref = asString(splitLocales(getPath(record, mapping.externalRef ?? "id")).value) ?? "(no id)";
+  const refLabel = ref.slice(0, 200);
   const draft: Record<string, unknown> = { channel: defaults.channel, tags: [] };
   const locales: Record<string, Record<string, string>> = {};
 
   for (const [field, path] of Object.entries(mapping) as [keyof FieldMapping, string][]) {
+    if (!MAPPABLE_FIELDS.has(field)) continue;
     const { value, byLocale } = splitLocales(getPath(record, path));
     if (field === "tags") {
       const arr = Array.isArray(value) ? value : value === undefined ? [] : [value];
@@ -78,7 +96,7 @@ export function applyFieldMapping(
   const parsed = contentItemSchema.safeParse(draft);
   if (!parsed.success) {
     const fields = parsed.error.issues.map((i) => i.path.join(".")).join(", ");
-    return { error: `${ref}: invalid or missing ${fields}` };
+    return { error: `${refLabel}: invalid or missing ${fields}` };
   }
   return { item: parsed.data };
 }
