@@ -14,6 +14,8 @@ export const midnight = {
     eyebrow: "Nexus by Beacon Frontier",
     logo: "none",
     ogTitle: "Nexus: AI decisioning for the stack you already have",
+    ogDescription:
+      "Nexus picks the right message, channel and time for each user, then learns from every send. Live today with Braze and Hightouch; more connectors on the roadmap.",
   },
   colorScheme: "auto",
   light: {
@@ -29,9 +31,11 @@ export const midnight = {
     accentInk: "#3a5cff",
     // White on #3a5cff is 5.05:1.
     onAccent: "#ffffff",
-    ok: "#0f9f62",
+    // #0b7d4c (the review's suggestion) is 4.21:1 on the accent-tinted "Chosen" row; this is 5.02:1.
+    ok: "#08703f",
     okBg: "#e3f5ec",
-    bad: "#dc2626",
+    // #dc2626 was 4.11:1 on badBg.
+    bad: "#c81e1e",
     badBg: "#fde8e8",
     focus: "#3a5cff",
     mark: "#d6defe",

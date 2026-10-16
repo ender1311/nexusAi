@@ -17,3 +17,11 @@ export function contrastRatio(a: string, b: string): number {
   const [hi, lo] = [relativeLuminance(a), relativeLuminance(b)].sort((x, y) => y - x);
   return (hi! + 0.05) / (lo! + 0.05);
 }
+
+/** `top` at `alpha` opacity composited over an opaque `base` (sRGB), as the browser paints bg-accent/15. */
+export function compositeOver(top: string, alpha: number, base: string): string {
+  const rgb = (hex: string) => [1, 3, 5].map((i) => parseInt(hex.slice(i, i + 2), 16));
+  const t = rgb(top);
+  const b = rgb(base);
+  return `#${t.map((c, i) => Math.round(c * alpha + b[i]! * (1 - alpha)).toString(16).padStart(2, "0")).join("")}`;
+}
