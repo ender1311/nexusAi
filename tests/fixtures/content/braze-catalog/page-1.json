@@ -1,0 +1,7 @@
+{
+  "items": [
+    { "id": "c1", "title": "Catalog one", "body": "Catalog body one.", "image_url": "https://img.example.com/1.png" },
+    { "id": "c2", "title": "Catalog two", "body": "Catalog body two.", "tags": ["calm"] }
+  ],
+  "message": "success"
+}
