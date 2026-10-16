@@ -3,11 +3,15 @@
   "version": "0.1.0",
   "private": true,
   "scripts": {
+    "gen:fonts": "bun scripts/gen-active-fonts.ts",
+    "predev": "bun run gen:fonts",
     "dev": "next dev --port 3100",
+    "prebuild": "bun run gen:fonts",
     "build": "next build",
     "postbuild": "bun scripts/assert-no-main-app.ts",
     "start": "next start --port 3100",
     "typecheck": "tsc --noEmit",
+    "pretest": "bun run gen:fonts",
     "test": "bun test",
     "check": "bun run typecheck && bun run test",
     "smoke": "playwright test"
