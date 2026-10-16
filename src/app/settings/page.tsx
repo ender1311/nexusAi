@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import Link from "next/link";
 import { Header } from "@/components/layout/header";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -458,6 +459,21 @@ export default function SettingsPage() {
                 </div>
               )}
             </div>
+          </CardContent>
+        </Card>
+
+        {/* Content sources */}
+        <Card>
+          <CardHeader>
+            <CardTitle className="text-sm font-semibold">Content sources</CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-2">
+            <p className="text-xs text-muted-foreground">
+              Sync message copy from Contentful, Sanity, a JSON feed or a Braze catalog.
+            </p>
+            <Link href="/settings/content-sources" className="text-sm font-medium text-primary hover:underline">
+              Content sources →
+            </Link>
           </CardContent>
         </Card>
 

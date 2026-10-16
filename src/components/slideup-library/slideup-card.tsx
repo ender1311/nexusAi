@@ -6,6 +6,7 @@ import { Badge } from "@/components/ui/badge";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { cn } from "@/lib/utils";
 import { LibraryDeleteButton } from "@/components/library/library-delete-button";
+import { SourceBadge, isSyncedSource } from "@/components/content/source-badge";
 
 export type SlideupVariant = {
   id: string;
@@ -18,6 +19,8 @@ export type SlideupVariant = {
   category: string | null;
   subcategory: string | null;
   sortOrder: number;
+  contentSource?: string;
+  externalRef?: string | null;
 };
 
 type Props = { variant: SlideupVariant; canManage?: boolean };
@@ -67,6 +70,7 @@ export function SlideupCard({ variant, canManage }: Props) {
         <div className="p-3 space-y-1.5 flex-1">
           <p className="text-sm font-medium leading-tight line-clamp-1 group-hover/card:text-primary transition-colors">
             {variant.name}
+            <SourceBadge source={variant.contentSource} externalRef={variant.externalRef} />
           </p>
           {variant.title && (
             <p className="text-xs text-muted-foreground line-clamp-1">
@@ -87,7 +91,7 @@ export function SlideupCard({ variant, canManage }: Props) {
           </div>
         </div>
       </button>
-        {canManage && (
+        {canManage && !isSyncedSource(variant.contentSource) && (
           <LibraryDeleteButton
             apiPath="/api/slideup-library"
             variantId={variant.id}

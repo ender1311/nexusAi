@@ -15,7 +15,7 @@ const getEmailLibraryVariants = unstable_cache(
       where: { message: { agentId: null, channel: "email" }, status: { not: "archived" } },
       select: {
         id: true, name: true, subject: true, body: true, deeplink: true,
-        cta: true, status: true, category: true, subcategory: true, sortOrder: true,
+        cta: true, status: true, contentSource: true, externalRef: true, category: true, subcategory: true, sortOrder: true,
         translations: {
           select: { language: true, subject: true, status: true },
           where: { status: "active" },

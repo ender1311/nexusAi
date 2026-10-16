@@ -12,6 +12,7 @@ import { DeleteConfirmDialog } from "./delete-confirm-dialog";
 import { useTaxonomy, activeTaxonomy } from "./use-taxonomy";
 import { maskPersonalization } from "@/lib/messages/personalization";
 import { isPushVariantComplete } from "@/lib/messages/push-completeness";
+import { SourceBadge, isSyncedSource } from "@/components/content/source-badge";
 
 export type TemplateVariant = {
   id: string;
@@ -24,6 +25,8 @@ export type TemplateVariant = {
   subcategory: string | null;
   iconImageUrl: string | null;
   languages: string[]; // canonical non-English translation codes present for this variant
+  contentSource?: string;
+  externalRef?: string | null;
 };
 
 export type TemplateGroup = {
@@ -399,6 +402,7 @@ export function PushLibraryClient({ groups, canManageLibrary }: Props) {
                     <td className="px-4 py-3 text-sm text-muted-foreground">
                       <div className="flex items-start gap-1.5">
                         <span>{maskPersonalization(v.title) ?? <span className="opacity-40">—</span>}</span>
+                        <SourceBadge source={v.contentSource} externalRef={v.externalRef} />
                         {!isPushVariantComplete(v) && (
                           <Badge variant="destructive" className="shrink-0 text-xs">Incomplete</Badge>
                         )}
@@ -407,6 +411,7 @@ export function PushLibraryClient({ groups, canManageLibrary }: Props) {
                     <td className="px-4 py-3 text-sm leading-relaxed">{maskPersonalization(v.body)}</td>
                     {canManageLibrary && (
                       <td className="px-4 py-3">
+                        {!isSyncedSource(v.contentSource) && (
                         <div className="flex items-center justify-end gap-1">
                           <TemplateFormSheet mode="edit" variant={v}>
                             <Button variant="outline" size="sm">Edit</Button>
@@ -417,6 +422,7 @@ export function PushLibraryClient({ groups, canManageLibrary }: Props) {
                             </Button>
                           </DeleteConfirmDialog>
                         </div>
+                        )}
                       </td>
                     )}
                   </tr>

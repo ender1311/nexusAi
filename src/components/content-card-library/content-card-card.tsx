@@ -5,6 +5,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/u
 import { ExternalLink, Layout } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { LibraryDeleteButton } from "@/components/library/library-delete-button";
+import { SourceBadge, isSyncedSource } from "@/components/content/source-badge";
 
 export type ContentCardVariant = {
   id: string;
@@ -16,6 +17,8 @@ export type ContentCardVariant = {
   category: string | null;
   subcategory: string | null;
   sortOrder: number;
+  contentSource?: string;
+  externalRef?: string | null;
 };
 
 export function ContentCardCard({ variant, canManage }: { variant: ContentCardVariant; canManage?: boolean }) {
@@ -27,7 +30,7 @@ export function ContentCardCard({ variant, canManage }: { variant: ContentCardVa
         className="group relative flex flex-col rounded-xl border border-border/60 bg-card shadow-sm hover:border-border hover:shadow-md transition-all duration-200 cursor-pointer overflow-hidden"
         onClick={() => setOpen(true)}
       >
-        {canManage && (
+        {canManage && !isSyncedSource(variant.contentSource) && (
           <LibraryDeleteButton
             apiPath="/api/content-card-library"
             variantId={variant.id}
@@ -57,6 +60,7 @@ export function ContentCardCard({ variant, canManage }: { variant: ContentCardVa
         {/* Template name */}
         <h3 className="px-4 pt-2 pb-3 text-sm font-semibold leading-snug text-foreground group-hover:text-primary transition-colors line-clamp-2">
           {variant.name}
+          <SourceBadge source={variant.contentSource} externalRef={variant.externalRef} />
         </h3>
 
         {/* Braze-style Classic content card preview */}

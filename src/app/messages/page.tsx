@@ -29,6 +29,8 @@ const getGroups = unstable_cache(
         category: true,
         subcategory: true,
         iconImageUrl: true,
+        contentSource: true,
+        externalRef: true,
         translations: { select: { language: true } },
       },
       orderBy: [{ category: "asc" }, { subcategory: "asc" }, { createdAt: "asc" }],

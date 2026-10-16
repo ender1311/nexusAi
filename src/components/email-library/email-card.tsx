@@ -4,6 +4,7 @@ import { Button } from "@/components/ui/button";
 import { Eye } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { LibraryDeleteButton } from "@/components/library/library-delete-button";
+import { SourceBadge, isSyncedSource } from "@/components/content/source-badge";
 
 export type EmailVariant = {
   id: string;
@@ -15,6 +16,8 @@ export type EmailVariant = {
   category: string | null;
   subcategory: string | null;
   sortOrder: number;
+  contentSource?: string;
+  externalRef?: string | null;
   translations: { language: string; subject: string | null; status: string }[];
 };
 
@@ -39,7 +42,7 @@ export function EmailCard({ variant, onSelect, selected, canManage }: Props) {
       )}
       onClick={() => onSelect(variant)}
     >
-      {canManage && (
+      {canManage && !isSyncedSource(variant.contentSource) && (
         <LibraryDeleteButton
           apiPath="/api/email-library"
           variantId={variant.id}
@@ -74,6 +77,7 @@ export function EmailCard({ variant, onSelect, selected, canManage }: Props) {
         )}
       >
         {variant.name}
+        <SourceBadge source={variant.contentSource} externalRef={variant.externalRef} />
       </h3>
 
       {/* Mini email mockup */}

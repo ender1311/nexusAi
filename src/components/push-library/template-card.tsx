@@ -9,6 +9,7 @@ import { DeleteConfirmDialog } from "@/components/push-library/delete-confirm-di
 import { LanguageCoverageBadge } from "@/components/push-library/language-coverage-badge";
 import { isPushVariantComplete } from "@/lib/messages/push-completeness";
 import { maskPersonalization } from "@/lib/messages/personalization";
+import { SourceBadge, isSyncedSource } from "@/components/content/source-badge";
 
 type TemplateVariant = {
   id: string;
@@ -21,6 +22,8 @@ type TemplateVariant = {
   subcategory: string | null;
   iconImageUrl: string | null;
   languages: string[];
+  contentSource?: string;
+  externalRef?: string | null;
 };
 
 interface TemplateCardProps {
@@ -38,7 +41,10 @@ export function TemplateCard({ variant, isAdmin }: TemplateCardProps) {
     <Card className="flex flex-col overflow-hidden">
       <CardContent className="flex-1 p-4 space-y-3">
         <div className="flex items-start justify-between gap-2">
-          <p className="text-sm font-medium leading-tight">{variant.name}</p>
+          <p className="text-sm font-medium leading-tight">
+            {variant.name}
+            <SourceBadge source={variant.contentSource} externalRef={variant.externalRef} />
+          </p>
           <div className="flex shrink-0 flex-wrap items-center justify-end gap-1">
             {!isPushVariantComplete(variant) && (
               <Badge variant="destructive" className="shrink-0 text-xs">
@@ -64,7 +70,7 @@ export function TemplateCard({ variant, isAdmin }: TemplateCardProps) {
           </p>
         )}
       </CardContent>
-      {isAdmin && (
+      {isAdmin && !isSyncedSource(variant.contentSource) && (
         <CardFooter className="px-4 pb-4 pt-0 flex gap-2">
           <TemplateFormSheet mode="edit" variant={variant}>
             <Button variant="outline" size="sm" className="flex-1">

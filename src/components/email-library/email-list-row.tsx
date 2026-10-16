@@ -5,6 +5,7 @@ import { Eye, Mail } from "lucide-react";
 import { cn } from "@/lib/utils";
 import type { EmailVariant } from "./email-card";
 import { LibraryDeleteButton } from "@/components/library/library-delete-button";
+import { SourceBadge, isSyncedSource } from "@/components/content/source-badge";
 
 type Props = {
   variant: EmailVariant;
@@ -46,6 +47,7 @@ export function EmailListRow({ variant, onSelect, selected, canManage }: Props) 
           )}
         >
           {variant.name}
+          <SourceBadge source={variant.contentSource} externalRef={variant.externalRef} />
         </p>
         <p className="text-xs text-muted-foreground truncate">
           {variant.subject ?? <span className="italic">No subject</span>}
@@ -101,7 +103,7 @@ export function EmailListRow({ variant, onSelect, selected, canManage }: Props) 
         <Eye className="h-4 w-4" />
       </Button>
 
-      {canManage && (
+      {canManage && !isSyncedSource(variant.contentSource) && (
         <LibraryDeleteButton
           apiPath="/api/email-library"
           variantId={variant.id}

@@ -7,6 +7,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/u
 import { cn } from "@/lib/utils";
 import type { ModalIamVariant } from "./modal-iam-card";
 import { LibraryDeleteButton } from "@/components/library/library-delete-button";
+import { SourceBadge, isSyncedSource } from "@/components/content/source-badge";
 
 type Props = { variant: ModalIamVariant; canManage?: boolean };
 
@@ -28,7 +29,7 @@ export function ModalIamListRow({ variant, canManage }: Props) {
             <ImageIcon className="w-3.5 h-3.5 text-primary/40" />
           </div>
         )}
-        <span className="font-medium text-sm truncate min-w-0 flex-1">{variant.name}</span>
+        <span className="font-medium text-sm truncate min-w-0 flex-1">{variant.name}<SourceBadge source={variant.contentSource} externalRef={variant.externalRef} /></span>
         <span className="text-xs text-muted-foreground truncate hidden sm:block max-w-[220px]">
           {variant.title}
         </span>
@@ -43,7 +44,7 @@ export function ModalIamListRow({ variant, canManage }: Props) {
           )}
         </div>
       </button>
-        {canManage && (
+        {canManage && !isSyncedSource(variant.contentSource) && (
           <LibraryDeleteButton
             apiPath="/api/modal-iam-library"
             variantId={variant.id}

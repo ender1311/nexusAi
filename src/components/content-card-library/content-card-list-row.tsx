@@ -6,6 +6,7 @@ import { ExternalLink, Layout } from "lucide-react";
 import { cn } from "@/lib/utils";
 import type { ContentCardVariant } from "./content-card-card";
 import { LibraryDeleteButton } from "@/components/library/library-delete-button";
+import { SourceBadge, isSyncedSource } from "@/components/content/source-badge";
 
 export function ContentCardListRow({ variant, canManage }: { variant: ContentCardVariant; canManage?: boolean }) {
   const [open, setOpen] = useState(false);
@@ -28,6 +29,7 @@ export function ContentCardListRow({ variant, canManage }: { variant: ContentCar
         <div className="flex-1 min-w-0 grid grid-cols-1 sm:grid-cols-[minmax(0,2fr)_minmax(0,3fr)] gap-0 sm:gap-4 items-center">
           <p className="text-sm font-medium text-foreground truncate group-hover:text-primary transition-colors">
             {variant.name}
+            <SourceBadge source={variant.contentSource} externalRef={variant.externalRef} />
           </p>
           <p className="text-xs text-muted-foreground truncate">
             {variant.title
@@ -61,7 +63,7 @@ export function ContentCardListRow({ variant, canManage }: { variant: ContentCar
           <ExternalLink className="h-3.5 w-3.5 text-muted-foreground/40 shrink-0 hidden sm:block" />
         )}
 
-        {canManage && (
+        {canManage && !isSyncedSource(variant.contentSource) && (
           <LibraryDeleteButton
             apiPath="/api/content-card-library"
             variantId={variant.id}

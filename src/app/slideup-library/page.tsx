@@ -15,7 +15,7 @@ const getSlideupLibraryVariants = unstable_cache(
       where: { message: { agentId: null, channel: "in-app" }, status: { not: "archived" } },
       select: {
         id: true, name: true, title: true, body: true, deeplink: true, iconImageUrl: true,
-        status: true, category: true, subcategory: true, sortOrder: true,
+        status: true, contentSource: true, externalRef: true, category: true, subcategory: true, sortOrder: true,
       },
       orderBy: [{ category: "asc" }, { subcategory: "asc" }, { sortOrder: "asc" }, { createdAt: "asc" }],
     }),

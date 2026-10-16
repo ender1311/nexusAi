@@ -4,19 +4,14 @@ import {
   contentSourceConfigSchema, getContentSourceConfig, saveContentSourceConfig, type ContentSourceConfig,
 } from "@/connectors/content/config";
 
-type TokenPresence = { contentful: boolean; sanity: boolean; genericJson: boolean; braze: boolean };
+import { readTokenPresence, type TokenPresence } from "@/connectors/content/page-data";
 
 export async function GET() {
   const forbidden = await requireAdmin();
   if (forbidden) return forbidden;
   try {
     const config = await getContentSourceConfig();
-    const tokens: TokenPresence = {
-      contentful: !!process.env.CONTENTFUL_DELIVERY_TOKEN,
-      sanity: !!process.env.SANITY_READ_TOKEN,
-      genericJson: !!process.env.GENERIC_CONTENT_TOKEN,
-      braze: !!process.env.BRAZE_API_KEY,
-    };
+    const tokens = readTokenPresence();
     return ok<{ config: ContentSourceConfig; tokens: TokenPresence }>({ config, tokens });
   } catch (err) {
     return handleRouteError("GET /api/settings/content-sources", err);

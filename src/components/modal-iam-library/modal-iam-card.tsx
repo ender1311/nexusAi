@@ -6,6 +6,7 @@ import { Badge } from "@/components/ui/badge";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { cn } from "@/lib/utils";
 import { LibraryDeleteButton } from "@/components/library/library-delete-button";
+import { SourceBadge, isSyncedSource } from "@/components/content/source-badge";
 
 export type ModalIamVariant = {
   id: string;
@@ -19,6 +20,8 @@ export type ModalIamVariant = {
   category: string | null;
   subcategory: string | null;
   sortOrder: number;
+  contentSource?: string;
+  externalRef?: string | null;
 };
 
 type Props = { variant: ModalIamVariant; canManage?: boolean };
@@ -78,6 +81,7 @@ export function ModalIamCard({ variant, canManage }: Props) {
         <div className="flex flex-col gap-1.5 p-3 flex-1">
           <p className="text-sm font-medium text-foreground leading-snug line-clamp-2">
             {variant.name}
+            <SourceBadge source={variant.contentSource} externalRef={variant.externalRef} />
           </p>
           <p className="text-xs text-muted-foreground line-clamp-1">
             {variant.title}
@@ -97,7 +101,7 @@ export function ModalIamCard({ variant, canManage }: Props) {
           </div>
         </div>
       </button>
-        {canManage && (
+        {canManage && !isSyncedSource(variant.contentSource) && (
           <LibraryDeleteButton
             apiPath="/api/modal-iam-library"
             variantId={variant.id}
