@@ -14,6 +14,8 @@ export const humanHand = {
     eyebrow: "Nexus by Beacon Frontier",
     logo: "beacon",
     ogTitle: "Nexus: AI decisioning for the stack you already have",
+    ogDescription:
+      "Nexus picks the right message, channel and time for each user, then learns from every send. Live today with Braze and Hightouch; more connectors on the roadmap.",
   },
   colorScheme: "light",
   light: {

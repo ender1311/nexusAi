@@ -3,12 +3,12 @@ import { stepContent } from "@site/lib/demo/build-step-data";
 import type { DemoSource } from "@site/content/demo-lumen";
 import { ui } from "@site/components/ui";
 
-export function Step3Content({ source }: { source: DemoSource }) {
+export function Step3Content({ source, product }: { source: DemoSource; product: string }) {
   const { sourceRecord, mapping, item } = stepContent(source);
   return (
     <div className="space-y-4">
       <p className="text-sm text-ink-3">
-        Your content stays where it lives. A field mapping reads each record into the one shape Nexus decides over.
+        Your content stays where it lives. A field mapping reads each record into the one shape {product} decides over.
       </p>
       <div className="grid gap-4 lg:grid-cols-3">
         <CodeBlock label="Sample: source record" data={sourceRecord} />
@@ -24,7 +24,7 @@ export function Step3Content({ source }: { source: DemoSource }) {
               </tbody>
             </table>
           ) : (
-            <p className="text-xs text-ink-3">No mapping needed: library items are already in the Nexus shape.</p>
+            <p className="text-xs text-ink-3">No mapping needed: library items are already in the {product} shape.</p>
           )}
         </div>
         <CodeBlock label="Resulting content item" data={item} />

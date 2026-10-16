@@ -7,8 +7,9 @@ The whole look of `apps/site` (the landing page at `/nexus` and the walkthrough 
 NEXT_PUBLIC_BRAND=human-hand   # midnight (default) | human-hand | editorial
 ```
 
-There is no visitor theme picker. An unset value renders `midnight`; an unknown value
-renders `midnight` and logs a warning during the build.
+There is no visitor theme picker. An unset value renders `midnight`. An unknown value
+**fails the build on production** (`VERCEL_ENV=production`); everywhere else it renders
+`midnight` and logs a warning.
 
 **To switch the live site:** set `NEXT_PUBLIC_BRAND` on the `nexus-site` Vercel project
 (Production, and Preview if you want previews to match) and redeploy. It's a
@@ -23,33 +24,60 @@ redeploy does nothing.
 
 | File | Role |
 |---|---|
-| `types.ts` | `BrandPreset` and `TokenSet` types, `tokenSets()`, `chartPalette()` |
+| `types.ts` | `BrandPreset` and `TokenSet` types, `tokenSets()` |
 | `presets/*.ts` | One file per preset |
 | `presets/index.ts` | The registry (`BRANDS`), `activeBrand()`, `resolveBrand()`, `withPreset()` (overrides for tests) |
 | `css.ts` | `brandCss(preset, selector)`: a preset as CSS custom properties. `allBrandsCss()`: every preset under `[data-brand="<id>"]` |
-| `font-stacks.ts` | Font keys and their CSS stacks (pure, safe to import anywhere) |
-| `fonts.ts` | The `next/font` loaders (self-hosted; the CSP is `font-src 'self'`). Only the root layout imports it |
+| `chart-theme.ts` | `chartThemes(preset)`: series colors, surface, line, ink, ink3 and radius for Recharts, per OS scheme |
+| `font-stacks.ts` | Font keys, their CSS stacks, and `WEB_FONTS` (the next/font loader for each web font) |
+| `font-codegen.ts` | Turns the active preset into the two generated font modules below |
+| `active-fonts.generated.ts` | **Generated.** The active preset's web fonts, `preload: true`. The root layout imports it |
+| `preview-fonts.generated.ts` | **Generated.** Every other web font, `preload: false`. Only `/nexus/brand` imports it |
 | `logos.tsx` | Brand marks (`none`, `beacon`, `monogram`), drawn with tokens |
 | `validate.ts` | `validatePreset()`; the tests run it on every preset |
 | `contrast.ts` | WCAG luminance and contrast ratio |
 
-The root layout sets `<html data-brand={activeBrand().id}>` and injects `allBrandsCss()`
-in a `<style>` tag (the CSP allows inline styles). `app/globals.css` maps the tokens to
+The root layout sets `<html data-brand={activeBrand().id}>` and injects the active
+preset's `brandCss()` in a `<style>` tag (the CSP allows inline styles). `/nexus/brand`
+injects `allBrandsCss()` itself, so production pages ship one preset's tokens. `app/globals.css` maps the tokens to
 Tailwind utilities in `@theme inline`, so components use `bg-surface`, `text-ink-3`,
 `text-on-accent`, `rounded-brand-lg`, `font-serif` and so on. Shared class recipes
 (buttons, panels, labels, fields) live in `components/ui.ts`. Any element can opt into
 another preset by wrapping it in `<div data-brand="<id>">` (that's how `/nexus/brand`
 works).
 
-Charts (Recharts) need literal colors, so they take a `palette` prop read from the
-preset with `chartPalette(preset)`, never from `getComputedStyle`.
+Charts (Recharts) need literal values, so they take `chartThemes(preset)` as a prop
+(series colors, axis tick fill, axis/grid stroke, tooltip surface/ink/radius) and pick the
+light or dark theme from `prefers-color-scheme`. They never use `getComputedStyle`. Client
+components get brand values as props from the page, so the client bundle never loads the
+preset registry.
+
+## Fonts: the generated modules
+
+next/font needs literal loader calls at module scope, and only fonts declared with
+`preload: true` get a `<link rel="preload">`. So `scripts/gen-active-fonts.ts` (run by
+`predev`, `prebuild` and `pretest`, or `bun run gen:fonts`) reads `NEXT_PUBLIC_BRAND`
+and writes:
+
+- `active-fonts.generated.ts`: the active preset's display, body and mono web fonts,
+  preloaded. A preset on system fonts (Midnight) gets no loader at all, just
+  `activeFontVariables = ""`.
+- `preview-fonts.generated.ts`: every other web font, not preloaded, for `/nexus/brand`.
+
+Both files are **committed for the default brand (midnight)** and not gitignored, so a
+fresh clone typechecks without running the generator. Running dev, build or tests with
+another `NEXT_PUBLIC_BRAND` rewrites them locally. Don't commit that; run
+`bun run gen:fonts` with the variable unset to restore them. Vercel regenerates them in
+`prebuild` from the project's own `NEXT_PUBLIC_BRAND`, and on production the generator
+fails the build for an unknown brand.
 
 ## Adding a brand
 
 1. Copy `presets/editorial.ts` to `presets/<id>.ts` and edit it.
 2. Add it to `BRANDS` and to the `BrandId` union in `presets/index.ts`.
-3. If it needs a new font, add a loader to `fonts.ts` (module scope, `display: "swap"`,
-   `preload: false`, a `--font-<name>` variable) and a key to `font-stacks.ts`.
+3. If it needs a new font, add a key to `FONT_STACKS` and a `WEB_FONTS` entry in
+   `font-stacks.ts` (the next/font/google export name, a `--font-<name>` variable, any
+   weight/style options), then run `bun run gen:fonts`.
 4. Run `bun test` in `apps/site`. The validator and contrast tests cover the new preset
    automatically. Then look at `/nexus/brand`.
 
@@ -60,10 +88,13 @@ preset with `chartPalette(preset)`, never from `getComputedStyle`.
 - `id`: registry key, `data-brand` value and `NEXT_PUBLIC_BRAND` value (kebab-case).
 - `label`: the preset's name on `/nexus/brand`.
 - `identity.name`: the studio (footer copyright), e.g. "Beacon Frontier".
-- `identity.product`: the product, e.g. "Nexus" (comparison column, flow diagram, back link, demo title).
+- `identity.product`: the product, e.g. "Nexus". Every product mention in UI chrome and
+  page metadata (simulator, walkthrough steps, comparison column, flow diagram, demo
+  title) reads it. Marketing copy in `content/copy.ts` stays as written.
 - `identity.eyebrow`: the line above the hero heading.
 - `identity.logo`: a key from `logos.tsx`; `none` shows no mark.
 - `identity.ogTitle`: the landing page `<title>` and Open Graph title.
+- `identity.ogDescription`: the meta and Open Graph description.
 
 Marketing copy stays in `content/copy.ts`; only brand identity lives in presets.
 
@@ -80,8 +111,7 @@ Marketing copy stays in `content/copy.ts`; only brand identity lives in presets.
     (eyebrow, links, the "Nexus" column). `onAccent`: text on accent fills.
   - `ok` / `okBg`, `bad` / `badBg`: success and error text and fills.
   - `focus`: the focus ring. `mark`: text selection.
-  - `chart`: four series colors, in order. Auto presets use the light set's palette in
-    both schemes, so pick colors that read on both grounds.
+  - `chart`: four series colors, in order. Auto presets use each scheme's own palette.
 
 **Type**
 
@@ -118,12 +148,15 @@ Marketing copy stays in `content/copy.ts`; only brand identity lives in presets.
 
 ## Contrast
 
-Every preset and scheme is tested for WCAG AA (4.5:1) on:
+Every preset and scheme (dark schemes against their own grounds) is tested for WCAG AA
+(4.5:1) on:
 
 - `ink` on `bg` and on `surface`;
-- `ink3` on `bg`;
-- `accentInk` on `bg`;
-- `onAccent` on `accent`.
+- `ink3` and `accentInk` on `bg` and on `surface`;
+- `onAccent` on `accent`;
+- `bad` on `bg`, `surface` and `badBg`;
+- `ok` on `surface`, on `okBg`, and on the accent-15% tint over `surface` (the
+  walkthrough's "Chosen" row).
 
 If your accent is too light for small text on the background (Human Hand's clay is
 4.46:1 on linen), keep it for fills and set a deeper `accentInk` for text. If white text
@@ -132,6 +165,9 @@ ratio in a comment next to any borderline token.
 
 ## Rules for components
 
-A source-scan test (`tests/brand-source-scan.test.ts`) keeps `components/` and `app/`
-on tokens: no hex colors, no `text-white` / `bg-white` / `text-black`, no fixed Tailwind
-radii (`rounded`, `rounded-md`, `rounded-full`…). Use the token utilities instead.
+A source-scan test (`tests/brand-source-scan.test.ts`) keeps `components/`, `app/`,
+`lib/` and `content/` on tokens (`brand/` is exempt). It bans hex colors,
+`rgb()`/`rgba()`/`hsl()`/`oklch()`, Tailwind palette colors (`text-slate-500`…),
+`text-white` / `bg-white` / `text-black`, named colors in `fill=` / `stroke=` / style
+objects, and fixed Tailwind radii (`rounded`, `rounded-md`, `rounded-full`…). Use the
+token utilities instead.

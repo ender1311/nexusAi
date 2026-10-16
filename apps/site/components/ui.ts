@@ -21,6 +21,9 @@ export const ui = {
   box: `rounded-brand ${border}`,
   pill: `rounded-chip ${border}`,
   field: `w-full rounded-brand-sm ${border} bg-bg px-3 py-2 text-sm`,
+  /** Button case only, for toggles and rails that keep a regular weight. */
+  btnCase: "[text-transform:var(--btn-case)]",
+  /** Button case and weight, for buttons that were semibold. */
   btnText: "[text-transform:var(--btn-case)] font-[number:var(--btn-weight)]",
   /** Primary button, standard size. */
   btnPrimary:
@@ -30,6 +33,6 @@ export const ui = {
   /** Secondary button, tight horizontal padding. */
   btnSecondarySm: `rounded-brand-sm ${border} px-[calc(var(--control-x)*0.75)] py-[var(--control-y)] text-sm [text-transform:var(--btn-case)]`,
   /** Selected / unselected toggle states. */
-  toggleOn: "bg-accent text-on-accent",
-  toggleOff: border,
+  toggleOn: "bg-accent text-on-accent [text-transform:var(--btn-case)]",
+  toggleOff: `${border} [text-transform:var(--btn-case)]`,
 } as const;

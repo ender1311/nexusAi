@@ -11,7 +11,7 @@ const CHANNELS: { id: Channel; label: string }[] = [
   { id: "push", label: "Push" },
 ];
 
-export function Step5Activate({ source, chosenRef }: { source: DemoSource; chosenRef: string }) {
+export function Step5Activate({ source, chosenRef, product }: { source: DemoSource; chosenRef: string; product: string }) {
   const [channel, setChannel] = useState<Channel>("content_card");
   const { mode, endpoint, body, liquid } = stepActivate(source, channel, chosenRef);
   const catalogRoadmap = contentSources().find((c) => c.id === "braze-catalog")?.status === "roadmap";
@@ -19,7 +19,7 @@ export function Step5Activate({ source, chosenRef }: { source: DemoSource; chose
   return (
     <div className="space-y-4">
       <p className="text-sm text-ink-3">
-        {mode === "reference" ? `With the Braze Catalog connector${catalogRoadmap ? " (roadmap)" : ""}, Braze renders the catalog item Nexus picked. ` : ""}Nexus sends one API call; Braze does the delivery.
+        {mode === "reference" ? `With the Braze Catalog connector${catalogRoadmap ? " (roadmap)" : ""}, Braze renders the catalog item ${product} picked. ` : ""}{product} sends one API call; Braze does the delivery.
       </p>
       {pushCannotReadCatalog ? (
         <p className="text-xs text-ink-3">Push goes through /messages/send, which can&apos;t read a catalog, so the copy is sent inline.</p>

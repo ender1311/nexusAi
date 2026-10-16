@@ -26,7 +26,7 @@ function isTypingTarget(t: EventTarget | null): boolean {
   return ["INPUT", "TEXTAREA", "SELECT"].includes(t.tagName) || t.isContentEditable || t.closest("[role=radiogroup]") !== null;
 }
 
-export function Walkthrough({ initialStep, initialSource }: { initialStep: number; initialSource: DemoSource }) {
+export function Walkthrough({ initialStep, initialSource, product }: { initialStep: number; initialSource: DemoSource; product: string }) {
   const [step, setStep] = useState(clampStep(initialStep));
   const [source, setSource] = useState<DemoSource>(initialSource);
   const [seed, setSeed] = useState(INITIAL_SEED);
@@ -98,22 +98,22 @@ export function Walkthrough({ initialStep, initialSource }: { initialStep: numbe
           {SOURCE_OPTIONS.map((o) => (
             <button key={o.id} role="radio" aria-checked={source === o.id} tabIndex={source === o.id ? 0 : -1}
               ref={(el) => { radioRefs.current[o.id] = el; }} onClick={() => changeSource(o.id)}
-              className={`rounded-chip px-3 py-1 text-xs ${source === o.id ? ui.toggleOn : ui.toggleOff}`}>{o.label}</button>
+              className={`rounded-chip px-3 py-1 text-xs ${source === o.id ? "bg-accent text-on-accent" : ui.border}`}>{o.label}</button>
           ))}
         </div>
       ) : null}
       {showSourceSwitch && selected?.status === "roadmap" ? (
         <p className="text-xs text-ink-3">
-          Roadmap: the {selected.name} connector is being built and isn&apos;t live yet. The mapping and payload below run on Nexus&apos;s real mapping code, using sample records.
+          Roadmap: the {selected.name} connector is being built and isn&apos;t live yet. The mapping and payload below run on {product}&apos;s real mapping code, using sample records.
         </p>
       ) : null}
 
       <div>
-        {step === 1 ? <Step1Ingest /> : null}
-        {step === 2 ? <Step2Features /> : null}
-        {step === 3 ? <Step3Content source={source} /> : null}
+        {step === 1 ? <Step1Ingest product={product} /> : null}
+        {step === 2 ? <Step2Features product={product} /> : null}
+        {step === 3 ? <Step3Content source={source} product={product} /> : null}
         {step === 4 ? <Step4Decide decision={decision} onPickAgain={pickAgain} /> : null}
-        {step === 5 ? <Step5Activate source={source} chosenRef={decision.chosen.externalRef} /> : null}
+        {step === 5 ? <Step5Activate source={source} chosenRef={decision.chosen.externalRef} product={product} /> : null}
         {step === 6 ? (
           <Step6Learn stats={armStats} onOutcome={(converted) => setArmStats((s) => stepLearn(s, converted))}
             onReset={() => setArmStats(initialArmStats(source, seed))} />

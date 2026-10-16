@@ -36,3 +36,25 @@ describe("activeBrand", () => {
     warn.mockRestore();
   });
 });
+
+describe("activeBrand in production", () => {
+  const originalEnv = process.env.VERCEL_ENV;
+  afterEach(() => {
+    if (originalEnv === undefined) delete process.env.VERCEL_ENV;
+    else process.env.VERCEL_ENV = originalEnv;
+  });
+
+  it("throws for an unknown brand so the production build fails", () => {
+    process.env.VERCEL_ENV = "production";
+    process.env.NEXT_PUBLIC_BRAND = "nope";
+    expect(() => activeBrand()).toThrow(/nope/);
+  });
+
+  it("still resolves known and unset brands in production", () => {
+    process.env.VERCEL_ENV = "production";
+    process.env.NEXT_PUBLIC_BRAND = "editorial";
+    expect(activeBrand().id).toBe("editorial");
+    delete process.env.NEXT_PUBLIC_BRAND;
+    expect(activeBrand().id).toBe("midnight");
+  });
+});

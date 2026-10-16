@@ -1,11 +1,11 @@
 import { stepFeatures } from "@site/lib/demo/build-step-data";
 
-export function Step2Features() {
+export function Step2Features({ product }: { product: string }) {
   const { labelled, persona } = stepFeatures();
   return (
     <div className="space-y-4">
       <p className="text-sm text-ink-3">
-        Nexus turns the user&apos;s history into a 10-number feature vector, then assigns the nearest persona.
+        {product} turns the user&apos;s history into a 10-number feature vector, then assigns the nearest persona.
       </p>
       <p className="text-sm">
         Persona: <span className="rounded-chip bg-accent px-3 py-1 text-xs font-semibold text-on-accent">{persona.label}</span>
