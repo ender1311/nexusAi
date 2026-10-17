@@ -4,6 +4,7 @@ import { connectorLabel, senders, sources } from "@site/content/connectors";
 import { publicConfig } from "@site/lib/public-config";
 import { calendlyEmbedUrl } from "@site/lib/leads/calendly-url";
 import { ui } from "@site/components/ui";
+import { trackLeadSubmit } from "@site/lib/metrics";
 
 type State = { kind: "idle" } | { kind: "sending" } | { kind: "error"; message: string; offerDirectBooking: boolean } | { kind: "booked"; url: string };
 
@@ -23,6 +24,7 @@ export function LeadForm() {
         setState({ kind: "error", message: json.error ?? "Something went wrong. Please try again.", offerDirectBooking: res.status >= 500 });
         return;
       }
+      trackLeadSubmit();
       setState({ kind: "booked", url: calendlyEmbedUrl(publicConfig.calendlyUrl, { email: lead.email ?? "", company: lead.company ?? "" }) });
     } catch {
       setState({ kind: "error", message: "Network error. Please try again.", offerDirectBooking: true });

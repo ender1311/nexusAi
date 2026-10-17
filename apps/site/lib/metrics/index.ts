@@ -7,6 +7,7 @@
  *   pageview, _leave (engaged time)  from <BeaconMetrics />
  *   cta_click {target}               any element with data-cta="<fixed slug>"
  *   outbound {host, kind}            any http(s) link to another host
+ *   lead_submit                      a design-partner request the server accepted (no props)
  *
  * Nothing is sent from previews or localhost: `metricsEndpoint()` returns null
  * unless the page is on beaconfrontier.com, or a local test set
@@ -44,6 +45,11 @@ export { pageview };
 /** A call to action. `target` is a developer-chosen slug from a data-cta attribute, never page text. */
 export function trackCta(target: string) {
   if (SLUG.test(target)) track("cta_click", { target });
+}
+
+/** A design-partner request the server accepted. No props: nothing typed in the form goes to metrics. */
+export function trackLeadSubmit() {
+  track("lead_submit");
 }
 
 /** Where an outbound link goes, as a fixed slug. */
