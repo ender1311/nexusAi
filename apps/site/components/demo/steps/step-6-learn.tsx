@@ -22,8 +22,8 @@ export function Step6Learn({ stats, onOutcome, onReset }: Props) {
         <button className={ui.btnSecondarySm} onClick={onReset}>Reset</button>
       </div>
       <div className="flex flex-wrap gap-3 pt-2">
-        <a href="/nexus#design-partner" className={ui.btnPrimary}>Become a design partner</a>
-        <a href="/nexus#simulator" className={ui.btnSecondary}>Back to the simulator</a>
+        <a href="/nexus#design-partner" data-cta="demo-design-partner" className={ui.btnPrimary}>Become a design partner</a>
+        <a href="/nexus#simulator" data-cta="demo-simulator" className={ui.btnSecondary}>Back to the simulator</a>
       </div>
     </div>
   );

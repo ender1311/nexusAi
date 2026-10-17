@@ -68,7 +68,7 @@ export function LeadForm() {
           )}
         </p>
       )}
-      <button type="submit" disabled={state.kind === "sending"}
+      <button type="submit" data-cta="design-partner-submit" disabled={state.kind === "sending"}
         className={`rounded-brand-sm bg-accent px-[var(--control-x)] py-[calc(var(--control-y)*1.25)] text-sm text-on-accent ${ui.btnText} disabled:opacity-60 sm:col-span-2`}>
         {state.kind === "sending" ? "Sending…" : "Become a design partner"}
       </button>
