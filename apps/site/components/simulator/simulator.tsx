@@ -94,7 +94,7 @@ export function Simulator({ chartThemes, product }: { chartThemes: ChartThemes; 
       <div className="flex flex-wrap items-center gap-2">
         {playback.playing
           ? <button className={ui.btnPrimary} onClick={playback.pause}>Pause</button>
-          : <button className={ui.btnPrimary} onClick={playback.play}>{finished ? "Replay" : playback.day === 0 ? "Run" : "Resume"}</button>}
+          : <button className={ui.btnPrimary} data-cta="simulator-run" onClick={playback.play}>{finished ? "Replay" : playback.day === 0 ? "Run" : "Resume"}</button>}
         <button className={ui.btnSecondarySm} onClick={playback.reset}>Reset</button>
         {!finished && (
           <button className={ui.btnSecondarySm} onClick={() => { playback.reset(); playback.play(); }}>Replay</button>

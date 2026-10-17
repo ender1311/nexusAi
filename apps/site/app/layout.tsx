@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { activeFontVariables } from "@site/brand/active-fonts.generated";
 import { brandCss } from "@site/brand/css";
 import { activeBrand } from "@site/brand/presets";
+import { BeaconMetrics } from "@site/components/analytics/beacon-metrics";
 import "./globals.css";
 
 const brand = activeBrand();
@@ -21,7 +22,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         {/* The active brand's tokens (the CSP allows inline styles). Values are validated, see brand/validate.ts. */}
         <style dangerouslySetInnerHTML={{ __html: brandCss(brand, `[data-brand="${brand.id}"]`) }} />
       </head>
-      <body className="min-h-screen antialiased">{children}</body>
+      <body className="min-h-screen antialiased">{children}<BeaconMetrics /></body>
     </html>
   );
 }
