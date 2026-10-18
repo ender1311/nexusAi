@@ -1,37 +1,32 @@
 import { prisma } from "@/lib/db";
+import { assertLocalDatabase } from "@/lib/db-safety";
 
-// Production endpoint ID — truncateAll() hard-blocks this to prevent accidental wipes.
-// If the production DB ever migrates to a new endpoint, add the new ID here.
-const PRODUCTION_ENDPOINT_IDS = ["ep-old-surf-a4p5os6s"];
+/**
+ * Throws unless the tests are pointed at the local test DB: DATABASE_URL must be
+ * a localhost URL and TEST_DB must be "true" (set only in .env.test). Call it at
+ * the top of any hook that wipes whole tables without going through truncateAll().
+ */
+export function assertLocalTestDatabase(context: string): void {
+  assertLocalDatabase(process.env.DATABASE_URL, context);
+  if (process.env.TEST_DB !== "true") {
+    throw new Error(
+      `SAFETY ABORT (${context}): TEST_DB env var is not "true". ` +
+      `Run tests via \`bun test\` (loads .env.test), not \`bun run\`.`
+    );
+  }
+}
 
 /**
  * Wipe all test data in FK-safe order using deleteMany().
  * Call in beforeEach (and optionally afterEach) for integration test files.
  * Children are deleted before parents so FK constraints are never violated.
  *
- * SAFETY: throws immediately if DATABASE_URL points to a known production endpoint
- * or if the TEST_DB guard flag is absent. Run tests via `bun test` (which loads
- * .env.test), never via `bun run`.
+ * SAFETY: throws before any query unless DATABASE_URL is a localhost URL
+ * (allowlist, see src/lib/db-safety.ts) AND the TEST_DB=true flag from .env.test
+ * is set. Run tests via `bun test` (which loads .env.test), never via `bun run`.
  */
 export async function truncateAll(): Promise<void> {
-  const url = process.env.DATABASE_URL ?? "";
-
-  // Guard 1: blocklist known production endpoints
-  const matchedProd = PRODUCTION_ENDPOINT_IDS.find((id) => url.includes(id));
-  if (matchedProd) {
-    throw new Error(
-      `SAFETY ABORT: truncateAll() refused — DATABASE_URL contains production endpoint "${matchedProd}". ` +
-      `Run tests via \`bun test\` (loads .env.test), not \`bun run\`.`
-    );
-  }
-
-  // Guard 2: require the TEST_DB=true flag set only in .env.test
-  if (process.env.TEST_DB !== "true") {
-    throw new Error(
-      `SAFETY ABORT: truncateAll() refused — TEST_DB env var is not "true". ` +
-      `Run tests via \`bun test\` (loads .env.test), not \`bun run\`.`
-    );
-  }
+  assertLocalTestDatabase("truncateAll()");
 
   // Delete in FK-safe order (children before parents).
   // Tables with no @relation FK constraints can go in any position.
