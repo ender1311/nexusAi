@@ -1,6 +1,7 @@
 import { PrismaClient } from "@/generated/prisma/client";
 import { PrismaNeon } from "@prisma/adapter-neon";
 import { PrismaPg } from "@prisma/adapter-pg";
+import { assertLocalDatabase } from "@/lib/db-safety";
 
 function createBasePrismaClient() {
   // NOTE: connection_limit / pool_timeout URL params are no-ops here — driver
@@ -9,7 +10,13 @@ function createBasePrismaClient() {
   // "can't get a connection" failures during ingest floods are smoothed over by
   // the read-retry extension below rather than by a pool timeout.
   // Fallback URL prevents new URL() from throwing during next build when DATABASE_URL is absent.
-  const url = new URL(process.env.DATABASE_URL ?? "postgresql://localhost/placeholder");
+  const rawUrl = process.env.DATABASE_URL ?? "postgresql://localhost/placeholder";
+  // Under `bun test` (NODE_ENV=test) a client may only ever point at localhost,
+  // whatever env leaked in. Production/dev behaviour is unchanged.
+  if (process.env.NODE_ENV === "test") {
+    assertLocalDatabase(rawUrl, "prisma client under test");
+  }
+  const url = new URL(rawUrl);
   const connectionString = url.toString();
 
   // The Neon serverless driver speaks Neon's WebSocket/HTTP protocol and cannot
