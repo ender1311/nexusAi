@@ -1,7 +1,9 @@
 // tests/integration/sower-conversion.test.ts
-// Tests that a false→true flip on has_recurring_gift during user sync synthesizes
-// a sower_subscribed conversion against the owning Nexus send, persists the column,
-// and that backfill/no-flip cases never manufacture a conversion.
+// Tests that a false→true flip on has_recurring_gift_youversion during user sync
+// synthesizes a sower_subscribed conversion against the owning Nexus send, persists
+// the column, and that backfill/no-flip cases never manufacture a conversion.
+// Since 06b7ebe Sower synthesis watches the YouVersion-Fund-specific flag
+// (hasRecurringGiftYouversion), not the generic has_recurring_gift.
 
 import { afterEach, beforeEach, describe, expect, it } from "bun:test";
 import { truncateAll, prisma } from "../helpers/db";
@@ -26,14 +28,14 @@ function buildRequest(body: unknown) {
   });
 }
 
-// Seed a TrackedUser with a known prior hasRecurringGift state. The builder does
-// not expose the column, so set it directly.
-async function seedUser(externalId: string, hasRecurringGift: boolean | null) {
+// Seed a TrackedUser with a known prior hasRecurringGiftYouversion state. The
+// builder does not expose the column, so set it directly.
+async function seedUser(externalId: string, hasRecurringGiftYouversion: boolean | null) {
   return prisma.trackedUser.create({
     data: {
       externalId,
       attributes: { language_tag: "en" },
-      hasRecurringGift,
+      hasRecurringGiftYouversion,
     },
   });
 }
@@ -68,7 +70,7 @@ describe("sower (recurring-giver) conversion synthesis", () => {
     await createUserAgentAssignment({ externalUserId: "user_sower_flip", agentId: agent.id });
 
     const req = buildRequest({
-      users: [{ external_user_id: "user_sower_flip", attributes: { has_recurring_gift: true } }],
+      users: [{ external_user_id: "user_sower_flip", attributes: { has_recurring_gift_youversion: true } }],
     });
     expect((await ingestUsers(req)).status).toBe(200);
 
@@ -79,7 +81,7 @@ describe("sower (recurring-giver) conversion synthesis", () => {
 
     // Column persisted
     const user = await prisma.trackedUser.findUnique({ where: { externalId: "user_sower_flip" } });
-    expect(user?.hasRecurringGift).toBe(true);
+    expect(user?.hasRecurringGiftYouversion).toBe(true);
 
     // Owning assignment released on conversion
     const assignment = await prisma.userAgentAssignment.findUnique({
@@ -107,7 +109,7 @@ describe("sower (recurring-giver) conversion synthesis", () => {
     });
 
     const req = buildRequest({
-      users: [{ external_user_id: "user_sower_noflip", attributes: { has_recurring_gift: true } }],
+      users: [{ external_user_id: "user_sower_noflip", attributes: { has_recurring_gift_youversion: true } }],
     });
     expect((await ingestUsers(req)).status).toBe(200);
 
@@ -133,7 +135,7 @@ describe("sower (recurring-giver) conversion synthesis", () => {
     });
 
     const req = buildRequest({
-      users: [{ external_user_id: "user_sower_firstobs", attributes: { has_recurring_gift: true } }],
+      users: [{ external_user_id: "user_sower_firstobs", attributes: { has_recurring_gift_youversion: true } }],
     });
     expect((await ingestUsers(req)).status).toBe(200);
 
@@ -142,7 +144,7 @@ describe("sower (recurring-giver) conversion synthesis", () => {
 
     // Column still records the observed true so a later real flip can be detected.
     const user = await prisma.trackedUser.findUnique({ where: { externalId: "user_sower_firstobs" } });
-    expect(user?.hasRecurringGift).toBe(true);
+    expect(user?.hasRecurringGiftYouversion).toBe(true);
   });
 
   it("does NOT synthesize when the owning send is outside the 30-day window", async () => {
@@ -163,7 +165,7 @@ describe("sower (recurring-giver) conversion synthesis", () => {
     });
 
     const req = buildRequest({
-      users: [{ external_user_id: "user_sower_old", attributes: { has_recurring_gift: true } }],
+      users: [{ external_user_id: "user_sower_old", attributes: { has_recurring_gift_youversion: true } }],
     });
     expect((await ingestUsers(req)).status).toBe(200);
 
@@ -171,7 +173,7 @@ describe("sower (recurring-giver) conversion synthesis", () => {
     expect(unchanged?.conversionAt).toBeNull();
     // Flip is still recorded on the column even when no send is creditable.
     const user = await prisma.trackedUser.findUnique({ where: { externalId: "user_sower_old" } });
-    expect(user?.hasRecurringGift).toBe(true);
+    expect(user?.hasRecurringGiftYouversion).toBe(true);
   });
 
   it("is type-tolerant: a string \"true\" flip synthesizes the conversion", async () => {
@@ -192,12 +194,43 @@ describe("sower (recurring-giver) conversion synthesis", () => {
     });
 
     const req = buildRequest({
-      users: [{ external_user_id: "user_sower_str", attributes: { has_recurring_gift: "true" } }],
+      users: [{ external_user_id: "user_sower_str", attributes: { has_recurring_gift_youversion: "true" } }],
     });
     expect((await ingestUsers(req)).status).toBe(200);
 
     const updated = await prisma.userDecision.findUnique({ where: { id: decision.id } });
     expect(updated?.conversionEvent).toBe("sower_subscribed");
     expect(updated?.reward).toBe(1.0);
+  });
+
+  it("does NOT synthesize on a flip of the generic has_recurring_gift alone", async () => {
+    const agent = await createAgent({ status: "active" });
+    await createGoal(agent.id, { eventName: "sower_subscribed", tier: "best" });
+    const msg = await createMessage(agent.id, { channel: "push" });
+    const variant = await createVariant(msg.id);
+
+    await prisma.trackedUser.create({
+      data: { externalId: "user_sower_generic", attributes: { language_tag: "en" }, hasRecurringGift: false, hasRecurringGiftYouversion: false },
+    });
+
+    const decision = await createDecision({
+      agentId: agent.id,
+      userId: "user_sower_generic",
+      messageVariantId: variant.id,
+      channel: "push",
+      sentAt: new Date(Date.now() - 3 * 24 * 60 * 60 * 1000),
+      brazeSendId: "braze_sower_generic",
+    });
+
+    const req = buildRequest({
+      users: [{ external_user_id: "user_sower_generic", attributes: { has_recurring_gift: true } }],
+    });
+    expect((await ingestUsers(req)).status).toBe(200);
+
+    const unchanged = await prisma.userDecision.findUnique({ where: { id: decision.id } });
+    expect(unchanged?.conversionAt).toBeNull();
+    const user = await prisma.trackedUser.findUnique({ where: { externalId: "user_sower_generic" } });
+    expect(user?.hasRecurringGift).toBe(true);
+    expect(user?.hasRecurringGiftYouversion).toBe(false);
   });
 });
