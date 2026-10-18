@@ -1,8 +1,19 @@
 import { describe, it, expect, beforeAll, afterAll } from "bun:test";
+import { NextRequest } from "next/server";
 import { prisma } from "@/lib/db";
 
+// Call the route handlers directly (the WorkOS session is stubbed as an admin in
+// tests/setup/bun.ts) instead of fetching a dev server on localhost:3000.
+const route = await import("@/app/api/slideup-library/route");
+const post = (body: unknown) =>
+  new NextRequest("http://localhost/api/slideup-library", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(body),
+  });
+
 // Integration tests for /api/slideup-library route.
-// Verifies the library message + variant lifecycle using direct Prisma queries.
+// Verifies the library message + variant lifecycle against the real handlers.
 
 let messageId: string;
 let variantId: string;
@@ -63,86 +74,43 @@ describe("slideup library DB model", () => {
   });
 
   it("GET /api/slideup-library returns grouped library variants", async () => {
-    const res = await fetch("http://localhost:3000/api/slideup-library");
-    if (!res.ok) {
-      // Server not running in CI — verify DB shape directly
-      const variants = await prisma.messageVariant.findMany({
-        where: { message: { agentId: null, channel: "in-app" }, id: variantId },
-        select: { id: true, name: true, title: true, body: true, deeplink: true, category: true },
-      });
-      expect(variants).toHaveLength(1);
-      expect(variants[0].title).toBeNull();
-      expect(variants[0].body).toContain("share your faith");
-      return;
-    }
+    const res = await route.GET(new NextRequest("http://localhost/api/slideup-library"));
+    expect(res.status).toBe(200);
     const json = await res.json();
     expect(Array.isArray(json.data)).toBe(true);
-    const group = json.data.find((g: { category: string }) => g.category === "community");
+    const group = json.data.find((g: { category: string; subcategory: string | null }) => g.category === "community" && g.subcategory === "sharing");
     expect(group).toBeDefined();
     expect(group.variants.some((v: { id: string }) => v.id === variantId)).toBe(true);
   });
 
   it("POST /api/slideup-library creates a new slideup variant", async () => {
-    const res = await fetch("http://localhost:3000/api/slideup-library", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        name: "Test Slideup Create",
-        body: "Test slideup message body",
-        deeplink: "https://bible.com/plans",
-        category: "bible-plans",
-        subcategory: "featured-plans",
-      }),
-    });
-    if (!res.ok && res.status === 0) {
-      // Server not running in CI — verify DB model accepts the fields
-      const msg2 = await prisma.message.create({
-        data: { agentId: null, name: "__test_slideup_post__", channel: "in-app" },
-      });
-      const v2 = await prisma.messageVariant.create({
-        data: {
-          messageId: msg2.id,
-          name: "Test Slideup Create",
-          title: null,
-          body: "Test slideup message body",
-          deeplink: "https://bible.com/plans",
-          category: "bible-plans",
-          subcategory: "featured-plans",
-          status: "active",
-        },
-      });
-      expect(v2.title).toBeNull();
-      expect(v2.category).toBe("bible-plans");
-      await prisma.message.delete({ where: { id: msg2.id } });
-      return;
-    }
-    if (res.ok) {
-      const json = await res.json();
-      expect(json.data.body).toBe("Test slideup message body");
-      expect(json.data.title).toBeNull();
-      await prisma.messageVariant.delete({ where: { id: json.data.id } }).catch(() => {});
-    }
+    const res = await route.POST(post({
+      name: "Test Slideup Create",
+      body: "Test slideup message body",
+      deeplink: "https://bible.com/plans",
+      category: "bible-plans",
+      subcategory: "featured-plans",
+    }));
+    expect(res.status).toBe(201);
+    const json = await res.json();
+    expect(json.data.body).toBe("Test slideup message body");
+    expect(json.data.title).toBeNull();
+    const created = await prisma.messageVariant.findUniqueOrThrow({ where: { id: json.data.id }, include: { message: true } });
+    expect(created.message.agentId).toBeNull();
+    expect(created.message.channel).toBe("in-app");
+    expect(created.category).toBe("bible-plans");
+    await prisma.message.delete({ where: { id: created.messageId } });
   });
 
   it("POST /api/slideup-library rejects missing body", async () => {
-    const res = await fetch("http://localhost:3000/api/slideup-library", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ name: "No body", category: "giving" }),
-    });
-    if (res.status === 0) return; // server not running
+    const res = await route.POST(post({ name: "No body", category: "giving" }));
     expect(res.status).toBe(400);
     const json = await res.json();
     expect(json.error).toContain("body");
   });
 
   it("POST /api/slideup-library rejects invalid category", async () => {
-    const res = await fetch("http://localhost:3000/api/slideup-library", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ name: "Bad cat", body: "hello", category: "not-a-category" }),
-    });
-    if (res.status === 0) return; // server not running
+    const res = await route.POST(post({ name: "Bad cat", body: "hello", category: "not-a-category" }));
     expect(res.status).toBe(400);
   });
 });
@@ -161,7 +129,8 @@ describe("slideup canvas payload factory", () => {
     expect(ep.slideupOnly).toBe(true);
     expect("title" in ep).toBe(false);
     expect(ep.message).toBe("Test msg");
-    expect(ep.link).toBe("https://bible.com");
+    // Outbound web links carry Nexus UTM attribution (12e2c2b).
+    expect(ep.link).toBe("https://bible.com/?utm_campaign=nexus&utm_source=in-app");
     expect(ep.imageUrl).toBe("https://img/a.jpg");
     const recipients = payload.recipients as { external_user_id: string }[];
     expect(recipients.map((r) => r.external_user_id)).toEqual(["u1", "u2"]);

@@ -1,8 +1,19 @@
 import { describe, it, expect, beforeAll, afterAll } from "bun:test";
+import { NextRequest } from "next/server";
 import { prisma } from "@/lib/db";
 
+// Call the route handlers directly (the WorkOS session is stubbed as an admin in
+// tests/setup/bun.ts) instead of fetching a dev server on localhost:3000.
+const route = await import("@/app/api/content-card-library/route");
+const post = (body: unknown) =>
+  new NextRequest("http://localhost/api/content-card-library", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(body),
+  });
+
 // Integration tests for /api/content-card-library route.
-// Verifies the library message + variant lifecycle using direct Prisma queries.
+// Verifies the library message + variant lifecycle against the real handlers.
 
 let messageId: string;
 let variantId: string;
@@ -65,78 +76,39 @@ describe("content-card library DB model", () => {
   });
 
   it("GET /api/content-card-library returns grouped library variants", async () => {
-    const res = await fetch("http://localhost:3000/api/content-card-library");
-    if (!res.ok) {
-      // Server not running in CI — verify DB shape directly instead
-      const variants = await prisma.messageVariant.findMany({
-        where: { message: { agentId: null, channel: "content-card" }, id: variantId },
-        select: { id: true, name: true, title: true, body: true, cta: true, deeplink: true, category: true },
-      });
-      expect(variants).toHaveLength(1);
-      expect(variants[0].title).toBe("Every Bible changes a life");
-      expect(variants[0].cta).toBe("Give Now");
-      return;
-    }
+    const res = await route.GET(new NextRequest("http://localhost/api/content-card-library"));
+    expect(res.status).toBe(200);
     const json = await res.json();
     expect(Array.isArray(json.data)).toBe(true);
-    const group = json.data.find((g: { category: string }) => g.category === "giving");
+    const group = json.data.find((g: { category: string; subcategory: string | null }) => g.category === "giving" && g.subcategory === "appeal");
     expect(group).toBeDefined();
     expect(group.variants.some((v: { id: string }) => v.id === variantId)).toBe(true);
   });
 
   it("POST /api/content-card-library creates a new variant", async () => {
-    const res = await fetch("http://localhost:3000/api/content-card-library", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        name: "Test CC Create",
-        title: "Test title",
-        body: "Test body text",
-        cta: "Learn More",
-        deeplink: "https://bible.com/plans",
-        category: "bible-plans",
-        subcategory: "featured-plans",
-      }),
-    });
-    if (!res.ok && res.status === 0) {
-      // Server not running in CI — verify the DB model accepts the fields
-      const msg2 = await prisma.message.create({
-        data: { agentId: null, name: "__test_cc_post__", channel: "content-card" },
-      });
-      const v2 = await prisma.messageVariant.create({
-        data: {
-          messageId: msg2.id,
-          name: "Test CC Create",
-          title: "Test title",
-          body: "Test body text",
-          cta: "Learn More",
-          deeplink: "https://bible.com/plans",
-          category: "bible-plans",
-          subcategory: "featured-plans",
-          status: "active",
-        },
-      });
-      expect(v2.cta).toBe("Learn More");
-      expect(v2.category).toBe("bible-plans");
-      await prisma.message.delete({ where: { id: msg2.id } });
-      return;
-    }
-    if (res.ok) {
-      const json = await res.json();
-      expect(json.data.title).toBe("Test title");
-      expect(json.data.cta).toBe("Learn More");
-      // Clean up
-      await prisma.messageVariant.delete({ where: { id: json.data.id } }).catch(() => {});
-    }
+    const res = await route.POST(post({
+      name: "Test CC Create",
+      title: "Test title",
+      body: "Test body text",
+      cta: "Learn More",
+      deeplink: "https://bible.com/plans",
+      category: "bible-plans",
+      subcategory: "featured-plans",
+    }));
+    expect(res.status).toBe(201);
+    const json = await res.json();
+    expect(json.data.title).toBe("Test title");
+    expect(json.data.cta).toBe("Learn More");
+    const created = await prisma.messageVariant.findUniqueOrThrow({ where: { id: json.data.id }, include: { message: true } });
+    expect(created.message.agentId).toBeNull();
+    expect(created.message.channel).toBe("content-card");
+    expect(created.category).toBe("bible-plans");
+    expect(created.subcategory).toBe("featured-plans");
+    await prisma.message.delete({ where: { id: created.messageId } });
   });
 
   it("POST /api/content-card-library rejects missing title", async () => {
-    const res = await fetch("http://localhost:3000/api/content-card-library", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ name: "No title", body: "body", category: "giving" }),
-    });
-    if (res.status === 0) return; // server not running
+    const res = await route.POST(post({ name: "No title", body: "body", category: "giving" }));
     expect(res.status).toBe(400);
     const json = await res.json();
     expect(json.error).toContain("title");
@@ -157,7 +129,8 @@ describe("content-card payload factory", () => {
     expect(tp.title).toBe("T");
     expect(tp.message).toBe("M");
     expect(tp.cta).toBe("CTA");
-    expect(tp.link).toBe("https://bible.com");
+    // Outbound web links carry Nexus UTM attribution (12e2c2b).
+    expect(tp.link).toBe("https://bible.com/?utm_campaign=nexus&utm_source=content-card");
     // recipients array
     const recipients = payload.recipients as { external_user_id: string }[];
     expect(recipients.map((r) => r.external_user_id)).toEqual(["u1", "u2"]);
