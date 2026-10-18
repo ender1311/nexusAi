@@ -1,5 +1,20 @@
+// SAFETY (first statement after imports): refuse to run any test against a non-local database.
+// Fails the whole run before a single test file loads, so no test, helper or
+// route under test can ever reach a live (Neon) DB. See src/lib/db-safety.ts.
+import { assertLocalDatabase } from "../../src/lib/db-safety";
 import { afterEach, expect, mock } from "bun:test";
 import * as matchers from "@testing-library/jest-dom/matchers";
+
+// A thrown preload error only fails the first file — bun keeps running the
+// rest — so print the abort and hard-exit the whole test process instead.
+if (process.env.DATABASE_URL !== undefined) {
+  try {
+    assertLocalDatabase(process.env.DATABASE_URL, "test preload");
+  } catch (err) {
+    console.error((err as Error).message);
+    process.exit(1);
+  }
+}
 
 // Ensure the API service auth middleware has a secret in test runs.
 // Uses ??= so a real CI value (if set) takes precedence.
