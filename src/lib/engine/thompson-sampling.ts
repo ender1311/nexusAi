@@ -33,7 +33,7 @@ export class ThompsonSampling {
         x = this.randomNormal();
         v = 1 + c * x;
       } while (v <= 0);
-      v = v * v * v;
+      v **= 3;
       const u = Math.random();
       if (u < 1 - 0.0331 * (x * x) * (x * x)) return d * v;
       if (Math.log(u) < 0.5 * x * x + d * (1 - v + Math.log(v))) return d * v;
