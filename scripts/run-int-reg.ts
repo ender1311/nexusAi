@@ -20,6 +20,7 @@
 import { Glob } from "bun";
 import { existsSync, readFileSync } from "node:fs";
 import { parse } from "dotenv";
+import { assertLocalDatabase } from "../src/lib/db-safety";
 
 async function collect(pattern: string): Promise<string[]> {
   const out: string[] = [];
@@ -43,9 +44,24 @@ function buildChildEnv(): Record<string, string> {
   return env;
 }
 
+// The DATABASE_URL each child `bun test` will resolve: an inherited value wins,
+// then .env.test, then .env (bun test does not load .env.local).
+function resolveChildDatabaseUrl(env: Record<string, string>): string | undefined {
+  if (env.DATABASE_URL !== undefined) return env.DATABASE_URL;
+  for (const file of [".env.test", ".env"]) {
+    if (!existsSync(file)) continue;
+    const url = parse(readFileSync(file)).DATABASE_URL;
+    if (url !== undefined) return url;
+  }
+  return undefined;
+}
+
 function runSerial(files: string[]): number {
   console.log(`[run-int-reg] ${files.length} files, one process each`);
   const env = buildChildEnv();
+  // SAFETY: these suites wipe tables — abort before spawning anything unless the
+  // children will talk to a localhost DB.
+  assertLocalDatabase(resolveChildDatabaseUrl(env), "run-int-reg");
   for (const file of files) {
     const p = Bun.spawnSync(
       ["bun", "test", "--timeout", "30000", "--bail=1", file],
