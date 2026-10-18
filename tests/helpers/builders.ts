@@ -53,8 +53,9 @@ export async function createPersona(overrides: {
   });
 }
 
+/** Pass `agentId: null` for a library (template) message — the canonical library marker since 63e786c. */
 export async function createMessage(
-  agentId: string,
+  agentId: string | null,
   overrides: { channel?: string; brazeCampaignId?: string | null } = {}
 ) {
   return prisma.message.create({

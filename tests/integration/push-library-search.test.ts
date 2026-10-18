@@ -1,6 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, mock } from "bun:test";
 import { prisma } from "../helpers/db";
-import { createAgent, createMessage, createVariant } from "../helpers/builders";
+import { createMessage, createVariant } from "../helpers/builders";
 
 mock.module("@/lib/auth", () => ({ requireLibraryEditor: async () => null, requireAdmin: async () => null }));
 mock.module("next/cache", () => ({ revalidateTag: () => {}, unstable_cache: (fn: unknown) => fn }));
@@ -15,8 +15,8 @@ async function seedLibrary() {
   await prisma.pushCategory.deleteMany();
   const cat = await prisma.pushCategory.create({ data: { slug: "giving", label: "Giving" } });
   await prisma.pushSubcategory.create({ data: { categoryId: cat.id, slug: "eoy", label: "EOY" } });
-  const agent = await createAgent({ name: "Push Copy Library" });
-  const msg = await createMessage(agent.id, { channel: "push" });
+  // Library messages have agentId = null (63e786c replaced the sentinel library agent).
+  const msg = await createMessage(null, { channel: "push" });
   await createVariant(msg.id, { name: "Give Now", title: "Donate today", body: "Year end gift", category: "giving", subcategory: "eoy" });
   await createVariant(msg.id, { name: "Read Verse", title: "John 3:16", body: "For God so loved", category: "reader", subcategory: "specific-verse" });
 }

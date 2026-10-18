@@ -6,7 +6,8 @@ import { PATCH } from "@/app/api/variants/[id]/route";
 import { buildRequest } from "../helpers/request";
 import { GET as syncCron } from "@/app/api/cron/sync-template-variants/route";
 
-const LIBRARY_AGENT_NAME = "Push Copy Library";
+// Library (template) messages have agentId = null — the canonical library marker
+// since 63e786c replaced the "Push Copy Library" sentinel agent.
 
 beforeEach(async () => { await truncateAll(); });
 afterEach(async () => { await truncateAll(); });
@@ -23,7 +24,7 @@ describe("PATCH /api/variants/[id]", () => {
     const msg = await createMessage(agent.id);
     const variant = await createVariant(msg.id, { name: "V1", title: "old title" });
     // Create another variant with sourceTemplateId pointing to this one
-    // (won't sync because variant is not in library agent)
+    // (won't sync because variant is not in the library)
     const clone = await createVariant(msg.id, {
       name: "Clone",
       title: "clone title",
@@ -44,9 +45,8 @@ describe("PATCH /api/variants/[id]", () => {
   });
 
   it("syncs copy fields to clones when template variant is updated", async () => {
-    // Library agent
-    const libAgent = await createAgent({ name: LIBRARY_AGENT_NAME, status: "draft" });
-    const libMsg = await createMessage(libAgent.id);
+    // Library message
+    const libMsg = await createMessage(null);
     const template = await createVariant(libMsg.id, {
       name: "Tmpl",
       title: "original title",
@@ -106,8 +106,7 @@ describe("PATCH /api/variants/[id]", () => {
   });
 
   it("propagates paused status from template to all clones", async () => {
-    const libAgent = await createAgent({ name: LIBRARY_AGENT_NAME, status: "draft" });
-    const libMsg = await createMessage(libAgent.id);
+    const libMsg = await createMessage(null);
     const template = await createVariant(libMsg.id, {
       name: "Tmpl",
       body: "body",
@@ -132,8 +131,7 @@ describe("PATCH /api/variants/[id]", () => {
   });
 
   it("syncs iconImageUrl to clones on template update", async () => {
-    const libAgent = await createAgent({ name: LIBRARY_AGENT_NAME, status: "draft" });
-    const libMsg = await createMessage(libAgent.id);
+    const libMsg = await createMessage(null);
     const template = await createVariant(libMsg.id, {
       name: "Tmpl",
       body: "body",
@@ -176,8 +174,7 @@ describe("GET /api/cron/sync-template-variants", () => {
   });
 
   it("corrects drifted clones and reports counts", async () => {
-    const libAgent = await createAgent({ name: LIBRARY_AGENT_NAME, status: "draft" });
-    const libMsg = await createMessage(libAgent.id);
+    const libMsg = await createMessage(null);
     const template = await createVariant(libMsg.id, {
       name: "Tmpl",
       title: "canonical title",
@@ -211,8 +208,7 @@ describe("GET /api/cron/sync-template-variants", () => {
   });
 
   it("returns 0 clonesUpdated when no drift exists", async () => {
-    const libAgent = await createAgent({ name: LIBRARY_AGENT_NAME, status: "draft" });
-    const libMsg = await createMessage(libAgent.id);
+    const libMsg = await createMessage(null);
     await createVariant(libMsg.id, { name: "Tmpl", category: "general" }); // no clones
 
     const req = new Request("http://localhost/api/cron/sync-template-variants", {
@@ -228,8 +224,7 @@ describe("GET /api/cron/sync-template-variants", () => {
   it("syncs paused templates to clones (processes all statuses, not just active)", async () => {
     // This guards against the old bug where the cron filtered status: "active" templates only,
     // meaning a paused library template would never propagate its paused status to clones.
-    const libAgent = await createAgent({ name: LIBRARY_AGENT_NAME, status: "draft" });
-    const libMsg = await createMessage(libAgent.id);
+    const libMsg = await createMessage(null);
     const template = await createVariant(libMsg.id, {
       name: "Tmpl",
       body: "canonical body",
@@ -260,8 +255,7 @@ describe("GET /api/cron/sync-template-variants", () => {
   });
 
   it("syncs subcategory from template to drifted clones via cron", async () => {
-    const libAgent = await createAgent({ name: LIBRARY_AGENT_NAME, status: "draft" });
-    const libMsg = await createMessage(libAgent.id);
+    const libMsg = await createMessage(null);
     const template = await createVariant(libMsg.id, {
       name: "Tmpl",
       body: "body",

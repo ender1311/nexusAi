@@ -25,8 +25,6 @@ mock.module("@workos-inc/authkit-nextjs", () => ({
 const { GET, POST } = await import("@/app/api/push-library/route");
 const { DELETE } = await import("@/app/api/push-library/[id]/route");
 
-const LIBRARY_AGENT_NAME = "Push Copy Library";
-
 beforeEach(async () => {
   await truncateAll();
   mockAuth.roles = [];
@@ -45,10 +43,10 @@ afterEach(async () => {
   await truncateAll();
 });
 
-// Helper: seed a minimal library agent with one variant
+// Helper: seed a library message (agentId = null — the canonical library marker
+// since 63e786c replaced the "Push Copy Library" sentinel agent) with one variant
 async function seedLibrary() {
-  const agent = await createAgent({ name: LIBRARY_AGENT_NAME, status: "draft" });
-  const msg = await createMessage(agent.id);
+  const msg = await createMessage(null);
   const variant = await createVariant(msg.id, {
     name: "Open Bible",
     title: "Build your Bible habit!",
@@ -58,7 +56,7 @@ async function seedLibrary() {
     subcategory: "open-bible",
     status: "active",
   });
-  return { agent, msg, variant };
+  return { msg, variant };
 }
 
 describe("GET /api/push-library", () => {
@@ -78,8 +76,7 @@ describe("GET /api/push-library", () => {
   });
 
   it("excludes archived variants", async () => {
-    const agent = await createAgent({ name: LIBRARY_AGENT_NAME, status: "draft" });
-    const msg = await createMessage(agent.id);
+    const msg = await createMessage(null);
     await createVariant(msg.id, {
       name: "Active",
       body: "active body",
@@ -122,7 +119,7 @@ describe("POST /api/push-library", () => {
     expect(body).toHaveProperty("error");
   });
 
-  it("creates variant under library agent for admin", async () => {
+  it("creates library variant for admin", async () => {
     mockAuth.roles = ["admin"];
     await seedLibrary();
 
@@ -310,8 +307,8 @@ describe("specific-verse deeplinks", () => {
   });
 
   it("GET /api/push-library returns specific-verse deeplink in grouped response", async () => {
-    const { agent } = await seedLibrary();
-    const msg = await createMessage(agent.id);
+    await seedLibrary();
+    const msg = await createMessage(null);
     const variant = await createVariant(msg.id, {
       name: "John 3:16",
       title: "The Greatest Love",
@@ -386,8 +383,8 @@ describe("DELETE /api/push-library/[id]", () => {
     expect(body).toHaveProperty("error");
   });
 
-  it("returns 400 when deleting a variant that belongs to a non-library agent", async () => {
-    // Regression: DELETE must reject variants outside the library agent to prevent
+  it("returns 400 when deleting a variant that belongs to an agent (not the library)", async () => {
+    // Regression: DELETE must reject variants outside the library to prevent
     // operators from accidentally archiving production send variants via this endpoint.
     mockAuth.roles = ["admin"];
     const agent = await createAgent({ name: "Regular Agent", status: "active" });
