@@ -28,6 +28,18 @@ npx prisma studio        # Browse DB in browser
 
 # WARNING: prisma.config.ts always loads .env.local (production DB).
 # Never run prisma migrate dev / db push against the test DB.
+#
+# Live-DB guards (localhost allowlist in src/lib/db-safety.ts — don't route around them):
+#   - prisma.config.ts refuses migrate dev / migrate reset / db push / db execute
+#     against a non-local URL. Override only on purpose: ALLOW_LIVE_DB_SCHEMA_CHANGE=1.
+#     generate, migrate deploy, migrate status and studio are unaffected.
+#   - Test preloads (tests/setup/bun.ts, apps/site/tests/setup/dom.ts) abort the
+#     whole run if DATABASE_URL is set and not localhost.
+#   - src/lib/db.ts throws under NODE_ENV=test for a non-local URL.
+#   - truncateAll() and assertLocalTestDatabase() (tests/helpers/db.ts) require a
+#     localhost URL + TEST_DB=true. Call assertLocalTestDatabase() first in any hook
+#     that wipes whole tables itself.
+#   - scripts/run-int-reg.ts aborts unless the children's DATABASE_URL is local.
 
 # Local test DB (integration + regression suites) — a plain local Postgres.
 # db.ts auto-selects the node-postgres adapter when DATABASE_URL host is localhost.
