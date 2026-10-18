@@ -81,14 +81,14 @@ describe("shouldBlockPrismaCommand", () => {
   const argv = (...args: string[]) => [...bin, ...args];
 
   it.each([
-    ["migrate", "dev"],
-    ["migrate", "dev", "--name", "add_column"],
-    ["migrate", "reset", "--force"],
-    ["db", "push"],
-    ["db", "push", "--accept-data-loss"],
-    ["db", "execute", "--file", "x.sql"],
-  ])("blocks %p against a live DB", (...args) => {
-    expect(shouldBlockPrismaCommand(argv(...args), NEON, {})).toBe(true);
+    { cmd: ["migrate", "dev"] },
+    { cmd: ["migrate", "dev", "--name", "add_column"] },
+    { cmd: ["migrate", "reset", "--force"] },
+    { cmd: ["db", "push"] },
+    { cmd: ["db", "push", "--accept-data-loss"] },
+    { cmd: ["db", "execute", "--file", "x.sql"] },
+  ])("blocks $cmd against a live DB", ({ cmd }) => {
+    expect(shouldBlockPrismaCommand(argv(...cmd), NEON, {})).toBe(true);
   });
 
   it("blocks destructive commands when the URL is missing or malformed", () => {
@@ -108,24 +108,24 @@ describe("shouldBlockPrismaCommand", () => {
   });
 
   it.each([
-    ["generate"],
-    ["migrate", "deploy"],
-    ["migrate", "status"],
-    ["studio"],
-    ["db", "pull"],
-    ["db", "push", "--help"],
-    [],
-  ])("allows %p against a live DB", (...args) => {
-    expect(shouldBlockPrismaCommand(argv(...args), NEON, {})).toBe(false);
+    { cmd: ["generate"] },
+    { cmd: ["migrate", "deploy"] },
+    { cmd: ["migrate", "status"] },
+    { cmd: ["studio"] },
+    { cmd: ["db", "pull"] },
+    { cmd: ["db", "push", "--help"] },
+    { cmd: [] },
+  ])("allows $cmd against a live DB", ({ cmd }) => {
+    expect(shouldBlockPrismaCommand(argv(...cmd), NEON, {})).toBe(false);
   });
 
   it.each([
-    ["migrate", "dev"],
-    ["migrate", "reset"],
-    ["db", "push"],
-    ["db", "execute"],
-    ["generate"],
-  ])("allows %p against localhost", (...args) => {
-    expect(shouldBlockPrismaCommand(argv(...args), LOCAL, {})).toBe(false);
+    { cmd: ["migrate", "dev"] },
+    { cmd: ["migrate", "reset"] },
+    { cmd: ["db", "push"] },
+    { cmd: ["db", "execute"] },
+    { cmd: ["generate"] },
+  ])("allows $cmd against localhost", ({ cmd }) => {
+    expect(shouldBlockPrismaCommand(argv(...cmd), LOCAL, {})).toBe(false);
   });
 });
