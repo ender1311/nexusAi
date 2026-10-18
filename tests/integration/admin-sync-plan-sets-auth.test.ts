@@ -1,5 +1,6 @@
 import { describe, it, expect, afterEach, beforeEach } from "bun:test";
 import { prisma } from "@/lib/db";
+import { assertLocalTestDatabase } from "../helpers/db";
 import { POST } from "@/app/api/admin/sync-plan-sets/route";
 import { NextRequest } from "next/server";
 
@@ -18,6 +19,7 @@ describe("POST /api/admin/sync-plan-sets auth", () => {
   beforeEach(async () => {
     // Empty plan-set table → the handler's loop is skipped and no external
     // YouVersion fetch happens, so the valid-auth case stays network-free.
+    assertLocalTestDatabase("admin-sync-plan-sets-auth.test.ts");
     await prisma.planSetMember.deleteMany();
     await prisma.planSet.deleteMany();
   });

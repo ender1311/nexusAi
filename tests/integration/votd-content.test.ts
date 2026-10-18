@@ -1,6 +1,6 @@
 // tests/integration/votd-content.test.ts
 import { afterEach, beforeEach, describe, expect, it } from "bun:test";
-import { truncateAll, prisma } from "../helpers/db";
+import { truncateAll, prisma, assertLocalTestDatabase } from "../helpers/db";
 import {
   getVotdContent,
   prepareVotdContent,
@@ -45,6 +45,7 @@ beforeEach(async () => {
   fetchCalls = [];
 });
 afterEach(async () => {
+  assertLocalTestDatabase("votd-content.test.ts");
   await prisma.votdDailyContent.deleteMany({});
   await truncateAll();
   globalThis.fetch = realFetch;

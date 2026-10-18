@@ -1,6 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, mock } from "bun:test";
 import { NextRequest } from "next/server";
-import { prisma } from "../helpers/db";
+import { prisma, assertLocalTestDatabase } from "../helpers/db";
 
 mock.module("@/lib/auth", () => ({
   requireLibraryEditor: async () => null,
@@ -12,10 +12,12 @@ const { GET, POST } = await import("@/app/api/push-library/categories/route");
 const { PATCH, DELETE } = await import("@/app/api/push-library/categories/[id]/route");
 
 beforeEach(async () => {
+  assertLocalTestDatabase("push-library-categories.test.ts");
   await prisma.pushSubcategory.deleteMany();
   await prisma.pushCategory.deleteMany();
 });
 afterEach(async () => {
+  assertLocalTestDatabase("push-library-categories.test.ts");
   await prisma.pushSubcategory.deleteMany();
   await prisma.pushCategory.deleteMany();
 });

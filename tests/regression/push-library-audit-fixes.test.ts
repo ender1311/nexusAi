@@ -8,7 +8,7 @@
 //      any non-empty string was written verbatim to every selected variant).
 import { afterEach, beforeEach, describe, expect, it, mock } from "bun:test";
 import { NextRequest } from "next/server";
-import { prisma } from "../helpers/db";
+import { prisma, assertLocalTestDatabase } from "../helpers/db";
 import { createAgent, createMessage, createVariant } from "../helpers/builders";
 
 mock.module("@/lib/auth", () => ({ requireLibraryEditor: async () => null, requireAdmin: async () => null }));
@@ -21,6 +21,7 @@ const { GET } = await import("@/app/api/push-library/route");
 const { POST: BULK } = await import("@/app/api/push-library/bulk/route");
 
 async function cleanup() {
+  assertLocalTestDatabase("push-library-audit-fixes.test.ts");
   await prisma.messageVariant.deleteMany();
   await prisma.message.deleteMany();
   await prisma.agent.deleteMany();

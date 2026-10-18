@@ -1,11 +1,12 @@
 import { afterEach, beforeEach, describe, expect, it } from "bun:test";
-import { truncateAll, prisma } from "../helpers/db";
+import { truncateAll, prisma, assertLocalTestDatabase } from "../helpers/db";
 import { getPushTaxonomyUncached } from "@/lib/cache/push-taxonomy";
 
 beforeEach(async () => {
   await truncateAll();
 });
 afterEach(async () => {
+  assertLocalTestDatabase("push-taxonomy-cache.test.ts");
   await prisma.pushSubcategory.deleteMany();
   await prisma.pushCategory.deleteMany();
 });

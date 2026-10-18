@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, mock } from "bun:test";
-import { prisma } from "../helpers/db";
+import { prisma, assertLocalTestDatabase } from "../helpers/db";
 import { createMessage, createVariant } from "../helpers/builders";
 
 mock.module("@/lib/auth", () => ({ requireLibraryEditor: async () => null, requireAdmin: async () => null }));
@@ -8,6 +8,7 @@ mock.module("next/cache", () => ({ revalidateTag: () => {}, unstable_cache: (fn:
 const { GET, POST } = await import("@/app/api/push-library/route");
 
 async function seedLibrary() {
+  assertLocalTestDatabase("push-library-search.test.ts");
   await prisma.messageVariant.deleteMany();
   await prisma.message.deleteMany();
   await prisma.agent.deleteMany();
@@ -23,6 +24,7 @@ async function seedLibrary() {
 
 beforeEach(seedLibrary);
 afterEach(async () => {
+  assertLocalTestDatabase("push-library-search.test.ts");
   await prisma.messageVariant.deleteMany();
   await prisma.message.deleteMany();
   await prisma.agent.deleteMany();

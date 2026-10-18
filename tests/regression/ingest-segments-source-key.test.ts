@@ -4,6 +4,7 @@
 // the ingest path still upserts correctly and stamps source='hightouch'.
 import { describe, it, expect, beforeEach } from "bun:test";
 import { prisma } from "@/lib/db";
+import { assertLocalTestDatabase } from "../helpers/db";
 import { POST } from "@/app/api/ingest/segments/route";
 import { NextRequest } from "next/server";
 
@@ -21,6 +22,7 @@ function ingestRequest(body: unknown): NextRequest {
 describe("POST /api/ingest/segments source key", () => {
   beforeEach(async () => {
     process.env.INGEST_API_KEY = "test_ingest_key";
+    assertLocalTestDatabase("ingest-segments-source-key.test.ts");
     await prisma.userSegment.deleteMany();
     await prisma.trackedUser.deleteMany();
   });

@@ -1,6 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, mock } from "bun:test";
 import { NextResponse } from "next/server";
-import { prisma } from "../helpers/db";
+import { prisma, assertLocalTestDatabase } from "../helpers/db";
 
 mock.module("@/lib/auth", () => ({
   requireAdmin: async () => null as NextResponse | null,
@@ -14,6 +14,7 @@ const TOKEN_ENV = ["CONTENTFUL_DELIVERY_TOKEN", "SANITY_READ_TOKEN", "GENERIC_CO
 const saved: Record<string, string | undefined> = {};
 
 async function clean() {
+  assertLocalTestDatabase("content-sources-page.test.ts");
   await prisma.contentSyncRun.deleteMany();
   await prisma.appSetting.deleteMany({ where: { key: "content_source_config" } });
 }

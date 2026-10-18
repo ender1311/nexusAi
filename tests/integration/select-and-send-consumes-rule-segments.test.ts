@@ -4,6 +4,7 @@
 // query select-and-send runs returns the materialized members.
 import { describe, it, expect, beforeEach } from "bun:test";
 import { prisma } from "@/lib/db";
+import { assertLocalTestDatabase } from "../helpers/db";
 import { Prisma } from "@/generated/prisma/client";
 import { materializeAllSegments } from "@/lib/segments/materialize";
 import { createUser, createAgent, createUserSegment } from "../helpers/builders";
@@ -16,6 +17,7 @@ const WAU_RULE = {
 
 describe("select-and-send consumes rule-materialized segments", () => {
   beforeEach(async () => {
+    assertLocalTestDatabase("select-and-send-consumes-rule-segments.test.ts");
     await prisma.userSegment.deleteMany();
     await prisma.trackedUser.deleteMany();
     await prisma.agent.deleteMany();

@@ -1,5 +1,6 @@
 import { describe, it, expect, beforeEach, afterEach } from "bun:test";
 import { prisma } from "@/lib/db";
+import { assertLocalTestDatabase } from "../helpers/db";
 import { Prisma } from "@/generated/prisma/client";
 import { materializeAllSegments } from "@/lib/segments/materialize";
 import { USER_INGEST_MARKER_KEY } from "@/lib/segments/ingest-marker";
@@ -29,6 +30,7 @@ async function setIngestMarker(at: Date) {
 
 describe("drift-aware materialization skip", () => {
   beforeEach(async () => {
+    assertLocalTestDatabase("materialize-skip-fresh.test.ts");
     await prisma.userSegment.deleteMany();
     await prisma.trackedUser.deleteMany();
     await prisma.agent.deleteMany();

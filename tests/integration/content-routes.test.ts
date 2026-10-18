@@ -1,7 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it, mock } from "bun:test";
 import { NextRequest, NextResponse } from "next/server";
 import { createHmac } from "node:crypto";
-import { prisma } from "../helpers/db";
+import { prisma, assertLocalTestDatabase } from "../helpers/db";
 
 // `after()` only works inside a Next request scope; run the callback detached, as the framework does after the response.
 const realServer = await import("next/server");
@@ -34,11 +34,13 @@ const json = (url: string, method: string, body?: unknown, headers: Record<strin
 beforeEach(async () => {
   isAdmin = true;
   for (const k of SECRET_ENV) { saved[k] = process.env[k]; delete process.env[k]; }
+  assertLocalTestDatabase("content-routes.test.ts");
   await prisma.contentSyncRun.deleteMany();
   await prisma.appSetting.deleteMany({ where: { key: "content_source_config" } });
 });
 afterEach(async () => {
   for (const k of SECRET_ENV) { if (saved[k] === undefined) delete process.env[k]; else process.env[k] = saved[k]; }
+  assertLocalTestDatabase("content-routes.test.ts");
   await prisma.contentSyncRun.deleteMany();
   await prisma.appSetting.deleteMany({ where: { key: "content_source_config" } });
 });

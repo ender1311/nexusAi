@@ -4,6 +4,7 @@
 // excludes flag-true users. Membership rows are what select-and-send consumes.
 import { describe, it, expect, beforeEach } from "bun:test";
 import { prisma } from "@/lib/db";
+import { assertLocalTestDatabase } from "../helpers/db";
 import { Prisma } from "@/generated/prisma/client";
 import { materializeAllSegments } from "@/lib/segments/materialize";
 import { createUser, createAgent } from "../helpers/builders";
@@ -18,6 +19,7 @@ const VOTD_FALSE_RULE = {
 
 describe("rule segment on an interaction flag", () => {
   beforeEach(async () => {
+    assertLocalTestDatabase("flag-rule-segment-materialize.test.ts");
     await prisma.userSegment.deleteMany();
     await prisma.trackedUser.deleteMany();
     await prisma.agent.deleteMany();

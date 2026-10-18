@@ -1,6 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, mock } from "bun:test";
 import { NextRequest } from "next/server";
-import { prisma } from "../helpers/db";
+import { prisma, assertLocalTestDatabase } from "../helpers/db";
 import { createAgent, createMessage, createVariant } from "../helpers/builders";
 
 mock.module("@/lib/auth", () => ({ requireLibraryEditor: async () => null, requireAdmin: async () => null }));
@@ -10,6 +10,7 @@ const { PATCH } = await import("@/app/api/variants/[id]/route");
 
 let variantId: string;
 beforeEach(async () => {
+  assertLocalTestDatabase("variant-recategorize.test.ts");
   await prisma.messageVariant.deleteMany();
   await prisma.message.deleteMany();
   await prisma.agent.deleteMany();
@@ -25,6 +26,7 @@ beforeEach(async () => {
   variantId = v.id;
 });
 afterEach(async () => {
+  assertLocalTestDatabase("variant-recategorize.test.ts");
   await prisma.messageVariant.deleteMany();
   await prisma.message.deleteMany();
   await prisma.agent.deleteMany();

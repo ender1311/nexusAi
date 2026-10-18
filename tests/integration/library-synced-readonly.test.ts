@@ -1,6 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, mock } from "bun:test";
 import { NextRequest } from "next/server";
-import { prisma } from "../helpers/db";
+import { prisma, assertLocalTestDatabase } from "../helpers/db";
 import { createAgent, createMessage, createVariant } from "../helpers/builders";
 
 mock.module("@/lib/auth", () => ({ requireLibraryEditor: async () => null, requireAdmin: async () => null }));
@@ -16,6 +16,7 @@ let syncedId: string;
 let nativeId: string;
 
 async function cleanup() {
+  assertLocalTestDatabase("library-synced-readonly.test.ts");
   await prisma.messageVariant.deleteMany();
   await prisma.message.deleteMany();
   await prisma.agent.deleteMany();

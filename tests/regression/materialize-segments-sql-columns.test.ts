@@ -5,6 +5,7 @@
 // proves all four column names (and the "User".externalId / funnelStage refs) are valid.
 import { describe, it, expect, beforeEach } from "bun:test";
 import { prisma } from "@/lib/db";
+import { assertLocalTestDatabase } from "../helpers/db";
 import { materializeSegment } from "@/lib/segments/materialize";
 import { compileSegmentRule } from "@/lib/segments/compile-sql";
 import { createUser } from "../helpers/builders";
@@ -18,6 +19,7 @@ const WAU_RULE: SegmentRule = {
 
 describe("materialize reconcile SQL column names", () => {
   beforeEach(async () => {
+    assertLocalTestDatabase("materialize-segments-sql-columns.test.ts");
     await prisma.userSegment.deleteMany();
     await prisma.trackedUser.deleteMany();
   });

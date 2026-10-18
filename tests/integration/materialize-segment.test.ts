@@ -1,5 +1,6 @@
 import { describe, it, expect, beforeEach } from "bun:test";
 import { prisma } from "@/lib/db";
+import { assertLocalTestDatabase } from "../helpers/db";
 import { materializeSegment } from "@/lib/segments/materialize";
 import { compileSegmentRule } from "@/lib/segments/compile-sql";
 import { createUser, createUserSegment } from "../helpers/builders";
@@ -14,6 +15,7 @@ const WAU_RULE: SegmentRule = {
 
 describe("materializeSegment", () => {
   beforeEach(async () => {
+    assertLocalTestDatabase("materialize-segment.test.ts");
     await prisma.userSegment.deleteMany();
     await prisma.trackedUser.deleteMany();
   });

@@ -1,6 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, mock } from "bun:test";
 import { NextRequest } from "next/server";
-import { prisma } from "../helpers/db";
+import { prisma, assertLocalTestDatabase } from "../helpers/db";
 import { createAgent, createMessage, createVariant } from "../helpers/builders";
 
 mock.module("@/lib/auth", () => ({ requireLibraryEditor: async () => null, requireAdmin: async () => null }));
@@ -11,6 +11,7 @@ const { PATCH, DELETE } = await import("@/app/api/push-library/subcategories/[id
 
 let catId: string;
 beforeEach(async () => {
+  assertLocalTestDatabase("push-library-subcategories.test.ts");
   await prisma.messageVariant.deleteMany();
   await prisma.message.deleteMany();
   await prisma.agent.deleteMany();
@@ -20,6 +21,7 @@ beforeEach(async () => {
   catId = c.id;
 });
 afterEach(async () => {
+  assertLocalTestDatabase("push-library-subcategories.test.ts");
   await prisma.messageVariant.deleteMany();
   await prisma.message.deleteMany();
   await prisma.agent.deleteMany();

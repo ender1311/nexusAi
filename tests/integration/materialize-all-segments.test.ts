@@ -1,5 +1,6 @@
 import { describe, it, expect, beforeEach } from "bun:test";
 import { prisma } from "@/lib/db";
+import { assertLocalTestDatabase } from "../helpers/db";
 import { Prisma } from "@/generated/prisma/client";
 import { materializeAllSegments } from "@/lib/segments/materialize";
 import { createUser, createAgent, createUserSegment } from "../helpers/builders";
@@ -16,6 +17,7 @@ async function createSegment(name: string, rule: unknown) {
 
 describe("materializeAllSegments", () => {
   beforeEach(async () => {
+    assertLocalTestDatabase("materialize-all-segments.test.ts");
     await prisma.userSegment.deleteMany();
     await prisma.trackedUser.deleteMany();
     await prisma.agent.deleteMany();

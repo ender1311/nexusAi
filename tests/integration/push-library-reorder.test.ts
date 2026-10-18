@@ -1,6 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, mock } from "bun:test";
 import { NextRequest } from "next/server";
-import { prisma } from "../helpers/db";
+import { prisma, assertLocalTestDatabase } from "../helpers/db";
 import { createAgent, createMessage, createVariant } from "../helpers/builders";
 
 mock.module("@/lib/auth", () => ({ requireLibraryEditor: async () => null, requireAdmin: async () => null }));
@@ -10,6 +10,7 @@ const { POST } = await import("@/app/api/push-library/reorder/route");
 
 let ids: string[];
 beforeEach(async () => {
+  assertLocalTestDatabase("push-library-reorder.test.ts");
   await prisma.messageVariant.deleteMany();
   await prisma.message.deleteMany();
   await prisma.agent.deleteMany();
@@ -21,6 +22,7 @@ beforeEach(async () => {
   ids = [a.id, b.id, c.id];
 });
 afterEach(async () => {
+  assertLocalTestDatabase("push-library-reorder.test.ts");
   await prisma.messageVariant.deleteMany();
   await prisma.message.deleteMany();
   await prisma.agent.deleteMany();
