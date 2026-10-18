@@ -28,9 +28,13 @@ describe("GET /api/users/[externalId] — extended fields", () => {
     const agent = await createAgent({ name: "Agent X" });
     const message = await createMessage(agent.id, { channel: "push" });
     const variant = await createVariant(message.id, { name: "Var A", title: "Hello" });
+    // Relative to now: the route only returns the last 30 days of history, so a
+    // fixed calendar date silently aged out of the window (written 2026-06-07 with
+    // a 2026-06-05 send, it began failing in early July).
+    const sentAt = new Date(Date.now() - 2 * 86_400_000);
     await createUserDecision({
       agentId: agent.id, userId: "ext-1", messageVariantId: variant.id, channel: "push",
-      sentAt: new Date("2026-06-05T10:00:00Z"), conversionEvent: "gift_given", conversionAt: new Date("2026-06-05T12:00:00Z"),
+      sentAt, conversionEvent: "gift_given", conversionAt: new Date(sentAt.getTime() + 2 * 3_600_000),
     });
 
     const res = await GET(new Request("http://localhost/"), ctx("ext-1"));
