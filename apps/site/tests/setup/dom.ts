@@ -1,5 +1,7 @@
 // SAFETY (first statement after imports): refuse to run site tests against a non-local database.
 // See src/lib/db-safety.ts.
+// Test preload only (never bundled): share the root localhost allowlist rather than fork it.
+// eslint-disable-next-line no-restricted-imports
 import { assertLocalDatabase } from "@/lib/db-safety";
 import { GlobalRegistrator } from "@happy-dom/global-registrator";
 
