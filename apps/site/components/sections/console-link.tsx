@@ -7,7 +7,7 @@ export function ConsoleLink() {
     <section className={ui.section}>
       <h2 className={`text-2xl ${ui.display}`}>{COPY.console.title}</h2>
       <p className="mt-2 text-ink-3">{COPY.console.body}</p>
-      <a href={publicConfig.consoleUrl} data-cta="console" target="_blank" rel="noopener noreferrer" className={`mt-4 inline-block rounded-brand-sm ${ui.border} px-4 py-2 ${ui.btnText}`}>{COPY.console.cta} ↗</a>
+      <a href={publicConfig.consoleUrl} data-cta="console" data-kind="console" target="_blank" rel="noopener noreferrer" className={`mt-4 inline-block rounded-brand-sm ${ui.border} px-4 py-2 ${ui.btnText}`}>{COPY.console.cta} ↗</a>
     </section>
   );
 }

@@ -4,7 +4,7 @@ import { connectorLabel, senders, sources } from "@site/content/connectors";
 import { publicConfig } from "@site/lib/public-config";
 import { calendlyEmbedUrl } from "@site/lib/leads/calendly-url";
 import { ui } from "@site/components/ui";
-import { trackLeadSubmit } from "@site/lib/metrics";
+import { trackLeadError, trackLeadStart, trackLeadSubmit } from "@site/lib/metrics";
 
 type State = { kind: "idle" } | { kind: "sending" } | { kind: "error"; message: string; offerDirectBooking: boolean } | { kind: "booked"; url: string };
 
@@ -21,12 +21,14 @@ export function LeadForm() {
       const res = await fetch("/nexus/api/leads", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(lead) });
       const json = (await res.json().catch(() => ({}))) as { error?: string };
       if (!res.ok) {
+        trackLeadError(res.status);
         setState({ kind: "error", message: json.error ?? "Something went wrong. Please try again.", offerDirectBooking: res.status >= 500 });
         return;
       }
       trackLeadSubmit();
       setState({ kind: "booked", url: calendlyEmbedUrl(publicConfig.calendlyUrl, { email: lead.email ?? "", company: lead.company ?? "" }) });
     } catch {
+      trackLeadError(null);
       setState({ kind: "error", message: "Network error. Please try again.", offerDirectBooking: true });
     }
   }
@@ -42,7 +44,7 @@ export function LeadForm() {
 
   const field = ui.field;
   return (
-    <form onSubmit={onSubmit} className="relative grid gap-3 sm:grid-cols-2" noValidate>
+    <form onSubmit={onSubmit} onFocus={trackLeadStart} className="relative grid gap-3 sm:grid-cols-2" noValidate>
       <label className="flex flex-col gap-1 text-sm">Work email<input name="email" type="email" required className={field} autoComplete="email" /></label>
       <label className="flex flex-col gap-1 text-sm">Company<input name="company" required className={field} autoComplete="organization" /></label>
       <label className="flex flex-col gap-1 text-sm">Data source
@@ -66,7 +68,7 @@ export function LeadForm() {
         <p role="alert" className="text-sm text-bad sm:col-span-2">
           {state.message}
           {state.offerDirectBooking && (
-            <> <a href={publicConfig.calendlyUrl} target="_blank" rel="noopener noreferrer" className="underline">Or book a call directly →</a></>
+            <> <a href={publicConfig.calendlyUrl} data-cta="book-call-direct" data-kind="calendly" target="_blank" rel="noopener noreferrer" className="underline">Or book a call directly →</a></>
           )}
         </p>
       )}
