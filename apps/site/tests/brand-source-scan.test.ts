@@ -16,8 +16,11 @@ function sourceFiles(dir: string): string[] {
   });
 }
 
-// brand/ is the one place raw values may live.
-const files = ["components", "app", "lib", "content"].flatMap((dir) => sourceFiles(path.join(root, dir)));
+// brand/ is the one place raw values may live. lib/metrics/client.ts is a verbatim copy of beacon-frontier's
+// metrics client (no markup or styles; its prose says "rounded" about numbers), kept byte-for-byte so it can be
+// re-copied.
+const VENDORED = new Set([path.join(root, "lib", "metrics", "client.ts")]);
+const files = ["components", "app", "lib", "content"].flatMap((dir) => sourceFiles(path.join(root, dir))).filter((f) => !VENDORED.has(f));
 
 const PALETTE = "slate|gray|zinc|neutral|stone|red|orange|amber|yellow|lime|green|emerald|teal|cyan|sky|blue|indigo|violet|purple|fuchsia|pink|rose";
 const NAMED = "white|black|red|green|blue|gray|grey|orange|yellow|purple|pink|brown|navy|silver|gold|teal|maroon|olive|lime|aqua|fuchsia|cyan|magenta";

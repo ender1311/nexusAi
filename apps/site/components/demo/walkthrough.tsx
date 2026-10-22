@@ -12,6 +12,7 @@ import { Step4Decide } from "./steps/step-4-decide";
 import { Step5Activate } from "./steps/step-5-activate";
 import { Step6Learn } from "./steps/step-6-learn";
 import { ui } from "@site/components/ui";
+import { trackDemoStep, trackDemoView } from "@site/lib/metrics";
 
 const RAIL = ["1 Hightouch", "2 Features", "3 Content", "4 Decide", "5 Braze", "6 Learn"];
 const SOURCE_OPTIONS: { id: DemoSource; label: string }[] = DEMO_SOURCES.map((id) => {
@@ -31,6 +32,20 @@ export function Walkthrough({ initialStep, initialSource, product }: { initialSt
   const [source, setSource] = useState<DemoSource>(initialSource);
   const [seed, setSeed] = useState(INITIAL_SEED);
   const [armStats, setArmStats] = useState<ArmStats>(() => initialArmStats(initialSource, INITIAL_SEED));
+
+  // Metrics: the walkthrough once per mount, then each step it shows (the first one too).
+  const viewed = useRef(false);
+  const lastStep = useRef(0);
+  useEffect(() => {
+    if (!viewed.current) {
+      viewed.current = true;
+      trackDemoView();
+    }
+    if (lastStep.current !== step) {
+      lastStep.current = step;
+      trackDemoStep(step);
+    }
+  }, [step]);
 
   useEffect(() => {
     const next = window.location.pathname + toSearch(step, source) + window.location.hash;
@@ -121,8 +136,8 @@ export function Walkthrough({ initialStep, initialSource, product }: { initialSt
       </div>
 
       <div className="flex justify-between">
-        <button className={`${ui.btnSecondary} disabled:opacity-40`} disabled={step === 1} onClick={() => setStep((s) => clampStep(s - 1))}>Back</button>
-        <button className={`${ui.btnPrimary} disabled:opacity-40`} disabled={step === 6} onClick={() => setStep((s) => clampStep(s + 1))}>Next</button>
+        <button className={`${ui.btnSecondary} disabled:opacity-40`} data-cta="demo-back" disabled={step === 1} onClick={() => setStep((s) => clampStep(s - 1))}>Back</button>
+        <button className={`${ui.btnPrimary} disabled:opacity-40`} data-cta="demo-next" disabled={step === 6} onClick={() => setStep((s) => clampStep(s + 1))}>Next</button>
       </div>
     </div>
   );

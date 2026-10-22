@@ -6,6 +6,7 @@ import { simulate } from "@site/lib/simulator/simulate";
 import type { AlgorithmId, DecisionSample, SimulationResult } from "@site/lib/simulator/types";
 import type { ChartThemes } from "@site/brand/chart-theme";
 import { ui } from "@site/components/ui";
+import { trackSimulatorRun } from "@site/lib/metrics";
 import { MetricLine, TrafficChart } from "./charts";
 import { FlowDiagram } from "./flow-diagram";
 import { usePlayback, type Speed } from "./use-playback";
@@ -94,10 +95,10 @@ export function Simulator({ chartThemes, product }: { chartThemes: ChartThemes; 
       <div className="flex flex-wrap items-center gap-2">
         {playback.playing
           ? <button className={ui.btnPrimary} onClick={playback.pause}>Pause</button>
-          : <button className={ui.btnPrimary} data-cta="simulator-run" onClick={playback.play}>{finished ? "Replay" : playback.day === 0 ? "Run" : "Resume"}</button>}
+          : <button className={ui.btnPrimary} data-cta="simulator-run" onClick={() => { if (playback.day === 0 || finished) trackSimulatorRun(presetId); playback.play(); }}>{finished ? "Replay" : playback.day === 0 ? "Run" : "Resume"}</button>}
         <button className={ui.btnSecondarySm} onClick={playback.reset}>Reset</button>
         {!finished && (
-          <button className={ui.btnSecondarySm} onClick={() => { playback.reset(); playback.play(); }}>Replay</button>
+          <button className={ui.btnSecondarySm} data-cta="simulator-replay" onClick={() => { trackSimulatorRun(presetId); playback.reset(); playback.play(); }}>Replay</button>
         )}
         <button className={ui.btnSecondarySm} onClick={() => setSeed((s) => s + 1)}>New audience</button>
         <span className="ml-auto flex gap-1 text-xs">
