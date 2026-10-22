@@ -152,8 +152,12 @@ export function linkEventFor(link: { href: string; kind?: string | null; cta?: s
   return null;
 }
 
+/**
+ * Starts the client first if needed: a component's mount effect (the walkthrough's demo_view) runs before the
+ * layout's <BeaconMetrics /> effect does, and must not be dropped.
+ */
 const send = (e: MetricEvent | null) => {
-  if (e) track(e.name, e.props);
+  if (e && startMetrics()) track(e.name, e.props);
 };
 
 // ---- Funnel steps ----
