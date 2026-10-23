@@ -18,6 +18,14 @@ const eslintConfig = defineConfig([
       }],
     },
   },
+  // eslint-config-next 16.4 ships eslint-plugin-react-hooks 7.1, whose set-state-in-effect
+  // check flags 18 existing call sites that 7.0 passed. Warn (not error) so the Next.js
+  // security bump does not carry a behavior refactor; fix the call sites, then remove this.
+  {
+    rules: {
+      "react-hooks/set-state-in-effect": "warn",
+    },
+  },
   // Override default ignores of eslint-config-next.
   globalIgnores([
     // Git worktrees (duplicate checkouts) — not primary source
